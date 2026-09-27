@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Target } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalForm from './GoalForm';
@@ -21,7 +21,7 @@ import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { summarizeGoalTarget } from '@/lib/goalSummary';
 
-export default function GoalsModal({ open, onClose, goals = [], logs = [], userProfile = {}, startWithForm = false }) {
+export default function GoalsModal({ open, onClose, goals = [], logs = [], cardioLogs = [], userProfile = {}, startWithForm = false }) {
   const [showForm, setShowForm] = useState(false);
   // Today's "Set a goal" card opens straight onto the form: the person has
   // already said what they want, so the empty list in between is a wasted tap.
@@ -259,171 +259,125 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     }
   };
 
+  const onDeleteGoal = (id) => {
+    // Resolve the full goal from cache so the optimistic-delete hook can
+    // restore it at its index if the user taps Undo.
+    const goal = (goals || []).find(g => g.id === id);
+    if (goal) optDelete.deleteWithUndo(goal);
+  };
+
+  // All three tabs always show, with counts. Hiding Done and Archived until
+  // they had rows left a new account with a one-tab bar that read as broken.
+  const TABS = [
+    { id: 'active',    label: tFallback('goals.tab.active', 'Active'),     count: activeGoals.length },
+    { id: 'completed', label: tFallback('goals.tab.done', 'Done'),         count: completedGoals.length },
+    { id: 'archived',  label: tFallback('goals.archive.tab', 'Archived'),  count: archivedGoals.length },
+  ];
+
+  const empty = {
+    active:    [tFallback('goals.empty.active', 'No goals yet'), tFallback('goals.empty.activeDesc', 'Pick a lift or a distance. Every set and run you log counts toward it.')],
+    completed: [tFallback('goals.empty.done', 'Nothing finished yet'), tFallback('goals.empty.doneDesc', 'Goals you hit land here with the date you hit them.')],
+    archived:  [tFallback('goals.archive.empty', 'Nothing archived'), tFallback('goals.archive.emptyDesc', 'Archive a goal to park it here without losing it.')],
+  };
+  const tabGoals = activeTab === 'active' ? activeGoals : activeTab === 'completed' ? completedGoals : archivedGoals;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-xl">{t('goals.title')}</DialogTitle>
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0 outline-none"
+        // Radix focuses the first tab on open, which paints a focus ring on
+        // "Active" for a sheet opened by a tap. Keyboard users still Tab in.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="px-4 pt-4 pb-3 text-start">
+          <DialogTitle className="font-heading text-lg">
+            {!showForm ? t('goals.title')
+              : editing ? tFallback('goals.editGoal', 'Edit goal')
+              : tFallback('goals.newGoal', 'New goal')}
+          </DialogTitle>
         </DialogHeader>
 
         {!showForm ? (
           <>
-            {/* Tab buttons */}
-            <div className="flex gap-2 border-b border-border">
-              <button
-                onClick={() => switchTab('active')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'active'
-                    ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
-                }`}
-              >
-                {t('goals.active')}
-              </button>
-              {completedGoals.length > 0 && (
+            <div role="tablist" className="flex gap-4 px-4 border-b border-border">
+              {TABS.map(tab => (
                 <button
-                  onClick={() => switchTab('completed')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'completed'
-                      ? 'border-primary text-foreground'
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  onClick={() => switchTab(tab.id)}
+                  className={`pb-2.5 -mb-px text-sm font-semibold border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-foreground text-foreground'
                       : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
-                  {t('goals.completed')}
+                  {tab.label}
+                  <span className="ms-1.5 font-medium text-muted-foreground tabular-nums">{tab.count}</span>
                 </button>
-              )}
-              {/* Only once something is in it. An always-present Archived tab
-                  on a brand-new account is a promise of content that does not
-                  exist, and it is the same rule the Completed tab beside it
-                  already follows. */}
-              {archivedGoals.length > 0 && (
-                <button
-                  onClick={() => switchTab('archived')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'archived'
-                      ? 'border-primary text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
-                  }`}
-                >
-                  {tFallback('goals.archive.tab', 'Archived')}
-                </button>
-              )}
+              ))}
             </div>
 
-            <div className="overflow-hidden mt-4">
+            <div className="overflow-hidden">
               <AnimatePresence mode="wait" custom={tabDirection}>
-                {activeTab === 'active' ? (
-                  <motion.div
-                    key="active"
-                    custom={tabDirection}
-                    initial={{ opacity: 0, x: tabDirection * -40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: tabDirection * 40 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  >
-                    <Button onClick={() => setShowForm(true)} className="w-full mb-4">
-                      <Plus className="w-4 h-4 me-2" /> {t('goals.addNew')}
-                    </Button>
-                    {activeGoals.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-heading font-semibold">{t('goals.noActive')}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{t('goals.noActiveDesc')}</p>
-                      </div>
-                    ) : (
-                      <GoalsList
-                        goals={activeGoals}
-                        logs={logs}
-                        isViewingCompleted={false}
-                        onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
-                        onDelete={(id) => {
-                          // Resolve the full goal object from cache so
-                          // the optimistic-delete hook can restore by
-                          // index if the user taps Undo.
-                          const goal = (goals || []).find(g => g.id === id);
-                          if (goal) optDelete.deleteWithUndo(goal);
-                        }}
-                        onComplete={(id) => completeMutation.mutate(id)}
-                        onArchive={(id) => archiveMutation.mutateAsync(id)}
-                      />
-                    )}
-                  </motion.div>
-                ) : activeTab === 'archived' ? (
-                  <motion.div
-                    key="archived"
-                    custom={tabDirection}
-                    initial={{ opacity: 0, x: tabDirection * -40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: tabDirection * 40 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  >
-                    {archivedGoals.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-heading font-semibold">
-                          {tFallback('goals.archive.empty', 'Nothing archived')}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {tFallback('goals.archive.emptyDesc', 'Archive a goal to park it here without losing it.')}
-                        </p>
-                      </div>
-                    ) : (
-                      <GoalsList
-                        goals={archivedGoals}
-                        logs={logs}
-                        isViewingArchived={true}
-                        onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
-                        onDelete={(id) => {
-                          const goal = (goals || []).find(g => g.id === id);
-                          if (goal) optDelete.deleteWithUndo(goal);
-                        }}
-                        onArchive={(id) => archiveMutation.mutateAsync(id)}
-                      />
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="completed"
-                    custom={tabDirection}
-                    initial={{ opacity: 0, x: tabDirection * -40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: tabDirection * 40 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  >
-                    {completedGoals.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-heading font-semibold">{t('goals.noCompleted')}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{t('goals.noCompletedDesc')}</p>
-                      </div>
-                    ) : (
-                      <GoalsList
-                        goals={completedGoals}
-                        logs={logs}
-                        isViewingCompleted={true}
-                        onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
-                        onDelete={(id) => {
-                          // Resolve the full goal object from cache so
-                          // the optimistic-delete hook can restore by
-                          // index if the user taps Undo.
-                          const goal = (goals || []).find(g => g.id === id);
-                          if (goal) optDelete.deleteWithUndo(goal);
-                        }}
-                      />
-                    )}
-                  </motion.div>
-                )}
+                <motion.div
+                  key={activeTab}
+                  custom={tabDirection}
+                  initial={{ opacity: 0, x: tabDirection * -24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: tabDirection * 24 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  className="px-4"
+                >
+                  {tabGoals.length === 0 ? (
+                    <div className="py-8">
+                      <p className="font-semibold text-sm">{empty[activeTab][0]}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{empty[activeTab][1]}</p>
+                    </div>
+                  ) : (
+                    <GoalsList
+                      goals={tabGoals}
+                      logs={logs}
+                      cardioLogs={cardioLogs}
+                      isViewingCompleted={activeTab === 'completed'}
+                      isViewingArchived={activeTab === 'archived'}
+                      onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
+                      onDelete={onDeleteGoal}
+                      onComplete={activeTab === 'active' ? (id) => completeMutation.mutate(id) : undefined}
+                      onArchive={activeTab === 'completed' ? undefined : (id) => archiveMutation.mutateAsync(id)}
+                    />
+                  )}
+                </motion.div>
               </AnimatePresence>
             </div>
+
+            {/* One way to add a goal, at the foot of the list. It used to be a
+                full-width orange button stacked on top of an empty state that
+                asked for the same thing. */}
+            {activeTab === 'active' && (
+              <div className="px-4 pt-2 pb-4">
+                <Button
+                  variant={activeGoals.length === 0 ? 'default' : 'outline'}
+                  onClick={() => setShowForm(true)}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 me-2" /> {tFallback('goals.newGoal', 'New goal')}
+                </Button>
+              </div>
+            )}
+            {activeTab !== 'active' && <div className="h-4" />}
           </>
         ) : (
-          <GoalForm
-            initial={editing}
-            onSubmit={handleSubmit}
-            onCancel={closeForm}
-            userProfile={userProfile}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-          />
+          <div className="px-4 pb-4">
+            <GoalForm
+              initial={editing}
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+              userProfile={userProfile}
+              isSubmitting={createMutation.isPending || updateMutation.isPending}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>

@@ -12,6 +12,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import UnitPill from '@/components/UnitPill';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { toLbs, fromLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
+import { metersTo } from '@/lib/distanceUnit';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 // Was shared with CardioGoals, which created rows this form had to be
@@ -59,16 +60,24 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
   const [cardioActivity, setCardioActivity] = useState(initial?.cardio_activity || 'running');
   const [cardioPeriod, setCardioPeriod] = useState(initial?.period || 'month');
   
+  // Cardio targets start from the saved goal when editing. They used to start
+  // blank, so Edit on a cardio goal showed an empty target and Save refused
+  // with "enter a target" until it was typed again.
+  const initDist = Number(initial?.target_distance_meters) > 0
+    ? String(Math.round(metersTo(distanceUnit, initial.target_distance_meters) * 10) / 10)
+    : '';
+  const initDur = Number(initial?.target_duration_seconds) > 0 ? Number(initial.target_duration_seconds) : 0;
+
   // Cardio distance
-  const [cardioDistanceInput, setCardioDistanceInput] = useState('');
-  
+  const [cardioDistanceInput, setCardioDistanceInput] = useState(initDist);
+
   // Cardio duration
-  const [cardioDurationHours, setCardioDurationHours] = useState('');
-  const [cardioDurationMinutes, setCardioDurationMinutes] = useState('');
-  const [cardioDurationSeconds, setCardioDurationSeconds] = useState('');
-  
+  const [cardioDurationHours, setCardioDurationHours] = useState(initDur ? Math.floor(initDur / 3600) : '');
+  const [cardioDurationMinutes, setCardioDurationMinutes] = useState(initDur ? Math.floor((initDur % 3600) / 60) : '');
+  const [cardioDurationSeconds, setCardioDurationSeconds] = useState(initDur ? initDur % 60 : '');
+
   // Cardio sessions
-  const [cardioSessions, setCardioSessions] = useState('');
+  const [cardioSessions, setCardioSessions] = useState(Number(initial?.target_sessions) > 0 ? String(initial.target_sessions) : '');
   
   // Notes
   const [notes, setNotes] = useState(initial?.notes || '');
@@ -121,10 +130,12 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       if (targetWeightLbs && parseFloat(targetWeightLbs) < 10) {
-        toast.error(`${t('goals.targetWeight')} ${t('goals.minWeight', { val: formatWeight(10, weightUnit) })}`);
+        toast.error(`${tFallback('goals.form.targetWeight', 'Target weight')} ${t('goals.minWeight', { val: formatWeight(10, weightUnit) })}`);
         return;
       }
-      if (targetReps && parseInt(targetReps) < 5) {
+      // A floor of 5 used to sit here while the message said "at least 1",
+      // so a one-rep max or a 3-rep goal could not be saved at all.
+      if (targetReps && parseInt(targetReps) < 1) {
         toast.error(t('goals.minReps'));
         return;
       }
@@ -224,7 +235,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium">{t('goals.targetWeight')}</label>
+                <label className="text-sm font-medium">{tFallback('goals.form.targetWeight', 'Target weight')}</label>
                 {/* Inline unit swap — same component used in LogWeightModal.
                     One-tap lb ↔ kg without leaving the form. */}
                 <UnitPill />
@@ -251,17 +262,20 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">{t('goals.targetReps')}</label>
+              <label className="text-sm font-medium mb-1.5 block">{tFallback('goals.form.repsInSet', 'Reps in one set')}</label>
               <Input
                 type="number" inputMode="decimal"
-                min="5"
+                min="1"
                 max={maxTargetReps}
                 value={targetReps}
-                onChange={(e) => setTargetReps(Math.min(parseInt(e.target.value) || 0, maxTargetReps).toString())}
+                onChange={(e) => setTargetReps(e.target.value === '' ? '' : Math.min(parseInt(e.target.value) || 0, maxTargetReps).toString())}
                 placeholder={t('common.optional')}
               />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            {tFallback('goals.form.oneSetHint', 'Counts when you log one set at that weight or heavier for that many reps. Leave the weight empty for a bodyweight goal.')}
+          </p>
         </>
       )}
 

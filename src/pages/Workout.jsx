@@ -2511,7 +2511,7 @@ export default function Workout() {
         )}
 
         <motion.div variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
-          <GoalsAlmostComplete goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
+          <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} onOpen={() => setGoalsModalOpen(true)} />
         </motion.div>
 
         {/* Rolling Day Banner — visible midnight to 5 AM */}
@@ -2929,7 +2929,7 @@ export default function Workout() {
         )}
 
         <Suspense fallback={null}>
-          <GoalsModal open={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} goals={goals} logs={logs} userProfile={userProfile} />
+          <GoalsModal open={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} goals={goals} logs={logs} cardioLogs={cardioLogs} userProfile={userProfile} />
         </Suspense>
 
         {/* Only mounted once the user has opened it, so a member of no crew
