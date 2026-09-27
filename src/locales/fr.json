@@ -6100,6 +6100,7 @@
   "userBag.saveFailed": "Sauvegarde impossible. Réessayez.",
   "userBag.searchYourBag": "Chercher dans votre sac",
   "userBag.searchYourBag2": "Chercher dans votre sac…",
+  "userBag.sellCapped": "Vous avez atteint la limite de pièces du jour. Votre objet est toujours dans votre sac.",
   "userBag.sellFailed": "Impossible de vendre l’objet. Réessayez.",
   "userBag.signInRequiredToEquip": "Connexion requise pour équiper des cadres",
   "userBag.signInRequiredToEquip2": "Connexion requise pour équiper des titres",

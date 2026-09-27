@@ -6136,6 +6136,7 @@
   "userBag.saveFailed": "Could not save. Try again.",
   "userBag.searchYourBag": "Search your bag",
   "userBag.searchYourBag2": "Search your bag…",
+  "userBag.sellCapped": "You've hit today's coin limit. Your item is still in your bag.",
   "userBag.sellFailed": "Could not sell item. Try again.",
   "userBag.signInRequiredToEquip": "Sign in required to equip frames",
   "userBag.signInRequiredToEquip2": "Sign in required to equip titles",

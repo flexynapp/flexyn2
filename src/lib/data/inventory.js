@@ -23,6 +23,7 @@
 // any client grant itself a mythic for free.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 
 /**
  * List all inventory items for a user, newest first.
@@ -66,64 +67,33 @@ export async function countByType(userEmail, type) {
 
 /**
  * Sell one inventory item for Flex Coins.
- * Deletes the inventory row and credits the coins to the user's profile.
- * Returns the user's new flex_coins total (or null when only the legacy
- * fallback ran on a host that's so old the RPC isn't available — the
- * UserBag caller refetches via TanStack Query invalidation either way,
- * so the return value is informational).
  *
- * Coin credit goes through increment_flex_coins (migration 030) for
- * atomic delta arithmetic. The previous read-modify-write sequence
- * raced any concurrent coin grant (capsule open, quest claim, streak
- * milestone, marketplace credit) — those grants got overwritten by the
- * stale "newTotal" computed off the original read.
+ * One server call, sell_inventory_item (2026-09-27): it locks the row,
+ * prices it server-side, credits through the mint ledger and returns what
+ * was ACTUALLY credited. It used to be a client DELETE followed by
+ * increment_flex_coins(clientPrice), which past the daily mint cap deleted
+ * the item and silently credited 0, and which two tabs could both complete.
+ *
+ * Returns `{ coins, newBalance }`. Throws with `code === 'COIN_CAP'` when
+ * the daily limit would pay less than the price; the item is kept.
  */
-export async function sellItem(inventoryId, userId, coinsToEarn) {
-  if (!inventoryId || !userId) throw new Error('Missing inventoryId or userId');
-
-  // 1. Remove the item from inventory.
-  await removeItem(inventoryId);
-
-  if (!coinsToEarn || coinsToEarn <= 0) return null;
-
-  // 2. Credit coins atomically via the delta RPC.
-  const { error: rpcErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsToEarn });
-  if (!rpcErr) {
-    // RPC returned void; refetch the new total for the caller. The
-    // credit already landed — refetch is purely informational, so a
-    // refetch error is non-fatal. Log it so a flaky network doesn't
-    // hide a genuine RLS / connectivity problem from the operator.
-    const { data: after, error: refetchErr } = await supabase
-      .from('user_profiles')
-      .select('flex_coins')
-      .eq('id', userId)
-      .maybeSingle();
-    if (refetchErr) {
-      console.warn('[inventory] sellItem post-credit refetch failed (credit DID land):', refetchErr);
+export async function sellItem(inventoryId) {
+  if (!inventoryId) throw new Error('Missing inventoryId');
+  const { data, error } = await supabase.rpc('sell_inventory_item', {
+    p_inventory_id: inventoryId,
+  });
+  if (error) {
+    if (error.hint === 'daily_coin_cap') {
+      const capErr = new Error('Daily coin limit reached');
+      capErr.code = 'COIN_CAP';
+      throw capErr;
     }
-    return after?.flex_coins ?? null;
+    throw error;
   }
-
-  // 3. Pre-030 host — fall back to legacy RMW so the user still gets
-  // their coins on hosts without migration 030 applied (those also
-  // predate the 142/173 trigger, so the direct write is allowed there).
-  // Any other failure surfaces to the caller instead: mig 142/173
-  // rejects direct flex_coins writes with 42501, and silently RMW-ing
-  // on transient errors raced concurrent grants anyway.
-  if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
-    throw rpcErr;
-  }
-  const { data: profile, error: pe } = await supabase
-    .from('user_profiles')
-    .select('flex_coins')
-    .eq('id', userId)
-    .maybeSingle();
-  if (pe) throw pe;
-  const newTotal = (profile?.flex_coins ?? 0) + coinsToEarn;
-  const { error: ue } = await supabase
-    .from('user_profiles')
-    .update({ flex_coins: newTotal })
-    .eq('id', userId);
-  if (ue) throw ue;
-  return newTotal;
+  const coins = Number(data?.coins ?? 0);
+  const newBalance = typeof data?.new_balance === 'number' ? data.new_balance : null;
+  // The balance came from the server, which is the one case the profile
+  // cache may take a flex_coins value (see CLAUDE.md, Profile cache).
+  if (newBalance !== null) patchProfile({ flex_coins: newBalance });
+  return { coins, newBalance };
 }

@@ -6100,6 +6100,7 @@
   "userBag.saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
   "userBag.searchYourBag": "Buscar en tu mochila",
   "userBag.searchYourBag2": "Buscar en tu mochila…",
+  "userBag.sellCapped": "Alcanzaste el límite de monedas de hoy. Tu objeto sigue en tu mochila.",
   "userBag.sellFailed": "No se pudo vender el objeto. Inténtalo de nuevo.",
   "userBag.signInRequiredToEquip": "Inicia sesión para equipar marcos",
   "userBag.signInRequiredToEquip2": "Inicia sesión para equipar títulos",
