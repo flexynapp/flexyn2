@@ -40,7 +40,7 @@ export default function PageHeader({ kicker, title, subtitle, action, className 
         </span>
       )}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight min-w-0">
+        <h1 className="font-display text-3xl md:text-4xl md:leading-[0.95] min-w-0">
           {title}
           {!hidePeriod && <span className="text-primary">.</span>}
         </h1>

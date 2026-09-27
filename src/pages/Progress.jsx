@@ -455,7 +455,7 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
         {/* An `empty` slide carries a sentence, not a figure, so it takes a
             heading size rather than the display size a number gets. */}
         <h3
-          className={`font-heading font-bold tracking-tight text-foreground break-words pe-20 ${slide.empty ? 'leading-tight text-balance' : 'leading-none tabular-nums'}`}
+          className={`text-foreground break-words pe-20 ${slide.empty ? 'font-heading font-bold tracking-tight leading-tight text-balance' : 'font-display tabular-nums'}`}
           style={{ fontSize: slide.empty ? 'clamp(1.25rem, 5vw, 1.5rem)' : 'clamp(2rem, 7vw, 3rem)' }}
         >
           <SlideFigure slide={slide} />
