@@ -20,6 +20,10 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// The progress count is locale formatted, which needs the language context
+// this bare row test does not mount.
+vi.mock('@/lib/intl', () => ({ useNumberFormatter: () => (n) => String(n) }));
+
 import { QuestRow } from '../DailyQuestsCard';
 import { getQuestDefinition } from '@/lib/questCatalog';
 
@@ -76,9 +80,11 @@ describe('quest row — the navigate half', () => {
     expect(onOpenSheet).not.toHaveBeenCalled();
   });
 
-  it('navigates when the reward line is tapped', async () => {
-    const { onGo, onOpenSheet } = setup();
-    await userEvent.click(screen.getByText(/20 coins/));
+  it('navigates when the progress count is tapped', async () => {
+    const { onGo, onOpenSheet } = setup({ target: 8, progress: 3 });
+    // A quest with a real count shows it under the title; a yes-or-no quest
+    // shows none (see the "0 / 1 is noise" case below).
+    await userEvent.click(await screen.findByText(/3 \/ 8/));
     expect(onGo).toHaveBeenCalledTimes(1);
     expect(onOpenSheet).not.toHaveBeenCalled();
   });
@@ -88,6 +94,15 @@ describe('quest row — the navigate half', () => {
     screen.getByRole('button', { name: /go to/i }).focus();
     await userEvent.keyboard('{Enter}');
     expect(onGo).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('quest row — one reward, and a count only when there is one', () => {
+  it('shows the XP and no "0 / 1" on a yes-or-no quest', () => {
+    setup();
+    expect(screen.getByText('+50 XP')).toBeTruthy();
+    expect(screen.queryByText(/0 \/ 1/)).toBeNull();
+    expect(screen.queryByText(/coins/)).toBeNull();
   });
 });
 

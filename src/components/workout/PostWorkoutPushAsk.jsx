@@ -5,9 +5,10 @@
 //
 // Production had 0 push subscriptions. Every streak warning, crew war
 // alert and weekly review notification went to nobody, because the only
-// asks were a Settings toggle and a banner near the bottom of Today. The
-// banner stays; this is the ask at the moment it is most likely to be
-// accepted.
+// asks were a Settings toggle and a banner near the bottom of Today. This is
+// the ask at the moment it is most likely to be accepted, and since 27 Sep
+// the only one: the Today banner was removed, because a sales card at the
+// bottom of Today asks before a ping about your rival means anything.
 //
 // Shown once per device per account, only when a yes is still possible:
 // push supported, not already subscribed, and the browser has not been

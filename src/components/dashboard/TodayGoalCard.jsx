@@ -1,38 +1,27 @@
-// src/components/dashboard/TodayGoalCard.jsx
-//
 // Goals on Today (Kegan, 27 Sep: "encourage goal completion and creation").
-// Until this card, the only way to reach goals from Today was a section that
-// is hidden by default, so a person with no goal was never asked to set one
-// and a person with one never saw it move.
+// Since the "To do" block (same day), this is a ROW at the top of the quest
+// list rather than a card of its own, so a goal and the day's quests read as
+// one list to finish.
 //
-// Three states, one slot:
-//   · no active goal      → "Set a goal", which opens the form directly
-//   · a goal at 75%+      → nothing here; GoalsAlmostComplete renders above
-//                           this and the goal completes itself at 100%
-//   · otherwise           → the closest goal and how far along it is
+// Three states, one row:
+//   · no active goal      → "Set a goal", whose pill opens the form directly
+//   · a goal at 100%      → the bar turns green and reads Done. Goals complete
+//                           themselves on the server (#161), so there is no
+//                           button to press; the row moves on to the next goal
+//                           once the refetch shows it completed
+//   · otherwise           → the closest goal, its bar and how far along it is
 //
 // A 0% goal still shows, unlike GoalsProgressStrip: on Today it is the
-// person's own goal named back to them, which is the point of the card.
+// person's own goal named back to them, which is the point of the row.
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Target, ChevronRight, Plus } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Target, Plus } from 'lucide-react';
+import useCountUp from '@/hooks/useCountUp';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { summarizeGoalTarget } from '@/lib/goalSummary';
-import {
-  computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal,
-} from '@/lib/goalProgress';
-
-// Matches GoalsAlmostComplete's own cut-off. Above it that card owns the goal.
-export const ALMOST_COMPLETE_PCT = 75;
-
-export function goalProgressOf(goal, logs, cardioLogs) {
-  return isCardioGoal(goal)
-    ? computeCardioGoalProgress(goal, cardioLogs).progress
-    : computeStrengthGoalProgress(goal, logs).progress;
-}
+import { goalProgress } from '@/lib/goalProgress';
 
 export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], onOpen, onCreate }) {
   const { tFallback } = useLanguage();
@@ -42,88 +31,91 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
     const active = goals.filter(g => g.status === 'active');
     if (active.length === 0) return { kind: 'empty' };
     const ranked = active
-      .map(goal => ({ goal, progress: Math.max(0, Math.min(100, goalProgressOf(goal, logs, cardioLogs) || 0)) }))
+      .map(goal => ({ goal, progress: Math.max(0, Math.min(100, goalProgress(goal, logs, cardioLogs) || 0)) }))
       .sort((a, b) => b.progress - a.progress);
-    if (ranked[0].progress >= ALMOST_COMPLETE_PCT) return null;
     return { kind: 'closest', top: ranked[0], count: active.length };
   }, [goals, logs, cardioLogs]);
 
-  if (!view) return null;
+  const pct = view.kind === 'closest' ? Math.round(view.top.progress) : 0;
+  const countedPct = useCountUp(view.kind === 'closest' ? pct : null, { duration: 700 });
 
   if (view.kind === 'empty') {
     return (
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }}>
-        <Card>
-          <button
-            type="button"
-            onClick={onCreate}
-            className="w-full flex items-center gap-3 px-4 py-4 text-start rounded-lg hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
-          >
-            <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" aria-hidden="true">
-              <Target className="w-5 h-5 text-primary" />
+      <div className="flex items-center gap-3 px-4 border-t border-border min-h-[52px]">
+        <button
+          type="button"
+          onClick={onCreate}
+          className="flex-1 min-w-0 flex items-center gap-3 py-2.5 text-start rounded-sm active:bg-secondary/40 transition-colors"
+        >
+          <Target className="w-[22px] h-[22px] text-muted-foreground shrink-0" aria-hidden="true" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-foreground">
+              {tFallback('today.goal.setTitle', 'Set a goal')}
             </span>
-            <span className="flex-1 min-w-0">
-              <span className="block text-sm font-semibold text-foreground">
-                {tFallback('today.goal.setTitle', 'Set a goal')}
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                {tFallback('today.goal.setSub', 'Pick a lift or a distance. What you log counts toward it.')}
-              </span>
+            <span className="block text-xs text-muted-foreground">
+              {tFallback('today.goal.setSub', 'Pick a lift or a distance. What you log counts toward it.')}
             </span>
-            <Plus className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-          </button>
-        </Card>
-      </motion.div>
+          </span>
+        </button>
+        <motion.button
+          type="button"
+          onClick={onCreate}
+          whileTap={{ scale: 0.92 }}
+          aria-label={tFallback('today.goal.setTitle', 'Set a goal')}
+          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border ps-2 pe-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+          {tFallback('today.goal.set', 'Set')}
+        </motion.button>
+      </div>
     );
   }
 
-  const { goal, progress } = view.top;
-  const pct = Math.round(progress);
-  const status = pct > 0
-    ? tFallback('today.goal.pct', '{n}%', { n: pct })
+  const { goal } = view.top;
+  const hit = pct >= 100;
+  const shownPct = Math.round(countedPct ?? pct);
+  const status = hit
+    ? tFallback('today.goal.done', 'Done')
+    : pct > 0
+    ? tFallback('today.goal.pct', '{n}%', { n: shownPct })
     : tFallback('today.goal.notStarted', 'Not started');
   const others = view.count - 1;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }}>
-      <Card>
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={tFallback('goals.strip.openLabel', 'Open goals')}
-          className="w-full flex items-center gap-3 px-4 py-3 text-start rounded-lg hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
-        >
-          <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" aria-hidden="true">
-            <Target className="w-5 h-5 text-primary" />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-semibold text-foreground truncate">
-                {summarizeGoalTarget(goal, weightUnit)}
-              </span>
-              <span className={`text-xs font-bold tabular-nums shrink-0 ${pct > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
-                {status}
-              </span>
+    <div className="flex items-center gap-3 px-4 border-t border-border min-h-[52px]">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={tFallback('goals.strip.openLabel', 'Open goals')}
+        className="flex-1 min-w-0 flex items-center gap-3 py-2.5 text-start rounded-sm active:bg-secondary/40 transition-colors"
+      >
+        <Target className={`w-[22px] h-[22px] shrink-0 transition-colors ${hit ? 'text-success' : 'text-foreground'}`} aria-hidden="true" />
+        <span className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <span className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-semibold text-foreground truncate">
+              {summarizeGoalTarget(goal, weightUnit)}
             </span>
-            <span className="mt-1.5 block h-1.5 rounded-full bg-secondary overflow-hidden">
-              <motion.span
-                className="block h-full rounded-full bg-primary"
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              />
+            <span className={`text-xs font-semibold tabular-nums shrink-0 ${hit ? 'text-success' : pct > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {status}
             </span>
-            {others > 0 && (
-              <span className="mt-1 block text-micro text-muted-foreground">
-                {others === 1
-                  ? tFallback('today.goal.oneMore', '1 more goal')
-                  : tFallback('today.goal.nMore', '{n} more goals', { n: others })}
-              </span>
-            )}
           </span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
-        </button>
-      </Card>
-    </motion.div>
+          <span className="block h-1 rounded-full bg-border overflow-hidden" aria-hidden="true">
+            <motion.span
+              className={`block h-full rounded-full ${hit ? 'bg-success' : 'bg-foreground'}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </span>
+          {others > 0 && (
+            <span className="block text-micro text-muted-foreground">
+              {others === 1
+                ? tFallback('today.goal.oneMore', '1 more goal')
+                : tFallback('today.goal.nMore', '{n} more goals', { n: others })}
+            </span>
+          )}
+        </span>
+      </button>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { popIn } from '@/lib/motion';
 import useCountUp from '@/hooks/useCountUp';
+import { useNumberFormatter } from '@/lib/intl';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import {
   Sparkles,
@@ -86,6 +87,27 @@ export function QuestTile({ icon, completed, claimed }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * The count alone ("3 / 8", "4 / 10 min"), for Today's quest rows, which show
+ * one reward and state progress only where there is something to count.
+ * Cardio quests count seconds and read in whole minutes, floored, the same
+ * way QuestRewardLine does it.
+ */
+export function QuestProgress({ quest, tFallback, className = '' }) {
+  const fmt = useNumberFormatter();
+  const counted = useCountUp(quest.progress, { duration: 500 });
+  const progress = typeof counted === 'number' ? Math.round(counted) : counted;
+  const inSeconds = quest.definition?.actionType === ACTION_TYPES.CARDIO_SECONDS;
+  const shown = inSeconds && typeof progress === 'number' ? Math.floor(progress / 60) : progress;
+  const target = inSeconds && typeof quest.target === 'number' ? Math.round(quest.target / 60) : quest.target;
+  const f = (n) => (typeof n === 'number' ? fmt(n) : n);
+  return (
+    <span className={`tabular-nums ${className}`}>
+      {f(shown)} / {f(target)}{inSeconds && <> {tFallback('workout.min', 'min')}</>}
+    </span>
   );
 }
 

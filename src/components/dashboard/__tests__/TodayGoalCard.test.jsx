@@ -1,5 +1,6 @@
-// Today's goal slot: ask for a goal when there is none, name the closest
-// one otherwise, and step aside for GoalsAlmostComplete at 75%+.
+// Today's goal row, at the top of the "To do" block: ask for a goal when there
+// is none, name the closest one otherwise, and read Done once it is hit.
+// Goals complete themselves on the server, so there is no button to press.
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -10,11 +11,7 @@ vi.mock('@/lib/LanguageContext', () => ({
   }),
 }));
 vi.mock('@/lib/WeightUnitContext', () => ({ useWeightUnit: () => ({ weightUnit: 'lbs' }) }));
-vi.mock('@/lib/goalProgress', () => ({
-  isCardioGoal: () => false,
-  computeCardioGoalProgress: () => ({ progress: 0 }),
-  computeStrengthGoalProgress: (g) => ({ progress: g._p }),
-}));
+vi.mock('@/lib/goalProgress', () => ({ goalProgress: (g) => g._p }));
 vi.mock('@/lib/goalSummary', () => ({ summarizeGoalTarget: (g) => g.exercise_name }));
 
 import TodayGoalCard from '../TodayGoalCard';
@@ -29,10 +26,11 @@ describe('TodayGoalCard', () => {
     expect(onCreate).toHaveBeenCalled();
   });
 
-  it('names the closest goal and counts the rest', () => {
+  it('names the closest goal and counts the rest', async () => {
     render(<TodayGoalCard goals={[goal('Bench', 20), goal('Deadlift', 60), goal('Row', 5)]} />);
     expect(screen.getByText('Deadlift')).toBeTruthy();
-    expect(screen.getByText('60%')).toBeTruthy();
+    // The percentage counts up to its value, so wait for it to land.
+    expect(await screen.findByText('60%')).toBeTruthy();
     expect(screen.getByText('2 more goals')).toBeTruthy();
   });
 
@@ -42,8 +40,18 @@ describe('TodayGoalCard', () => {
     expect(screen.queryByText('0%')).toBeNull();
   });
 
-  it('renders nothing once a goal is 75% there, where the Complete card takes over', () => {
-    const { container } = render(<TodayGoalCard goals={[goal('Bench', 80), goal('Row', 10)]} />);
-    expect(container.textContent).toBe('');
+  it('keeps showing a goal past 75%, not Done until it is hit', () => {
+    render(<TodayGoalCard goals={[goal('Bench', 80), goal('Row', 10)]} />);
+    expect(screen.getByText('Bench')).toBeTruthy();
+    expect(screen.queryByText('Done')).toBeNull();
+  });
+
+  it('reads Done at 100% with no button to complete it, and the row still opens goals', () => {
+    const onOpen = vi.fn();
+    render(<TodayGoalCard goals={[goal('Bench', 100)]} onOpen={onOpen} />);
+    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Open goals' }));
+    expect(onOpen).toHaveBeenCalled();
   });
 });
