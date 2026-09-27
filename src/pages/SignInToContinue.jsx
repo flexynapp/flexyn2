@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, ArrowLeft, Mail, Loader2, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
@@ -9,6 +9,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { cachedProviders, fetchEnabledProviders } from '@/lib/authProviders';
 import TransText from '@/components/TransText';
 import { isNative } from '@/lib/native';
+import FlexynLogo from '@/components/FlexynLogo';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
 // CDN fetches and lets the buttons render before any external request.
@@ -34,7 +35,7 @@ function AppleGlyph(props) {
 export default function SignInToContinue({
   onBack = null,
   heading = 'Sign in to continue',
-  subtext = 'Pick up right where you left off — your workouts, streaks, and progress are waiting.',
+  subtext = 'Pick up right where you left off. Your workouts, streaks and progress are waiting.',
 }) {
   const { tFallback } = useLanguage();
   const [email, setEmail] = useState('');
@@ -145,234 +146,232 @@ export default function SignInToContinue({
     setEmail('');
   };
 
+  const busy = googleLoading || appleLoading || sendingMagicLink;
+
+  // A labelled rule between the three ways in. `gap-2`, not the banned
+  // middle register; the rule is one group with the word it frames.
+  const orRule = (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+        or
+      </span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+
   return (
-    // Aurora-style backdrop mirroring the rest of the onboarding flow so
-    // this gate doesn't feel like a different app. Screenshot feedback:
-    // "Honestly, this page is really ugly. The rest of the on boarding
-    // process is nice but this sucks." Tightened spacing too — the
-    // justify-between layout was pushing the heading + auth buttons to
-    // opposite poles of the viewport, leaving a huge blank middle.
+    // Drawn as the next step of onboarding, not as a marketing splash. It is
+    // reached from the welcome screen's "Build my plan" and "Log in", so it
+    // takes the welcome's top bar (wordmark, round back pill), the question
+    // steps' condensed display heading set flush left, and the flow's pill
+    // controls. The Aurora blobs, the blurred back button and the app icon
+    // tile with its orange bloom are gone: gradients, blur and coloured
+    // shadows are all on CLAUDE.md's list of generated-UI tells, and the
+    // icon tile repeated the wordmark one row below it.
+    //
+    // Theme tokens throughout rather than forcing `.dark` like the welcome.
+    // The welcome is dark because it sits on a photo; the question steps
+    // after it follow the app theme, and this is a form like them.
+    //
     // `.safe-page`, not `px-6 pb-10 pt-6`. This screen escapes Layout — it is
     // an early return in App.jsx, above everything Layout provides — so it is
     // `fixed inset-0` against a `viewport-fit=cover` viewport and owns its own
-    // edges. The flat 24px top put the logo's top edge at 56pt on a Dynamic
-    // Island iPhone, which is 3pt short of where the island ends: the hero
-    // read as jammed into the status bar with dead space left at the bottom.
-    // CLAUDE.md names this exact class of bug — anything positioning its own
-    // edges outside Layout needs the insets, and `.safe-page` is the shell
-    // that carries them (top AND bottom, over the fluid padding scale).
+    // edges. CLAUDE.md names this exact class of bug: anything positioning its
+    // own edges outside Layout needs the insets, and `.safe-page` carries them.
     <div
-      className="fixed inset-0 bg-background flex flex-col items-center safe-page overflow-y-auto"
+      className="fixed inset-0 bg-background text-foreground flex flex-col safe-page overflow-y-auto"
       style={{ minHeight: '100dvh' }}
     >
-      {/* Decorative gradient blobs — mirrors Aurora */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div
-          className="absolute rounded-full blur-[50px] opacity-50"
-          style={{
-            width: '70%', height: '55%', left: '-10%', top: '-10%',
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.50), transparent 70%)',
-          }}
-        />
-        <div
-          className="absolute rounded-full blur-[50px] opacity-35"
-          style={{
-            width: '60%', height: '50%', right: '-10%', top: '30%',
-            background: 'radial-gradient(circle, hsl(38 92% 60% / 0.45), transparent 70%)',
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, hsl(var(--background) / 0.35) 100%)' }}
-        />
-      </div>
-
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={tFallback("achievements.vault.back", "Back")}
-          className="absolute top-5 start-5 z-20 w-11 h-11 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-      )}
-
-      {/* Hero block — logo + Flexyn wordmark + heading + subtext all
-          stack as one unit. Tighter rhythm + bigger logo, no orphaned
-          orange icon below it (the LogIn icon was redundant with the
-          word "sign in" everywhere already). */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 flex flex-col items-center text-center mt-8 mb-8"
-      >
-        <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-xl shadow-primary/40 ring-2 ring-white/10 mb-4">
-          {/* Self-hosted flame app icon — was the base44 CDN LOGO_URL, an
-              external dependency with no onError fallback on the FIRST screen
-              a user sees. /favicon.svg ships in the app bundle. */}
-          <img src="/favicon.svg" alt={tFallback("app.name", "Flexyn")} className="w-full h-full object-contain" />
-        </div>
-        <p className="font-heading text-3xl font-bold tracking-tight mb-4">{tFallback("app.name", "Flexyn")}</p>
-        <h2 className="font-heading text-xl font-bold tracking-tight mb-2 max-w-xs">{heading}</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-          {subtext}
-        </p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-sm space-y-3"
-      >
-        {/* OAuth providers, rendered from /auth/v1/settings rather than
-            hardcoded — see src/lib/authProviders.js for what that cost. */}
-        {providers.includes('google') && (
-        <Button
-          variant="outline"
-          className="w-full h-12 font-medium text-sm gap-2 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-50 hover:text-gray-900 active:text-gray-900 border-gray-300"
-          onClick={() => handleProvider('google', setGoogleLoading)}
-          disabled={googleLoading || appleLoading || sendingMagicLink}
-        >
-          {googleLoading
-            ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <GoogleGlyph className="w-4 h-4" />}
-          Continue with Google
-        </Button>
-        )}
-
-        {/* Per Apple's "Sign in with Apple" button guidelines the control
-            must invert in dark mode (black-on-light → white-on-dark) so it
-            keeps contrast against the background. Leaving it bg-black in
-            dark mode both fails contrast and is technically off-guideline. */}
-        {providers.includes('apple') && (
-        <Button
-          className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:active:bg-zinc-200"
-          onClick={() => handleProvider('apple', setAppleLoading)}
-          disabled={googleLoading || appleLoading || sendingMagicLink}
-        >
-          {appleLoading
-            ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <AppleGlyph className="w-4 h-4 text-white dark:text-black" />}
-          Continue with Apple
-        </Button>
-        )}
-
-        {/* Divider — only when there is something above it to divide from.
-            With every provider off, an "or" heading the screen reads as a
-            missing control rather than a choice. */}
-        {providers.length > 0 && (
-        <div className="flex items-center gap-3 py-1">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">or</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-        )}
-
-        {/* Magic link */}
-        {emailSent ? (
-          <div className="space-y-2">
-            {hasExistingAccount ? (
-              // The address is already registered. Said plainly, because the
-              // alternative — the same "check your inbox" as a brand-new
-              // signup — is what let someone reach the end of "Let's get you
-              // set up" without ever being told they already have an account.
-              // The link we just sent IS the sign-in link, so there is nothing
-              // else for them to press.
-              <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 text-sm">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  <TransText
-                    k="signInToContinue.accountExists"
-                    en="{headline} We sent a sign-in link to {email}. Tap it and you're back in, with your workouts and streaks intact."
-                    values={{
-                      headline: <strong>{tFallback("signInToContinue.accountExistsHeadline", "You already have a Flexyn account.")}</strong>,
-                      email: <strong>{email}</strong>,
-                    }}
-                  />
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-sm">
-                <Check className="w-4 h-4 shrink-0" />
-                <span>Check your inbox — we sent a sign-in link to <strong>{email}</strong>.</span>
-              </div>
-            )}
+      <div className="w-full max-w-sm mx-auto flex flex-col flex-1 gap-6">
+        <div className="flex items-center gap-2 shrink-0 h-11">
+          {onBack && (
             <button
               type="button"
-              onClick={handleResetEmail}
-              className="w-full text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1.5"
+              onClick={onBack}
+              aria-label={tFallback("achievements.vault.back", "Back")}
+              className="w-11 h-11 rounded-full border border-border/70 bg-card flex items-center justify-center text-foreground shrink-0 transition-colors"
             >
-              {tFallback("signInToContinue.wrongEmailSendAnotherLink", "Wrong email? Send another link")}
+              <ArrowLeft className="w-[17px] h-[17px] rtl:-scale-x-100" strokeWidth={2.5} />
             </button>
-          </div>
-        ) : (
-          <form onSubmit={handleMagicLink} className="flex flex-col gap-2">
-            <Input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder={tFallback('signIn.emailPlaceholder', 'you@example.com')}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="h-12"
-              required
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              className="w-full h-12 font-medium text-sm gap-2"
-              disabled={!email.trim() || sendingMagicLink || googleLoading || appleLoading}
-            >
-              {sendingMagicLink
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Mail className="w-4 h-4" />}
-              {sendingMagicLink ? 'Sending…' : 'Send magic link'}
-              {!sendingMagicLink && <ArrowRight className="w-4 h-4 ms-auto" />}
-            </Button>
-          </form>
-        )}
+          )}
+          <FlexynLogo className="h-8" />
+        </div>
 
-        {/* Guest sign-in — for beta testers hitting OAuth or
-            SMTP-rate-limit walls. Visually de-emphasized so it
-            reads as the "just let me in for now" escape hatch,
-            not the primary action. Hidden once the magic-link
-            success state is showing so we don't push a second CTA
-            against the "check your inbox" message. */}
-        {!emailSent && (
-          <>
-            <div className="flex items-center gap-3 py-1">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col gap-2 shrink-0"
+        >
+          {/* Same display style and size as every onboarding question
+              (KineticHeading): Archivo 800, condensed, uppercase. */}
+          <h1 className="font-display text-foreground m-0"
+            style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
+            {heading}
+          </h1>
+          <p className="m-0 text-body text-muted-foreground max-w-[320px]">
+            {subtext}
+          </p>
+        </motion.div>
+
+        {/* Spare height on a tall phone goes here, so the controls sit in
+            thumb reach at the bottom like every step's CTA. */}
+        <div className="flex-1 min-h-0" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col gap-2 shrink-0"
+        >
+          {/* OAuth providers, rendered from /auth/v1/settings rather than
+              hardcoded — see src/lib/authProviders.js for what that cost.
+              Both keep their platform colours: Google's and Apple's sign-in
+              guidelines fix the button to white/black, so neither can be the
+              orange control. */}
+          {providers.includes('google') && (
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-full font-semibold text-body gap-2 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-50 hover:text-gray-900 active:text-gray-900 border-gray-300 dark:border-white"
+            onClick={() => handleProvider('google', setGoogleLoading)}
+            disabled={busy}
+          >
+            {googleLoading
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <GoogleGlyph className="w-4 h-4" />}
+            Continue with Google
+          </Button>
+          )}
+
+          {/* Per Apple's "Sign in with Apple" button guidelines the control
+              must invert in dark mode (black-on-light → white-on-dark) so it
+              keeps contrast against the background. */}
+          {providers.includes('apple') && (
+          <Button
+            className="w-full h-12 rounded-full font-semibold text-body gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:active:bg-zinc-200"
+            onClick={() => handleProvider('apple', setAppleLoading)}
+            disabled={busy}
+          >
+            {appleLoading
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <AppleGlyph className="w-4 h-4 text-white dark:text-black" />}
+            Continue with Apple
+          </Button>
+          )}
+
+          {/* Divider — only when there is something above it to divide from.
+              With every provider off, an "or" heading the screen reads as a
+              missing control rather than a choice. */}
+          {providers.length > 0 && orRule}
+
+          {/* Magic link */}
+          {emailSent ? (
+            <div className="flex flex-col gap-2">
+              {hasExistingAccount ? (
+                // The address is already registered. Said plainly, because the
+                // alternative — the same "check your inbox" as a brand-new
+                // signup — is what let someone reach the end of "Let's get you
+                // set up" without ever being told they already have an account.
+                // The link we just sent IS the sign-in link, so there is nothing
+                // else for them to press. Neutral card: it is information, not
+                // a warning, and amber is not one of the app's four hues.
+                <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-card border border-border text-foreground text-label">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    <TransText
+                      k="signInToContinue.accountExists"
+                      en="{headline} We sent a sign-in link to {email}. Tap it and you're back in, with your workouts and streaks intact."
+                      values={{
+                        headline: <strong>{tFallback("signInToContinue.accountExistsHeadline", "You already have a Flexyn account.")}</strong>,
+                        email: <strong>{email}</strong>,
+                      }}
+                    />
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-success/10 border border-success/30 text-success text-label">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>Check your inbox. We sent a sign-in link to <strong>{email}</strong>.</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleResetEmail}
+                className="w-full min-h-11 text-label text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+              >
+                {tFallback("signInToContinue.wrongEmailSendAnotherLink", "Wrong email? Send another link")}
+              </button>
             </div>
-            <Button
-              variant="ghost"
-              onClick={handleGuestSignIn}
-              disabled={guestLoading || googleLoading || appleLoading || sendingMagicLink}
-              className="w-full h-12 font-medium text-sm gap-2 text-muted-foreground hover:text-foreground active:text-foreground"
-            >
-              {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {tFallback('signIn.continueAsGuest', 'Continue as guest')}
-            </Button>
-            <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
-              {tFallback('signInToContinue.betaNote', 'Beta access. Your data lives on this device until you link an email. Accounts may be reset at launch.')}
-            </p>
-            {/* GDPR Art. 13 wants the notice available at the point of
-                collection, and both stores check that it is reachable
-                before sign-up — so these are plain <a> tags to the public
-                routes, not in-app links behind the auth gate. */}
-            <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
-              By continuing you agree to our{' '}
-              <a href="/terms" className="underline hover:text-foreground">{tFallback("signInToContinue.terms", "Terms")}</a>
-              {' '}and{' '}
-              <a href="/privacy" className="underline hover:text-foreground">{tFallback("legal.privacyPolicy", "Privacy Policy")}</a>.
-            </p>
-          </>
-        )}
-      </motion.div>
+          ) : (
+            <form onSubmit={handleMagicLink} className="flex flex-col gap-2">
+              <Input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder={tFallback('signIn.emailPlaceholder', 'you@example.com')}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="h-12 rounded-full px-5 bg-card text-body"
+                required
+              />
+              {/* The one orange control. Google and Apple are pinned to their
+                  own colours by their guidelines and the guest path is the
+                  deliberate escape hatch, so the magic link is the only way
+                  in that is ours to colour. Same pill and ink as the
+                  onboarding PrimaryBtn: dark `primary-ink` on orange, because
+                  white on this orange measures under 3:1. */}
+              <button
+                type="submit"
+                className={`w-full h-12 rounded-full font-heading font-extrabold text-body flex items-center justify-center gap-2 transition-all
+                  ${(!email.trim() || busy)
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                    : 'bg-primary text-primary-ink hover:brightness-105 active:scale-[0.98] shadow-md'}`}
+                disabled={!email.trim() || busy}
+              >
+                {sendingMagicLink
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Mail className="w-4 h-4" />}
+                {sendingMagicLink ? 'Sending…' : 'Send magic link'}
+              </button>
+            </form>
+          )}
+
+          {/* Guest sign-in — for beta testers hitting OAuth or
+              SMTP-rate-limit walls. Visually de-emphasized so it
+              reads as the "just let me in for now" escape hatch,
+              not the primary action. Hidden once the magic-link
+              success state is showing so we don't push a second CTA
+              against the "check your inbox" message. */}
+          {!emailSent && (
+            <>
+              {orRule}
+              <Button
+                variant="ghost"
+                onClick={handleGuestSignIn}
+                disabled={guestLoading || busy}
+                className="w-full h-12 rounded-full font-semibold text-body gap-2 text-foreground hover:bg-card active:bg-card"
+              >
+                {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {tFallback('signIn.continueAsGuest', 'Continue as guest')}
+              </Button>
+              <p className="m-0 text-micro text-muted-foreground text-center leading-relaxed">
+                {tFallback('signInToContinue.betaNote', 'Beta access. Your data lives on this device until you link an email. Accounts may be reset at launch.')}
+              </p>
+              {/* GDPR Art. 13 wants the notice available at the point of
+                  collection, and both stores check that it is reachable
+                  before sign-up — so these are plain <a> tags to the public
+                  routes, not in-app links behind the auth gate. */}
+              <p className="m-0 text-micro text-muted-foreground text-center leading-relaxed">
+                By continuing you agree to our{' '}
+                <a href="/terms" className="underline py-4 -my-4 hover:text-foreground">{tFallback("signInToContinue.terms", "Terms")}</a>
+                {' '}and{' '}
+                <a href="/privacy" className="underline py-4 -my-4 hover:text-foreground">{tFallback("legal.privacyPolicy", "Privacy Policy")}</a>.
+              </p>
+            </>
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 }
