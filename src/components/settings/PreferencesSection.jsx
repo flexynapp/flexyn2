@@ -117,7 +117,7 @@ export default function PreferencesSection() {
           <ToggleRow
             icon={PumpkinMark}
             label={tFallback('settings.halloween', 'Halloween look')}
-            hint={tFallback('settings.halloween.hint', 'Warm autumn colours and a pumpkin until November 1.')}
+            hint={tFallback('settings.halloween.hint', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1.')}
             checked={halloween}
             onChange={setHalloween}
           />

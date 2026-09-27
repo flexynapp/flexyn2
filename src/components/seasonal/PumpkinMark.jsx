@@ -5,9 +5,9 @@
 // the body is --primary (the brand orange already is pumpkin) and the
 // stem is the foreground ink. No new hue.
 
-export default function PumpkinMark({ className = 'w-4 h-4', face = false }) {
+export default function PumpkinMark({ className = 'w-4 h-4', face = false, style }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" className={className} style={style} aria-hidden="true" focusable="false">
       <path
         d="M12.4 6.2c.2-1.6 1-2.8 2.4-3.4"
         fill="none"

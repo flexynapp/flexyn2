@@ -30,6 +30,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { NavVisibilityContext } from '@/lib/NavVisibilityContext';
 import OneShotTooltip from './OneShotTooltip';
+import PumpkinPatch from './seasonal/PumpkinPatch';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 
 // Per-tab subcomponent. Extracts the bottom-nav tile render so each
@@ -525,6 +526,7 @@ export default function Layout() {
           willChange: 'transform',
         }}
       >
+        <PumpkinPatch />
         <div className="flex justify-evenly items-start">
           {navItems.flatMap((item, idx) => {
             // "Lit" follows the section, so Progress lights You. A tap only

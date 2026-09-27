@@ -18,7 +18,6 @@
 // is on and in season.
 
 import { useTheme } from '@/lib/ThemeContext';
-import PumpkinMark from './PumpkinMark';
 
 // A corner web: spokes fanning out of the corner, joined by sagging
 // threads. Generated rather than hand-drawn so it stays symmetrical.
@@ -122,12 +121,6 @@ export default function HalloweenDecor() {
       <div className="absolute top-0 end-9 flex flex-col items-center opacity-70 hw-dangle">
         <span className="block w-px h-14 bg-current opacity-60" />
         <Spider />
-      </div>
-
-      {/* Two jack-o'-lanterns sitting on the bottom nav's top edge. */}
-      <div className="lg:hidden absolute start-2 bottom-[calc(4rem+env(safe-area-inset-bottom)-2px)] flex items-end">
-        <PumpkinMark face className="w-8 h-8" />
-        <PumpkinMark face className="w-5 h-5 -ms-1" />
       </div>
 
       {/* The flyover. One timeline for the witch and her bats, so they

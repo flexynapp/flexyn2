@@ -27,3 +27,18 @@ describe('HalloweenDecor', () => {
     expect(el.getAttribute('aria-hidden')).toBe('true');
   });
 });
+
+import PumpkinPatch from '../seasonal/PumpkinPatch';
+
+describe('PumpkinPatch', () => {
+  it('fills the nav edge only while the look is on, and never takes taps', () => {
+    theme = { halloween: false, halloweenAvailable: true };
+    const { rerender } = render(<PumpkinPatch />);
+    expect(screen.queryByTestId('pumpkin-patch')).toBeNull();
+    theme = { halloween: true, halloweenAvailable: true };
+    rerender(<PumpkinPatch />);
+    const el = screen.getByTestId('pumpkin-patch');
+    expect(el.className).toContain('pointer-events-none');
+    expect(el.querySelectorAll('svg').length).toBeGreaterThan(10);
+  });
+});

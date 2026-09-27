@@ -29,6 +29,9 @@ import { isEnabled } from '@/lib/featureFlags';
 import { initialsFor } from '@/lib/initials';
 import { handle } from '@/lib/userDisplay';
 import LevelBar from '@/components/LevelBar';
+import { useTheme } from '@/lib/ThemeContext';
+import { ToggleRow } from '@/components/settings/SettingsPrimitives';
+import PumpkinMark from '@/components/seasonal/PumpkinMark';
 
 function Row({ icon: Icon, label, hint, onClick, tone }) {
   return (
@@ -59,6 +62,7 @@ export default function You() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const theme = useTheme();
   const name = user?.full_name || handle(user) || tFallback('you.title', 'You');
 
   const openAchievements = () => {
@@ -88,6 +92,24 @@ export default function You() {
       </button>
 
       <LevelBar totalXp={user?.total_xp || 0} compact={false} />
+
+      {/* Seasonal, and deliberately here as well as in Settings › Display:
+          the look changes every screen, so the way out has to be one tap
+          from the tab people already use, not two screens deep. The row
+          disappears with the season. */}
+      {theme?.halloweenAvailable && (
+        <Group>
+          <div className="px-4">
+            <ToggleRow
+              icon={PumpkinMark}
+              label={tFallback('settings.halloween', 'Halloween look')}
+              hint={tFallback('settings.halloween.hint', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1.')}
+              checked={Boolean(theme.halloween)}
+              onChange={theme.setHalloween}
+            />
+          </div>
+        </Group>
+      )}
 
       <Group>
         <Row icon={TrendingUp} label={tFallback('nav.progress', 'Progress')} onClick={() => navigate('/progress')} />

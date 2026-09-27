@@ -62,7 +62,7 @@ export default function HalloweenPrompt() {
                 {tFallback('halloween.prompt.title', 'Halloween look is here')}
               </p>
               <p className="text-caption text-muted-foreground leading-snug">
-                {tFallback('halloween.prompt.body', 'Warm autumn colours and a pumpkin until November 1. Change it anytime in Settings.')}
+                {tFallback('halloween.prompt.body', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1. Turn it off anytime from the You tab.')}
               </p>
             </div>
           </div>
