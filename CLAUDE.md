@@ -832,6 +832,13 @@ Supabase on 2026-09-26, the result matched production exactly: 151 tables,
 - **`config.toml` declares every deployed Edge Function** with the
   `verify_jwt` it has in production; merging to `main` deploys them. A new
   function needs an entry, or it is never deployed.
+- **A function's folder name must be lowercase.** The CLI lowercases every
+  config.toml key, so `[functions.generateWeeklyDebriefs]` deploys as
+  `generateweeklydebriefs` and looks for a folder of that name. The bundle
+  fails with "entrypoint path does not exist", and the functions step stops
+  there, so every function listed after it silently stays on its old
+  version. That held `main` at FUNCTIONS_FAILED from 2026-09-26 until the
+  entry was set `enabled = false`. Name new functions in kebab-case.
 - **Refreshing the baseline** is the "DB baseline capture" Action (read-only;
   pushes to the `db-baseline-capture` branch). The one-time history rewrite
   is "DB mark baseline applied", which stops if production has drifted from
