@@ -1,7 +1,7 @@
 // Every read and write of goals now goes through src/lib/data/goals.js.
-// These tests pin the exact statements it sends, through the real db.js
-// underneath, so the next step (replacing db.entities inside this module) has
-// to reproduce them exactly.
+// These tests pin the exact statements it sends. They were written against
+// the old db.js client and pass unchanged on ownedRows, which is the proof
+// the swap matched.
 //
 // Dashboard, Workout and GoalsModal share the ['goals', email] cache.
 // Workout's query had no sort while Dashboard's was newest first, so the
@@ -107,7 +107,7 @@ describe('goals writes', () => {
 });
 
 describe('one door to goals', () => {
-  it('no other source file touches db.entities.Goal', () => {
+  it('no source file touches db.entities.Goal', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -116,7 +116,6 @@ describe('one door to goals', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'goals.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*Goal\b/.test(code)) offenders.push(rel);
       }
