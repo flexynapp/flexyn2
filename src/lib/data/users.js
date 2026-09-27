@@ -101,7 +101,7 @@ export const AUTHOR_COLUMNS =
   'id, username, display_name, avatar_url, equipped_title_id, equipped_frame_id, signature_trophy';
 
 /**
- * List all (public) profiles. Mirrors the old db.entities.User.list().
+ * List all (public) profiles, through the view (see selectProfiles).
  * @param {number} limit
  * @param {string} columns  PostgREST column list; defaults to '*'. Pass a lean
  *   subset (e.g. AUTHOR_COLUMNS) on hot paths that only need a few fields.
