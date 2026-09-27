@@ -256,7 +256,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
         onClick={onClose}
         className="mt-6 px-6 py-2 text-zinc-500 hover:text-zinc-300 active:text-zinc-300 text-xs font-mono uppercase tracking-widest transition-colors"
       >
-        Close & Resume Log
+        {tFallback('heavyBirdModal.closeResumeLog', 'Close & Resume Log')}
       </button>
     </div>
   );

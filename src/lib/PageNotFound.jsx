@@ -1,6 +1,4 @@
 import { useLocation } from 'react-router-dom';
-import { db } from '@/api/db';
-import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
 
@@ -9,18 +7,6 @@ export default function PageNotFound({}) {
     const { tFallback } = useLanguage();
     const location = useLocation();
     const pageName = location.pathname.substring(1);
-
-    const { data: authData, isFetched } = useQuery({
-        queryKey: ['user'],
-        queryFn: async () => {
-            try {
-                const user = await db.auth.me();
-                return { user, isAuthenticated: true };
-            } catch (error) {
-                return { user: null, isAuthenticated: false };
-            }
-        }
-    });
     
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -42,23 +28,6 @@ export default function PageNotFound({}) {
                                 values={{ name: <span className="font-medium text-foreground">"{pageName}"</span> }} />
                         </p>
                     </div>
-
-                    {/* Admin Note */}
-                    {isFetched && authData.isAuthenticated && authData.user?.role === 'admin' && (
-                        <div className="mt-8 p-4 bg-muted rounded-lg border border-border">
-                            <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center mt-0.5">
-                                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                                </div>
-                                <div className="text-start space-y-1">
-                                    <p className="text-sm font-medium text-foreground">{tFallback("pageNotFound.adminNote", "Admin Note")}</p>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        This could mean that the AI hasn't implemented this page yet. Ask it to implement it in the chat.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Action Button */}
                     <div className="pt-6">

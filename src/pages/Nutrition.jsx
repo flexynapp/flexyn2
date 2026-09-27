@@ -1315,7 +1315,7 @@ export default function Nutrition() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
           >
             <Clock className="w-3.5 h-3.5" />
-            Scanner History
+            {tFallback('nutrition.scannerHistory', 'Scanner History')}
             {scanHistory.length > 0 && (
               <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-micro font-bold flex items-center justify-center">
                 {scanHistory.length}

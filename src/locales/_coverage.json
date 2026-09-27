@@ -1,65 +1,65 @@
 {
   "$comment": "Committed per-locale baseline for the i18n no-regression guard. `translated` must never decrease; `englishEcho` must never increase. `untranslatable` and `hardcoded` are app-wide and must never increase. Regenerate deliberately with `npm run i18n:baseline` and say why in the commit.",
-  "sourceKeys": 6614,
+  "sourceKeys": 6725,
   "untranslatable": 0,
-  "hardcoded": 38,
-  "userVisibleStrings": 6652,
+  "hardcoded": 39,
+  "userVisibleStrings": 6764,
   "locales": {
     "es": {
-      "translated": 6591,
-      "englishEcho": 125
+      "translated": 6701,
+      "englishEcho": 124
     },
     "fr": {
-      "translated": 6591,
-      "englishEcho": 158
+      "translated": 6701,
+      "englishEcho": 157
     },
     "de": {
-      "translated": 5921,
+      "translated": 5923,
       "englishEcho": 38
     },
     "pt": {
-      "translated": 5844,
-      "englishEcho": 148
+      "translated": 5846,
+      "englishEcho": 145
     },
     "it": {
-      "translated": 5921,
-      "englishEcho": 153
+      "translated": 5923,
+      "englishEcho": 149
     },
     "ja": {
-      "translated": 1538,
+      "translated": 1540,
       "englishEcho": 0
     },
     "ko": {
-      "translated": 1512,
+      "translated": 1514,
       "englishEcho": 0
     },
     "zh": {
-      "translated": 1507,
+      "translated": 1509,
       "englishEcho": 0
     },
     "ar": {
-      "translated": 1507,
+      "translated": 1509,
       "englishEcho": 0
     },
     "hi": {
-      "translated": 1507,
+      "translated": 1509,
       "englishEcho": 0
     },
     "ru": {
-      "translated": 1506,
+      "translated": 1508,
       "englishEcho": 0
     },
     "tr": {
-      "translated": 2389,
-      "englishEcho": 40
+      "translated": 2391,
+      "englishEcho": 38
     },
     "pl": {
-      "translated": 5921,
-      "englishEcho": 98
+      "translated": 5923,
+      "englishEcho": 94
     },
     "nl": {
-      "translated": 5921,
-      "englishEcho": 193
+      "translated": 5923,
+      "englishEcho": 190
     }
   }
 }
