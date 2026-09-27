@@ -2,12 +2,12 @@
 // Hub posts — community feed entries.
 // Privacy is enforced here (and should be re-enforced server-side on migration).
 
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { track, EVENTS } from '@/lib/analytics';
 
-const e = () => db.entities.HubPost;
+const e = () => ownedRows('hub_posts');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -32,8 +32,8 @@ export const listPublicFeed = async (limit = 50) => {
  * Includes both public and followers-only posts from followed users.
  *
  * Single batched query via .in() — used to be one query per follow which
- * was 50+ round-trips for an active user. The DB layer's filter shim
- * (src/api/db.js) translates an array value into a `.in()` clause.
+ * was 50+ round-trips for an active user. ownedRows.filter turns an
+ * array value into a `.in()` clause.
  *
  * @param {string[]} followingEmails — emails the current user follows
  */
@@ -88,7 +88,7 @@ export const update = (id, data) => {
 };
 
 /** Delete a post. RLS enforces only the author can do this. */
-export const remove = (id) => e().delete(id);
+export const remove = (id) => e().remove(id);
 
 /**
  * Bump a denormalized counter (like_count / dislike_count / comment_count)
@@ -135,7 +135,7 @@ export const purgeForUser = async (email) => {
       .filter({ author_email: email }, '-created_date', PAGE)
       .catch(() => []);
     if (!batch || batch.length === 0) break;
-    await Promise.all(batch.map(r => e().delete(r.id).catch(() => {})));
+    await Promise.all(batch.map(r => e().remove(r.id).catch(() => {})));
     if (batch.length < PAGE) break;
   }
 };
@@ -188,8 +188,8 @@ export const fetchGlobalWindow = () =>
  *
  * Single batched query via .in('author_email', emails). Replaces the
  * old per-author fan-out (1 query per follow = 50+ round-trips for
- * active users) with a single bounded query. The DB layer shim
- * (src/api/db.js) translates an array value into a `.in()` clause.
+ * active users) with a single bounded query. ownedRows.filter turns an
+ * array value into a `.in()` clause.
  */
 export const fetchFollowingWindow = async (followingEmails = [], selfEmail = null) => {
   // Your own posts belong in Following. "In a weird way it's as if you follow
