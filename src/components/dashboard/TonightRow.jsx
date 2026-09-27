@@ -3,7 +3,7 @@
 // The three recovery signals — sleep, mood, steps — as ONE row of three
 // columns instead of three separate cards (plus the macro / calorie /
 // hydration cards that used to sit with them and now live only on the
-// Nutrition tab, which already owns MacroNutrientBox, CalorieTopBar and
+// Nutrition tab, which already owns MacroNutrientBox, NutritionFocal and
 // WaterTracker).
 //
 // Why a row and not six cards: the six-card "Nutrition & Recovery" stack
