@@ -34,3 +34,26 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers (2026-09-27 codebase audit, item 8). Every one of these is
+# safe for what the app loads today:
+#   * frame-ancestors 'none' + X-Frame-Options: nobody can frame the app, so
+#     a lookalike page cannot overlay the Sell or Gift buttons (clickjacking).
+#     The CSP carries ONLY frame-ancestors on purpose. A full source list has
+#     to name Supabase, MapTiler, OpenFreeMap, the Overpass mirrors,
+#     Nominatim, PostHog, Sentry and the MediaPipe wasm, and a wrong one
+#     blanks the site with nothing in the logs. Add it as
+#     Content-Security-Policy-Report-Only first and read the console.
+#   * Referrer-Policy: other sites see our origin, never the path, so a
+#     /p/gym/:id or /checkin/:code link does not leak on an outbound click.
+#   * Permissions-Policy: camera, microphone, location and motion stay
+#     available to the app itself and are refused to any embedded frame.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000"
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(self), accelerometer=(self), gyroscope=(self), payment=(), usb=()"
