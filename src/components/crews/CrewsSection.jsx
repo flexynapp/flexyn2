@@ -96,7 +96,7 @@ function CrewCard({ crew, onClick, currentUserId, trophyCount }) {
             simply doesn't render. */}
         {Number.isFinite(Number(crew.crew_level)) && (
           <p className="text-xs text-muted-foreground mt-1">
-            <span className="font-bold text-foreground">Lvl {crew.crew_level}</span>
+            <span className="font-bold text-foreground">Lv. {crew.crew_level}</span>
             {/* The SHELF, not `crews.trophies`. That column is war renown,
                 raised 30 per win, so it read "30 trophies" for a crew whose
                 shelf was empty. */}

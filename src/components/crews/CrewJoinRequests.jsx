@@ -131,7 +131,7 @@ export default function CrewJoinRequests({ crewId, canReview }) {
                     application with no context is a coin flip. */}
                 <p className="text-micro text-muted-foreground truncate">
                   {Number.isFinite(Number(row.current_level))
-                    ? tFallback('crew.applicantLevel', 'Level {lv}', { lv: String(row.current_level) })
+                    ? tFallback('crew.applicantLevel', 'Lv. {lv}', { lv: String(row.current_level) })
                     : null}
                   {Number.isFinite(Number(row.current_level)) && asked ? '  ·  ' : null}
                   {asked}

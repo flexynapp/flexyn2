@@ -250,7 +250,7 @@ export default function GymRivalCard({ currentUserId }) {
             <p className="text-base font-black truncate mt-0.5">
               {settledGhost
                 ? (pastYou.won ? tFallback('pastYou.youWon', 'You beat Past You') : tFallback('pastYou.youLost', 'Past You held on'))
-                : tFallback('pastYou.vsLevel', 'Past You, level {n}', { n: String(pastYou.level) })}
+                : tFallback('pastYou.vsLevel', 'Past You, Lv. {n}', { n: String(pastYou.level) })}
             </p>
             <p className="text-xs text-muted-foreground truncate">
               {settledGhost

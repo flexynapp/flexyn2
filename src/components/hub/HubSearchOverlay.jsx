@@ -583,7 +583,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
       ) : (
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${tier.badge} shadow-sm`}>
-            <span className="text-xs font-bold text-white drop-shadow">Lv {levelData.level}</span>
+            <span className="text-xs font-bold text-white drop-shadow">Lv. {levelData.level}</span>
           </div>
         </div>
       )}

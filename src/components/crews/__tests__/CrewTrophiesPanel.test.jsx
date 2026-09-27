@@ -179,7 +179,7 @@ describe('the ladder', () => {
   it('renders locked rows rather than filtering them out', async () => {
     mount(RANK.MEMBER);
     expect(await screen.findByText('The Foundry')).toBeTruthy();
-    expect(screen.getByText('Level 3')).toBeTruthy();
+    expect(screen.getByText('Lv. 3')).toBeTruthy();
     expect(screen.getByText('More unlock as the crew levels up.')).toBeTruthy();
   });
 

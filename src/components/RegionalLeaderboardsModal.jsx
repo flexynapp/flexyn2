@@ -119,7 +119,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
       case 'level':
       default:
         valueOf = u => u.total_xp;
-        formatValue = (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
+        formatValue = (_v, u) => `Lv. ${u.level} · ${formatNum(u.total_xp)} XP`;
         break;
     }
 

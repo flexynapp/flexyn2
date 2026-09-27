@@ -498,7 +498,7 @@ function StatsBlock({ snap }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {snap.level != null && (
-        <Stat icon={Zap} label={t('leaderboards.level')} value={`Lv ${snap.level}`} />
+        <Stat icon={Zap} label={t('leaderboards.level')} value={`Lv. ${snap.level}`} />
       )}
       {snap.total_xp != null && (
         <Stat icon={TrendingUp} label="XP" value={fmt(Math.round(snap.total_xp))} />

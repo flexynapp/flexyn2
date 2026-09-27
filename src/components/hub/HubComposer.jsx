@@ -196,7 +196,7 @@ const summarize = {
     const formatVol = fmt
       ? (n) => fmt(Math.round(n))
       : (n) => Math.round(n).toLocaleString();
-    if (s.level) parts.push(`Level ${s.level}`);
+    if (s.level) parts.push(`Lv. ${s.level}`);
     if (s.total_volume_lbs) parts.push(`${formatVol(s.total_volume_lbs)} lbs lifted`);
     if (s.total_distance_meters) parts.push(`${(s.total_distance_meters / 1000).toFixed(1)} km logged`);
     return parts.join(' · ') || 'Stats snapshot';

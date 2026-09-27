@@ -227,7 +227,7 @@ export default function LeaderboardsContent({ active = true }) {
         // All-time level board shows the level the XP buys; the scoped
         // windows show XP earned in that window, which has no level.
         return v => period === 'alltime'
-          ? `Lv ${calculateLevelFromXp(v).level} · ${formatCompact(v)} XP`
+          ? `Lv. ${calculateLevelFromXp(v).level} · ${formatCompact(v)} XP`
           : `${formatCompact(v)} XP${periodSuffix}`;
     }
   }, [activeBoard, period, weightUnit, distanceUnit, t]);
@@ -294,7 +294,7 @@ export default function LeaderboardsContent({ active = true }) {
       case 'level':
       default:
         valueOf = u => u.total_xp;
-        legacyFormat = (_v, u) => `Lv ${u.level} · ${formatCompact(u.total_xp)} XP`;
+        legacyFormat = (_v, u) => `Lv. ${u.level} · ${formatCompact(u.total_xp)} XP`;
         break;
     }
 

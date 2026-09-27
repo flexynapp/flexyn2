@@ -65,8 +65,18 @@ async function loadAllLanguages() {
 const ALLOW_IDENTICAL = new Set([
   'app.name',       // "Flexyn" — brand name
   'levelBar.level', // "Lv {n}" — widely understood abbreviation
-  'createDuelModal.level', // "Lv {n}" — same abbreviation (glossary doNotTranslate)
-  'win.levelN',             // "Level {n}" — Level is a kept product noun (Kegan, 2026-09-27)
+  // A level number renders as "Lv. {n}" in every language (kegan,
+  // 2026-09-27; _glossary.json $levelNote), so these badges are identical
+  // to English by design.
+  'createDuelModal.level',
+  'win.levelN',
+  'levelUp.fromTo',
+  'gymRivalMenu.levelN',
+  'crewTrophies.levelN',
+  'hub.themes.lockedAt',
+  'crew.applicantLevel',
+  'progress.stat.levelValue',
+  'crew.discover.lvl',
   // ── Units, codes and proper nouns ──────────────────────────────────
   // These are identical in EVERY language by design. They were flagged
   // in all 14 because `hasLetters` only skips values with no letters at

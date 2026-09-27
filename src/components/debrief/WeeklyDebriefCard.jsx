@@ -585,7 +585,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             )}
           </div>
           {levelEnd != null && !levelUp && (
-            <p className="text-micro text-muted-foreground mt-1">{tFallback('crewTrophies.levelN', 'Level {n}', { n: levelEnd })}</p>
+            <p className="text-micro text-muted-foreground mt-1">{tFallback('crewTrophies.levelN', 'Lv. {n}', { n: levelEnd })}</p>
           )}
           {(num(ga.quests_done) > 0 || num(ga.coins) > 0 || num(ga.trophy_count) > 0) && (
             <div className="mt-2 pt-2 border-t border-border">

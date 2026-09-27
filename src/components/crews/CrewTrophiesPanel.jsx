@@ -142,7 +142,7 @@ function CatalogRow({ row, fmt, tFallback, onStart, starting, last }) {
       {row.state === 'locked' && (
         <span className="inline-flex items-center gap-1 text-micro font-bold text-muted-foreground shrink-0">
           <Lock className="w-3 h-3" aria-hidden="true" />
-          {tFallback('crewTrophies.levelN', 'Level {n}', { n: row.min_crew_level })}
+          {tFallback('crewTrophies.levelN', 'Lv. {n}', { n: row.min_crew_level })}
         </span>
       )}
 
