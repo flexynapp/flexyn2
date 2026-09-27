@@ -167,7 +167,7 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <Swords className="w-4 h-4" />
                 }
-                Leave queue
+                {tFallback('crewBattleEntry.leaveQueue', 'Leave queue')}
               </button>}
             </>
           ) : (

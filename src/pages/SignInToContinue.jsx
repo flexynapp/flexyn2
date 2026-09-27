@@ -355,7 +355,7 @@ export default function SignInToContinue({
               className="w-full h-12 font-medium text-sm gap-2 text-muted-foreground hover:text-foreground active:text-foreground"
             >
               {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Continue as guest
+              {tFallback('signIn.continueAsGuest', 'Continue as guest')}
             </Button>
             <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
               {tFallback('signInToContinue.betaNote', 'Beta access. Your data lives on this device until you link an email. Accounts may be reset at launch.')}

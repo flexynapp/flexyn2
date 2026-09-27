@@ -20,6 +20,7 @@ import * as cycleLogs from '@/lib/data/cycleLogs';
 import { db } from '@/api/db';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
+import { formatDate } from '@/lib/intlFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
@@ -89,7 +90,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
 }
 
 export default function CycleTrackerCard({ profile }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const enabled = !!profile?.cycle_tracking_enabled;
@@ -266,7 +267,7 @@ export default function CycleTrackerCard({ profile }) {
                   // parses as UTC midnight, which renders as the PREVIOUS day
                   // for anyone west of UTC — pin it to local midnight so the
                   // list shows the date the user actually picked.
-                  const label = format(new Date(`${l.start_date}T00:00:00`), 'MMM d, yyyy');
+                  const label = formatDate(new Date(`${l.start_date}T00:00:00`), language, { dateStyle: 'medium' });
                   const confirming = pendingDeleteId === l.id;
                   const busy = deletingId === l.id;
                   return (

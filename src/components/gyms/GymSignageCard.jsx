@@ -188,7 +188,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
         <div className="p-4 shrink-0 print:hidden space-y-2">
           <Button onClick={handleShare} disabled={generating || !pngUrl || sharing} className="w-full gap-2">
             {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-            Share
+            {tFallback('common.share', 'Share')}
           </Button>
           <Button variant="outline" onClick={handleSave} disabled={!pngUrl} className="w-full gap-2">
             <Download className="w-4 h-4" />

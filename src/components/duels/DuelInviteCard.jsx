@@ -165,7 +165,7 @@ export default function DuelInviteCard({ payload, isMine }) {
                   ? <Loader2 className="w-3 h-3 animate-spin" />
                   : <X className="w-3 h-3" />
                 }
-                Decline
+                {tFallback('duelInviteCard.decline', 'Decline')}
               </button>
               <button
                 onClick={handleAccept}
@@ -176,7 +176,7 @@ export default function DuelInviteCard({ payload, isMine }) {
                   ? <Loader2 className="w-3 h-3 animate-spin" />
                   : <Check className="w-3 h-3" />
                 }
-                Accept
+                {tFallback('duelInviteCard.accept', 'Accept')}
               </button>
             </div>
           )}

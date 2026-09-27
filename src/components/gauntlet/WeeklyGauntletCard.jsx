@@ -3,16 +3,14 @@
 import { motion } from 'framer-motion';
 import { Users, Zap, Clock, CheckCircle, Trophy, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { formatDuration } from '@/lib/intlFormat';
 
-function timeUntil(dateStr) {
+// Milliseconds until the gauntlet closes, or 0 once it has. The label is
+// built in the component so the units and "left" follow the app language;
+// this rendered "3d 4h left" under Spanish and French.
+function msUntil(dateStr) {
   const diff = new Date(dateStr) - Date.now();
-  if (diff <= 0) return 'Ended';
-  const days  = Math.floor(diff / 86_400_000);
-  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
-  if (days > 0) return `${days}d ${hours}h left`;
-  const mins = Math.floor((diff % 3_600_000) / 60_000);
-  if (hours > 0) return `${hours}h ${mins}m left`;
-  return `${mins}m left`;
+  return Number.isFinite(diff) && diff > 0 ? diff : 0;
 }
 
 function formatVolume(v) {
@@ -35,7 +33,7 @@ function formatVolume(v) {
 export default function WeeklyGauntletCard({
   gauntlet, attempt, onStart, onLogWorkout, onSubmit, submitting, canSubmit, bestScore,
 }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   if (!gauntlet) return null;
 
   const passed   = attempt?.status === 'completed';
@@ -52,8 +50,14 @@ export default function WeeklyGauntletCard({
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T23:59:59`;
     return raw;
   })();
-  const timeLeft = weekEndIso ? timeUntil(weekEndIso) : '—';
-  const ending   = timeLeft.includes('d') ? false : true;
+  const msLeft   = weekEndIso ? msUntil(weekEndIso) : null;
+  const timeLeft = msLeft == null
+    ? '—'
+    : msLeft === 0
+      ? tFallback('weeklyGauntletCard.ended', 'Ended')
+      : tFallback('crewWars.timeLeft', '{t} left', { t: formatDuration(msLeft, language) });
+  // Under a day to go. This used to test the English label for a "d".
+  const ending   = msLeft != null && msLeft < 86_400_000;
   // Unit suffix depends on what the gauntlet measures. Previously
   // hardcoded "lbs" so a consecutive_days / sessions_in_7_days
   // gauntlet displayed "7 lbs". (Audit 15 #M10.)

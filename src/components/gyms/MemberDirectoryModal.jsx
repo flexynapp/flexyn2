@@ -54,7 +54,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h2 className="font-heading font-bold text-base flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" />
-              Members
+              {tFallback('memberDirectoryModal.members', 'Members')}
               {!loading && members.length > 0 && (
                 <span className="text-xs text-muted-foreground font-normal tabular-nums">
                   · {members.length}

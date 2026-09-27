@@ -207,7 +207,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
           </div>
           <Button size="sm" onClick={handlePost} disabled={posting} className="gap-1.5">
             {posting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            Post
+            {tFallback('hub.composer.post', 'Post')}
           </Button>
         </div>
       </div>

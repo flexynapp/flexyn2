@@ -20,7 +20,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
+import { formatDate, toBcp47 } from '@/lib/intlFormat';
+
+// "May 16 – 22" / "16–22 may" / "16–22 mai": Intl picks the order and
+// collapses the shared month, which date-fns' unlocalised 'MMM d' could not.
+function formatDateRange(a, b, language) {
+  try {
+    return new Intl.DateTimeFormat(toBcp47(language), { month: 'short', day: 'numeric' }).formatRange(a, b);
+  } catch {
+    return `${formatDate(a, language, { month: 'short', day: 'numeric' })} – ${formatDate(b, language, { month: 'short', day: 'numeric' })}`;
+  }
+}
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -227,7 +238,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
     try {
       const today = new Date();
       const start = subDays(today, 6);
-      return `${format(start, 'MMM d')} – ${format(today, 'MMM d')}`;
+      return formatDateRange(start, today, language);
     } catch {
       return '';
     }

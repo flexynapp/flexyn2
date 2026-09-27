@@ -9,7 +9,8 @@ import { triggerHaptic } from '@/lib/haptic';
 import OneShotTooltip from '@/components/OneShotTooltip';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 import RowActionSheet from './RowActionSheet';
-import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
+import { formatDate, formatCompactAgo, relativeWord } from '@/lib/intlFormat';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -65,23 +66,22 @@ function LongPressRow({ onTap, onLongPress, innerRef, className, children }) {
 }
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
-function formatInboxTime(dateStr) {
+// Built on Intl rather than date-fns, which binds no locale: this rendered
+// "Yesterday", "Mon" and "May 1" under every language, and its "5 hours" →
+// "5h" string replace only ever matched English.
+function formatInboxTime(dateStr, language) {
   if (!dateStr) return '';
   const date = parseISO(dateStr);
   const now = new Date();
-  const diffMs = now - date;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'now';
-  if (diffMin < 60) return `${diffMin}m`;
   const days = differenceInDays(now, date);
-  if (days === 0) return formatDistanceToNowStrict(date).replace(' hours', 'h').replace(' hour', 'h').replace(' minutes', 'm').replace(' minute', 'm');
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return format(date, 'EEE');
-  return format(date, 'MMM d');
+  if (days === 0) return formatCompactAgo(date, language, now);
+  if (days === 1) return relativeWord(-1, 'day', language, { cap: true });
+  if (days < 7) return formatDate(date, language, { weekday: 'short' });
+  return formatDate(date, language, { month: 'short', day: 'numeric' });
 }
 
 export default function HubMessages({ pendingChatTarget = null, onPendingConsumed = null }) {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   // Reciprocity (mig 238): with receipts off, the viewer stops seeing
@@ -1000,7 +1000,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 // Previously, muting was a no-op visually + the unread
                 // pip kept appearing on muted threads. (Audit 10 #3.)
                 const unread = !isMuted && (c.unreadCount || 0) > 0;
-                const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at);
+                const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at, language);
 
                 return (
                   <motion.div
