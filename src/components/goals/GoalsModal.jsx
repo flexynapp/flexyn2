@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import * as goalsData from '@/lib/data/goals';
@@ -19,34 +19,15 @@ import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
 import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { formatWeight } from '@/lib/weightUnit';
+import { summarizeGoalTarget } from '@/lib/goalSummary';
 
-// Small inline summary of a goal target for the first-goal celebration
-// copy. target_weight is stored canonically in lbs, so convert it to the
-// viewer's unit (formatWeight adds the kg/lb/st label) — otherwise a kg
-// user's "100 kg" goal read out as the raw "220.462" with no unit.
-function summarizeGoalTarget(g, weightUnit) {
-  if (!g) return '';
-  if (g.goal_type === 'cardio_distance' && g.target_distance_meters) {
-    return `${g.cardio_activity || 'Cardio'} ${Math.round(g.target_distance_meters)}m`;
-  }
-  if (g.goal_type === 'cardio_duration' && g.target_duration_seconds) {
-    return `${g.cardio_activity || 'Cardio'} ${Math.round(g.target_duration_seconds / 60)} min`;
-  }
-  if (g.goal_type === 'cardio_sessions' && g.target_sessions) {
-    return `${g.cardio_activity || 'Cardio'} ${g.target_sessions}× / ${g.period || 'period'}`;
-  }
-  // Strength
-  const name = g.exercise_name || 'lift';
-  const w = g.target_weight != null ? formatWeight(g.target_weight, weightUnit) : null;
-  if (w && g.target_reps) return `${name} ${w} × ${g.target_reps}`;
-  if (w) return `${name} ${w}`;
-  if (g.target_reps)   return `${name} ${g.target_reps} rep${g.target_reps === 1 ? '' : 's'}`;
-  return name;
-}
-
-export default function GoalsModal({ open, onClose, goals = [], logs = [], userProfile = {} }) {
+export default function GoalsModal({ open, onClose, goals = [], logs = [], userProfile = {}, startWithForm = false }) {
   const [showForm, setShowForm] = useState(false);
+  // Today's "Set a goal" card opens straight onto the form: the person has
+  // already said what they want, so the empty list in between is a wasted tap.
+  useEffect(() => {
+    if (open && startWithForm) setShowForm(true);
+  }, [open, startWithForm]);
   const [editing, setEditing] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed'
   const [tabDirection, setTabDirection] = useState(1);

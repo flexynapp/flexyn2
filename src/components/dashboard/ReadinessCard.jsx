@@ -28,7 +28,7 @@ import ReadinessRing, { readinessColors } from '@/components/dashboard/Readiness
 // than hardcoded inline at the render site) so translators only need
 // to mirror this one map — but the lookup happens inside the
 // component so the user's language always wins.
-const ACTION_BY_LABEL = {
+export const ACTION_BY_LABEL = {
   Primed:   { key: 'readiness.action.Primed',   fallback: 'Hit it hard. Take a PR shot.' },
   Ready:    { key: 'readiness.action.Ready',    fallback: 'Train as planned.' },
   Moderate: { key: 'readiness.action.Moderate', fallback: 'Train, cap intensity. Leave 1-2 in reserve.' },

@@ -70,6 +70,28 @@ async function hasCrew(user) {
 }
 
 /**
+ * Does this user have an active goal? Decides whether "Complete a goal" can
+ * be one of today's quests. Only read when a day is being seeded, so once a
+ * day at most. A failed read answers true: the quest stays eligible, which is
+ * how every day was picked before this check existed.
+ */
+async function hasActiveGoal(user) {
+  if (!user?.id) return true;
+  try {
+    const { data, error } = await supabase
+      .from('goals')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1);
+    if (error) return true;
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Ensure today's quests exist in the DB for this user. Idempotent —
  * subsequent calls in the same day are no-ops.
  *
@@ -100,7 +122,8 @@ export async function ensureTodaysQuests(user) {
     if (!inCrew || haveDifficulties.has('crew')) return existing;
   }
 
-  const picked = pickDailyQuests(user.id, today, inCrew)
+  const skipFamilies = (await hasActiveGoal(user)) ? [] : ['goals'];
+  const picked = pickDailyQuests(user.id, today, inCrew, { skipFamilies })
     .filter(q => !haveDifficulties.has(q.difficulty));
   if (picked.length === 0) return existing ?? [];
 
@@ -153,10 +176,17 @@ export async function listTodaysQuests(user) {
     console.warn('[quests] list failed:', error);
     return [];
   }
-  // Ordering is done here, not in the query. `order('difficulty')` sorted
-  // lexically, which put 'crew' between 'cardio' and 'easy' — i.e. FIRST,
-  // ahead of the easy quest. difficultyRank is the display ladder.
-  return (data ?? []).slice().sort(
+  return sortQuestRows(data);
+}
+
+/**
+ * Today's rows in display order. Ordering is done here, not in the query:
+ * `order('difficulty')` sorted lexically, which put 'crew' between 'cardio'
+ * and 'easy', i.e. FIRST, ahead of the easy quest. difficultyRank is the
+ * display ladder.
+ */
+export function sortQuestRows(rows) {
+  return (rows ?? []).slice().sort(
     (a, b) => difficultyRank(a.difficulty) - difficultyRank(b.difficulty),
   );
 }

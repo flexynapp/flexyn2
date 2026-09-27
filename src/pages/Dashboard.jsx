@@ -22,31 +22,43 @@ import { haptic } from '@/lib/haptic';
 import useCountUp from '@/hooks/useCountUp';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
 import { buildDashboardRows, reorderFrozen, flattenRows } from '@/lib/dashboardRows';
-import GoalsModal from '@/components/goals/GoalsModal';
+// Opens only on a tap, so it waits for one rather than riding in the Today chunk.
+const GoalsModal = React.lazy(() => import('@/components/goals/GoalsModal'));
+import TodayGoalCard from '@/components/dashboard/TodayGoalCard';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
-import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
-import LogWeightModal from '@/components/dashboard/LogWeightModal';
-import RoutineCalendarModal from '@/components/routines/RoutineCalendarModal';
-import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
-import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
 import WeekFocal from '@/components/glance/WeekFocal';
 import TodayStreakLine, { STREAK_MIN_SHOWN } from '@/components/dashboard/TodayStreakLine';
 import { weekSummary } from '@/lib/focalGoal';
-import DailyChestCard from '@/components/dashboard/DailyChestCard';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
-import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
-import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
-import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
-import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
-import JournalWidget from '@/components/dashboard/JournalWidget';
 import TonightRow from '@/components/dashboard/TonightRow';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
 // Sleep / mood / steps logging + the score explainer live in this sheet, so
 // three log cards leave the eager dashboard chunk and arrive on first open.
+// Lazy: sections hidden on Today by default (restorable from edit mode) and
+// modals that only open on a tap. None of them is needed for the first paint,
+// and together they were about 95 KB of the Dashboard chunk plus the
+// GoalsModal and photo-capture chunks it pulled in eagerly. Each render site
+// sits under <Suspense fallback={null}>: a restored section appears when its
+// code arrives, and a skeleton for one frame would read as a glitch.
+const LogWeightModal = React.lazy(() => import('@/components/dashboard/LogWeightModal'));
+const RoutineCalendarModal = React.lazy(() => import('@/components/routines/RoutineCalendarModal'));
+const ProgressPhotoCapture = React.lazy(() => import('@/components/progress/ProgressPhotoCapture'));
+const DashboardWidgets = React.lazy(() => import('@/components/dashboard/DashboardWidgets'));
+const DailyChestCard = React.lazy(() => import('@/components/dashboard/DailyChestCard'));
+const DailyQuote = React.lazy(() => import('@/components/dashboard/DailyQuote'));
+const WeeklyRecap = React.lazy(() => import('@/components/dashboard/WeeklyRecap'));
+const WorkoutSuggestionCard = React.lazy(() => import('@/components/dashboard/WorkoutSuggestionCard'));
+const WorkoutMemoryCard = React.lazy(() => import('@/components/dashboard/WorkoutMemoryCard'));
+const JournalWidget = React.lazy(() => import('@/components/dashboard/JournalWidget'));
+const FriendLeaderboardPanel = React.lazy(() => import('@/components/hub/FriendLeaderboardPanel'));
+const DiscoveryCards = React.lazy(() => import('@/components/dashboard/DiscoveryCards'));
+const PrestigePrompt = React.lazy(() => import('@/components/prestige/PrestigePrompt'));
+const LeagueStandingsModal = React.lazy(() => import('@/components/dashboard/LeagueStandingsModal'));
+const GoalsProgressStrip = React.lazy(() => import('@/components/dashboard/GoalsProgressStrip'));
 const ReadinessSheet = React.lazy(() => import('@/components/dashboard/ReadinessSheet'));
 import { useReadiness } from '@/hooks/useReadiness';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
@@ -59,16 +71,12 @@ const SeasonCeremonyModal = React.lazy(() => import('@/components/dashboard/Seas
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
 import { enqueueReveal } from '@/lib/rewardQueue';
-import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
-import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import PrestigePrompt from '@/components/prestige/PrestigePrompt';
 import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
 import { checkAndCelebrate as checkTrophies } from '@/lib/data/trophies';
 import { toast } from '@/lib/toast';
-import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -281,6 +289,10 @@ function ActionTile({ to, icon: Icon, label, onClick, delay = 0, accent = false 
 // Section label lookup — used by edit mode's drag-handle chips so each
 // section row shows its name next to the layout-toggle button. Keyed
 // by widgetOrder id; takes (tFallback, t) so it stays i18n-aware.
+// Trophy re-check memo, per user, for this page load. See the effect.
+const TROPHY_RECHECK_MS = 30 * 60_000;
+const lastTrophyCheck = new Map(); // userId -> { sig, at }
+
 const SECTION_LABELS = {
   readiness:    (tF) => tF('dashboard.section.readiness',    'Readiness'),
   // Was 'Nutrition & Recovery' — the macro / calorie / hydration widgets
@@ -288,10 +300,11 @@ const SECTION_LABELS = {
   // three signals you log at the end of the day.
   fuel:         (tF) => tF('today.fuel.title',               'Food and water'),
   crewwar:      (tF) => tF('crewWars.title',                 'Crew Wars'),
-  recovery:     (tF) => tF('dashboard.section.tonight',      'Tonight'),
+  recovery:     (tF) => tF('today.recovery.title',           'Recovery'),
   stats:        (tF) => tF('dashboard.section.stats',        'This week'),
   streak:       (tF) => tF('dashboard.section.streak',       'Login streak'),
   challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
+  goals:        (tF) => tF('today.goal.section',             'Goals'),
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
   friends:      (tF) => tF('dashboard.section.friends',      'Friends this week'),
@@ -367,6 +380,12 @@ export default function Dashboard() {
   const isFirstLoad = location.state?.fromSplash;
   const [showWelcome, setShowWelcome] = useState(isFirstLoad);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+  // Set by Today's "Set a goal" card so the modal opens on the form.
+  const [goalsStartWithForm, setGoalsStartWithForm] = useState(false);
+  const openGoals = (withForm = false) => {
+    setGoalsStartWithForm(withForm);
+    setGoalsModalOpen(true);
+  };
   const [logWeightOpen, setLogWeightOpen] = useState(false);
   const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
   const [weekModalOpen, setWeekModalOpen] = useState(false);
@@ -394,6 +413,7 @@ export default function Dashboard() {
     'fuel',                  // calories and water, taps through to Nutrition
     'recovery',              // "Tonight" — sleep · mood · steps
     'streak', 'challenges',  // both full-width; one "today" block
+    'goals',                 // set one, or see the closest one move
     'crewwar',               // renders only while a war is running
     'rescue',                // conditional — "your streak is about to break"
     'onboarding',
@@ -564,29 +584,6 @@ export default function Dashboard() {
     try { setIsRestDay(localStorage.getItem(restDayKey) === '1'); } catch {}
   }, [restDayKey]);
 
-  // Trophy check — fires once per dashboard mount (per user). The
-  // server-side RPC is idempotent (UNIQUE constraint on the trophies
-  // table) so re-calling never double-grants. Cheap: one round-trip
-  // with COUNT queries, returns the newly-granted IDs which trigger
-  // a celebration toast.
-  useEffect(() => {
-    if (!user?.id) return;
-    // Cancelled flag so a checkTrophies call kicked off by the
-    // setTimeout doesn't continue side-effecting after the Dashboard
-    // unmounts (route change, sign-out). Without this, a trophy
-    // celebration could fire on a destination route the user already
-    // navigated to.
-    let cancelled = false;
-    const t = setTimeout(() => {
-      if (cancelled) return;
-      checkTrophies(tFallback).catch(() => {});
-    }, 1500);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [user?.id, tFallback]);
-
   // ── Season-end ceremony ───────────────────────────────────────────────────
   //
   // Fires once per season per device, on first open after roll-league-seasons
@@ -607,7 +604,13 @@ export default function Dashboard() {
 
     const t = setTimeout(async () => {
       if (cancelled) return;
-      const res = await leagueSeasons.getLastSeasonResult(user);
+      // Cached for the session: a season result changes once every four
+      // weeks, and this was two serial queries on every return to Today.
+      const res = await queryClient.fetchQuery({
+        queryKey: ['lastSeasonResult', user.id],
+        queryFn: () => leagueSeasons.getLastSeasonResult(user),
+        staleTime: Infinity,
+      }).catch(() => null);
       if (cancelled || !res) return;
       // Keep the result around regardless, so the OPEN_SEASON_CEREMONY_EVENT
       // listener below can still open the sheet on a later tap.
@@ -629,7 +632,7 @@ export default function Dashboard() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [user?.id]);
+  }, [user?.id, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The celebration toast is React-free, so "View" reaches us as a window
   // event rather than a callback — same indirection prCelebration uses.
@@ -929,6 +932,32 @@ export default function Dashboard() {
     queryFn: () => cardioData.list(user.id, 50),
     enabled: !!user?.email,
   });
+
+  // Trophy check. The RPC is idempotent (UNIQUE on user_trophies) and
+  // returns newly granted ids, which trigger a celebration toast. It used to
+  // run on EVERY mount of Today, so every tab switch back cost a round-trip
+  // for an answer that only changes when something was logged. Now it runs
+  // when the newest workout or cardio log differs from the last check, and
+  // otherwise at most every 30 minutes, which still catches trophies earned
+  // elsewhere (quests, social) within a session.
+  const trophySignature = `${rawLogs[0]?.id ?? ''}|${rawCardioLogs[0]?.id ?? ''}`;
+  useEffect(() => {
+    if (!user?.id) return;
+    const last = lastTrophyCheck.get(user.id);
+    if (last && last.sig === trophySignature && Date.now() - last.at < TROPHY_RECHECK_MS) return;
+    // Cancelled flag so a check kicked off by the timeout doesn't fire a
+    // celebration after Today unmounts (route change, sign-out).
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      lastTrophyCheck.set(user.id, { sig: trophySignature, at: Date.now() });
+      checkTrophies(tFallback).catch(() => {});
+    }, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [user?.id, tFallback, trophySignature]);
 
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
@@ -1274,9 +1303,9 @@ export default function Dashboard() {
   const renderDashboardSection = (id, paired = false) => {
     switch (id) {
       case 'readiness':
-        // Readiness now lives in the hero (a 2/3 CTA + 1/3 Readiness row —
-        // see HeroCard). Return null here so a saved widgetOrder that still
-        // lists 'readiness' can't render it a second time as a section.
+        // Readiness now heads the Recovery card (TonightRow). Return null here
+        // so a saved widgetOrder that still lists 'readiness' can't render it
+        // a second time as a section.
         return null;
       // "Tonight" — sleep · mood · steps as one three-column row. Keeps the
       // section id `recovery` deliberately: every saved widgetOrder,
@@ -1296,11 +1325,18 @@ export default function Dashboard() {
               <span className="flex items-center gap-2 min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
                 <h2 id="dash-tonight-heading" className="font-heading font-bold text-sm tracking-tight truncate">
-                  {tFallback('dashboard.section.tonight', 'Tonight')}
+                  {tFallback('today.recovery.title', 'Recovery')}
                 </h2>
               </span>
+              {/* The note follows the clock: mornings are when last night's
+                  sleep gets logged, evenings are when mood and steps are
+                  complete. The middle of the day just says why it matters. */}
               <span className="text-micro font-semibold text-muted-foreground/70 shrink-0 cq-hide">
-                {tFallback('dashboard.tonight.note', 'feeds your readiness')}
+                {new Date().getHours() < 12
+                  ? tFallback('today.recovery.noteMorning', 'Log last night')
+                  : new Date().getHours() >= 18
+                    ? tFallback('today.recovery.noteEvening', 'Log tonight')
+                    : tFallback('dashboard.tonight.note', 'feeds your readiness')}
               </span>
             </div>
             <ErrorBoundary label="TonightRow">
@@ -1375,6 +1411,31 @@ export default function Dashboard() {
           </div>
         </React.Fragment>
       );
+      // Goals on Today. A goal at 75%+ gets GoalsAlmostComplete, which carries
+      // the Complete button; below that TodayGoalCard names the closest goal,
+      // and with none it asks for one. Waits for the goals query so a person
+      // who has goals never sees "Set a goal" flash first.
+      case 'goals': {
+        if (goalsLoading) return null;
+        return (
+          <React.Fragment key="goals">
+            <div className="space-y-2">
+              <ErrorBoundary label="GoalsAlmostComplete">
+                <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => openGoals()} />
+              </ErrorBoundary>
+              <ErrorBoundary label="TodayGoalCard">
+                <TodayGoalCard
+                  goals={goals}
+                  logs={logs}
+                  cardioLogs={cardioLogs}
+                  onOpen={() => openGoals()}
+                  onCreate={() => openGoals(true)}
+                />
+              </ErrorBoundary>
+            </div>
+          </React.Fragment>
+        );
+      }
       // Streak rescue is its own row, below the friend leaderboard, per board
       // 01. It used to render inside 'challenges', glued 8px under Daily
       // Quests — which read as a third quest rather than the "you are about to
@@ -1404,7 +1465,7 @@ export default function Dashboard() {
       );
       case 'chest': return (
         <React.Fragment key="chest">
-          <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+          <ErrorBoundary label="DailyChestCard"><Suspense fallback={null}><DailyChestCard /></Suspense></ErrorBoundary>
         </React.Fragment>
       );
       // No motion.div wrapper here, deliberately. LeagueCard returns null
@@ -1422,7 +1483,7 @@ export default function Dashboard() {
       case 'friends': return (
         <React.Fragment key="friends">
           <div>
-            <ErrorBoundary label="FriendLeaderboard"><FriendLeaderboardPanel /></ErrorBoundary>
+            <ErrorBoundary label="FriendLeaderboard"><Suspense fallback={null}><FriendLeaderboardPanel /></Suspense></ErrorBoundary>
           </div>
         </React.Fragment>
       );
@@ -1443,13 +1504,13 @@ export default function Dashboard() {
               next, in that order. */}
           <div className="space-y-2">
             <ErrorBoundary label="GoalsAlmostComplete">
-              <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
+              <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => openGoals()} />
             </ErrorBoundary>
             <ErrorBoundary label="GoalsProgressStrip">
-              <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
+              <Suspense fallback={null}><GoalsProgressStrip goals={goals} logs={logs} onOpen={() => openGoals()} /></Suspense>
             </ErrorBoundary>
             <div data-recap-card>
-              <ErrorBoundary label="WeeklyRecap"><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+              <ErrorBoundary label="WeeklyRecap"><Suspense fallback={null}><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></Suspense></ErrorBoundary>
             </div>
             {/* Suggestion + memory as a real 2-up from 380px rather than a
                 flex-wrap with a 15rem min: on a 390px phone that min forced
@@ -1458,10 +1519,10 @@ export default function Dashboard() {
                 leaving half a row of dead space. */}
             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 items-start">
               <div className="min-w-0 empty:hidden">
-                <ErrorBoundary label="WorkoutSuggestionCard"><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+                <ErrorBoundary label="WorkoutSuggestionCard"><Suspense fallback={null}><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></Suspense></ErrorBoundary>
               </div>
               <div className="min-w-0 empty:hidden">
-                <ErrorBoundary label="WorkoutMemoryCard"><WorkoutMemoryCard logs={logs} /></ErrorBoundary>
+                <ErrorBoundary label="WorkoutMemoryCard"><Suspense fallback={null}><WorkoutMemoryCard logs={logs} /></Suspense></ErrorBoundary>
               </div>
             </div>
           </div>
@@ -1523,7 +1584,7 @@ export default function Dashboard() {
       case 'journal': return (
         <React.Fragment key="journal">
           <ErrorBoundary label="JournalWidget">
-            <JournalWidget userId={user?.id} userEmail={user?.email} />
+            <Suspense fallback={null}><JournalWidget userId={user?.id} userEmail={user?.email} /></Suspense>
           </ErrorBoundary>
         </React.Fragment>
       );
@@ -1538,11 +1599,13 @@ export default function Dashboard() {
             <SectionLabel label={tFallback('dashboard.section.discover', 'Discover')} />
             <div className="dash-section-body">
               <ErrorBoundary label="DiscoveryCards">
-                <DiscoveryCards
-                  logs={rawLogs}
-                  regimens={rawRegimens}
-                  isLoading={logsLoading || regimensLoading}
-                />
+                <Suspense fallback={null}>
+                  <DiscoveryCards
+                    logs={rawLogs}
+                    regimens={rawRegimens}
+                    isLoading={logsLoading || regimensLoading}
+                  />
+                </Suspense>
               </ErrorBoundary>
             </div>
           </div>
@@ -1550,7 +1613,7 @@ export default function Dashboard() {
       );
       case 'motivation': return (
         <React.Fragment key="motivation">
-          <DailyQuote editMode={editMode} />
+          <Suspense fallback={null}><DailyQuote editMode={editMode} /></Suspense>
         </React.Fragment>
       );
       case 'onboarding': return (
@@ -1584,7 +1647,7 @@ export default function Dashboard() {
           <SectionLabel label={tFallback('dashboard.section.customize', 'Widget library')} />
           {/* id is the scroll target for the Widgets action tile. */}
           <div id="dash-widget-library">
-            <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} userProfile={userProfile} />
+            <Suspense fallback={null}><DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} userProfile={userProfile} /></Suspense>
           </div>
         </React.Fragment>
       );
@@ -1607,6 +1670,7 @@ export default function Dashboard() {
            tiering below by product decision. */}
       <StoriesRow
         tightOnShort
+        compact
         onViewProfile={(u) =>
           navigate('/hub?profile=' + encodeURIComponent(u.id || u.email))
         }
@@ -2008,22 +2072,31 @@ export default function Dashboard() {
       {/* ── Prestige prompt — only when at max level ───────────── */}
       {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
         <ErrorBoundary label="PrestigePrompt">
-          <PrestigePrompt currentPrestige={userProfile.prestige_level || 0} />
+          <Suspense fallback={null}><PrestigePrompt currentPrestige={userProfile.prestige_level || 0} /></Suspense>
         </ErrorBoundary>
       )}
 
-      <GoalsModal
-        open={goalsModalOpen}
-        onClose={() => setGoalsModalOpen(false)}
-        goals={goals}
-        logs={logs}
-        userProfile={userProfile}
-      />
+      {goalsModalOpen && (
+        <Suspense fallback={null}>
+          <GoalsModal
+            open={goalsModalOpen}
+            onClose={() => { setGoalsModalOpen(false); setGoalsStartWithForm(false); }}
+            goals={goals}
+            logs={logs}
+            userProfile={userProfile}
+            startWithForm={goalsStartWithForm}
+          />
+        </Suspense>
+      )}
 
-      <LeagueStandingsModal
-        open={leagueModalOpen}
-        onClose={() => setLeagueModalOpen(false)}
-      />
+      {leagueModalOpen && (
+        <Suspense fallback={null}>
+          <LeagueStandingsModal
+            open={leagueModalOpen}
+            onClose={() => setLeagueModalOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Readiness sheet — the score breakdown AND the sleep / mood /
           steps loggers, opened by the Readiness card in the hero or by any
@@ -2067,20 +2140,32 @@ export default function Dashboard() {
           user_profiles.weight_lbs so the global weight stays in sync.
           ProgressPhotoCapture runs in controlled mode (no internal
           trigger button) — the parent owns the prompt's open state. */}
-      <LogWeightModal
-        open={logWeightOpen}
-        onOpenChange={setLogWeightOpen}
-        profile={userProfile}
-      />
+      {logWeightOpen && (
+        <Suspense fallback={null}>
+          <LogWeightModal
+            open={logWeightOpen}
+            onOpenChange={setLogWeightOpen}
+            profile={userProfile}
+          />
+        </Suspense>
+      )}
 
-      <RoutineCalendarModal open={weekModalOpen} onClose={() => setWeekModalOpen(false)} />
-      <ErrorBoundary label="ProgressPhotoCapture">
-        <ProgressPhotoCapture
-          workoutName={null}
-          open={photoCaptureOpen}
-          onOpenChange={setPhotoCaptureOpen}
-        />
-      </ErrorBoundary>
+      {weekModalOpen && (
+        <Suspense fallback={null}>
+          <RoutineCalendarModal open={weekModalOpen} onClose={() => setWeekModalOpen(false)} />
+        </Suspense>
+      )}
+      {photoCaptureOpen && (
+        <ErrorBoundary label="ProgressPhotoCapture">
+          <Suspense fallback={null}>
+            <ProgressPhotoCapture
+              workoutName={null}
+              open={photoCaptureOpen}
+              onOpenChange={setPhotoCaptureOpen}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
 
       {/* Subtle "Synced Xm ago" footer. Tappable to force refresh of all
           primary Dashboard queries. Trust signal — when a user wonders

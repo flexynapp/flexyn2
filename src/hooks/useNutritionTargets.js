@@ -11,20 +11,19 @@
 // training frequency, which lives in the workout and cardio logs. The hook
 // fetches those and hands the derived sessions/week down.
 //
-// Both queries reuse the exact keys the pages already fetch under
-// (['workoutLogs', email] / ['cardioLogs', email]). Dashboard fetches both
-// already (Dashboard.jsx:1121 and :1127), so the two widgets there cost
-// nothing — react-query serves them from cache, and a workout save
-// invalidates it for us. Nutrition fetches neither, so there it is two
-// reads, deduplicated across all five consumers on the page.
+// Both queries read dates only, over the 30-day TDEE window, under scoped
+// keys inside ['workoutLogs', email] / ['cardioLogs', email], so every save
+// that invalidates those prefixes refreshes this too. They used to fetch up
+// to 1,000 full rows each (exercises JSONB included) on every Today and
+// Nutrition load, to compute one number that reads nothing but `date`.
 
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
-import { observedSessionsPerWeek } from '@/lib/tdee';
+import { observedSessionsPerWeek, TDEE_WINDOW_DAYS } from '@/lib/tdee';
+import { format, subDays } from 'date-fns';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
@@ -43,21 +42,25 @@ import * as cardioData from '@/lib/data/cardio';
  * the logs arrive, so a cold Nutrition load does still settle from 2000 to
  * the derived figure. That is a visible change, and it is the one worth
  * having: the intermediate value is the generic default this feature is
- * replacing rather than a personalised number that was wrong. On Dashboard
- * both queries are already warm, so there is nothing to settle.
+ * replacing rather than a personalised number that was wrong.
  */
 export function useObservedActivity() {
   const { user } = useAuth();
+  // One day of slack past the window: observedSessionsPerWeek applies the
+  // exact cutoff itself, this only has to not cut short of it.
+  const since = format(subDays(new Date(), TDEE_WINDOW_DAYS + 1), 'yyyy-MM-dd');
 
   const { data: logs, isPending: logsPending } = useQuery({
-    queryKey: workoutLogsKey(user?.email, 'nutritionTargets'),
-    queryFn: () => workouts.list(user.id, LOG_FETCH_LIMIT),
+    queryKey: workoutLogsKey(user?.email, 'observedDates'),
+    queryFn: () => workouts.listDatesSince(user.id, since),
     enabled: !!user?.email,
+    staleTime: 10 * 60_000,
   });
   const { data: cardioLogs, isPending: cardioPending } = useQuery({
-    queryKey: cardioLogsKey(user?.email, 'nutritionTargets'),
-    queryFn: () => cardioData.list(user.id, LOG_FETCH_LIMIT),
+    queryKey: cardioLogsKey(user?.email, 'observedDates'),
+    queryFn: () => cardioData.listDatesSince(user.id, since),
     enabled: !!user?.email,
+    staleTime: 10 * 60_000,
   });
 
   return useMemo(() => {

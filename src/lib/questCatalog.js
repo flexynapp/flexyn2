@@ -734,11 +734,16 @@ const FAMILY_EXEMPT = new Set(['crew']);
  * The 'same-family day' figure counts easy/medium/hard only — the crew quest
  * is exempt by design, see FAMILY_EXEMPT.
  */
-export function pickDailyQuests(userId, dateStr, hasCrew = false) {
+export function pickDailyQuests(userId, dateStr, hasCrew = false, { skipFamilies = [] } = {}) {
   const day = dayIndex(dateStr);
   const tiers = hasCrew ? RESOLVE_ORDER : RESOLVE_ORDER.filter(t => t !== 'crew');
 
-  const usedFamilies = new Set();
+  // `skipFamilies` marks families that cannot be completed today, such as
+  // 'goals' for someone with no active goal ("Complete a goal" handed to a
+  // person who has none is a quest nobody can finish). Seeding them as
+  // already used routes a scheduled pick through the displacement below, so
+  // the day stays a full set and the rotation for everyone else is unchanged.
+  const usedFamilies = new Set(skipFamilies);
   const chosen = {};
 
   for (const difficulty of tiers) {

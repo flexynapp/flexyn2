@@ -73,10 +73,10 @@ export default function DailyQuestsCard({ onNavigated }) {
   // Ensure today's quests exist on mount, then read them.
   const { data: rows = [] } = useQuery({
     queryKey: ['dailyQuests', user?.id, quests.todayDateString()],
-    queryFn: async () => {
-      await quests.ensureTodaysQuests(user);
-      return quests.listTodaysQuests(user);
-    },
+    // ensureTodaysQuests already reads the day's full rows (or returns the
+    // ones it just inserted), so its result IS the list. Reading the same
+    // rows a second time doubled every 90s poll.
+    queryFn: async () => quests.sortQuestRows(await quests.ensureTodaysQuests(user)),
     enabled: !!user?.id,
     // Quest progress also invalidates on action (workout save, meal log, etc.)
     // so we don't need to poll aggressively. 90s is fine for the rare async

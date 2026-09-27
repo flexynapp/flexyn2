@@ -1,5 +1,11 @@
 // src/components/dashboard/TonightRow.jsx
 //
+// Now the Recovery card (Kegan, 27 Sep): the readiness score used to be a
+// chip in the hero while its inputs sat here, two places for one idea. The
+// score heads this card as the result, and sleep, mood and steps sit under
+// it as what produced it. The file keeps its name so the log-card
+// invalidation test that pins it still reaches it.
+//
 // The three recovery signals — sleep, mood, steps — as ONE row of three
 // columns instead of three separate cards (plus the macro / calorie /
 // hydration cards that used to sit with them and now live only on the
@@ -22,13 +28,15 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import useCountUp from '@/hooks/useCountUp';
 import { motion } from 'framer-motion';
-import { Moon, Smile, Footprints, Star, ChevronRight } from 'lucide-react';
+import { Moon, Smile, Footprints, Star, ChevronRight, Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getTodayStepLog } from '@/lib/data/stepLogs';
 import { MOOD_LABELS } from '@/lib/data/moodLogs';
+import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
+import { ACTION_BY_LABEL } from '@/components/dashboard/ReadinessCard';
 
 // A DISPLAY reference for the steps bar, not a stored goal — step_logs
 // holds a count and nothing else, so there is no per-user target to read.
@@ -91,7 +99,29 @@ export default function TonightRow({ readiness, onOpen }) {
   const countedSteps = useCountUp(steps, { duration: 700 });
 
   // An unlogged column says what tapping does rather than showing a dash.
-  const add = tFallback('dashboard.tonight.add', 'Add');
+  const add = (
+    <span className="inline-flex items-center gap-0.5">
+      <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
+      {tFallback('today.recovery.log', 'Log')}
+    </span>
+  );
+
+  // Readiness heads the card. Same rule as ReadinessCard: with neither sleep
+  // nor soreness logged every input is a neutral default and the score is 70
+  // for everyone, so no number shows until one of them exists.
+  const scored = !!(readiness?.breakdown?.sleep?.logged || readiness?.breakdown?.soreness?.logged);
+  const score = readiness?.score ?? 0;
+  const countedScore = useCountUp(scored ? score : null, { duration: 800 });
+  const colors = scored
+    ? readinessColors(readiness?.label)
+    : { text: 'text-muted-foreground', ring: 'hsl(var(--muted-foreground))' };
+  const safeLabel = ACTION_BY_LABEL[readiness?.label] ? readiness.label : 'Ready';
+  const readinessLabel = scored
+    ? tFallback(`readiness.label.${safeLabel.toLowerCase()}`, safeLabel)
+    : tFallback('today.readiness.unscoredLabel', 'Not scored');
+  const readinessAction = scored
+    ? tFallback(ACTION_BY_LABEL[safeLabel].key, ACTION_BY_LABEL[safeLabel].fallback)
+    : tFallback('today.readiness.unscored', "Log last night's sleep to get a score.");
   const tapToLog = tFallback('dashboard.tonight.tapToLog', 'Tap to log');
   const nothingLogged = hours == null && mood == null && steps == null;
 
@@ -139,7 +169,30 @@ export default function TonightRow({ readiness, onOpen }) {
       {/* cq-stack-y: three columns in a paired half slot give each signal
           ~50px, which truncates "8,240". Stacked, each keeps its full row.
           See the .dash-slot / cq-* block in index.css. */}
-      <Card className="py-4 px-1 divide-x divide-border flex items-stretch cq-stack-y">
+      <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onOpen()}
+        aria-label={tFallback('readiness.openLabel', 'Readiness. Tap for details')}
+        className="w-full flex items-center gap-2 px-4 py-3 text-start hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+      >
+        <ReadinessRing score={scored ? score : 0} color={colors.ring} size={36} stroke={3}>
+          <span className="font-heading font-black text-xs tabular-nums">
+            {scored ? Math.round(countedScore ?? score) : '—'}
+          </span>
+        </ReadinessRing>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-baseline gap-1.5">
+            <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
+              {tFallback('readiness.kicker', 'READINESS')}
+            </span>
+            <span className={`text-sm font-heading font-bold ${colors.text}`}>{readinessLabel}</span>
+          </span>
+          <span className="block text-xs text-muted-foreground leading-snug">{readinessAction}</span>
+        </span>
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
+      </button>
+      <div className="border-t border-border py-3 px-1 divide-x divide-border flex items-stretch cq-stack-y">
         <Column
           icon={Moon}
           iconClass="text-info"
@@ -209,6 +262,7 @@ export default function TonightRow({ readiness, onOpen }) {
             />
           </span>
         </Column>
+      </div>
       </Card>
     </motion.div>
   );

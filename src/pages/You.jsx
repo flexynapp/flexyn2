@@ -29,6 +29,8 @@ import { isEnabled } from '@/lib/featureFlags';
 import { initialsFor } from '@/lib/initials';
 import { handle } from '@/lib/userDisplay';
 import LevelBar from '@/components/LevelBar';
+import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import SkinToggle from '@/components/skins/SkinToggle';
 import { useSkin } from '@/components/skins/useSkin';
 
@@ -90,7 +92,14 @@ export default function You() {
         <ChevronRight className="w-5 h-5 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
       </button>
 
-      <LevelBar totalXp={user?.total_xp || 0} compact={false} />
+      {/* The login streak lives here rather than on Today, which shows one
+          streak: training. It renders nothing on day 0. */}
+      <div className="flex flex-col gap-2">
+        <LevelBar totalXp={user?.total_xp || 0} compact={false} />
+        <ErrorBoundary label="LoginStreakBanner">
+          <LoginStreakBanner />
+        </ErrorBoundary>
+      </div>
 
       {/* The in-season skin's switch, deliberately here as well as in Settings › Display:
           the look changes every screen, so the way out has to be one tap
