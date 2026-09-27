@@ -9,6 +9,9 @@ import { containsProfanity } from '@/lib/profanityFilter';
 export const list = (userId, limit) =>
   db.entities.Regimen.filter({ user_id: userId }, '-created_date', limit);
 
+/** Fetch a regimen by id, or null (including one the policies hide). */
+export const get = (id) => db.entities.Regimen.get(id);
+
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
     if (typeof val === 'string' && containsProfanity(val)) {

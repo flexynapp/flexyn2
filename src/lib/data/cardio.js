@@ -91,6 +91,9 @@ export async function getById(id) {
 export const list = (userId, limit = 50) =>
   db.entities.CardioLog.filter({ user_id: userId }, '-date', limit);
 
+/** Fetch a cardio log by id, or null. */
+export const get = (id) => db.entities.CardioLog.get(id);
+
 export const listForDate = (userId, date, limit = 50) =>
   db.entities.CardioLog.filter({ user_id: userId, date }, '-date', limit);
 

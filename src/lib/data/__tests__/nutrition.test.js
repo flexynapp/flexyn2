@@ -147,3 +147,11 @@ describe('one door to nutrition_logs', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('nutrition get', () => {
+  it('reads one row by id', async () => {
+    calls = []; results = [{ data: { id: 'x1' }, error: null }];
+    expect(await nutrition.get('x1')).toEqual({ id: 'x1' });
+    expect(calls).toEqual([['nutrition_logs', 'from'], ['nutrition_logs', 'select', '*'], ['nutrition_logs', 'eq', 'id', 'x1'], ['nutrition_logs', 'maybeSingle']]);
+  });
+});

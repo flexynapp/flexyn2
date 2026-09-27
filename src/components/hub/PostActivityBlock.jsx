@@ -30,22 +30,38 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
-import { db } from '@/api/db';
 import * as regimensData from '@/lib/data/regimens';
+import * as workoutsData from '@/lib/data/workouts';
+import * as cardioData from '@/lib/data/cardio';
+import * as nutritionData from '@/lib/data/nutrition';
+import * as goalsData from '@/lib/data/goals';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { workoutDurationMin } from '@/lib/workoutDuration';
 // Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
 // don't render a map. Shared chunk with CardioDetailModal.
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
 
+// When a post has no stored snapshot, its author's card re-reads the shared
+// row by id. This used to look the table up by a name string on the old
+// db.entities client, where 'Workout' and 'Achievement' were never valid
+// names, so a workout card's fallback always came back empty.
+// Achievements have no table any more (migration 341), so they have none.
+const FALLBACK_GET = {
+  workout:        workoutsData.get,
+  cardio:         cardioData.get,
+  meal:           nutritionData.get,
+  goal_completed: goalsData.get,
+  regimen:        regimensData.get,
+};
+
 const TYPE_META = {
-  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout',      accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
-  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      entity: 'CardioLog',    accent: 'border-success/60 bg-success/5',     iconBg: 'bg-success/15',    iconColor: 'text-success' },
-  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        entity: 'NutritionLog', accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
-  goal_completed: { Icon: Target,     labelKey: 'hub.share.goal',        entity: 'Goal',         accent: 'border-primary/60 bg-primary/5',         iconBg: 'bg-primary/15',      iconColor: 'text-primary' },
-  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', entity: 'Achievement',  accent: 'border-primary/60 bg-primary/5',     iconBg: 'bg-primary/15',    iconColor: 'text-primary' },
-  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     entity: 'Regimen',      accent: 'border-info/60 bg-info/5',   iconBg: 'bg-info/15',   iconColor: 'text-info' },
-  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       entity: null,           accent: 'border-info/60 bg-info/5',       iconBg: 'bg-info/15',     iconColor: 'text-info' },
+  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
+  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      accent: 'border-success/60 bg-success/5',     iconBg: 'bg-success/15',    iconColor: 'text-success' },
+  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
+  goal_completed: { Icon: Target,     labelKey: 'hub.share.goal',        accent: 'border-primary/60 bg-primary/5',         iconBg: 'bg-primary/15',      iconColor: 'text-primary' },
+  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', accent: 'border-primary/60 bg-primary/5',     iconBg: 'bg-primary/15',    iconColor: 'text-primary' },
+  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     accent: 'border-info/60 bg-info/5',   iconBg: 'bg-info/15',   iconColor: 'text-info' },
+  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       accent: 'border-info/60 bg-info/5',       iconBg: 'bg-info/15',     iconColor: 'text-info' },
 };
 
 // Same decimation logic as the composer — used when we have to build a
@@ -141,17 +157,17 @@ export default function PostActivityBlock({ post }) {
   const meta = normalizedType ? TYPE_META[normalizedType] : null;
 
   // Determine if we need a fallback fetch (before any early returns, so hooks are always called)
-  const needsFallback = !post.linked_entity_snapshot && !!post.linked_entity_id && !!(meta?.entity);
+  const fallbackGet = normalizedType && Object.hasOwn(FALLBACK_GET, normalizedType)
+    ? FALLBACK_GET[normalizedType]
+    : undefined;
+  const needsFallback = !post.linked_entity_snapshot && !!post.linked_entity_id && !!meta && !!fallbackGet;
   const isAuthor = post.author_email === user?.email;
 
   const { data: fetchedSnapshot } = useQuery({
     queryKey: ['postActivityFallback', post.id, post.linked_entity_id, normalizedType],
     queryFn: async () => {
       try {
-        const list = await db.entities[meta.entity]
-          .filter({ id: post.linked_entity_id })
-          .catch(() => []);
-        const item = Array.isArray(list) ? list[0] : null;
+        const item = await fallbackGet(post.linked_entity_id).catch(() => null);
         return entityToSnapshot(normalizedType, item);
       } catch {
         return null;
