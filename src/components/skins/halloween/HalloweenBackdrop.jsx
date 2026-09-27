@@ -63,14 +63,18 @@ export default function HalloweenBackdrop() {
         </div>
 
         {/* The flyover: one timeline for the witch and her bats, so they
-            cross together and the sky is quiet the rest of the cycle. */}
+            cross together and the sky is quiet the rest of the cycle.
+            Physical left-0, not start-0: the whole lane is mirrored in RTL
+            (.hw-motion in halloween.css), and a logical inset flipped a
+            second time started the witch 110px on screen, flying off the
+            wrong edge. */}
         <div className="hw-motion absolute inset-x-0 top-24 h-24" style={{ opacity: FG }}>
-          <div className="hw-fly absolute start-0 top-0">
+          <div className="hw-fly absolute left-0 top-0">
             <div className="hw-bob"><Witch /></div>
           </div>
-          <Bat className="hw-fly hw-fly-b absolute start-0 top-10" />
-          <Bat className="hw-fly hw-fly-c absolute start-0 top-1" />
-          <Bat className="hw-fly hw-fly-d absolute start-0 top-16" />
+          <Bat className="hw-fly hw-fly-b absolute left-0 top-10" />
+          <Bat className="hw-fly hw-fly-c absolute left-0 top-1" />
+          <Bat className="hw-fly hw-fly-d absolute left-0 top-16" />
         </div>
       </div>
 

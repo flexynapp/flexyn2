@@ -5,7 +5,7 @@
    outrank :root / .dark on specificity anyway. */
 /* ── Halloween skin (seasonal, opt-in) ──────────────────────────────
    Set by ThemeContext as [data-skin="halloween"] on <html>; the
-   window and the choice live in src/lib/halloween.js.
+   window and the choice live in src/lib/skins.js.
 
    A skin, not a theme: it moves the NEUTRAL ramp only. --primary is
    untouched because the brand orange already is pumpkin, and the
@@ -66,7 +66,7 @@ html.dark[data-skin="halloween"] {
   --sidebar-border: 20 12% 18%;
 }
 
-/* ── Halloween ornaments (HalloweenOverlay.jsx) ────────────────────────
+/* ── Halloween ornaments (HalloweenBackdrop.jsx, Ghost.jsx) ────────────
    Transform-only keyframes so the flyover composites on the GPU. The
    witch crosses in the first ~22% of a 36s cycle and the screen is quiet
    for the rest; the bats trail her on the same clock. Written for LTR and
