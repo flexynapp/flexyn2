@@ -277,10 +277,7 @@ const auth = {
     return patchProfile(patch);
   },
 
-  /** Patch the user profile and refresh the cache.
-   *  Resilient retry: strips unknown columns (42703) and retries, same as create().
-   *  This ensures username and onboarding flags always land even when some
-   *  migration-002+ columns haven't been applied yet. */
+  /** Patch the user profile and refresh the cache. */
   async updateMe(data) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -289,97 +286,26 @@ const auth = {
     // (user_profiles_email_key), so the FIRST guest's updateMe clobbers the
     // canonical `guest_<uid>@flexyn.guest` that handle_new_user (mig 172)
     // wrote — and EVERY subsequent guest then collides on '' with 23505.
-    // 23505 isn't 42703/PGRST204, so the strip-and-retry loop below can't
-    // recover it and the whole upsert throws — silently breaking onboarding
+    // The whole upsert then throws with 23505, silently breaking onboarding
     // completion, nutrition setup, theme, and every other profile write for
     // the 2nd+ guest. Synthesize the same uid-derived placeholder create()
     // uses so the value is unique per guest AND matches created_by on their
     // rows (so their workout/history reads resolve). Real users keep their
     // own email (unchanged behavior).
     const effectiveEmail = accountEmail(user);
-    let payload = { id: user.id, email: effectiveEmail, ...data, updated_at: new Date().toISOString() };
+    const payload = { id: user.id, email: effectiveEmail, ...data, updated_at: new Date().toISOString() };
 
-    // Columns that are always safe — never strip these even in nuclear mode.
-    const CORE_KEYS = new Set(['id', 'email', 'updated_at', 'username',
-      'onboarding_complete', 'onboarding_completed', 'onboarding_completed_at']);
-
-    // Helper: extract the offending column name from various PostgREST /
-    // Postgres error message formats.
-    const extractCol = (msg = '') => {
-      const m =
-        msg.match(/the '([^']+)' column/) ||   // PGRST204 standard
-        msg.match(/column '([^']+)'/)        ||  // PGRST204 alt
-        msg.match(/column "([^"]+)"/)        ||  // 42703 postgres
-        msg.match(/"([^"]+)" column/)        ||  // reversed form
-        msg.match(/'([^']+)' of relation/);      // another PostgREST variant
-      return m?.[1] ?? null;
-    };
-
-    // 20 attempts so we can strip several one-off newer columns without
-    // exhausting the retry budget. Onboarding sends a wide payload.
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const { data: row, error } = await supabase
-        .from('user_profiles')
-        .upsert(payload, { onConflict: 'id' })
-        .select()
-        .single();
-      if (!error) {
-        return setProfile({ id: user.id, email: user.email, ...row });
-      }
-
-      // PostgreSQL 42703 undefined_column — strip and retry
-      if (error.code === '42703') {
-        const col = extractCol(error.message);
-        if (col && col in payload && !CORE_KEYS.has(col)) {
-          console.warn(`[Supabase] 42703: column "${col}" not in user_profiles — skipping`);
-          delete payload[col];
-          continue;
-        }
-      }
-
-      // PostgREST PGRST204 schema-cache miss — same fix, different shape.
-      if (error.code === 'PGRST204') {
-        const col = extractCol(error.message);
-        if (col && col in payload && !CORE_KEYS.has(col)) {
-          console.warn(`[Supabase] PGRST204: column "${col}" not in PostgREST schema cache — skipping`);
-          delete payload[col];
-          continue;
-        }
-        // Column name not extractable from message — nuclear: strip everything
-        // non-core and retry once. Prevents a bad PGRST204 from hard-blocking.
-        const stripped = Object.fromEntries(
-          Object.entries(payload).filter(([k]) => CORE_KEYS.has(k))
-        );
-        console.warn('[Supabase] PGRST204: could not extract column — nuclear strip, retrying with core fields only');
-        const { data: row2, error: err2 } = await supabase
-          .from('user_profiles')
-          .upsert(stripped, { onConflict: 'id' })
-          .select()
-          .single();
-        if (!err2) {
-          return setProfile({ id: user.id, email: user.email, ...row2 });
-        }
-        throw err2;
-      }
-
-      throw error;
-    }
-
-    // Last resort: send only the absolute minimum fields needed to mark
-    // onboarding complete. Prevents users from being permanently stuck
-    // on the onboarding screen due to schema drift on non-essential cols.
-    console.warn('[Supabase] updateMe: 20-attempt budget exhausted — nuclear fallback with core fields only');
-    const nuclear = { id: user.id, email: user.email, updated_at: new Date().toISOString() };
-    for (const k of CORE_KEYS) { if (k in payload) nuclear[k] = payload[k]; }
-    const { data: finalRow, error: finalErr } = await supabase
+    // One write, no retry. This used to strip any column the table lacked
+    // and, when it could not tell which, fall back to saving only the
+    // onboarding flags, so a whole payload could vanish while the caller
+    // saw success. A missing column now throws like any other error.
+    const { data: row, error } = await supabase
       .from('user_profiles')
-      .upsert(nuclear, { onConflict: 'id' })
+      .upsert(payload, { onConflict: 'id' })
       .select()
       .single();
-    if (!finalErr) {
-      return setProfile({ id: user.id, email: user.email, ...finalRow });
-    }
-    throw finalErr;
+    if (error) throw error;
+    return setProfile({ id: user.id, email: user.email, ...row });
   },
 
   /** Kick off Google OAuth — kept as the default for legacy call sites. */
