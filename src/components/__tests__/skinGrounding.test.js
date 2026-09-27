@@ -19,7 +19,10 @@
 // later means animating these numbers, and the rule still holds per frame.
 
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import * as graveyard from '../skins/halloween/graveyard';
+import { PATCH, PUMPKIN_FOOT, seatOffset } from '../skins/halloween/PumpkinPatch';
 
 const modules = Object.entries(import.meta.glob('../skins/*/*.js', { eager: true }))
   .filter(([, m]) => typeof m.groundY === 'function' && Array.isArray(m.PLANTED));
@@ -131,5 +134,30 @@ describe('the rule catches what it exists to catch', () => {
   it('flags a rail that dips into the ground', () => {
     const sunk = { ...RAILS[1], topAt: (x) => RAILS[1].topAt(x) + 6 };
     expect(misalignments({ groundY, PLANTED: [], RAILS: [sunk] }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('figures on the nav edge sit on it', () => {
+  // The pumpkin row's floor is the nav's top edge. A pumpkin is seated when
+  // its drawn body reaches below that edge, where the row clips it.
+  it('PUMPKIN_FOOT matches where PumpkinMark actually draws the body', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '../skins/halloween/PumpkinMark.jsx'), 'utf8');
+    const feet = [...src.matchAll(/<ellipse[^>]*cy="([\d.]+)"[^>]*ry="([\d.]+)"[^>]*fill="hsl\(var\(--primary\)\)"/g)]
+      .map(([, cy, ry]) => Number(cy) + Number(ry));
+    expect(feet.length).toBeGreaterThan(0);
+    expect(Math.max(...feet) / 24).toBeCloseTo(PUMPKIN_FOOT, 3);
+  });
+
+  it('seats every pumpkin in the patch, big or small', () => {
+    for (const size of PATCH) {
+      // Distance from the row's floor up to the body's bottom; negative is buried.
+      const bodyBottom = seatOffset(size) + size * (1 - PUMPKIN_FOOT);
+      expect(bodyBottom, `pumpkin ${size}px`).toBeLessThanOrEqual(-BURIED);
+    }
+  });
+
+  it('flags the old flat offset that left big pumpkins hovering', () => {
+    const old = -2; // -mb-0.5
+    expect(old + 34 * (1 - PUMPKIN_FOOT)).toBeGreaterThan(0);
   });
 });

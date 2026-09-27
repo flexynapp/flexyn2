@@ -17,6 +17,15 @@ import PumpkinMark from './PumpkinMark';
 // justify-between spreads them on anything wider.
 export const PATCH = [30, 18, 24, 34, 16, 26, 20, 32, 18, 24, 28, 16, 30];
 
+// Every pumpkin sits ON the edge, whatever its size. PumpkinMark's body ends
+// at y=21 of its 24-unit box, so a flat -mb left big pumpkins hovering a few
+// px up while small ones touched down. Each is pulled down by its own empty
+// strip plus SEAT px, burying the body in the clipped edge the way a
+// graveyard figure sits in the ground. skinGrounding.test.js checks it.
+export const PUMPKIN_FOOT = 21 / 24;
+export const SEAT = 1;
+export const seatOffset = (size) => -(size * (1 - PUMPKIN_FOOT) + SEAT);
+
 export default function PumpkinPatch() {
   return (
     <div
@@ -38,8 +47,8 @@ export default function PumpkinPatch() {
         <PumpkinMark
           key={i}
           face={size >= 24}
-          className="relative shrink-0 -mb-0.5"
-          style={{ width: size, height: size }}
+          className="relative shrink-0"
+          style={{ width: size, height: size, marginBottom: seatOffset(size) }}
         />
       ))}
     </div>
