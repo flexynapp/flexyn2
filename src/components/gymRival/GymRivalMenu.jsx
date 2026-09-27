@@ -198,11 +198,12 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
   });
   // The match week, server-side. Replaces the client-side cross-user read,
   // which RLS made structurally empty. Settled matches too, so the result
-  // screen can show a final scoreline rather than only a verdict.
+  // screen can show a final scoreline rather than only a verdict, and voided
+  // ones so the void screen can say who logged.
   const { data: week } = useQuery({
     queryKey: ['gymRivalWeek', assignment?.id],
     queryFn:  () => getGymRivalWeekState(assignment.id),
-    enabled:  open && !!assignment?.id && (status === 'active' || status === 'completed'),
+    enabled:  open && !!assignment?.id && (status === 'active' || status === 'completed' || status === 'void'),
     staleTime: 60_000,
   });
   // Crew identity for both lifters, in one round trip.
