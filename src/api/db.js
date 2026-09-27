@@ -484,7 +484,15 @@ const functions = {
 // names, and bonus XP live in that migration. Keep any client display copy
 // in sync with it.
 
-async function _invokeXp({ xp_gained = 0, action_type } = {}) {
+// Sessions are scored by the SERVER from the saved row (migration
+// 20260927203000). The client passes the log id and gets back what was
+// actually credited; it never names an amount for a session again.
+const SESSION_XP_RPC = {
+  workout_completed: 'grant_workout_xp',
+  cardio_completed:  'grant_cardio_xp',
+};
+
+async function _invokeXp({ xp_gained = 0, action_type, log_id } = {}) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
@@ -503,7 +511,12 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
     //    never granted an achievement. It failed silently because returning
     //    early is not an error: the reportError wrappers on those three call
     //    sites had nothing to catch.
-    if (xp_gained) {
+    let credited = null;
+    if (SESSION_XP_RPC[action_type] && log_id) {
+      const { data, error } = await supabase.rpc(SESSION_XP_RPC[action_type], { p_log_id: log_id });
+      if (error) console.warn('[XP] session rpc failed:', error.message);
+      else credited = data || null;
+    } else if (xp_gained && !SESSION_XP_RPC[action_type]) {
       //    grant_action_xp awards 0 for an action_type it does not
       //    recognise, so a missing one is a silent no-grant, not a failure.
       //    This used to send 'other', which is not an accepted value — any
@@ -556,7 +569,12 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
     }
 
     _clearProfile();
-    return { ok: true };
+    return {
+      ok: true,
+      xp_awarded:     Number(credited?.xp_awarded) || 0,
+      comeback_xp:    Number(credited?.comeback_xp) || 0,
+      check_in_bonus: !!credited?.check_in_bonus,
+    };
   } catch (err) {
     console.warn('[XP] failed silently:', err);
     return null;

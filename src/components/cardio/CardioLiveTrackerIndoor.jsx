@@ -277,6 +277,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       db.functions.invoke('updateUserXpAndAchievements', {
         xp_gained: 0,
         action_type: 'cardio_completed',
+        log_id: createdLog?.id,
         action_data: {
           duration_seconds: payload.duration_seconds,
           distance_meters: payload.distance_meters,
