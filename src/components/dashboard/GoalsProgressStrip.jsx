@@ -18,7 +18,7 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Target, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
-import { computeStrengthGoalProgress } from '@/lib/goalProgress';
+import { goalProgress } from '@/lib/goalProgress';
 
 // Strength progress uses the SHARED module in src/lib/goalProgress.js
 // — single source of truth across GoalsAlmostComplete, GoalsList, and
@@ -29,7 +29,7 @@ import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 // different % shown for the same goal on Dashboard vs Goals modal.
 // Cardio goals get 0% from the shared module too — strip stays simple.
 
-export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
+export default function GoalsProgressStrip({ goals = [], logs = [], cardioLogs = [], onOpen }) {
   const { tFallback } = useLanguage();
 
   const view = useMemo(() => {
@@ -39,10 +39,9 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
     const active = goals.filter(g => g.status === 'active');
     if (active.length === 0) return null;
 
-    // Compute progress for each active goal (strength only — cardio
-    // progress is too varied to express in a one-line strip; the modal
-    // shows the full picture).
-    const enriched = active.map(g => ({ goal: g, progress: computeStrengthGoalProgress(g, logs).progress }));
+    // Cardio goals read cardio logs. They used to go through the strength
+    // calculator here and always scored 0%.
+    const enriched = active.map(g => ({ goal: g, progress: goalProgress(g, logs, cardioLogs) }));
 
     // If ANY goal is ≥75%, GoalsAlmostComplete will show it. Don't
     // duplicate the surfacing here — the strip is for the gap below.
@@ -61,7 +60,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
       activeCount: active.length,
       top,
     };
-  }, [goals, logs]);
+  }, [goals, logs, cardioLogs]);
 
   if (!view) return null;
 

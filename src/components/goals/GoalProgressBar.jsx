@@ -27,11 +27,13 @@ export default function GoalProgressBar({ progress, animated = true, complete = 
   // "nothing logged yet".
   const n = Number(progress);
   const clampedProgress = Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 0;
-  const barColor = complete ? 'bg-success' : 'bg-primary';
+  // Neutral until the target is hit, then green: the same two states Today's
+  // "To do" block uses. Orange on every bar made every goal look urgent.
+  const barColor = complete ? 'bg-success' : 'bg-foreground';
 
   return (
     <div
-      className="relative h-2 bg-secondary rounded-full overflow-hidden"
+      className="relative h-1 bg-border rounded-full overflow-hidden"
       role="progressbar"
       aria-valuenow={Math.round(clampedProgress)}
       aria-valuemin={0}

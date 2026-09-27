@@ -30,7 +30,7 @@ const dropStale = (arr) => (Array.isArray(arr) ? arr.filter((id) => id in WIDGET
 // hover affordance would be invisible). In edit mode the controls are
 // 44px tap targets and the widget's own content is made non-interactive so
 // a rearrange tap can't accidentally trigger a widget action.
-function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove, removeLabel, dragHint }) {
+function ReorderableWidget({ widgetId, logs, cardioLogs, goals, isLoading, editing, onRemove, removeLabel, dragHint }) {
   const controls = useDragControls();
   return (
     <Reorder.Item
@@ -69,13 +69,13 @@ function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove
       )}
 
       <div className={editing ? 'pointer-events-none select-none ring-2 ring-primary/30 rounded-2xl' : ''}>
-        <WidgetRenderer widgetId={widgetId} logs={logs} goals={goals} isLoading={isLoading} />
+        <WidgetRenderer widgetId={widgetId} logs={logs} cardioLogs={cardioLogs} goals={goals} isLoading={isLoading} />
       </div>
     </Reorder.Item>
   );
 }
 
-export default function DashboardWidgets({ logs, goals, isLoading, userProfile }) {
+export default function DashboardWidgets({ logs, cardioLogs = [], goals, isLoading, userProfile }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [activeWidgets, setActiveWidgets] = useState([]);
@@ -223,6 +223,7 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
                   key={widgetId}
                   widgetId={widgetId}
                   logs={logs}
+                  cardioLogs={cardioLogs}
                   goals={goals}
                   isLoading={isLoading}
                   editing={editing}
