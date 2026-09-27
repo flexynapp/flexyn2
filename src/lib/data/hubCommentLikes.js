@@ -5,10 +5,10 @@
 // Unique constraint: (created_by, comment_id)
 // We filter by `created_by` (email) which is auto-injected on every create().
 
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import * as hubComments from './hubComments';
 
-const e = () => db.entities.HubCommentLike;
+const e = () => ownedRows('hub_comment_likes');
 
 /** Get the current user's like row for a comment, or null. */
 export const getMyLike = async (commentId, email) => {
@@ -36,14 +36,14 @@ export const setLiked = async (commentId, email, liked) => {
 
   if (liked) {
     if (existing) return existing; // already liked — no-op
-    // created_by and user_id are auto-injected by the db.entities.X.create() shim
-    // — see src/api/db.js for the enrichment logic.
+    // created_by and user_id are injected by ownedRows.create; see
+    // src/lib/data/ownedRows.js.
     const created = await e().create({ comment_id: commentId });
     await hubComments.incrementCounter(commentId, 'like_count', +1);
     return created;
   } else {
     if (!existing) return null; // already not liked — no-op
-    await e().delete(existing.id).catch(() => {});
+    await e().remove(existing.id).catch(() => {});
     await hubComments.incrementCounter(commentId, 'like_count', -1);
     return null;
   }
@@ -56,7 +56,7 @@ export const setLiked = async (commentId, email, liked) => {
 export const purgeLikesForComment = async (commentId) => {
   if (!commentId) return;
   const rows = await e().filter({ comment_id: commentId }, '-created_date', 500).catch(() => []);
-  await Promise.all(rows.map(r => e().delete(r.id).catch(() => {})));
+  await Promise.all(rows.map(r => e().remove(r.id).catch(() => {})));
 };
 
 /**
@@ -71,7 +71,7 @@ export const purgeForUser = async (email) => {
     if (!r.comment_id) continue;
     dec[r.comment_id] = (dec[r.comment_id] || 0) + 1;
   }
-  await Promise.all(rows.map(r => e().delete(r.id).catch(() => {})));
+  await Promise.all(rows.map(r => e().remove(r.id).catch(() => {})));
   await Promise.all(
     Object.entries(dec).map(([cid, n]) =>
       hubComments.incrementCounter(cid, 'like_count', -n).catch(() => {})
