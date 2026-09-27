@@ -47,7 +47,7 @@ export default function PastYouSheet({ open, onClose, match }) {
   const [confirmQuit, setConfirmQuit] = useState(false);
   useBodyScrollLock(open);
 
-  const { data: state } = useQuery({
+  const { data: state, isFetching: stateFetching, refetch: refetchState } = useQuery({
     queryKey: ['pastYouState', match?.id],
     queryFn: () => getPastYouState(match.id),
     enabled: open && !!match?.id,
@@ -91,8 +91,13 @@ export default function PastYouSheet({ open, onClose, match }) {
   const boost = ghostBoostPct(level);
 
   const gap = you != null && pace != null ? you - pace : null;
+  // getPastYouState resolves null on an error, so a settled fetch with no
+  // state is a failure: say so and offer a retry rather than "Loading" forever.
+  const stateFailed = !settled && state === null && !stateFetching;
   const gapText = gap == null
-    ? tFallback('pastYou.loading', 'Loading the race')
+    ? stateFailed
+      ? tFallback('pastYou.loadFailed', 'Could not load the race. Tap to retry')
+      : tFallback('pastYou.loading', 'Loading the race')
     : gap > 0
       ? tFallback('pastYou.ahead', "You're {v} ahead of Past You", { v: metricText(gap) })
       : gap < 0
@@ -105,7 +110,9 @@ export default function PastYouSheet({ open, onClose, match }) {
 
   const basisKind = pastYouBasis(match.rival_type, state?.baseline ?? match.baseline, weeks);
   const basis = basisKind === 'weeks'
-    ? tFallback('pastYou.basisWeeks', 'Your average over the last {n} training weeks', { n: String(weeks) })
+    ? weeks === 1
+      ? tFallback('pastYou.basisWeek', 'Your last training week')
+      : tFallback('pastYou.basisWeeks', 'Your average over the last {n} training weeks', { n: String(weeks) })
     : basisKind === 'floor'
       ? tFallback('pastYou.basisFloor', 'The minimum target. Your recent weeks were lighter than this')
       : tFallback('pastYou.basisStarter', 'A starter target, until you have some history');
@@ -160,7 +167,14 @@ export default function PastYouSheet({ open, onClose, match }) {
                   <span className="absolute -top-1 -bottom-1 w-0.5 bg-primary rounded-full" style={{ insetInlineStart: `${pctOf(pace)}%` }} />
                 )}
               </div>
-              <p className={`text-sm font-black mt-2 ${gapTone}`}>{gapText}</p>
+              {stateFailed ? (
+                <button type="button" onClick={() => refetchState()}
+                  className="text-sm font-black mt-2 text-muted-foreground underline underline-offset-2">
+                  {gapText}
+                </button>
+              ) : (
+                <p className={`text-sm font-black mt-2 ${gapTone}`}>{gapText}</p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
                 {tFallback('pastYou.paceExplainer', 'Past You trains evenly all week and finishes on {target}.', { target: metricText(target) })}
               </p>
@@ -187,7 +201,7 @@ export default function PastYouSheet({ open, onClose, match }) {
           </div>
 
           <p className="text-xs text-muted-foreground mb-6">
-            {tFallback('pastYou.howItGrows', 'Beat Past You and it gets 4% stronger. Every PR you set makes it stronger too, because you are. Fall short and it eases off.')}
+            {tFallback('pastYou.howItGrows', 'Beat Past You and it gets 4% stronger. Up to two PRs a week make it stronger too, because you are. Fall short and it eases off.')}
           </p>
 
           {!settled && (
