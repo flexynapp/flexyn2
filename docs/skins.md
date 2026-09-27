@@ -42,7 +42,7 @@ in `index.css`. Keep `muted-foreground` at 4.5:1 on `secondary` in both
 modes. No purple (reserved for rarity) and no Sparkles icon (reserved for
 the AI Coach).
 
-## Two contracts, both enforced in CI
+## Three contracts, all enforced in CI
 
 **Room, not overlap.** A part that sits beside content reserves its space.
 The skin declares `--skin-nav-edge: <px>` in its CSS; Layout adds that to the
@@ -59,6 +59,23 @@ the real CSS and proves, in light and dark, that every text colour clears
 4.5:1 on every surface and over the background mixed with that ink, and that
 the skin never repaints `--primary` or a state hue. Want a bolder backdrop?
 Raise `ink` and the test tells you whether text still reads.
+
+**Planted, not placed.** Anything that stands on the ground (a headstone, a
+fence post, a tree) is built FROM the ground, never typed beside it. The
+skin keeps its ground as data in one module (Halloween's is
+`skins/halloween/graveyard.js`) and exports `groundY(x)`, `PLANTED` (each
+figure's footprint `x0..x1`, its `base`, and any `rotate()`), and optionally
+`RAILS` for parts that should float clear of the ground. The path the
+Backdrop draws comes from the same numbers. Figures sink a few units below
+the LOWEST ground under their footprint, a tilt sinks further by half the
+width times the sine of the angle, and fence posts each find their own ground
+so the fence follows the hill.
+`src/components/__tests__/skinGrounding.test.js` finds every such module,
+samples the ground under every base after rotation, and fails if any point
+sits above the surface or any rail touches it. It also proves itself against
+the hand-placed values that floated before the rule existed. This is the
+contract animation depends on: a swaying tree or a rising ghost is these
+numbers changing per frame, and each frame still has to be planted.
 
 ## What the user sees
 

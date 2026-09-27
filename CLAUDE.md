@@ -1518,6 +1518,8 @@ may move the neutral token ramp and never `--primary` or the state hues.
 way. Figures live in the Backdrop at the skin's declared `ink`; the NavEdge
 reserves its room through `--skin-nav-edge`. `skinFit.test.js` and
 `skinContrast.test.js` enforce both, so don't add an overlay slot back.
+Grounded figures are **planted, not placed**: derived from the skin's
+`groundY()` and checked by `skinGrounding.test.js`, never given a typed y.
 **Read `docs/skins.md` before adding one.** Layout's shell carries
 `.app-shell` so it can go transparent while a skin's backdrop is on. Don't
 give it an opaque background again, or every backdrop silently disappears.
