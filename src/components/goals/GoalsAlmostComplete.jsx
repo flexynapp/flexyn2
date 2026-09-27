@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import * as quests from '@/lib/data/quests';
+import * as goalsData from '@/lib/data/goals';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { reportError } from '@/lib/reportError';
@@ -96,12 +97,12 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
       // wide-open seconds it took React Query to refetch otherwise.
       let alreadyCompleted = false;
       const runFallback = async () => {
-        const fresh = await db.entities.Goal.get?.(goalId).catch(() => null);
+        const fresh = await goalsData.get(goalId).catch(() => null);
         if (fresh?.status === 'completed') {
           alreadyCompleted = true;
           return;
         }
-        await db.entities.Goal.update(goalId, { status: 'completed' });
+        await goalsData.update(goalId, { status: 'completed' });
       };
       try {
         const { supabase } = await import('@/api/supabaseClient');
