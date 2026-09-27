@@ -30,7 +30,7 @@ export const LAUNCH_HOME = '/dashboard';
 // importing either here would pull React components into main.jsx.
 const PLACES = [
   '/dashboard', '/workout', '/hub', '/you',
-  '/messages', '/market', '/coach', '/progress', '/nutrition', '/my-gym', '/profile',
+  '/messages', '/market', '/market/capsules', '/market/set', '/coach', '/progress', '/nutrition', '/my-gym', '/profile',
 ];
 // The params useUrlState writes (tabMemory's VIEW_PARAMS). Anything else in
 // the query is an action or a deep link.

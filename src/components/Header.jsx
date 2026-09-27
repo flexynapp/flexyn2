@@ -21,7 +21,7 @@ import { goBack } from '@/lib/goBack';
 // are children like Messages, Market and Coach.
 // My Gym and Profile joined them when they moved under You: they had no
 // Back at all, on a phone or on desktop.
-export const CHILD_ROUTES = ['/messages', '/market', '/coach', '/progress', '/nutrition', '/my-gym', '/profile'];
+export const CHILD_ROUTES = ['/messages', '/market', '/market/capsules', '/market/set', '/coach', '/progress', '/nutrition', '/my-gym', '/profile'];
 
 // The same Back the phone header shows. Any page can intercept it (an
 // active workout persists its draft) by calling preventDefault on
@@ -60,7 +60,9 @@ export default function Header() {
     // header on non-English locales. tFallback correctly detects the
     // key-as-result case and returns the English fallback.
     '/messages': tFallback('hub.messages.title', 'Direct messages'),
-    '/market':   tFallback('hub.market.title',   'Marketplace'),
+    '/market':   tFallback('hub.market.title',   'Market'),
+    '/market/capsules': tFallback('capsules.title', 'Capsules'),
+    '/market/set': tFallback('stickerSet.title', 'Sticker set'),
     '/coach':    tFallback('hub.coach.title',    'AI Coach'),
     '/you':      tFallback('you.title',          'You'),
     '/my-gym':   tFallback('profile.myGym',      'My Gym'),

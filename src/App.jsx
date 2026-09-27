@@ -131,6 +131,8 @@ const CorporatePortal = lazy(() => import('./pages/CorporatePortal'));
 const Coach     = lazy(() => import('./pages/Coach'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
+const Capsules = lazy(() => import('./pages/Capsules'));
+const StickerSet = lazy(() => import('./pages/StickerSet'));
 const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
 const MyGym        = lazy(() => import('./pages/MyGym'));
 const GymHub       = lazy(() => import('./pages/GymHub'));
@@ -435,6 +437,8 @@ const AuthenticatedApp = () => {
           <Route path="/settings/:section" element={<ErrorBoundary label="Settings"><Suspense fallback={<PageLoader />}><Settings /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
           <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
+          <Route path="/market/capsules" element={<ErrorBoundary label="Capsules"><Suspense fallback={<PageLoader />}><Capsules /></Suspense></ErrorBoundary>} />
+          <Route path="/market/set" element={<ErrorBoundary label="StickerSet"><Suspense fallback={<PageLoader />}><StickerSet /></Suspense></ErrorBoundary>} />
           <Route path="/trainer/studio" element={
             // Flagged off — the buy path invokes an Edge Function that has
             // never been deployed, and the payment story has to clear Apple
