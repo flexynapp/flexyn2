@@ -3,9 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Staged workout history — this is the "data behind the answer", so the tests
 // are about whether what the panel claims matches what was actually read.
 const logs = { value: [] };
-vi.mock('@/api/db', () => ({
-  db: { entities: { WorkoutLog: { filter: vi.fn(() => Promise.resolve(logs.value)) } } },
-}));
+vi.mock('@/lib/data/workouts', () => ({ list: vi.fn(() => Promise.resolve(logs.value)) }));
 
 import { generateWorkout } from '../workoutGenerator';
 import { buildCoachPlan, withEditedWorkout, evidenceForExercises } from '../planBuilder';

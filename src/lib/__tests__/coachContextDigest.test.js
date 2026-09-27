@@ -17,16 +17,14 @@ const filter = vi.fn();
 const nutritionFilter = vi.fn();
 const bodyFilter = vi.fn();
 
-vi.mock('@/api/db', () => ({
-  db: {
-    entities: {
-      WorkoutLog: { filter: (...a) => filter(...a) },
-      CardioLog: { filter: (...a) => filter(...a) },
-      NutritionLog: { filter: (...a) => nutritionFilter(...a) },
-      BodyMetric: { filter: (...a) => bodyFilter(...a) },
-    },
-  },
-}));
+// Each data module's own tests pin the statement it sends. Here each one is
+// faked at its public function, called as (owner filter, limit) so the
+// assertions below can tell a scoped read from an unscoped one.
+vi.mock('@/api/db', () => ({ db: { entities: {} } }));
+vi.mock('@/lib/data/workouts', () => ({ list: (userId, limit) => filter({ user_id: userId }, limit) }));
+vi.mock('@/lib/data/cardio', () => ({ list: (userId, limit) => filter({ user_id: userId }, limit) }));
+vi.mock('@/lib/data/nutrition', () => ({ list: (userId, limit) => nutritionFilter({ user_id: userId }, limit) }));
+vi.mock('@/lib/data/bodyMetrics', () => ({ list: (userId, limit) => bodyFilter({ user_id: userId }, limit) }));
 vi.mock('@/api/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@/api/safeSelect', () => ({ safeSelect: vi.fn(async () => ({ data: null })) }));
 
@@ -417,8 +415,8 @@ describe('buildCoachContext — meals and body weight', () => {
   it('reads the newest 200 meals and 60 weigh-ins for this user', async () => {
     await buildCoachContext({ user: USER });
 
-    expect(nutritionFilter).toHaveBeenCalledWith({ user_id: 'u1' }, '-date', 200);
-    expect(bodyFilter).toHaveBeenCalledWith({ user_id: 'u1' }, '-date', 60);
+    expect(nutritionFilter).toHaveBeenCalledWith({ user_id: 'u1' }, 200);
+    expect(bodyFilter).toHaveBeenCalledWith({ user_id: 'u1' }, 60);
   });
 
   it('reads neither without a signed in user', async () => {
