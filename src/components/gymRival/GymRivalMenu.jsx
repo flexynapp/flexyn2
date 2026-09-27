@@ -49,6 +49,7 @@ import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter, formatDuration } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { RulesButton } from '@/components/competition/RulesSheet';
 import { getCrewBadges } from '@/lib/data/crews';
 
 // Higher of two numbers: true = user wins, false = rival, null = tie.
@@ -332,9 +333,12 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
               {assignment ? typeLabel : tFallback('gymRivalMenu.rivals', 'Rivals')}
             </h2>
           </div>
-          <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <RulesButton ruleset="rival" />
+            <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="max-w-lg mx-auto px-4 pt-6 pb-24">

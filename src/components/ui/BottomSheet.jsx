@@ -17,6 +17,7 @@
  *   open      boolean            — controlled open state
  *   onClose   () => void         — called when user dismisses
  *   title     string             — modal title (rendered in drag-handle bar)
+ *   headerAction node          — optional control beside the close button (e.g. an info button)
  *   maxHeight string             — CSS max-height for content area (default '85dvh')
  *   snapPoints boolean           — future: multi-snap (not yet implemented)
  *   className string             — extra classes on the panel
@@ -39,6 +40,7 @@ export default function BottomSheet({
   open,
   onClose,
   title,
+  headerAction = null,
   children,
   maxHeight = '90dvh',
   className = '',
@@ -177,13 +179,16 @@ export default function BottomSheet({
               {title && (
                 <div className="w-full flex items-center justify-between mb-1">
                   <h2 className="font-heading font-bold text-base">{title}</h2>
-                  <button
-                    onClick={onClose}
-                    className="w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
-                    aria-label={tFallback("common.close", "Close")}
-                  >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {headerAction}
+                    <button
+                      onClick={onClose}
+                      className="w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
+                      aria-label={tFallback("common.close", "Close")}
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

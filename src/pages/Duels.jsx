@@ -20,6 +20,7 @@ import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
 import CreateInviteLinkModal from '@/components/duels/CreateInviteLinkModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { RulesButton } from '@/components/competition/RulesSheet';
 import { Link as LinkIcon } from 'lucide-react';
 import { formatRelativeDate } from '@/lib/formatRelativeDate';
 
@@ -250,6 +251,7 @@ export default function Duels() {
           </button>
           <Swords className="w-5 h-5 text-primary" />
           <h1 className="text-xl font-black">{tFallback('duels.title', 'Duels')}</h1>
+          <RulesButton ruleset="duels" className="ms-auto" />
         </div>
         <p className="text-sm text-muted-foreground">{tFallback('duels.subtitle', 'Head-to-head workout battles')}</p>
       </div>
