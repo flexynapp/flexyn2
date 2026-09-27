@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import FlexynLogo from './FlexynLogo';
-import PumpkinMark from './seasonal/PumpkinMark';
-import { useTheme } from '@/lib/ThemeContext';
+import SkinSlot from './skins/SkinSlot';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { fireLogoTapEgg } from '@/lib/logoTapEgg';
@@ -37,9 +36,6 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, tFallback } = useLanguage();
-  // Optional-chained: some tests render Header without a ThemeProvider.
-  const theme = useTheme();
-  const halloweenOn = Boolean(theme?.halloween && theme?.halloweenAvailable);
   const [titleOverride, setTitleOverride] = useState(null);
 
   // Listen for cardio-mode title overrides dispatched by CardioSection
@@ -122,7 +118,7 @@ export default function Header() {
             className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
             <FlexynLogo className="h-11" />
-            {halloweenOn && <PumpkinMark face className="w-5 h-5 -ms-1 self-start mt-0.5" />}
+            <SkinSlot name="LogoMark" />
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't

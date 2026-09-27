@@ -1503,6 +1503,16 @@ both existed for months with zero callers connecting them, so an injured
 user was still handed Overhead Press. Any new surface that generates a
 workout has to resolve active injuries and pass them.
 
+## Skins — seasonal looks (Sept 2026)
+
+Whole-app looks (Halloween first) are **skins**: data in `src/lib/skins.js`,
+parts in `src/components/skins/<id>/`, rendered through fixed slots
+(`Backdrop`, `Overlay`, `NavEdge`, `LogoMark`, `Icon`, `EmptyAccent`). A skin
+may move the neutral token ramp and never `--primary` or the state hues.
+**Read `docs/skins.md` before adding one.** Layout's shell carries
+`.app-shell` so it can go transparent while a skin's backdrop is on. Don't
+give it an opaque background again, or every backdrop silently disappears.
+
 ## Celebration system
 
 There are **seven** helpers — five "first-X" milestones, one goal

@@ -1,4 +1,4 @@
-// src/components/seasonal/HalloweenDecor.jsx
+// src/components/skins/halloween/HalloweenOverlay.jsx
 //
 // The Halloween skin's ornaments: cobwebs hanging from the header's bottom
 // corners, a spider bobbing on a thread, and a witch on a broomstick who
@@ -8,16 +8,13 @@
 //   • pointer-events none, always. It must never eat a tap.
 //   • z-[35]: above page content, below the header (z-40), dialogs (z-50)
 //     and toasts, so it never covers anything the user has to read to act.
-//   • transform/opacity animation only (index.css, `hw-*` keyframes), so it
+//   • transform/opacity animation only (halloween.css, `hw-*` keyframes), so it
 //     composites on the GPU and does not re-layout the page.
 //   • prefers-reduced-motion keeps the webs and drops everything that moves.
 //   • drawn from --foreground, so it reads bone on dark and ink on light.
 //     No new hue.
 //
-// Mounted from App.jsx beside the prompt; renders nothing unless the skin
-// is on and in season.
-
-import { useTheme } from '@/lib/ThemeContext';
+// The skin's `Overlay` slot: SkinSlot renders it only while the skin is on.
 
 // A corner web: spokes fanning out of the corner, joined by sagging
 // threads. Generated rather than hand-drawn so it stays symmetrical.
@@ -104,15 +101,12 @@ function Bat({ className, style }) {
   );
 }
 
-export default function HalloweenDecor() {
-  const theme = useTheme();
-  if (!theme?.halloween || !theme?.halloweenAvailable) return null;
-
+export default function HalloweenOverlay() {
   return (
     <div
       className="hw-decor fixed inset-x-0 top-[calc(56px+env(safe-area-inset-top))] lg:top-0 bottom-0 z-[35] pointer-events-none overflow-hidden text-foreground"
       aria-hidden="true"
-      data-testid="halloween-decor"
+      data-testid="halloween-overlay"
     >
       <Cobweb className="absolute top-0 start-0 opacity-40 rtl:scale-x-[-1]" />
       <Cobweb className="absolute top-0 end-0 opacity-40 scale-x-[-1] rtl:scale-x-100" />

@@ -26,8 +26,8 @@ import { DistanceUnitProvider } from '@/lib/DistanceUnitContext';
 import { RestTimerProvider } from '@/lib/RestTimerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
-import HalloweenPrompt from '@/components/seasonal/HalloweenPrompt';
-import HalloweenDecor from '@/components/seasonal/HalloweenDecor';
+import SkinPrompt from '@/components/skins/SkinPrompt';
+import SkinSlot from '@/components/skins/SkinSlot';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt';
 import LoginStreakSync from '@/components/LoginStreakSync';
 import LaunchSplash from './components/LaunchSplash';
@@ -487,8 +487,11 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}><RestTimerOverlay /></Suspense>
       <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
-      <HalloweenDecor />
-      <HalloweenPrompt />
+      {/* Skin slots (src/components/skins/parts.js). Both render nothing
+          unless a skin is in season and switched on. */}
+      <SkinSlot name="Backdrop" />
+      <SkinSlot name="Overlay" />
+      <SkinPrompt />
       <AppUpdatePrompt />
       {/*
         Fires recordLogin() exactly once per session, regardless of

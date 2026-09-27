@@ -30,7 +30,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { NavVisibilityContext } from '@/lib/NavVisibilityContext';
 import OneShotTooltip from './OneShotTooltip';
-import PumpkinPatch from './seasonal/PumpkinPatch';
+import SkinSlot from './skins/SkinSlot';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 
 // Per-tab subcomponent. Extracts the bottom-nav tile render so each
@@ -340,7 +340,7 @@ export default function Layout() {
     <NavVisibilityContext.Provider value={navHidden}>
     <div
       data-app-shell
-      className="min-h-[100dvh] bg-background font-body overscroll-y-none"
+      className="app-shell min-h-[100dvh] bg-background font-body overscroll-y-none"
     >
       {/* Desktop sidebar */}
       {/* `start-0` would pin this to the monitor's edge. On an ultrawide that
@@ -526,7 +526,7 @@ export default function Layout() {
           willChange: 'transform',
         }}
       >
-        <PumpkinPatch />
+        <SkinSlot name="NavEdge" />
         <div className="flex justify-evenly items-start">
           {navItems.flatMap((item, idx) => {
             // "Lit" follows the section, so Progress lights You. A tap only

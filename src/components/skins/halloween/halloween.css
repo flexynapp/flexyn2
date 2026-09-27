@@ -1,0 +1,104 @@
+/* src/components/skins/halloween/halloween.css
+   Everything the Halloween skin does in CSS. Imported by ./index.js, so it
+   ships with the skin and nowhere else. Plain CSS, no @layer: Tailwind only
+   allows @layer in a file that also declares @tailwind, and these selectors
+   outrank :root / .dark on specificity anyway. */
+/* ── Halloween skin (seasonal, opt-in) ──────────────────────────────
+   Set by ThemeContext as [data-skin="halloween"] on <html>; the
+   window and the choice live in src/lib/halloween.js.
+
+   A skin, not a theme: it moves the NEUTRAL ramp only. --primary is
+   untouched because the brand orange already is pumpkin, and the
+   four-hue rule above means a state colour may not change meaning for
+   a month. Slate (hue 210) becomes ember (hue 20) in dark and
+   parchment (hue 35) in light. That warm shift under the same orange
+   is the colour half; the ornaments are the components in this folder.
+
+   Contrast held: muted-foreground clears 4.5:1 on secondary in both
+   modes, same bar as the base ramp. `html[...]` outranks `:root` and
+   `html.dark[...]` outranks `.dark`, so no !important is needed. */
+html[data-skin="halloween"] {
+  --background: 35 45% 94%;
+  --foreground: 20 25% 12%;
+  --card: 38 50% 98%;
+  --card-foreground: 20 25% 12%;
+  --popover: 38 50% 98%;
+  --popover-foreground: 20 25% 12%;
+  --secondary: 32 32% 88%;
+  --secondary-foreground: 20 25% 15%;
+  --muted: 32 32% 90%;
+  --muted-foreground: 22 14% 36%;
+  --border: 30 26% 82%;
+  --input: 30 26% 82%;
+  --sidebar-background: 35 45% 95%;
+  --sidebar-foreground: 20 20% 22%;
+  --sidebar-accent: 32 32% 90%;
+  --sidebar-accent-foreground: 20 25% 15%;
+  --sidebar-border: 30 26% 82%;
+}
+
+html.dark[data-skin="halloween"] {
+  --background: 20 16% 6%;
+  --foreground: 35 30% 92%;
+  --card: 20 14% 10%;
+  --card-foreground: 35 30% 92%;
+  --popover: 20 14% 10%;
+  --popover-foreground: 35 30% 92%;
+  --secondary: 20 12% 16%;
+  --secondary-foreground: 35 20% 86%;
+  --muted: 20 12% 13%;
+  --muted-foreground: 28 10% 62%;
+  --border: 20 12% 18%;
+  --input: 20 12% 18%;
+  --sidebar-background: 20 16% 6%;
+  --sidebar-foreground: 35 30% 92%;
+  --sidebar-accent: 20 12% 13%;
+  --sidebar-accent-foreground: 35 30% 92%;
+  --sidebar-border: 20 12% 18%;
+}
+
+/* ── Halloween ornaments (HalloweenOverlay.jsx) ────────────────────────
+   Transform-only keyframes so the flyover composites on the GPU. The
+   witch crosses in the first ~22% of a 36s cycle and the screen is quiet
+   for the rest; the bats trail her on the same clock. Written for LTR and
+   mirrored under [dir=rtl] so she flies the reading direction. */
+@keyframes hw-fly {
+  0%   { transform: translate3d(-110px, 0, 0); }
+  22%  { transform: translate3d(calc(100vw + 110px), -28px, 0); }
+  100% { transform: translate3d(calc(100vw + 110px), -28px, 0); }
+}
+@keyframes hw-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(6px) rotate(2deg); }
+}
+@keyframes hw-flap {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.35); }
+}
+@keyframes hw-dangle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(18px); }
+}
+.hw-fly    { animation: hw-fly 36s linear 3s infinite both; will-change: transform; }
+.hw-fly-b  { animation-delay: 3.5s; }
+.hw-fly-c  { animation-delay: 3.9s; }
+.hw-fly-d  { animation-delay: 4.3s; }
+.hw-bob    { animation: hw-bob 1.6s ease-in-out infinite; }
+.hw-flap   { animation: hw-flap 0.28s ease-in-out infinite; transform-origin: center; }
+.hw-dangle { animation: hw-dangle 7s ease-in-out infinite; }
+[dir="rtl"] .hw-motion { transform: scaleX(-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-motion { display: none; }
+  .hw-dangle { animation: none; }
+}
+
+/* Backdrop star twinkle. Opacity only. */
+@keyframes hw-twinkle {
+  0%, 100% { opacity: 0.22; }
+  50%      { opacity: 0.08; }
+}
+.hw-twinkle { animation: hw-twinkle 3.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hw-twinkle { animation: none; }
+}

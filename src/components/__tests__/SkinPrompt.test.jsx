@@ -1,53 +1,55 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { SKINS, skinStorageKey } from '@/lib/skins';
 
-const setHalloween = vi.fn();
-let available = true;
+const setSkinOn = vi.fn();
+const halloween = SKINS.find((s) => s.id === 'halloween');
+let skin = halloween;
 
 vi.mock('@/lib/LanguageContext', () => ({
   useLanguage: () => ({ tFallback: (_k, en) => en }),
 }));
 vi.mock('@/lib/ThemeContext', () => ({
-  useTheme: () => ({ halloweenAvailable: available, setHalloween }),
+  useTheme: () => ({ skin, skinOn: false, setSkinOn }),
 }));
 
-import HalloweenPrompt from '../seasonal/HalloweenPrompt';
-import { halloweenStorageKey } from '@/lib/halloween';
+import SkinPrompt from '../skins/SkinPrompt';
 
-describe('HalloweenPrompt', () => {
+describe('SkinPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
-    setHalloween.mockReset();
-    available = true;
+    setSkinOn.mockReset();
+    skin = halloween;
   });
   afterEach(() => vi.useRealTimers());
 
   const mount = () => {
-    render(<HalloweenPrompt />);
+    render(<SkinPrompt />);
     act(() => { vi.advanceTimersByTime(3000); });
   };
 
-  it('offers the look once in season and records a yes', () => {
+  it('offers the in-season skin by its own copy and records a yes', () => {
     mount();
+    expect(screen.getByText('Halloween look is here')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Turn it on' }));
-    expect(setHalloween).toHaveBeenCalledWith(true);
+    expect(setSkinOn).toHaveBeenCalledWith(true);
   });
 
   it('records a no the same way', () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    expect(setHalloween).toHaveBeenCalledWith(false);
+    expect(setSkinOn).toHaveBeenCalledWith(false);
   });
 
   it('stays away once answered', () => {
-    localStorage.setItem(halloweenStorageKey(), 'off');
+    localStorage.setItem(skinStorageKey(halloween), 'off');
     mount();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('stays away out of season', () => {
-    available = false;
+    skin = null;
     mount();
     expect(screen.queryByRole('dialog')).toBeNull();
   });

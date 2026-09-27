@@ -1,9 +1,9 @@
-// src/components/seasonal/HalloweenPrompt.jsx
+// src/components/skins/SkinPrompt.jsx
 //
-// The one-time "try the Halloween look?" offer. Shown once per device per
-// season, only in season, and gone for good after either answer: the answer
-// itself is the record (see src/lib/halloween.js). Settings → Display keeps
-// a switch for changing your mind.
+// The one-time "try this look?" offer for whichever skin is in season.
+// Shown once per device per window, and gone for good after either answer:
+// the answer itself is the record (see src/lib/skins.js). SkinToggle, on
+// the You tab and in Settings, is for changing your mind.
 //
 // Mounted in App.jsx next to PWAInstallPrompt, so it only renders for a
 // signed-in, onboarded user. It waits a beat after mount so it doesn't land
@@ -16,32 +16,32 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useTheme } from '@/lib/ThemeContext';
-import { readHalloweenChoice } from '@/lib/halloween';
-import PumpkinMark from './PumpkinMark';
+import { readSkinChoice } from '@/lib/skins';
+import { useSkin } from './useSkin';
 
 const SHOW_DELAY_MS = 2500;
 
-export default function HalloweenPrompt() {
+export default function SkinPrompt() {
   const { tFallback } = useLanguage();
-  const { halloweenAvailable, setHalloween } = useTheme();
+  const { skin, parts, setOn } = useSkin();
+  const Icon = parts?.Icon;
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (!halloweenAvailable) return undefined;
-    if (readHalloweenChoice() !== null) return undefined;
+    if (!skin) return undefined;
+    if (readSkinChoice(skin) !== null) return undefined;
     const t = setTimeout(() => setShow(true), SHOW_DELAY_MS);
     return () => clearTimeout(t);
-  }, [halloweenAvailable]);
+  }, [skin]);
 
   const answer = (on) => {
     setShow(false);
-    setHalloween(on);
+    setOn(on);
   };
 
   return (
     <AnimatePresence>
-      {show && (
+      {show && skin && (
         <motion.div
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -51,18 +51,18 @@ export default function HalloweenPrompt() {
           // the app's corner on desktop. See --shell-inset in index.css.
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-3 end-3 lg:left-auto lg:end-[calc(var(--shell-inset)+1.5rem)] lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-md p-3 flex flex-col gap-2"
           role="dialog"
-          aria-labelledby="halloween-prompt-title"
+          aria-labelledby="skin-offer-title"
         >
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-              <PumpkinMark face className="w-7 h-7" />
+              {Icon && <Icon className="w-7 h-7" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p id="halloween-prompt-title" className="font-heading font-bold text-body leading-tight">
-                {tFallback('halloween.prompt.title', 'Halloween look is here')}
+              <p id="skin-offer-title" className="font-heading font-bold text-body leading-tight">
+                {tFallback(...skin.copy.offerTitle)}
               </p>
               <p className="text-caption text-muted-foreground leading-snug">
-                {tFallback('halloween.prompt.body', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1. Turn it off anytime from the You tab.')}
+                {tFallback(...skin.copy.offerBody)}
               </p>
             </div>
           </div>
@@ -72,14 +72,14 @@ export default function HalloweenPrompt() {
               onClick={() => answer(false)}
               className="flex-1 h-11 rounded-lg bg-secondary text-secondary-foreground text-label font-semibold active:opacity-80 transition-opacity"
             >
-              {tFallback('halloween.prompt.no', 'Not now')}
+              {tFallback('skin.offer.no', 'Not now')}
             </button>
             <button
               type="button"
               onClick={() => answer(true)}
               className="flex-1 h-11 rounded-lg bg-primary text-primary-foreground text-label font-bold active:opacity-80 transition-opacity"
             >
-              {tFallback('halloween.prompt.yes', 'Turn it on')}
+              {tFallback('skin.offer.yes', 'Turn it on')}
             </button>
           </div>
         </motion.div>

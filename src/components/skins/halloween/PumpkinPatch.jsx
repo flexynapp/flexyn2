@@ -1,14 +1,13 @@
-// src/components/seasonal/PumpkinPatch.jsx
+// src/components/skins/halloween/PumpkinPatch.jsx
 //
-// A row of pumpkins sitting along the top edge of the bottom nav while the
-// Halloween skin is on. Rendered INSIDE the nav (Layout.jsx) rather than in
-// the fixed decor layer, so it slides away with the nav on scroll instead
-// of being left floating at the bottom of the screen.
+// The Halloween skin's `NavEdge` slot: a row of pumpkins along the top edge
+// of the bottom nav. The slot lives INSIDE the nav (Layout.jsx) rather than
+// in the fixed overlay, so it slides away with the nav on scroll instead of
+// being left floating at the bottom of the screen.
 //
 // It overlaps the last ~32px of page content above the nav. That content
 // scrolls past it, and pointer-events none means it can never eat a tap.
 
-import { useTheme } from '@/lib/ThemeContext';
 import PumpkinMark from './PumpkinMark';
 
 // Sizes in px. Mixed so the row reads as a patch, not a pattern; the big
@@ -17,9 +16,6 @@ import PumpkinMark from './PumpkinMark';
 const PATCH = [30, 18, 24, 34, 16, 26, 20, 32, 18, 24, 28, 16, 30];
 
 export default function PumpkinPatch() {
-  const theme = useTheme();
-  if (!theme?.halloween || !theme?.halloweenAvailable) return null;
-
   return (
     <div
       className="absolute bottom-full inset-x-0 px-1 flex items-end justify-between pointer-events-none"

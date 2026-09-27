@@ -1,4 +1,4 @@
-// src/components/seasonal/PumpkinMark.jsx
+// src/components/skins/halloween/PumpkinMark.jsx
 //
 // The Halloween skin's one ornament. Drawn rather than an icon because
 // lucide has no pumpkin, and drawn from tokens so it follows light/dark:

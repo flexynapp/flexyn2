@@ -13,6 +13,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useSkin } from './skins/useSkin';
 
 export default function EmptyState({
   icon: Icon,
@@ -23,6 +24,13 @@ export default function EmptyState({
   secondaryAction, // same shape — optional
   className = '',
 }) {
+  // The in-season skin's EmptyAccent (a ghost, at Halloween) perches on the
+  // icon's corner so empty screens join in. Decorative only: aria-hidden.
+  const { on, parts } = useSkin();
+  const Accent = on ? parts?.EmptyAccent : null;
+  const accent = Accent ? (
+    <span className="absolute -top-3 -end-4" aria-hidden="true"><Accent /></span>
+  ) : null;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -33,12 +41,14 @@ export default function EmptyState({
       {/* Prefer the larger illustration when one is provided; fall
           back to the small circle-icon for legacy call sites. */}
       {illustration ? (
-        <div className="mb-4 text-primary/70" aria-hidden="true">
+        <div className="relative mb-4 text-primary/70" aria-hidden="true">
           {illustration}
+          {accent}
         </div>
       ) : Icon ? (
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
+        <div className="relative w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
           <Icon className="w-7 h-7" strokeWidth={1.75} />
+          {accent}
         </div>
       ) : null}
       {title && (
