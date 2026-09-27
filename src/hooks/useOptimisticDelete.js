@@ -46,7 +46,9 @@
 // EDGE CASES HANDLED
 //
 //   • Rapid multi-delete: each tap fires an independent timer. The
-//     toast stacks (sonner handles this).
+//     feedback pill shows one message at a time, so the newest delete's
+//     Undo replaces the previous one; the earlier deletes still commit
+//     on their own timers.
 //   • Page unmount before commit: useEffect cleanup runs the commit
 //     so nothing dangles unsent.
 //   • Server delete fails: re-inserts the item into the cache + shows
@@ -175,7 +177,7 @@ export function useOptimisticDelete({
 
     triggerHaptic('warning');
 
-    // Sonner action toast → tap dismisses + invokes the action.
+    // Action message on the feedback pill → tap dismisses + invokes the action.
     toast(label, {
       duration: commitMs,
       action: {

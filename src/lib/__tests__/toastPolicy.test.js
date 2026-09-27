@@ -13,7 +13,7 @@
 // `undefined` and every call site ignores the return value. A dropped toast
 // looks identical to a delivered one from the caller's side.
 //
-// So this file asserts on the OUTCOME — did sonner actually get called — and
+// So this file asserts on the OUTCOME — did the feedback pill actually get the message — and
 // not on how the module is written. If someone re-filters a variant, this
 // fails and tells them to re-run the audit first.
 
@@ -23,22 +23,10 @@ import { join, resolve } from 'node:path';
 
 const sonnerCalls = [];
 
-vi.mock('sonner', () => {
-  const rec = (variant) => (message, opts) => {
-    sonnerCalls.push({ variant, message, opts });
-    return 'toast-id';
-  };
-  const t = rec('default');
-  t.success = rec('success');
-  t.info = rec('info');
-  t.message = rec('message');
-  t.warning = rec('warning');
-  t.error = rec('error');
-  t.loading = rec('loading');
-  t.custom = rec('custom');
-  t.dismiss = rec('dismiss');
-  return { toast: t };
-});
+vi.mock('@/lib/feedbackStore', () => ({
+  show: (variant, message, opts) => { sonnerCalls.push({ variant, message, opts }); return 'toast-id'; },
+  dismiss: () => {},
+}));
 
 const { toast } = await import('@/lib/toast');
 

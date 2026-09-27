@@ -157,3 +157,26 @@ describe('list', () => {
     await expect(list()).rejects.toMatchObject({ code: '42501' });
   });
 });
+
+// The old db.entities.User.list() ran the same view read. Every caller now
+// uses list() above, and this fails if one comes back.
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
+describe('one door to user profiles', () => {
+  it('no source file touches db.entities.User', () => {
+    const root = join(process.cwd(), 'src');
+    const offenders = [];
+    const walk = (dir) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
+        if (!/\.(jsx?|tsx?)$/.test(name)) continue;
+        const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
+        if (/entities\s*\.\s*User\b/.test(code)) offenders.push(relative(root, p));
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
+  });
+});

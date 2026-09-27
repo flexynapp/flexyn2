@@ -63,15 +63,15 @@ describe('Goals list', () => {
     expect(screen.queryByText(/Target hit/)).toBeNull();
   });
 
-  it('offers Mark done only once the target is hit', async () => {
+  it('says a hit target is hit, with no button: the page completes it', async () => {
     const goal = {
       id: 's2', status: 'active', goal_type: 'strength', exercise_name: 'Pull-ups',
       target_reps: 10, created_date: CREATED,
     };
     const logs = [{ created_date: AFTER, exercises: [{ name: 'Pull-ups', sets: [{ weight: 0, reps: 10 }] }] }];
-    wrap(<GoalsList goals={[goal]} logs={logs} cardioLogs={[]} onComplete={vi.fn()} />);
+    wrap(<GoalsList goals={[goal]} logs={logs} cardioLogs={[]} />);
     expect(await screen.findByText(/Target hit/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Mark done/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mark done|Complete/ })).toBeNull();
   });
 });
 

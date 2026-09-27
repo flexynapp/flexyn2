@@ -158,7 +158,29 @@ describe('logging inline', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Water' }));
     fireEvent.click(screen.getByRole('button', { name: '+16 oz' }));
     expect(h.createWater).not.toHaveBeenCalled();
-    expect(h.toastError).toHaveBeenCalled();
+    // Said under the buttons, not in a toast on top of them.
+    expect(screen.getByText(/plenty of water/i).getAttribute('role')).toBe('status');
+    expect(h.toastError).not.toHaveBeenCalled();
+  });
+
+  it('answers a logged glass on the button itself, with no toast', async () => {
+    h.fuel.waterOz = 40;
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Water' }));
+    fireEvent.click(screen.getByRole('button', { name: '+8 oz' }));
+    await screen.findByRole('button', { name: 'Added' });
+    expect(h.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('shows a failed save on the button and says why underneath', async () => {
+    h.fuel.waterOz = 40;
+    h.createWater.mockRejectedValueOnce(new Error('offline'));
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Water' }));
+    fireEvent.click(screen.getByRole('button', { name: '+8 oz' }));
+    await screen.findByRole('button', { name: "Didn't save" });
+    expect(screen.getByRole('alert').textContent).toMatch(/could not save/i);
+    expect(h.toastError).not.toHaveBeenCalled();
   });
 
   it('goes back to the grid from a panel', () => {

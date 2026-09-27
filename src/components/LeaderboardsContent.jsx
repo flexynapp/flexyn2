@@ -15,7 +15,7 @@ import {
   Sparkles, Dumbbell, Footprints, Award, Zap,
   Ellipsis, TrendingUp, TrendingDown,
 } from 'lucide-react';
-import { db } from '@/api/db';
+import * as usersData from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -196,7 +196,7 @@ export default function LeaderboardsContent({ active = true }) {
 
   const { data: allUsers = [], isLoading: isLoadingLegacyRaw } = useQuery({
     queryKey: ['allUsersLeaderboards'],
-    queryFn: () => db.entities.User.list(),
+    queryFn: () => usersData.list(),
     enabled: needsLegacyFallback,
   });
 

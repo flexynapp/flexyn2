@@ -28,7 +28,8 @@
 // destinations under You and Social, and a search is the one route to
 // them that does not require knowing where they went.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -43,12 +44,13 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { triggerHaptic } from '@/lib/haptic';
-import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import * as nutritionData from '@/lib/data/nutrition';
 import { waterFoodName } from '@/lib/waterEntries';
 import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
 import { useTodayFuel } from '@/hooks/useTodayFuel';
+import useCountUp from '@/hooks/useCountUp';
+import DrawnCheck from '@/components/feedback/DrawnCheck';
 import { requestOpenJournal } from '@/lib/journalOverlay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
@@ -130,35 +132,104 @@ function PanelHeader({ title, onBack, backLabel }) {
   );
 }
 
+// One +oz button. It answers for itself instead of raising a message: the
+// label turns into a drawn check and "Added" for DONE_MS, or into
+// "Didn't save" if the write failed. Kegan's screenshot of the old
+// "Added 8 oz of water" box sitting on top of these two buttons is why.
+const DONE_MS = 1200;
+
+function WaterStepButton({ oz, label, disabled, onLog }) {
+  const { tFallback } = useLanguage();
+  const [phase, setPhase] = useState('idle'); // idle | done | failed
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const press = async () => {
+    clearTimeout(timer.current);
+    setPhase('idle');
+    const result = await onLog(oz);
+    if (result === 'ok') {
+      setPhase('done');
+      timer.current = setTimeout(() => setPhase('idle'), DONE_MS);
+    } else if (result === 'failed') {
+      setPhase('failed');
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      variant={phase === 'failed' ? 'outline' : 'default'}
+      className={`min-h-12 ${phase === 'done' ? 'bg-success text-success-foreground hover:bg-success active:bg-success' : ''} ${phase === 'failed' ? 'border-destructive text-destructive' : ''}`}
+      disabled={disabled}
+      onClick={press}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={phase}
+          className="inline-flex items-center gap-2"
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.15 }}
+        >
+          {phase === 'done' && <DrawnCheck className="w-5 h-5" halo={false} />}
+          {phase === 'done' && tFallback('quickLog.waterAddedShort', 'Added')}
+          {phase === 'failed' && tFallback('quickLog.waterFailedShort', "Didn't save")}
+          {phase === 'idle' && label}
+        </motion.span>
+      </AnimatePresence>
+    </Button>
+  );
+}
+
 function WaterPanel({ userProfile, onBack, onDone }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const queryClient = useQueryClient();
   const { today, waterOz, waterGoal } = useTodayFuel(userProfile);
+  // The line under the buttons: why a tap did not log (the daily cap, a
+  // failed save). It replaces the two toasts this panel used to raise.
+  const [note, setNote] = useState(null);
+
+  // Tapped ounces not yet reflected in today's logs. The total counts up the
+  // moment the save lands instead of waiting for the refetch, and drops back
+  // to the fetched value once that arrives (which already includes them).
+  const [pendingOz, setPendingOz] = useState(0);
+  useEffect(() => { setPendingOz(0); }, [waterOz]);
+  const shownOz = useCountUp(waterOz + pendingOz, { duration: 500, animateOnMount: false });
 
   const add = useMutation({
     mutationFn: (oz) => nutritionData.create({ date: today, food_name: waterFoodName(oz), calories: 0 }),
     onSuccess: (_row, oz) => {
+      setPendingOz((p) => p + oz);
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs'] });
       rewardWaterLog({ user, date: today, oz, queryClient, via: 'quick_log' });
-      toast.success(tFallback('quickLog.waterAdded', 'Added {oz} oz of water', { oz: fmt(oz) }));
     },
     onError: (err) => {
       reportError(err, { feature: 'quickLog.water', userEmail: user?.email });
-      toast.error(tFallback('bodyMetrics.errors.saveFailed', 'Could not save. Try again.'));
     },
   });
 
-  const log = (oz) => {
-    if (add.isPending) return;
-    // Same cap and same message as the Nutrition page's buttons.
-    if (waterOz + oz > WATER_DAILY_CAP_OZ) {
-      toast.error(tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!"));
-      return;
+  // Resolves to 'ok' | 'failed' | 'skipped' for the button that asked.
+  const log = async (oz) => {
+    if (add.isPending) return 'skipped';
+    // Same cap as the Nutrition page's buttons.
+    if (waterOz + pendingOz + oz > WATER_DAILY_CAP_OZ) {
+      triggerHaptic('warning');
+      setNote({ tone: 'muted', text: tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!") });
+      return 'skipped';
     }
+    setNote(null);
     triggerHaptic('light');
-    add.mutate(oz);
+    try {
+      await add.mutateAsync(oz);
+      triggerHaptic('success');
+      return 'ok';
+    } catch {
+      triggerHaptic('warning');
+      setNote({ tone: 'error', text: tFallback('bodyMetrics.errors.saveFailed', 'Could not save. Try again.') });
+      return 'failed';
+    }
   };
 
   return (
@@ -166,18 +237,30 @@ function WaterPanel({ userProfile, onBack, onDone }) {
       <PanelHeader title={tFallback('quickLog.water', 'Water')} onBack={onBack}
         backLabel={tFallback('common.back', 'Back')} />
       <p className="text-center tabular-nums" aria-live="polite">
-        <span className="font-heading text-3xl font-bold">{fmt(waterOz)}</span>
+        <span className="font-heading text-3xl font-bold">{fmt(Math.round(shownOz))}</span>
         <span className="text-muted-foreground"> / {fmt(waterGoal)} {tFallback('hydration.unit.oz', 'oz')}</span>
         <span className="block text-label text-muted-foreground">{tFallback('quickLog.waterToday', 'Today')}</span>
       </p>
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2">
           {WATER_STEPS_OZ.map((oz) => (
-            <Button key={oz} type="button" className="min-h-12" disabled={add.isPending} onClick={() => log(oz)}>
-              {tFallback('quickLog.addOz', '+{oz} oz', { oz: fmt(oz) })}
-            </Button>
+            <WaterStepButton
+              key={oz}
+              oz={oz}
+              label={tFallback('quickLog.addOz', '+{oz} oz', { oz: fmt(oz) })}
+              disabled={add.isPending}
+              onLog={log}
+            />
           ))}
         </div>
+        {note && (
+          <p
+            role={note.tone === 'error' ? 'alert' : 'status'}
+            className={`text-sm text-center ${note.tone === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
+          >
+            {note.text}
+          </p>
+        )}
         <Button type="button" variant="ghost" className="min-h-12" onClick={() => onDone('/nutrition')}>
           {tFallback('quickLog.openNutrition', 'Open Nutrition')}
         </Button>

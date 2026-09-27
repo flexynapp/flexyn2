@@ -5,7 +5,7 @@ import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare, Ha
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
+import * as usersData from '@/lib/data/users';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -93,7 +93,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     setIsLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const allUsers = await db.entities.User.list();
+        const allUsers = await usersData.list();
         const q = searchQuery.toLowerCase();
         // Settings → Privacy → "Hide from search" is honoured HERE, because
         // this surface does all its own filtering client-side. The toggle has

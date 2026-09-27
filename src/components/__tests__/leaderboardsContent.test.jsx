@@ -37,7 +37,7 @@ vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distance
 vi.mock('@/lib/intl', () => ({ useNumberFormatter: () => (n) => String(n) }));
 vi.mock('@/lib/leaderboardStats', () => ({ backfillLeaderboardStatsOnce: vi.fn() }));
 vi.mock('@/hooks/useDelayedLoading', () => ({ useDelayedLoading: (v) => v }));
-vi.mock('@/api/db', () => ({ db: { entities: { User: { list: vi.fn(async () => []) } } } }));
+vi.mock('@/lib/data/users', () => ({ list: vi.fn(async () => []) }));
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
   motion: new Proxy({}, {

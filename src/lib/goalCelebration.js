@@ -33,7 +33,7 @@ export function fireGoalCelebration({ goalName, xpReward = 0, userEmail } = {}) 
   //    multiple toasts, so completing two goals in a row produces two
   //    visible cards rather than the second silently replacing the first.
   const xpLine = xpReward > 0 ? ` · +${xpReward} XP` : '';
-  toast.success(`🏆 Goal completed — ${goalName || 'goal'}${xpLine}`, {
+  toast.success(`🏆 Goal completed: ${goalName || 'goal'}${xpLine}`, {
     duration: 4500,
   });
 

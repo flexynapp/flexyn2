@@ -37,6 +37,7 @@ import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
 import * as goalsData from '@/lib/data/goals';
+import useGoalAutoComplete from '@/hooks/useGoalAutoComplete';
 // Sleep / mood / steps logging + the score explainer live in this sheet, so
 // three log cards leave the eager dashboard chunk and arrive on first open.
 // Lazy: sections hidden on Today by default (restorable from edit mode) and
@@ -1126,6 +1127,9 @@ export default function Dashboard() {
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
 
   const isLoading = logsLoading || regimensLoading || goalsLoading;
+
+  // A goal completes and pays the moment the logs on screen hit it.
+  useGoalAutoComplete({ user, goals, logs, cardioLogs, enabled: !isLoading });
 
   /* ── Derived stats ─────────────────────────────────────────────── */
 

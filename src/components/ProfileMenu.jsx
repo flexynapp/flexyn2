@@ -263,11 +263,10 @@ export default function ProfileMenu({ compact = false, hideTrigger = false } = {
       const t = e.target;
       if (t?.closest?.('[data-portal-ignore-outside-click]')) return;
       if (t?.closest?.('[role="dialog"]')) return;
-      // Sonner toasts (e.g. an Undo toast from a sibling action) are
-      // also portaled; clicking them shouldn't close the menu.
+      // The feedback pill (e.g. an Undo from a sibling action) sits
+      // outside the menu too; tapping it shouldn't close the menu.
       // (Audit 14 #29.)
-      if (t?.closest?.('[data-sonner-toast]')) return;
-      if (t?.closest?.('[data-sonner-toaster]')) return;
+      if (t?.closest?.('[data-feedback-pill]')) return;
       if (t?.closest?.('[data-radix-dialog-overlay]')) return;
       if (t?.closest?.('[data-radix-popper-content-wrapper]')) return;
 

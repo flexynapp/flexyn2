@@ -130,40 +130,9 @@ export const XP_REWARDS = {
 };
 
 // ── Goal completion XP ───────────────────────────────────────────────────────
-/**
- * XP for completing a personal goal.
- *
- * Two things were wrong with the version this replaces, which lived
- * copy-pasted in GoalsModal.jsx AND GoalsAlmostComplete.jsx:
- *
- *   1. It was capped at 500 per goal — the entire `goal_completed` daily
- *      ceiling (migration 262) in ONE completion. Two goals matched a
- *      capped max-effort workout.
- *   2. It scaled off `target_weight` / `target_reps`, which are numbers
- *      the user TYPES when creating the goal. Nothing verifies them
- *      against a lift, so "type a bigger target" was a valid strategy —
- *      a 1000 lb goal paid 500 XP.
- *
- * The shape is kept (a heavier goal is worth more than a lighter one —
- * that's real, and completion is still gated on logged progress reaching
- * 100%), but the ceiling is XP_REWARDS.goalCompleted, which is what this
- * file has documented as a goal's value all along and which nothing read.
- * So the scaling now distinguishes goals BELOW the cap rather than
- * inflating past it.
- */
-export function calculateGoalXp(goal) {
-  const weight = Number(goal?.target_weight) || 0;
-  const reps   = Number(goal?.target_reps)   || 0;
-  const hasWeight = weight > 0;
-  const hasReps   = reps   > 0;
-
-  let raw = 0;
-  if (hasWeight && hasReps) raw = weight * 0.5 + reps * 3;
-  else if (hasWeight)       raw = weight * 0.75;
-  else if (hasReps)         raw = reps * 4;
-
-  return Math.min(Math.floor(raw), XP_REWARDS.goalCompleted);
-}
+// Computed and paid on the server by complete_goal (migration
+// 20260927204000, goal_xp), capped at 100 per goal and 500 a day. The
+// client formula that used to live here sent its own number.
 
 // ── Workout XP: strength ─────────────────────────────────────────────────────
 // Tuned so:

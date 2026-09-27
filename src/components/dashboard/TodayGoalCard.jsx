@@ -5,9 +5,10 @@
 //
 // Three states, one row:
 //   · no active goal      → "Set a goal", whose pill opens the form directly
-//   · a goal at 100%      → the bar turns green and the pill says Complete,
-//                           which opens Goals, where completing it fires the
-//                           goal celebration
+//   · a goal at 100%      → the bar turns green and reads Done. Goals complete
+//                           themselves on the server (#161), so there is no
+//                           button to press; the row moves on to the next goal
+//                           once the refetch shows it completed
 //   · otherwise           → the closest goal, its bar and how far along it is
 //
 // A 0% goal still shows, unlike GoalsProgressStrip: on Today it is the
@@ -73,7 +74,9 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
   const { goal } = view.top;
   const hit = pct >= 100;
   const shownPct = Math.round(countedPct ?? pct);
-  const status = pct > 0
+  const status = hit
+    ? tFallback('today.goal.done', 'Done')
+    : pct > 0
     ? tFallback('today.goal.pct', '{n}%', { n: shownPct })
     : tFallback('today.goal.notStarted', 'Not started');
   const others = view.count - 1;
@@ -113,18 +116,6 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
           )}
         </span>
       </button>
-      {hit && (
-        <motion.button
-          type="button"
-          onClick={onOpen}
-          initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileTap={{ scale: 0.94 }}
-          className="shrink-0 px-3 py-1 rounded-sm bg-success text-success-foreground text-xs font-bold hover:brightness-110"
-        >
-          {tFallback('today.goal.complete', 'Complete')}
-        </motion.button>
-      )}
     </div>
   );
 }

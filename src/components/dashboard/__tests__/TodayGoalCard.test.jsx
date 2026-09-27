@@ -1,5 +1,6 @@
 // Today's goal row, at the top of the "To do" block: ask for a goal when there
-// is none, name the closest one otherwise, and offer Complete once it is hit.
+// is none, name the closest one otherwise, and read Done once it is hit.
+// Goals complete themselves on the server, so there is no button to press.
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -39,16 +40,18 @@ describe('TodayGoalCard', () => {
     expect(screen.queryByText('0%')).toBeNull();
   });
 
-  it('keeps showing a goal past 75%, with no Complete until it is hit', () => {
+  it('keeps showing a goal past 75%, not Done until it is hit', () => {
     render(<TodayGoalCard goals={[goal('Bench', 80), goal('Row', 10)]} />);
     expect(screen.getByText('Bench')).toBeTruthy();
-    expect(screen.queryByText('Complete')).toBeNull();
+    expect(screen.queryByText('Done')).toBeNull();
   });
 
-  it('offers Complete at 100%, which opens goals', () => {
+  it('reads Done at 100% with no button to complete it, and the row still opens goals', () => {
     const onOpen = vi.fn();
     render(<TodayGoalCard goals={[goal('Bench', 100)]} onOpen={onOpen} />);
-    fireEvent.click(screen.getByText('Complete'));
+    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Open goals' }));
     expect(onOpen).toHaveBeenCalled();
   });
 });
