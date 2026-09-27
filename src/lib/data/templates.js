@@ -1,10 +1,12 @@
 // src/lib/data/templates.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { ownedRows } from './ownedRows';
+
+const rows = ownedRows('workout_templates');
 
 export const list = (userId) =>
-  db.entities.WorkoutTemplate.filter({ user_id: userId }, '-created_date');
+  rows.filter({ user_id: userId }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -45,7 +47,7 @@ export function stripTemplateNumbers(exercises) {
 
 export const create = (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description || '' });
-  return db.entities.WorkoutTemplate.create({
+  return rows.create({
     ...data,
     exercises: stripTemplateNumbers(data.exercises),
   });
@@ -74,10 +76,10 @@ export async function saveTemplate({ name, description = '', exercises = [] }) {
     return { ok: false, reason: 'profanity' };
   }
   try {
-    // db.entities.create injects created_by (email) and user_id (uuid). Reads
+    // rows.create injects created_by (email) and user_id (uuid). Reads
     // key on user_id; created_by stays populated because the table's older
     // policies still accept it and the column is NOT NULL.
-    const row = await db.entities.WorkoutTemplate.create({
+    const row = await rows.create({
       name: cleanName,
       description: (description || '').trim(),
       exercises: stripTemplateNumbers(exercises),
@@ -111,16 +113,15 @@ export const update = async (id, data) => {
     }
   }
 
-  return db.entities.WorkoutTemplate.update(id, data);
+  return rows.update(id, data);
 };
-export const remove = (id) => db.entities.WorkoutTemplate.delete(id);
+export const remove = (id) => rows.remove(id);
 
 /** Fetch all public templates from any user, sorted by copy count then date. */
 export const listPublic = async (limit = 100) => {
-  const rows = await db.entities.WorkoutTemplate.filter(
+  return rows.filter(
     { is_public: true }, '-copy_count', limit
   ).catch(() => []);
-  return rows;
 };
 
 /**
@@ -128,7 +129,7 @@ export const listPublic = async (limit = 100) => {
  * Increments the original's copy_count.
  */
 export const copyTemplate = async (original, user) => {
-  const copy = await db.entities.WorkoutTemplate.create({
+  const copy = await rows.create({
     created_by: user.email,
     name: original.name,
     exercises: original.exercises || [],
