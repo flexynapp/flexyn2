@@ -91,6 +91,11 @@ export default function GymRivalCard({ currentUserId }) {
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row) => {
       if (!row) {
+        // The roll clears a stuck match server-side even when it finds
+        // nobody, so refetch before saying so, or the stalled card stays up
+        // until the query goes stale.
+        setMenuOpen(false);
+        qc.invalidateQueries({ queryKey: ['myGymRival'] });
         toast.info(tFallback('gymRivalCard.noRivals', 'No available rivals right now. Check back soon.'));
         return;
       }
