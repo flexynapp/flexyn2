@@ -9,7 +9,12 @@
    "$note": "Keys the register rule does NOT govern, because the string is not the app talking to the user. Each entry names why. Same reasoning as doNotTranslate.exempt: a rule with no exceptions cries wolf, and a checker people mute is worse than no checker.",
    "createInviteLinkModal.shareText": "tu — a duel challenge the user sends a friend, not app copy",
    "duelInviteLanding.shareText": "tu — the reply half of the same duel challenge",
-   "referral.shareText": "tu — a referral message the user sends a friend"
+   "referral.shareText": "tu — a referral message the user sends a friend",
+   "connectedApps.blurb.google_fit": "fr — third-person description of what the feature does (\"Ajoute\", \"Commence\"), not an imperative",
+   "settings.calorieCycling.hint": "fr — third-person description of what the feature does (\"Ajoute\", \"Commence\"), not an imperative",
+   "settings.includeBarVolumeHint": "fr — third-person description of what the feature does (\"Ajoute\", \"Commence\"), not an imperative",
+   "duel.type.session.rules": "fr — third-person description of what the feature does (\"Ajoute\", \"Commence\"), not an imperative",
+   "achievements.shareFailed": "fr — a noun (\"Partage impossible\"), not an imperative"
   }
  },
  "doNotTranslate": {
@@ -46,7 +51,8 @@
    "gymRivalCard.levelSoFar": "Level — the adjective: the two are TIED so far",
    "gymRivalMenu.levelWith": "Level — the adjective: tied with @{n}",
    "gymRivalMenu.lifetimeNote": "Level — the adjective: the week starts even",
-   "notify.nemesisAssigned.body": "Level — comparable ability, not the user Level stat; Gym Rival matches on strength rating"
+   "notify.nemesisAssigned.body": "Level — comparable ability, not the user Level stat; Gym Rival matches on strength rating",
+   "pastYou.level": "Level — the adjective: dead level means TIED with Past You"
   },
   "$pastYouNote": "Past You is the ghost rival (Kegan named it, 2026-09-27). A product name like Crew and Capsule, so it stays English. Its level is the gamified Level and keeps that word too; pastYou.level is the adjective (tied) and is translated."
  },

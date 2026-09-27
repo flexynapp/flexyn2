@@ -249,7 +249,7 @@ export default function AdminGyms() {
                         {acting
                           ? <Loader2 className="w-4 h-4 animate-spin me-1" />
                           : <Check className="w-4 h-4 me-1" />}
-                        Approve
+                        {tFallback('adminGyms.approve', 'Approve')}
                       </Button>
                     </>
                   ) : (
@@ -270,7 +270,7 @@ export default function AdminGyms() {
                         className="flex-1"
                       >
                         {acting && <Loader2 className="w-4 h-4 animate-spin me-1" />}
-                        Confirm reject
+                        {tFallback('adminGyms.confirmReject', 'Confirm reject')}
                       </Button>
                     </>
                   )}

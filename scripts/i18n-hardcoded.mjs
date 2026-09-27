@@ -156,6 +156,18 @@ const DETECTORS = [
   // entirely. Being un-keyed it was invisible to the orphan scanner too, so it
   // survived a sweep that took orphans to zero.
   ['jsxText',     />\s*([A-Z](?:[A-Za-z0-9'’,!?.:%-]|&[a-zA-Z]+;|&#\d+;)*(?:\s+(?:[A-Za-z0-9'’,!?.:%-]|&[a-zA-Z]+;|&#\d+;)+){0,14})\s*</g, 1, 'JSX text node'],
+  // Text ALONE on its line, bounded by a JSX expression on either side:
+  //   {loading ? <Spinner /> : <Glyph />}
+  //   Continue with Google
+  //   </Button>
+  // `jsxText` above needs `>` before and `<` after, so a node that follows a
+  // `{…}` child or precedes one (`List Item` then `{count > 0 && …}`) was
+  // invisible — fifteen buttons and labels shipped English in es/fr that way,
+  // found by hand in two audits (2026-09-27). Anchored to whole lines, and the
+  // neighbouring lines must end/begin with JSX punctuation, so ordinary JS
+  // (`} else {`) cannot match. Lowercase is admitted here, unlike `jsxText`,
+  // because these are whole lines: "or", "not collected", "on Flexyn".
+  ['jsxLine',     /[>}][ \t]*\n[ \t]*([A-Za-z](?:[A-Za-z0-9'’,!?.:%-]|&[a-zA-Z]+;|&#\d+;)*(?:[ \t]+(?:[A-Za-z0-9'’,!?.:%&-]|&[a-zA-Z]+;|&#\d+;)+){0,30})[ \t]*(?=\n[ \t]*[<{])/g, 1, 'JSX text on its own line'],
   // Copy held in a DATA structure rather than written in markup:
   //   { id: 'log_sleep', label: "Log last night's sleep", … }
   //   SLIDES.push({ title: 'Personal Record', sub: `${xp} XP earned overall` })
@@ -422,9 +434,14 @@ const findings = [];
         // on the previous line — citing that line sends the reader to markup
         // with no prose on it.
         const rel = m[0].indexOf(text);
+        const line = lineOf(m.index + (rel < 0 ? 0 : rel));
+        // `jsxLine` and `jsxText` overlap on a node with `>` on one side and
+        // `<` on the other; count the string once, or the ratchet moves by two
+        // when one fix lands.
+        if (findings.some((f) => f.file === p && f.line === line && f.text === text.trim())) continue;
         findings.push({
           kind, desc, file: p,
-          line: lineOf(m.index + (rel < 0 ? 0 : rel)),
+          line,
           text: text.trim(),
         });
       }

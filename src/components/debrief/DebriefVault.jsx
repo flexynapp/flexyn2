@@ -327,7 +327,7 @@ export default function DebriefVault({ onClose }) {
             <CalendarRange className="w-10 h-10 text-muted-foreground/30" />
             <p className="font-heading font-bold text-foreground">{tFallback("debriefVault.yourFirstReviewLandsSunday", "Your first review lands Sunday")}</p>
             <p className="text-sm text-muted-foreground max-w-[260px]">
-              Log a workout, a meal or a night of sleep and this page starts keeping score for you.
+              {tFallback('debriefVault.emptyBody', 'Log a workout, a meal or a night of sleep and this page starts keeping score for you.')}
             </p>
           </div>
         ) : (

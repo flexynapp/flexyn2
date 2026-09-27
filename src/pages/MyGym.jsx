@@ -491,7 +491,7 @@ export default function MyGym() {
                   <span aria-hidden="true">·</span>
                   <Users className="w-3 h-3 shrink-0" />
                   <span className="tabular-nums">{gym.member_count ?? 0}</span>
-                  on Flexyn
+                  {tFallback('myGym.onFlexyn', 'on Flexyn')}
                 </p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />

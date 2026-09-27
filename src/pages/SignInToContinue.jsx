@@ -154,7 +154,7 @@ export default function SignInToContinue({
     <div className="flex items-center gap-2">
       <div className="flex-1 h-px bg-border" />
       <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-        or
+        {tFallback('signIn.or', 'or')}
       </span>
       <div className="flex-1 h-px bg-border" />
     </div>
@@ -240,7 +240,7 @@ export default function SignInToContinue({
             {googleLoading
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <GoogleGlyph className="w-4 h-4" />}
-            Continue with Google
+            {tFallback('connectAccount.continueWith', 'Continue with {provider}', { provider: 'Google' })}
           </Button>
           )}
 
@@ -256,7 +256,7 @@ export default function SignInToContinue({
             {appleLoading
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <AppleGlyph className="w-4 h-4 text-white dark:text-black" />}
-            Continue with Apple
+            {tFallback('connectAccount.continueWith', 'Continue with {provider}', { provider: 'Apple' })}
           </Button>
           )}
 
@@ -292,7 +292,13 @@ export default function SignInToContinue({
               ) : (
                 <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-success/10 border border-success/30 text-success text-label">
                   <Check className="w-4 h-4 shrink-0" />
-                  <span>Check your inbox. We sent a sign-in link to <strong>{email}</strong>.</span>
+                  <span>
+                    <TransText
+                      k="signIn.linkSentTo"
+                      en="Check your inbox. We sent a sign-in link to {email}."
+                      values={{ email: <strong>{email}</strong> }}
+                    />
+                  </span>
                 </div>
               )}
               <button

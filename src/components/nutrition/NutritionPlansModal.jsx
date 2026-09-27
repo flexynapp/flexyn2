@@ -61,13 +61,13 @@ function PlanCard({ plan, scaled, onSelect, fitsGoal }) {
           ))}
           {fitsGoal && (
             <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-              matches your goal
+              {tFallback('nutritionPlansModal.matchesYourGoal', 'matches your goal')}
             </span>
           )}
           {plan.swapCount > 0 && (
             <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success dark:text-success">
               <Sparkles className="w-2.5 h-2.5" />
-              adapted for you
+              {tFallback('nutritionPlansModal.adaptedForYou', 'adapted for you')}
             </span>
           )}
         </div>
@@ -386,7 +386,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
         </div>
         <p className="font-heading font-bold text-lg">{tFallback("nutritionPlansModal.setUpYourNutritionFirst", "Set up your nutrition first")}</p>
         <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto leading-snug">
-          Meal plans are built around your goals and dietary restrictions. Finish your nutrition setup and we'll only show plans that actually fit you.
+          {tFallback('nutritionPlansModal.setupFirstBody', "Meal plans are built around your goals and dietary restrictions. Finish your nutrition setup and we'll only show plans that actually fit you.")}
         </p>
         {onStartOnboarding && (
           <button

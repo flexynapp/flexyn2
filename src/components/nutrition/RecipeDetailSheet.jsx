@@ -231,7 +231,7 @@ export default function RecipeDetailSheet({
                   className="flex-1 h-12 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  Save to My Recipes
+                  {tFallback('recipeDetailSheet.saveToMyRecipes', 'Save to My Recipes')}
                 </button>
                 <button
                   type="button"
