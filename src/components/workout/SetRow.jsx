@@ -41,7 +41,7 @@ const RIR_OPTIONS = [
 // thumb's casual drift, short of the whole row: a deliberate swipe.
 const SWIPE_DELETE_PX = 88;
 
-export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '', previous = null }) {
+export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '', previous = null, isNext = false, isCurrent = false }) {
   const { weightUnit } = useWeightUnit();
   const { t, tFallback } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
@@ -186,8 +186,11 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
 
   // Plate calculator — shown for barbell exercises when weight ≥ bar weight
   // set.weight is always stored internally in lbs
+  // Only on the set about to be lifted: that is the one being loaded. A
+  // diagram under every row doubled each row's height, so an iPhone SE
+  // showed about two sets before scrolling.
   const plates = plateCalc(set.weight);
-  const showPlates = plates && exerciseName && /barbell|squat|deadlift|bench|press|row|clean|snatch/i.test(exerciseName);
+  const showPlates = isNext && plates && exerciseName && /barbell|squat|deadlift|bench|press|row|clean|snatch/i.test(exerciseName);
 
   // PR auto-tag — render a trophy when THIS set's estimated 1RM
   // beats the user's all-time best for this exercise. Visible during
@@ -224,7 +227,13 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   const doneInput = completed ? 'bg-transparent border-transparent text-success font-semibold' : '';
 
   return (
-    <div className={['relative rounded-lg transition-colors duration-300', completed ? 'bg-success/[0.12]' : ''].join(' ')}>
+    <div className={[
+      'relative rounded-lg transition-colors duration-300',
+      completed ? 'bg-success/[0.12]' : '',
+      // The set you are on, once the exercise is under way. Orange is for
+      // the thing being acted on.
+      isCurrent && !completed ? 'ring-1 ring-inset ring-primary/50' : '',
+    ].join(' ')}>
     {/* The sweep: a green fill that runs across the row once, then fades,
         leaving the settled tint behind it. */}
     <AnimatePresence>
@@ -342,7 +351,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className={`w-full h-11 px-1 text-center tabular-nums transition-colors ${doneInput}`}
+          className={`w-full h-11 px-1 text-center tabular-nums placeholder:text-sm transition-colors ${doneInput}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
       </div>
@@ -384,7 +393,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           ref={repsRef}
           enterKeyHint="done"
           placeholder={t('common.reps')}
-          className={`h-11 px-1 text-center tabular-nums transition-colors ${doneInput}`}
+          aria-label={t('common.reps')}
+          className={`h-11 px-1 text-center tabular-nums placeholder:text-sm transition-colors ${doneInput}`}
         />
       </div>
       {/* PR stamp. Pinned over the weight field's corner so it never

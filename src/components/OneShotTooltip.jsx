@@ -90,6 +90,11 @@ export default function OneShotTooltip({
     const showTimer = setTimeout(() => {
       const anchor = anchorRef.current;
       if (!anchor) return;
+      // Several instances of one id can mount together (the paste hint sits
+      // on the first set of EVERY exercise), and all of them pass the check
+      // above before any has fired. The first to fire marks it seen; the
+      // rest stand down here, so a hint shows once rather than once each.
+      if (hasSeenTooltip(id)) return;
       setRect(measure(anchor));
       setOpen(true);
       markTooltipSeen(id);
