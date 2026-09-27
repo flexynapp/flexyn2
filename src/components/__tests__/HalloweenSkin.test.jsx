@@ -46,6 +46,15 @@ describe('Halloween parts', () => {
     expect(el.querySelectorAll('svg').length).toBeGreaterThan(10);
   });
 
+  it('jack o lanterns are clipped to the sky, so they never stack on the ground ink', () => {
+    on();
+    render(<SkinSlot name="Backdrop" />);
+    const lanterns = screen.getByTestId('halloween-lanterns');
+    const id = lanterns.getAttribute('clip-path').match(/url\(#(.+)\)/)[1];
+    expect(document.getElementById(id)).not.toBeNull();
+    expect(lanterns.querySelectorAll('path[fill-rule="evenodd"]').length).toBe(2);
+  });
+
   it('flyover movers use a physical inset, since the lane itself mirrors in RTL', () => {
     // .hw-motion is scaleX(-1) under [dir=rtl]. A start-0 inside it flips a
     // second time: measured, the witch began 110px on screen and flew off
