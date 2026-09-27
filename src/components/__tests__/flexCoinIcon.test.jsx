@@ -1,4 +1,4 @@
-// The coin mark, and the one way an SVG icon like this breaks silently.
+// The coin mark.
 //
 // Every gradient-bearing icon in this app has hit the same bug: a fixed
 // `url(#id)` fill means the SECOND instance on a page resolves to the
@@ -15,29 +15,25 @@ const gradientIds = (container) =>
   [...container.querySelectorAll('linearGradient')].map((g) => g.id);
 
 describe('FlexCoinIcon', () => {
-  it('gives every instance its own gradient ids', () => {
-    const { container } = render(
-      <>
-        <FlexCoinIcon />
-        <FlexCoinIcon />
-        <FlexCoinIcon />
-      </>
-    );
-    const ids = gradientIds(container);
-    expect(ids).toHaveLength(6);                       // 2 gradients × 3 icons
-    expect(new Set(ids).size).toBe(ids.length);
+  it('is flat: no gradient, so no id for a second instance to collide with', () => {
+    // The pewter restrike (round 2 capsule and market design) dropped the
+    // fire gradient. With no gradient there is no url(#id) fill, which is
+    // the whole class of bug the old two tests here existed to catch.
+    const { container } = render(<><FlexCoinIcon /><FlexCoinIcon /><FlexCoinIcon /></>);
+    expect(gradientIds(container)).toHaveLength(0);
+    const urlFills = [...container.querySelectorAll('[fill]')]
+      .map((el) => el.getAttribute('fill'))
+      .filter((f) => f.startsWith('url('));
+    expect(urlFills).toHaveLength(0);
   });
 
-  it('points every fill at a gradient that exists in its own instance', () => {
-    const { container } = render(<><FlexCoinIcon /><FlexCoinIcon /></>);
-    for (const svg of container.querySelectorAll('svg')) {
-      const own = new Set([...svg.querySelectorAll('linearGradient')].map((g) => g.id));
-      const refs = [...svg.querySelectorAll('[fill]')]
-        .map((el) => el.getAttribute('fill'))
-        .filter((f) => f.startsWith('url('))
-        .map((f) => f.slice(5, -1));
-      expect(refs.length).toBeGreaterThan(0);
-      for (const ref of refs) expect(own.has(ref)).toBe(true);
+  it('is neutral pewter, not a second orange next to the action colour', () => {
+    const { container } = render(<FlexCoinIcon />);
+    const fills = [...container.querySelectorAll('[fill]')].map((el) => el.getAttribute('fill'));
+    for (const f of fills.filter((x) => x !== 'none')) {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(f.slice(i, i + 2), 16));
+      // Grey means the channels sit close together.
+      expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThan(24);
     }
   });
 
