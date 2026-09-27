@@ -1373,7 +1373,19 @@ export default function Dashboard() {
 
   /* ── Derived stats ─────────────────────────────────────────────── */
 
-  const today = useMemo(() => startOfDay(new Date()), []);
+  // A day key on a minute tick, not a mount-time constant: a PWA resumed the
+  // next morning on this tab kept yesterday's "today", so the hero still said
+  // the user had trained today and a lapsed user read as current. Same tick
+  // as Nutrition and Workout.
+  const [todayMs, setTodayMs] = useState(() => startOfDay(new Date()).getTime());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = startOfDay(new Date()).getTime();
+      setTodayMs(prev => (prev === next ? prev : next));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const today = useMemo(() => new Date(todayMs), [todayMs]);
 
   // parseLocalDate so a 'YYYY-MM-DD' DATE column is interpreted in the
   // user's local TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight,

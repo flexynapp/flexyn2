@@ -542,6 +542,11 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   // why no template could be applied whole until migration 355 lifted
   // one-plan-per-slot. Five meals into four slots, snack holding two, inside
   // the cap of three.
+  // Applying runs several sequential round trips, and the button stayed live
+  // throughout, so a double tap on a slow network applied the plan twice (or
+  // tripped the slot cap halfway, leaving a half-duplicated day). A ref, not
+  // isPending, because two taps can land before the re-render that flips it.
+  const applyingPlanRef = useRef(false);
   const applyPlanMutation = useMutation({
     mutationFn: async (scaledPlan) => {
       for (const p of plans.filter(p => p.plan_date === selectedDate)) {
@@ -718,7 +723,13 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
               <NutritionPlansPanel
                 userProfile={userProfile}
                 onStartOnboarding={onStartOnboarding}
-                onApplyPlan={(scaledPlan) => applyPlanMutation.mutate(scaledPlan)}
+                onApplyPlan={(scaledPlan) => {
+                  if (applyingPlanRef.current) return;
+                  applyingPlanRef.current = true;
+                  applyPlanMutation.mutate(scaledPlan, {
+                    onSettled: () => { applyingPlanRef.current = false; },
+                  });
+                }}
               />
             </div>
           ) : (
