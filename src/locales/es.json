@@ -2108,7 +2108,6 @@
   "goals.row.done": "Logrado",
   "goals.row.doneOn": "Logrado el {date}",
   "goals.row.hit": "Meta alcanzada",
-  "goals.row.markDone": "Marcar como logrado",
   "goals.row.notStarted": "Registra una serie para empezar",
   "goals.row.repsInSet.one": "{n} rep en una serie",
   "goals.row.repsInSet.other": "{n} reps en una serie",

@@ -8,7 +8,7 @@
 // Three states, one slot:
 //   · no active goal      → "Set a goal", which opens the form directly
 //   · a goal at 75%+      → nothing here; GoalsAlmostComplete renders above
-//                           this with its Complete button, the louder nudge
+//                           this and the goal completes itself at 100%
 //   · otherwise           → the closest goal and how far along it is
 //
 // A 0% goal still shows, unlike GoalsProgressStrip: on Today it is the
