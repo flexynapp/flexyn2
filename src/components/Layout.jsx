@@ -626,12 +626,13 @@ export default function Layout() {
         )}
       </AnimatePresence>
 
-      {(bag.openingCapsule || bag.openingBatch) && (
+      {bag.opening && (
         <CapsuleOpener
-          capsule={bag.openingCapsule}
-          batch={bag.openingBatch}
-          onClaim={bag.claimCapsule}
-          onClaimBatch={bag.claimCapsuleBatch}
+          key={bag.openSeq}
+          rows={bag.opening}
+          next={bag.next}
+          onClaim={bag.claim}
+          onClaimAndOpenNext={bag.claimAndOpenNext}
           onClose={bag.closeOpener}
         />
       )}

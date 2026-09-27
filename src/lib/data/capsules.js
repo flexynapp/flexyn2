@@ -104,29 +104,10 @@ export async function listUnopenedCapsules(userEmail) {
   return data ?? [];
 }
 
-/**
- * Mark a capsule as opened. Idempotent — only fires the UPDATE when
- * is_opened is still false, so a second call from the same client (or
- * from a concurrent tab racing the open) returns null without changing
- * the row. Migration 028's `claim_capsule_loot` RPC already flips the
- * flag atomically; this function is kept for the legacy fallback path
- * where the RPC isn't available yet.
- *
- * Returns the updated row when this call did the flip, or null when the
- * capsule was already opened by another path.
- */
-export async function openCapsule(capsuleId) {
-  if (!capsuleId) return null;
-  const { data, error } = await supabase
-    .from('user_capsules')
-    .update({ is_opened: true, opened_at: new Date().toISOString() })
-    .eq('id', capsuleId)
-    .eq('is_opened', false)
-    .select()
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
+// There is deliberately no client "mark opened" write here. The UPDATE that
+// lived here had no callers, and it is the shape the user_capsules guard
+// exists to refuse: a capsule is spent only by open_capsule_atomic (or the
+// legacy claim_capsule_loot / finalize_capsule_claim pair), server side.
 
 /**
  * Opened capsules with their rolled rarity, newest first — the input to

@@ -18,16 +18,23 @@ export function pityReading(pity) {
   return { since: Math.min(since, at), at, left: Math.max(0, at - since) };
 }
 
-export default function PityMeter({ bar = false }) {
+/**
+ * @param {boolean} [bar]       draw the progress bar under the line
+ * @param {object|null} [snapshot]  a reading to show instead of querying.
+ *   The opener passes the one from BEFORE the roll: a live read mid-spin
+ *   could show the counter reset and spoil an epic before the reel lands.
+ */
+export default function PityMeter({ bar = false, snapshot }) {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
-  const { data: pity } = useQuery({
+  const useSnapshot = snapshot !== undefined;
+  const { data: live } = useQuery({
     queryKey: ['capsulePity', user?.email],
     queryFn: capsules.getPity,
-    enabled: !!user?.email,
+    enabled: !!user?.email && !useSnapshot,
     staleTime: 30_000,
   });
-  const r = pityReading(pity);
+  const r = pityReading(useSnapshot ? snapshot : live);
   // Pre-256 host or no data: the line is a promise, so say nothing rather
   // than guess.
   if (!r) return null;
