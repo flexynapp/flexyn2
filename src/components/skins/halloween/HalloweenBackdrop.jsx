@@ -34,6 +34,10 @@ const LANTERNS = PLANTED.filter((f) => f.lantern);
 const { ink } = SKINS.find((s) => s.id === 'halloween');
 const FG = ink.foreground;
 const MOON = ink.primary;
+const GLOW = ink.glow;
+// A jack o lantern's body sits below the moon's strength so its lit face,
+// at the glow ink, reads as the brightest thing on the hill.
+const EMBER = Math.round(ink.primary * 0.65 * 100) / 100;
 
 // Deterministic star field, in viewBox units of a 100x60 sky.
 const STARS = [
@@ -109,25 +113,45 @@ export default function HalloweenBackdrop() {
             <path key={`${f.kind}-${f.x0}`} strokeWidth="0" d={f.d} transform={f.transform} />
           ))}
           {STANDING.flatMap((f) => (f.parts || []).map((d) => <path key={d} strokeWidth="0" d={d} />))}
+          {STANDING.filter((f) => f.head).map((f) => (
+            <path key={`head-${f.x0}`} strokeWidth="0" fillRule="evenodd" d={f.head} />
+          ))}
+          {/* Eyelids: they close downward over each eye hole in the same ink
+              as the head, while the lit eye below shrinks by the same
+              amount, so the hole is always exactly covered once. */}
+          {STANDING.flatMap((f) => (f.eyes || []).map((e) => (
+            <rect key={`lid-${e.x}`} className="hw-lid" strokeWidth="0" x={e.x} y={e.y} width={e.w} height={e.h} />
+          )))}
           {RAILS.map((r) => <path key={`rail-${r.d}`} strokeWidth="0" d={r.d} />)}
           {PLANTED.filter((f) => f.branches).map((f) => (
             <path key={`branches-${f.x0}`} fill="none" strokeWidth="3" d={f.branches} />
           ))}
         </g>
-        {/* Jack o lanterns in the moon's orange at the moon's strength, their
-            faces cut through to the page. Clipped to the sky so the part
-            buried in the hill is hidden instead of stacking on the ground's
-            ink, which would paint darker than the skin declares. */}
+        {/* Jack o lanterns in the brand orange, dimmer than the moon, with
+            their faces cut through and filled with the glow ink, so each
+            face is lit from inside. Clipped to the sky so the part buried in
+            the hill is hidden instead of stacking on the ground's ink, which
+            would paint stronger than the skin declares. */}
         <defs>
           <clipPath id={sky}><path d={SKY_PATH} /></clipPath>
         </defs>
-        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: MOON }} data-testid="halloween-lanterns">
+        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: EMBER }} data-testid="halloween-lanterns">
           {LANTERNS.map((f) => (
             <g key={`${f.kind}-${f.x0}`}>
               <path fillRule="evenodd" d={f.d} />
               <path d={f.stem} />
             </g>
           ))}
+        </g>
+        {/* Everything lit: the lantern faces flicker, the scarecrow's eyes
+            blink. A flicker only ever dims below the glow ink. */}
+        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: GLOW }} data-testid="halloween-glow">
+          {LANTERNS.map((f, i) => (
+            <path key={`face-${f.x0}`} className={`hw-flicker${i % 2 ? ' hw-flicker-b' : ''}`} d={f.face} />
+          ))}
+          {STANDING.flatMap((f) => (f.eyes || []).map((e) => (
+            <rect key={`eye-${e.x}`} className="hw-eye" x={e.x} y={e.y} width={e.w} height={e.h} />
+          )))}
         </g>
       </svg>
     </div>

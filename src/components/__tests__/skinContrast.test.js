@@ -99,6 +99,7 @@ for (const skin of SKINS) {
         const grounds = {
           foregroundInk: mix(bg, hslToRgb(t.foreground), skin.ink.foreground),
           primaryInk: mix(bg, hslToRgb(t.primary), skin.ink.primary),
+          ...(skin.ink.glow ? { glowInk: mix(bg, hslToRgb(t.primary), skin.ink.glow) } : {}),
         };
         for (const [name, ground] of Object.entries(grounds)) {
           for (const text of TEXT_ON.background) {

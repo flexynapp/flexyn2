@@ -54,10 +54,13 @@ export const SKINS = [
     window: { start: { month: 9, day: 25 }, end: { month: 11, day: 1 } },
     // The strongest any Backdrop figure may be drawn, as an alpha over the
     // background: `foreground` for the ink figures, `primary` for anything
-    // in the brand colour (the moon). Text sits on the bare background
-    // between cards, so skinContrast.test.js proves every text colour still
-    // clears 4.5:1 over background mixed with each at this strength.
-    ink: { foreground: 0.14, primary: 0.2 },
+    // in the brand colour (the moon), `glow` for the few small lit shapes
+    // (jack o lantern faces, the scarecrow's eyes) that must read brighter
+    // than the orange around them. Text sits on the bare background between
+    // cards, so skinContrast.test.js proves every text colour still clears
+    // 4.5:1 over background mixed with each at this strength. 0.28 is close
+    // to the ceiling: light mode's muted text is at 4.57:1 over it.
+    ink: { foreground: 0.14, primary: 0.2, glow: 0.28 },
     copy: {
       name: ['skin.halloween.name', 'Halloween look'],
       hint: ['skin.halloween.hint', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1.'],
