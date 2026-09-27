@@ -958,7 +958,7 @@ export default function Workout() {
       data = { ...data, total_volume: calculateTotalVolume(data.exercises) };
 
       const workoutLog = await workouts.create(data);
-      // Audit C-2 — duplicate detection. The db.js shim returns
+      // Audit C-2 — duplicate detection. workouts.create returns
       // __duplicate=true when a prior attempt with the same
       // idempotency key already landed. Skip ALL credits in that case
       // so XP/volume/streak/leagues aren't double-counted on a retry.
