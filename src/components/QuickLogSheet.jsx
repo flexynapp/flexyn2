@@ -7,12 +7,16 @@
 // tab in this redesign on the understanding that meals are logged from
 // here, so this sheet is what keeps that promise.
 //
-// Two kinds of tile. Water and weight are one number each, so they log in
-// the sheet itself and you never leave the page you were on (phase 4).
-// They save through the same code the Nutrition page and the weight modal
-// use (waterLogging.js, useSaveWeight), so XP, quests and the range guard
+// Two kinds of tile. Water is one number, so it logs in the sheet itself
+// and you never leave the page you were on (phase 4). It saves through the
+// same code the Nutrition page uses (waterLogging.js), so XP and quests
 // cannot drift between the two paths. The inline form REPLACES the grid
 // rather than opening a dialog over it: sheets never stack.
+//
+// Weight had a tile here too until 2026-09-27, when Kegan swapped it for
+// Cardio: cardio is a session people log often, weight is a number most
+// people record rarely. Weight is still one tap from Today's quick
+// actions ("Log weight"), from Progress, and from this sheet's search.
 //
 // Everything else routes to a deep link the destination page already
 // honours. Navigation REPLACES the history entry the open sheet pushed
@@ -28,18 +32,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Dumbbell, Utensils, Droplet, Scale, Camera, PenSquare, Search, ChevronLeft, ChevronRight,
+  Dumbbell, Utensils, Droplet, Activity, Scale, Camera, PenSquare, Search, ChevronLeft, ChevronRight,
   TrendingUp, Apple, MessageCircle, ShoppingBag, Backpack, Trophy, Settings, Book,
   CalendarCheck, ShieldAlert, Swords, Target, Crosshair, Mountain, Medal, Users, UserSearch, Sparkles,
-  Loader2,
 } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import UnitPill from '@/components/UnitPill';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { triggerHaptic } from '@/lib/haptic';
 import { toast } from '@/lib/toast';
@@ -47,22 +48,21 @@ import { reportError } from '@/lib/reportError';
 import * as nutritionData from '@/lib/data/nutrition';
 import { waterFoodName } from '@/lib/waterEntries';
 import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
-import { formatWeightNumber } from '@/lib/weightUnit';
-import { useSaveWeight } from '@/hooks/useSaveWeight';
 import { useTodayFuel } from '@/hooks/useTodayFuel';
 import { requestOpenJournal } from '@/lib/journalOverlay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { requestProfilePanel } from '@/lib/profilePanels';
 
-// `to` is where the tile would go if it navigated. Water and weight carry
-// `inline`, which is what the sheet does instead; `to` stays as the full
-// page for the "more" link inside each panel.
+// `to` is where the tile would go if it navigated. Water carries `inline`,
+// which is what the sheet does instead; `to` stays as the full page for
+// the "more" link inside its panel. Cardio opens the Workout page's cardio
+// sheet through the deep link the daily-quest CTAs already use.
 export const QUICK_LOG_ITEMS = [
   { id: 'workout', icon: Dumbbell,  to: '/workout?freestyle=1',     key: 'quickLog.workout', en: 'Workout' },
   { id: 'meal',    icon: Utensils,  to: '/nutrition?openLogMeal=1', key: 'quickLog.meal',    en: 'Meal' },
   { id: 'water',   icon: Droplet,   to: '/nutrition',               key: 'quickLog.water',   en: 'Water', inline: true },
-  { id: 'weight',  icon: Scale,     to: '/dashboard?logWeight=1',   key: 'quickLog.weight',  en: 'Weight', inline: true },
+  { id: 'cardio',  icon: Activity,  to: '/workout?openCardio=1',    key: 'quickLog.cardio',  en: 'Cardio' },
   { id: 'photo',   icon: Camera,    to: '/dashboard?addPhoto=1',    key: 'quickLog.photo',   en: 'Progress photo' },
   { id: 'post',    icon: PenSquare, to: '/hub?compose=1',           key: 'quickLog.post',    en: 'Post' },
 ];
@@ -79,6 +79,7 @@ const openAchievements = () => {
 // is always searched too.
 export const SEARCH_INDEX = [
   { id: 'progress',     icon: TrendingUp,    key: 'nav.progress',          en: 'Progress',         to: '/progress',          terms: 'stats charts prs records' },
+  { id: 'weight',       icon: Scale,         key: 'dashboard.logWeight',   en: 'Log weight',       to: '/dashboard?logWeight=1', terms: 'body weigh scale bodyweight' },
   { id: 'nutrition',    icon: Apple,         key: 'nav.nutrition',         en: 'Nutrition',        to: '/nutrition',         terms: 'food meals calories macros water diet' },
   { id: 'coach',        icon: Sparkles,           key: 'search.coach',          en: 'AI Coach',         to: '/coach',             terms: 'plan program generate' },
   { id: 'messages',     icon: MessageCircle, key: 'search.messages',       en: 'Messages',         to: '/messages',          terms: 'chat dm inbox' },
@@ -185,57 +186,6 @@ function WaterPanel({ userProfile, onBack, onDone }) {
   );
 }
 
-function WeightPanel({ userProfile, onBack, onSaved, onDone }) {
-  const { tFallback } = useLanguage();
-  const { weightUnit } = useWeightUnit();
-  const { today } = useTodayFuel(userProfile);
-  const [value, setValue] = useState(() =>
-    userProfile?.weight_lbs ? formatWeightNumber(userProfile.weight_lbs, weightUnit) : '');
-
-  // The pill changes the unit; re-express the stored weight in it rather
-  // than leaving a number typed in the old unit under the new label.
-  useEffect(() => {
-    if (userProfile?.weight_lbs) setValue(formatWeightNumber(userProfile.weight_lbs, weightUnit));
-  }, [weightUnit]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const save = useSaveWeight({ onSaved, errorContext: () => ({ value, date: today, via: 'quickLog' }) });
-
-  const submit = (e) => {
-    e.preventDefault();
-    if (save.isPending || !value) return;
-    save.mutate({ value, date: today, weightUnit });
-  };
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-6 px-4 pb-4">
-      <PanelHeader title={tFallback('quickLog.weight', 'Weight')} onBack={onBack}
-        backLabel={tFallback('common.back', 'Back')} />
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          inputMode="decimal"
-          step="0.1"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          aria-label={tFallback('quickLog.weightToday', "Today's weight")}
-          className="h-12 text-lg tabular-nums"
-          autoFocus
-        />
-        <UnitPill />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Button type="submit" className="min-h-12" disabled={save.isPending || !value}>
-          {save.isPending && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
-          {tFallback('quickLog.saveWeight', 'Save weight')}
-        </Button>
-        <Button type="button" variant="ghost" className="min-h-12" onClick={() => onDone('/progress')}>
-          {tFallback('quickLog.openProgress', 'See your weight history')}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 export default function QuickLogSheet({ open, onClose }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -272,9 +222,6 @@ export default function QuickLogSheet({ open, onClose }) {
     <BottomSheet open={open} onClose={onClose} title={tFallback('quickLog.title', 'Log something')}>
       {view === 'water' && (
         <WaterPanel userProfile={user || {}} onBack={() => setView('grid')} onDone={go} />
-      )}
-      {view === 'weight' && (
-        <WeightPanel userProfile={user || {}} onBack={() => setView('grid')} onSaved={onClose} onDone={go} />
       )}
       {view === 'grid' && (
         <div className="flex flex-col gap-6 px-4 pb-4">
