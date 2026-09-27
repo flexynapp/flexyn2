@@ -36,18 +36,19 @@ const TRIGGER_HOUR = 18; // 6 PM local
  * @param {object} ctx
  * @param {number}  ctx.streakDays    Current workout-streak length.
  * @param {string}  [ctx.lastWorkoutDate]  ISO date string of most recent workout.
- * @param {string}  [ctx.lastMealDate]     ISO date string of most recent meal.
  * @param {string}  ctx.userEmail
  * @param {Date}    [ctx.now=new Date()]
  * @returns {boolean}
  */
-export function shouldShowStreakRescue({ streakDays, lastWorkoutDate, lastMealDate, userEmail, now = new Date() }) {
+export function shouldShowStreakRescue({ streakDays, lastWorkoutDate, userEmail, now = new Date() }) {
   if (!streakDays || streakDays < 2) return false;
   if (now.getHours() < TRIGGER_HOUR) return false;
 
-  const todayWorkout = lastWorkoutDate ? isSameDayLocal(lastWorkoutDate, now) : false;
-  const todayMeal    = lastMealDate    ? isSameDayLocal(lastMealDate, now)    : false;
-  if (todayWorkout || todayMeal) return false;
+  // Only a workout (or cardio session) today keeps THIS streak alive, so only
+  // that may silence the warning. A logged meal used to count too, and since
+  // most nutrition rows are glasses of water, a user who drank one glass
+  // lost their workout streak at midnight with no warning at all.
+  if (lastWorkoutDate && isSameDayLocal(lastWorkoutDate, now)) return false;
 
   if (wasDismissedToday(userEmail, now)) return false;
 

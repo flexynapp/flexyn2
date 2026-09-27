@@ -13,6 +13,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { popIn } from '@/lib/motion';
 import useCountUp from '@/hooks/useCountUp';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import {
   Sparkles,
   UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
@@ -106,9 +107,16 @@ export function QuestRewardLine({ quest, tFallback, className = '' }) {
   // pass through untouched (useCountUp returns them as is).
   const counted = useCountUp(quest.progress, { duration: 500 });
   const progress = typeof counted === 'number' ? Math.round(counted) : counted;
+  // Cardio quests count SECONDS (the cardio tracker reports duration that
+  // way), and the line printed them raw: "Get 10 min of cardio · 0 / 600".
+  // Shown in whole minutes to match the title; floor, so 9:59 of a 10 minute
+  // quest never reads as done.
+  const inSeconds = quest.definition?.actionType === ACTION_TYPES.CARDIO_SECONDS;
+  const shown = inSeconds && typeof progress === 'number' ? Math.floor(progress / 60) : progress;
+  const target = inSeconds && typeof quest.target === 'number' ? Math.round(quest.target / 60) : quest.target;
   return (
     <span className={`tabular-nums ${className}`}>
-      {progress} / {quest.target}
+      {shown} / {target}{inSeconds && <> {tFallback('workout.min', 'min')}</>}
       {' · '}{quest.coin_reward} {tFallback('hub.coins', 'coins')}
       {xp > 0 && <> · {xp} XP</>}
       {crewXp > 0 && (

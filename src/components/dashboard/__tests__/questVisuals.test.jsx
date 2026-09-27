@@ -81,6 +81,20 @@ describe('QuestRewardLine', () => {
     expect(screen.getByText(/50 XP/)).toBeTruthy();
   });
 
+  it('shows a cardio quest in minutes, not the seconds it counts in', async () => {
+    // cardio_10min targets 600 SECONDS and rendered "0 / 600" under a title
+    // reading "Get 10 min of cardio".
+    render(
+      <QuestRewardLine
+        quest={quest({ progress: 599, target: 600, definition: getQuestDefinition('cardio_10min') })}
+        tFallback={tFallback}
+      />,
+    );
+    // 599 s floors to 9, so a quest one second short never reads as done.
+    expect(await screen.findByText(/9 \/ 10 min/)).toBeTruthy();
+    expect(screen.queryByText(/600/)).toBeNull();
+  });
+
   it('names the crew share', () => {
     render(<QuestRewardLine quest={quest()} tFallback={tFallback} />);
     // ceil(50 * 0.25) = 13, matching the CEIL() in claim_quest_atomic.

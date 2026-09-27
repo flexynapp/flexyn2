@@ -5908,6 +5908,8 @@
   "today.fuel.open": "Abrir Nutrición",
   "today.fuel.title": "Comida y agua",
   "today.fuel.water": "Agua",
+  "today.readiness.unscored": "Registra cómo dormiste anoche para obtener tu puntuación.",
+  "today.readiness.unscoredLabel": "Sin puntuar",
   "today.war.leading": "Vas ganando {mine} a {theirs}",
   "today.war.tied": "Empate a {mine}",
   "today.war.trailing": "Vas perdiendo {mine} a {theirs}",

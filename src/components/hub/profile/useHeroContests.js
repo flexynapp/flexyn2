@@ -87,12 +87,12 @@ export function useHeroContests({ user, isSelf }) {
         const active = await getActiveWarForCrew(crewId);
         if (!active) return null;
 
-        // score_a/score_b are keyed to crew_a_id/crew_b_id, not to the viewer.
+        // crew_a_score/crew_b_score are keyed to crew_a_id/crew_b_id, not to the viewer.
         const isCrewA = active.crew_a_id === crewId;
         return {
           crewId,
-          mine:   Number(isCrewA ? active.score_a : active.score_b) || 0,
-          theirs: Number(isCrewA ? active.score_b : active.score_a) || 0,
+          mine:   Number(isCrewA ? active.crew_a_score : active.crew_b_score) || 0,
+          theirs: Number(isCrewA ? active.crew_b_score : active.crew_a_score) || 0,
         };
       } catch { return null; }
     },

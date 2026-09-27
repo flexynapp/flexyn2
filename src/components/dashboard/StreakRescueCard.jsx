@@ -18,7 +18,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
 import { shouldShowStreakRescue, markStreakRescueDismissedToday } from '@/lib/data/streakRescue';
 
-export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMealDate }) {
+export default function StreakRescueCard({ streakDays, lastWorkoutDate }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const navigate = useNavigate();
@@ -27,7 +27,6 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
   const eligible = shouldShowStreakRescue({
     streakDays,
     lastWorkoutDate,
-    lastMealDate,
     userEmail: user?.email,
   });
   if (!eligible || dismissed) return null;
