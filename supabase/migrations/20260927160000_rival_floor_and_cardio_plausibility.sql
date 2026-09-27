@@ -509,7 +509,7 @@ BEGIN
     VALUES (a, 'rivalfloor-probe-' || a || '@example.invalid', 1500)
     ON CONFLICT (id) DO UPDATE SET weight_lbs = 1500;
     INSERT INTO public.workout_logs (created_by, user_id, exercises, created_at)
-    VALUES ('probe', a, '[{"name":"Pull Up","sets":[{"weight":"","reps":"9999"}]}]', now() - interval '3 hours'),
+    VALUES ('probe', a, '[{"name":"Pull Up","sets":[{"weight":"0","reps":"9999"}]}]', now() - interval '3 hours'),
            ('probe', a, '[{"name":"Curl","sets":[{"weight":"0","reps":"99999999999"}]}]', now() - interval '3 hours');
     v := public.gym_rival_volume_lbs(a, now() - interval '1 day', now());
     IF v > public.user_daily_volume_ceiling(a) THEN
