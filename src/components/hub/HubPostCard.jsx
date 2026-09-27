@@ -9,7 +9,8 @@ import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
-import { format, parseISO, formatDistanceToNow, differenceInHours } from 'date-fns';
+import { parseISO, differenceInHours } from 'date-fns';
+import { formatDate, formatRelativeTime } from '@/lib/intlFormat';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
@@ -865,9 +866,11 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
     if (!post.created_date) return '';
     const d = parseISO(post.created_date);
     const hoursOld = differenceInHours(new Date(), d);
-    if (hoursOld < 24) return formatDistanceToNow(d, { addSuffix: true });
-    if (hoursOld < 24 * 7) return format(d, 'EEE h:mma'); // "Mon 3:45pm"
-    return format(d, 'MMM d');
+    // Intl, not date-fns: date-fns binds no locale and wrote "3 hours ago"
+    // and "Mon 3:45PM" under every language.
+    if (hoursOld < 24) return formatRelativeTime(d, language);
+    if (hoursOld < 24 * 7) return formatDate(d, language, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    return formatDate(d, language, { month: 'short', day: 'numeric' });
   })();
 
   const typeAccent = getPostTypeAccent(post);
@@ -1118,7 +1121,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       {post.publish_at && new Date(post.publish_at) > new Date() && (
         <div className="px-3 pb-1 flex items-center gap-1.5 text-xs text-primary/80">
           <Clock className="w-3 h-3" />
-          <span>{tFallback('hub.post.scheduledFor', 'Scheduled')}: {new Date(post.publish_at).toLocaleString()}</span>
+          <span>{tFallback('hub.post.scheduledFor', 'Scheduled')}: {formatDate(new Date(post.publish_at), language, { dateStyle: 'medium', timeStyle: 'short' })}</span>
         </div>
       )}
 

@@ -856,7 +856,7 @@ export default function GymMap({ onClose, onContinue }) {
                     {placeStatus === 'searching' && (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                     )}
-                    Go
+                    {tFallback('gymMap.go', 'Go')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setSearch('')}>{tFallback("implement.clear", "Clear")}</Button>
                 </>

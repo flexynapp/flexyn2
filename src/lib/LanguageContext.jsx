@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { getTranslation, loadLanguage, isLanguageLoaded, SUPPORTED_LANGUAGES } from './i18n';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { clearTranslationCache } from './translate';
 
 const LANG_STORAGE_KEY = 'fn-language';
@@ -63,27 +64,55 @@ export function LanguageProvider({ children }) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  // On mount, try to read the signed-in user's preferred_language and override local state if set.
+  // Reconcile with the signed-in user's preferred_language, on mount and
+  // again whenever someone signs in (a language picked before sign-in lives
+  // only in localStorage, and the mount-time read ran while signed out).
+  //
+  // Two directions:
+  //  - server has a language → it wins, as it always has.
+  //  - server has NONE but this device has a non-default choice → write it
+  //    up. Server-side push text (streak, quest, league, duel reminders…)
+  //    picks its language from this column and defaults to English. Before
+  //    this, the column was written only by setLanguage(), and that write
+  //    fails silently when nobody is signed in yet, so it held a value for
+  //    3 of 77 profiles (measured 2026-09-27) and a Spanish user's pushes
+  //    arrived in English.
+  const languageRef = useRef(language);
+  languageRef.current = language;
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const sync = async () => {
       try {
         const me = await db.auth.me();
-        const serverLang = me?.preferred_language;
-        if (!cancelled && serverLang && SUPPORTED_LANGUAGES.some(l => l.code === serverLang) && serverLang !== language) {
+        if (cancelled || !me) return;
+        const serverLang = me.preferred_language;
+        const valid = serverLang && SUPPORTED_LANGUAGES.some(l => l.code === serverLang);
+        if (valid && serverLang !== languageRef.current) {
           // Load before flipping so we don't show raw keys mid-transition.
           await loadLanguage(serverLang);
           if (cancelled) return;
           setLanguageState(serverLang);
           try { localStorage.setItem(LANG_STORAGE_KEY, serverLang); } catch {}
+        } else if (!valid && languageRef.current !== DEFAULT_LANG) {
+          db.auth.updateMe({ preferred_language: languageRef.current }).catch(() => {});
         }
       } catch {
         // Not signed in or request failed — keep localStorage value.
       } finally {
         hydratedFromServer.current = true;
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    sync();
+    let subscription = null;
+    try {
+      subscription = supabase?.auth?.onAuthStateChange?.((event) => {
+        if (event === 'SIGNED_IN') sync();
+      })?.data?.subscription ?? null;
+    } catch { /* stubbed client in tests */ }
+    return () => {
+      cancelled = true;
+      try { subscription?.unsubscribe?.(); } catch {}
+    };
   }, []);
 
   const setLanguage = useCallback(async (code) => {

@@ -20,13 +20,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
+import { formatDate, toBcp47 } from '@/lib/intlFormat';
+
+// "May 16 – 22" / "16–22 may" / "16–22 mai": Intl picks the order and
+// collapses the shared month, which date-fns' unlocalised 'MMM d' could not.
+function formatDateRange(a, b, language) {
+  try {
+    return new Intl.DateTimeFormat(toBcp47(language), { month: 'short', day: 'numeric' }).formatRange(a, b);
+  } catch {
+    return `${formatDate(a, language, { month: 'short', day: 'numeric' })} – ${formatDate(b, language, { month: 'short', day: 'numeric' })}`;
+  }
+}
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
 import { track, EVENTS } from '@/lib/analytics';
+import { shareCardHost, shareCardLink } from '@/lib/appOrigin';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -50,8 +62,8 @@ function roundRect(ctx, x, y, w, h, r) {
 
 /** Draw the weekly recap share card. */
 // `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
-// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
-// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+// FLEXYN stays English (brand). The footer is the app's address, so
+// whoever sees the card can find the app; it is not copy to translate. Labels are keyed.
 function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t }) {
   const tf = asT(t);
   const W = CANVAS_W;
@@ -211,7 +223,7 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('LOG. PROGRESS. LEVEL UP.', W / 2, H - 50);
+  ctx.fillText(shareCardHost(), W / 2, H - 50);
 }
 
 export default function WeeklyRecapShareCard({ open, onClose, recap, username }) {
@@ -227,7 +239,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
     try {
       const today = new Date();
       const start = subDays(today, 6);
-      return `${format(start, 'MMM d')} – ${format(today, 'MMM d')}`;
+      return formatDateRange(start, today, language);
     } catch {
       return '';
     }
@@ -310,6 +322,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
             files: [file],
             title: tFallback('shareCard.weekTitle', 'My Flexyn week'),
             text: tFallback('shareCard.weekText', 'My week in Flexyn'),
+            url: shareCardLink('share_week'),
           });
           track(EVENTS.SHARED, { card: 'weekly_recap', method: 'share' });
           return;

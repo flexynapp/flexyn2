@@ -231,8 +231,10 @@ export function PrivacyPolicy() {
           your user identifier.</li>
           <li><strong className="text-foreground">{tFallback("legal.posthog", "PostHog")}</strong> — product
           analytics. Receives which features you use (for example that a
-          workout was logged or a card was shared), the screen you were on, and
-          a random account identifier. Never your email, your health numbers
+          workout was logged or a card was shared), the screen you were on,
+          the site that sent you here (for example reddit.com) and any
+          campaign tag in the link you opened, and a random account
+          identifier. Never your email, your health numbers
           or your messages. You can turn it off in Settings, Privacy.</li>
           <li><strong className="text-foreground">{tFallback("legal.anthropic", "Anthropic")}</strong> — powers
           the AI Coach and meal photo recognition. Receives the training

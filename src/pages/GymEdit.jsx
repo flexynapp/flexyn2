@@ -385,7 +385,7 @@ export default function GymEdit() {
               className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded"
             >
               {geoLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-              Use my location
+              {tFallback('gymEdit.useMyLocation', 'Use my location')}
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">

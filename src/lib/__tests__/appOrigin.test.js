@@ -4,7 +4,9 @@
 // the interesting logic is "which host is durable", not how it is read.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { resolveOrigin, isEphemeralHost, marketingOrigin, publicGymUrl } from '@/lib/appOrigin';
+import { resolveOrigin, isEphemeralHost, marketingOrigin, publicGymUrl, shareCardHost, shareCardLink } from '@/lib/appOrigin';
+import { acquisitionProps } from '@/lib/analytics';
+import { isReferralCodeShape } from '@/lib/data/referrals';
 
 const FALLBACK = 'https://flexyn.netlify.app';
 
@@ -101,4 +103,27 @@ describe('the marketing handoff — where a scanner with no account goes', () =>
       expect(marketingOrigin()).toBeNull();
     }
   });
+});
+
+describe('share cards carry a reachable address', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  // jsdom serves from localhost, which is ephemeral, so this is the
+  // fallback: the same thing a card drawn on a dev server must print.
+  it('prints the durable host without a scheme', () => {
+    expect(shareCardHost()).toBe('flexyn.netlify.app');
+  });
+
+  it('follows VITE_PUBLIC_ORIGIN once the real domain serves the app', () => {
+    vi.stubEnv('VITE_PUBLIC_ORIGIN', 'https://flexyn.app');
+    expect(shareCardHost()).toBe('flexyn.app');
+    expect(shareCardLink('share_pr')).toBe('https://flexyn.app/?ref=share_pr');
+  });
+
+  it.each(['share_pr', 'share_workout', 'share_week', 'share_profile'])(
+    '%s reads as a channel tag, never as a referral code', (tag) => {
+      expect(isReferralCodeShape(tag)).toBe(false);
+      const search = new URL(shareCardLink(tag)).search;
+      expect(acquisitionProps(search)).toEqual({ ref: tag });
+    });
 });

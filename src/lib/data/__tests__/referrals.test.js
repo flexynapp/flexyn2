@@ -58,6 +58,22 @@ describe('capturePendingReferralCode', () => {
     expect(localStorage.getItem('flexyn.pendingReferralCode')).toBe(null);
   });
 
+  it('ignores six-letter marketing tags that contain I or O', () => {
+    for (const tag of ['reddit', 'tiktok', 'shorts']) {
+      window.history.replaceState({}, '', `/?ref=${tag}`);
+      referrals.capturePendingReferralCode();
+      expect(localStorage.getItem('flexyn.pendingReferralCode')).toBe(null);
+    }
+  });
+
+  it('ignores a longer marketing tag instead of truncating it to six', () => {
+    window.history.replaceState({}, '', '/?ref=alternativeto');
+    referrals.capturePendingReferralCode();
+    expect(localStorage.getItem('flexyn.pendingReferralCode')).toBe(null);
+    // and leaves it in the URL for the analytics channel tag
+    expect(window.location.search).toBe('?ref=alternativeto');
+  });
+
   it('is a no-op when there is no ?ref param', () => {
     window.history.replaceState({}, '', '/dashboard');
     referrals.capturePendingReferralCode();

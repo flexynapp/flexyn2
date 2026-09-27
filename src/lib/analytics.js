@@ -18,6 +18,10 @@
 //   • the page as a ROUTE TEMPLATE (/duel-invite/:token, not the token)
 //   • a few small properties per event (e.g. which share card). Callers pass
 //     labels, never health numbers: no weights, calories, cycle data or text.
+//   • on app_opened only, where the visit came from: a ?ref= channel tag
+//     (e.g. "reddit"), utm_source / utm_medium / utm_campaign, and the
+//     referring SITE's hostname. Never the referring URL's path or query,
+//     and never a referral code (that becomes the label "referral").
 //
 // The user can turn it off in Settings > Privacy (per device), and a browser
 // sending Do Not Track or Global Privacy Control is treated as opted out.
@@ -115,6 +119,53 @@ export function routeTemplate(pathname = '') {
     // Any remaining UUID or long opaque segment is an identifier too.
     .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi, '/:id')
     .replace(/\/[A-Za-z0-9_-]{20,}(?=\/|$)/g, '/:id');
+}
+
+const TAG_RE = /^[a-z0-9][a-z0-9_.-]{0,39}$/i;
+// Same shape as isReferralCodeShape in src/lib/data/referrals.js (not
+// imported: this module must stay free of the supabase client).
+const REFERRAL_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
+
+/**
+ * Where this visit came from, as short labels. Pure: pass the page's
+ * search string, the document.referrer and this site's own hostname.
+ *
+ * - ?ref= is shared with friend referral codes (src/lib/data/referrals.js).
+ *   A code-shaped value is reported as "referral", never as the code.
+ * - Tags that aren't plain slugs are dropped, not cleaned.
+ * - The referrer is reduced to its hostname, and dropped when it is this
+ *   site (an in-app reload is not an acquisition channel).
+ */
+export function acquisitionProps(search = '', referrer = '', ownHost = '') {
+  const out = {};
+  let params;
+  try { params = new URLSearchParams(search || ''); } catch { params = new URLSearchParams(); }
+  const ref = (params.get('ref') || '').trim();
+  if (ref) {
+    if (REFERRAL_CODE_RE.test(ref.toUpperCase())) out.ref = 'referral';
+    else if (TAG_RE.test(ref)) out.ref = ref.toLowerCase();
+  }
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) {
+    const v = (params.get(k) || '').trim();
+    if (v && TAG_RE.test(v)) out[k] = v.toLowerCase();
+  }
+  try {
+    const host = referrer ? new URL(referrer).hostname.replace(/^www\./, '') : '';
+    const own = String(ownHost || '').replace(/^www\./, '');
+    if (host && host !== own && TAG_RE.test(host)) out.referrer_domain = host.toLowerCase();
+  } catch { /* not a URL */ }
+  return out;
+}
+
+/** acquisitionProps for the page this script is running on. Read it before
+ *  anything rewrites the URL (the referral capture strips ?ref=). */
+export function currentAcquisition() {
+  if (typeof window === 'undefined' || !window.location) return {};
+  return acquisitionProps(
+    window.location.search,
+    typeof document !== 'undefined' ? document.referrer : '',
+    window.location.hostname,
+  );
 }
 
 /** Only short labels, numbers and booleans survive. */

@@ -8,7 +8,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { capturePendingReferralCode } from './lib/data/referrals'
 import { installStaleDeployGuard } from './lib/staleDeployGuard'
 import { initAppResume } from './lib/appResume'
-import { track, EVENTS } from './lib/analytics'
+import { track, EVENTS, currentAcquisition } from './lib/analytics'
 import { initNativeShell } from './lib/nativeShell'
 
 // Recover from stale-deploy chunk fetches (see staleDeployGuard) before
@@ -32,6 +32,10 @@ try {
   );
 } catch (_) {}
 
+// Where this visit came from (?ref=reddit, utm_*, the referring site), read
+// BEFORE the referral capture below strips ?ref= from the URL.
+const acquisition = currentAcquisition();
+
 // Capture ?ref=ABC123 from the landing URL BEFORE React mounts. This
 // has to run early because the URL gets cleaned during React Router's
 // initial parse; we read the param first and stash it in localStorage
@@ -43,7 +47,7 @@ capturePendingReferralCode();
 // Product analytics (src/lib/analytics.js): a no-op unless VITE_POSTHOG_KEY
 // is set. One open per page load; the Supabase id is attached once auth
 // resolves, and events before that carry this device's random id.
-track(EVENTS.APP_OPENED, { standalone: typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches === true });
+track(EVENTS.APP_OPENED, { ...acquisition, standalone: typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches === true });
 
 // ── Sentry error monitoring ───────────────────────────────────────────────────
 // To activate: replace the dsn placeholder with your real DSN from

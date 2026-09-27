@@ -180,7 +180,7 @@ function Queued({ tFallback }) {
   );
 }
 
-function LiveWar({ crew, war, currentUserId, tFallback }) {
+function LiveWar({ crew, war, currentUserId, tFallback, language }) {
   const fmt = useNumberFormatter();
 
   const { data: breakdown } = useQuery({
@@ -206,7 +206,7 @@ function LiveWar({ crew, war, currentUserId, tFallback }) {
   const theirs = getOpponentScore(war, crew.id);
   const total  = mine + theirs;
   const myPct  = total > 0 ? Math.round((mine / total) * 100) : 50;
-  const left   = timeLeft(war.ends_at);
+  const left   = timeLeft(war.ends_at, new Date(), language);
 
   const members = breakdown?.members ?? [];
   const me      = members.find(m => m.user_id === currentUserId);
@@ -355,7 +355,7 @@ function LiveWar({ crew, war, currentUserId, tFallback }) {
 
 export default function CrewWarsMenu({ open, onClose, crew, currentUserId }) {
   const navigate = useNavigate();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
 
   const { data: war, isLoading: warLoading } = useQuery({
     queryKey:  ['activeWar', crew?.id],
@@ -399,7 +399,7 @@ export default function CrewWarsMenu({ open, onClose, crew, currentUserId }) {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : war ? (
-          <LiveWar crew={crew} war={war} currentUserId={currentUserId} tFallback={tFallback} />
+          <LiveWar crew={crew} war={war} currentUserId={currentUserId} tFallback={tFallback} language={language} />
         ) : queued ? (
           <Queued tFallback={tFallback} />
         ) : (

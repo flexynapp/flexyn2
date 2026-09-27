@@ -169,7 +169,7 @@ export default function TwoFactorSection() {
             className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-micro font-bold uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
           >
             {enrolling && <Loader2 className="w-3 h-3 animate-spin" />}
-            Enable
+            {tFallback('twoFactorSection.enable', 'Enable')}
           </button>
         ))}
       </div>

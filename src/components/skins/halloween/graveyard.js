@@ -30,9 +30,16 @@ const SEGMENTS = [
 
 export const SINK = 3;
 
-export const GROUND_PATH = `M0 160L${START.join(' ')}${SEGMENTS
+const SURFACE = `${START.join(' ')}${SEGMENTS
   .map((s) => `Q${s.ctrl.join(' ')} ${s.end.join(' ')}`)
-  .join('')}L400 160Z`;
+  .join('')}`;
+
+export const GROUND_PATH = `M0 160L${SURFACE}L400 160Z`;
+
+// Everything above the ground. Jack o lanterns are clipped to it, so the part
+// of a pumpkin buried in the hill is hidden rather than painted over the
+// ground, and the two inks never stack.
+export const SKY_PATH = `M0 0L${SURFACE}L400 0Z`;
 
 const quad = (a, b, c, t) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
 
@@ -124,13 +131,72 @@ function tree(x) {
   };
 }
 
+function scarecrow(cx) {
+  // Only the post touches the ground; the shirt, arms and hat hang off it.
+  // Shoulders at 40 above the ground, hat top at 60.
+  const b = plantedBase(cx - 1.5, cx + 1.5);
+  const g = groundY(cx);
+  const y = (above) => r1(g - above);
+  return {
+    kind: 'scarecrow', x0: cx - 1.5, x1: cx + 1.5, base: b,
+    d: `M${cx - 1.5} ${b}V${y(47)}H${cx + 1.5}V${b}Z`,
+    parts: [
+      // Crossbar, a little crooked.
+      `M${cx - 19} ${y(40)}L${cx + 19} ${y(41.5)}v2.5L${cx - 19} ${y(37.5)}Z`,
+      // Shirt with ragged sleeves and hem.
+      `M${cx - 17} ${y(41)}H${cx + 17}l1 5-2.5-1.5-1.5 3-2-2.5-2 1.5L${cx + 8} ${y(24)}l-2.5 2-2-3-2.5 2.5-2-2.5-2.5 2.5-2-3-2.5 2L${cx - 8} ${y(33)}l-2 -1.5-2 2.5-1.5-3-2.5 1.5Z`,
+      // Straw poking out of each sleeve.
+      `M${cx - 17} ${y(40.5)}L${cx - 23} ${y(43)}L${cx - 21.5} ${y(40)}L${cx - 24} ${y(38.5)}L${cx - 21} ${y(38)}L${cx - 22} ${y(35.5)}L${cx - 17} ${y(38)}Z`,
+      `M${cx + 17} ${y(41.5)}L${cx + 22} ${y(44.5)}L${cx + 21} ${y(41.5)}L${cx + 24} ${y(40.5)}L${cx + 21} ${y(39.5)}L${cx + 22.5} ${y(37)}L${cx + 17} ${y(39)}Z`,
+      // Sack head.
+      `M${cx} ${y(56)}a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11Z`,
+      // Hat: brim then a crumpled crown, tipped to one side.
+      `M${cx - 10} ${y(54)}L${cx + 9} ${y(55.5)}v1.8L${cx - 10} ${y(55.8)}Z`,
+      `M${cx - 5.5} ${y(55)}L${cx - 3} ${y(63)}L${cx + 3} ${y(64)}L${cx + 5} ${y(56)}Z`,
+    ],
+  };
+}
+
+function jackOLantern(x, w) {
+  // A pumpkin sits on a flat patch in the middle of its belly, so that patch
+  // is its footprint and the rest curves up and away from the ground.
+  const h = r1(w * 1.05);
+  const fx0 = r1(x + w * 0.25);
+  const fx1 = r1(x + w * 0.75);
+  const b = plantedBase(fx0, fx1);
+  const cx = x + w / 2;
+  const top = b - h;
+  const Y = (t) => r1(b - h * t);
+  const X = (t) => r1(x + w * t);
+  const body = `M${fx0} ${b}C${x} ${b} ${x} ${r1(top + h * 0.12)} ${X(0.3)} ${r1(top + h * 0.06)}`
+    + `Q${X(0.42)} ${top} ${r1(cx)} ${r1(top + h * 0.12)}Q${X(0.58)} ${top} ${X(0.7)} ${r1(top + h * 0.06)}`
+    + `C${x + w} ${r1(top + h * 0.12)} ${x + w} ${b} ${fx1} ${b}Z`;
+  // Carved face, cut out of the body with evenodd so it shows the page.
+  const eye = (ex) => `M${r1(ex - w * 0.09)} ${Y(0.56)}H${r1(ex + w * 0.09)}L${r1(ex)} ${Y(0.72)}Z`;
+  const face = eye(cx - w * 0.2) + eye(cx + w * 0.2)
+    + `M${X(0.24)} ${Y(0.44)}L${X(0.34)} ${Y(0.38)}L${X(0.42)} ${Y(0.44)}L${X(0.5)} ${Y(0.38)}L${X(0.58)} ${Y(0.44)}L${X(0.66)} ${Y(0.38)}L${X(0.76)} ${Y(0.44)}`
+    + `Q${r1(cx)} ${Y(0.14)} ${X(0.24)} ${Y(0.44)}Z`;
+  return {
+    kind: 'jack', lantern: true, x0: fx0, x1: fx1, base: b,
+    d: body + face,
+    stem: `M${r1(cx - 1)} ${r1(top + h * 0.14)}L${r1(cx - 0.6)} ${r1(top - h * 0.12)}L${r1(cx + 1.6)} ${r1(top - h * 0.2)}L${r1(cx + 1)} ${r1(top + h * 0.14)}Z`,
+  };
+}
+
 const { pickets, rails } = fence(206, 10, 7);
 
-/** Everything that stands on the ground. Tests read this list. */
+/**
+ * Everything that stands on the ground. Tests read this list. Jack o
+ * lanterns are in it too (`lantern: true`) so they are checked like the
+ * rest, but the backdrop draws them in the moon's orange, not the ground's ink.
+ */
 export const PLANTED = [
   headstone(40, 20, 32),
+  jackOLantern(64, 17),
   cross(96, 40),
-  headstone(150, 26, 30, -6),
+  scarecrow(132),
+  jackOLantern(139, 15),
+  headstone(160, 26, 30, -6),
   headstone(300, 18, 25),
   ...pickets,
   tree(352),

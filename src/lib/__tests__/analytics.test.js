@@ -74,4 +74,39 @@ describe('analytics', () => {
     expect(a.cleanProps({ a: 'ok', b: 3, c: true, d: { x: 1 }, e: 'x'.repeat(41), f: NaN, g: 'me@x.com' }))
       .toEqual({ a: 'ok', b: 3, c: true });
   });
+
+  describe('acquisitionProps', () => {
+    it('reports a marketing ?ref= tag and utm labels', async () => {
+      const a = await load('');
+      expect(a.acquisitionProps('?ref=Reddit&utm_source=tiktok&utm_campaign=wk3', '', 'flexyn.netlify.app'))
+        .toEqual({ ref: 'reddit', utm_source: 'tiktok', utm_campaign: 'wk3' });
+    });
+
+    it('never reports a friend referral code, only that there was one', async () => {
+      const a = await load('');
+      expect(a.acquisitionProps('?ref=ABC234')).toEqual({ ref: 'referral' });
+      expect(a.acquisitionProps('?ref=abc234')).toEqual({ ref: 'referral' });
+    });
+
+    it('drops tags that are not plain slugs', async () => {
+      const a = await load('');
+      expect(a.acquisitionProps('?ref=me@example.com&utm_source=' + 'x'.repeat(41))).toEqual({});
+      expect(a.acquisitionProps('?ref=<script>')).toEqual({});
+    });
+
+    it('keeps only the referring hostname, and not our own', async () => {
+      const a = await load('');
+      expect(a.acquisitionProps('', 'https://www.reddit.com/r/Fitness/comments/abc?x=1', 'flexyn.netlify.app'))
+        .toEqual({ referrer_domain: 'reddit.com' });
+      expect(a.acquisitionProps('', 'https://flexyn.netlify.app/workout', 'flexyn.netlify.app')).toEqual({});
+      expect(a.acquisitionProps('', 'not a url', 'flexyn.netlify.app')).toEqual({});
+    });
+
+    it('rides along on app_opened through track()', async () => {
+      const a = await load('phc_test');
+      a.track(a.EVENTS.APP_OPENED, { ...a.acquisitionProps('?ref=producthunt'), standalone: false });
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+      expect(body.properties.ref).toBe('producthunt');
+    });
+  });
 });

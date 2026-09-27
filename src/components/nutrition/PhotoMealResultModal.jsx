@@ -483,7 +483,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 className="flex-[1.4] h-11 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save meal
+                {tFallback('photoMealResultModal.saveMeal', 'Save meal')}
               </button>
             </div>
           )}

@@ -241,7 +241,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 flex items-center gap-2"
           >
             {creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Create group
+            {tFallback('newGroupDMModal.createGroup', 'Create group')}
           </button>
         </div>
       </motion.div>

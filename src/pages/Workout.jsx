@@ -95,6 +95,7 @@ import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import TransText from '@/components/TransText';
+import { formatDate } from '@/lib/intlFormat';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -2768,7 +2769,7 @@ export default function Workout() {
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isToday = lastDateStr === todayStr;
               const subtitleParts = [
-                last.date ? (isToday ? tFallback('common.today', 'Today') : format(parseISO(last.date), 'MMM d')) : null,
+                last.date ? (isToday ? tFallback('common.today', 'Today') : formatDate(parseISO(last.date), language, { month: 'short', day: 'numeric' })) : null,
                 exCount === 1
                   ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
                   : `${exCount} ${(tFallback('workout.exercises', 'Exercises')).toLowerCase()}`,
