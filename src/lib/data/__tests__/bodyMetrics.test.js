@@ -1,7 +1,7 @@
 // Every read and write of body_metrics now goes through
-// src/lib/data/bodyMetrics.js. These tests pin the exact statements it sends,
-// through the real db.js underneath, so the next step (replacing db.entities
-// inside this module) has to reproduce them exactly.
+// src/lib/data/bodyMetrics.js. These tests pin the exact statements it sends.
+// They were written against the old db.js client and pass unchanged on
+// ownedRows, which is the proof the swap matched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -84,7 +84,7 @@ describe('bodyMetrics writes', () => {
 });
 
 describe('one door to body_metrics', () => {
-  it('no other source file touches db.entities.BodyMetric', () => {
+  it('no source file touches db.entities.BodyMetric', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -93,7 +93,6 @@ describe('one door to body_metrics', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'bodyMetrics.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*BodyMetric\b/.test(code)) offenders.push(rel);
       }

@@ -38,9 +38,9 @@ const createMetric = vi.fn((payload) => { calls.push('create'); return Promise.r
 vi.mock('@/api/db', () => ({
   db: {
     auth: { updateMe: (...a) => updateMe(...a) },
-    entities: { BodyMetric: { create: (...a) => createMetric(...a) } },
   },
 }));
+vi.mock('@/lib/data/bodyMetrics', () => ({ create: (...a) => createMetric(...a) }));
 
 const successToast = vi.fn();
 const errorToast = vi.fn();
