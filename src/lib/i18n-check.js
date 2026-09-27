@@ -221,6 +221,12 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crewSettings.tag',
     'crewSettings.tagHint',
     'crew.applicantLevel',
+    // Capsules round 2 (2026-09-27). Capsule and sticker are kept English
+    // nouns in the catalog, and Premium is the tier's name, the same word in
+    // Spanish.
+    'capsules.title',
+    'capsules.tier.premium',
+    'stickerSet.count',
   ]),
   fr: new Set([
     // Duels: \"Rival\" and \"VS\" are the words French uses on a scoreboard.
@@ -383,6 +389,13 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crewSettings.tag',
     'crewSettings.tagHint',
     'crew.applicantLevel',
+    // Capsules round 2 (2026-09-27). Capsule and sticker are kept English
+    // nouns in the catalog; Standard and Premium are tier names French spells
+    // exactly as English does.
+    'capsules.title',
+    'capsules.tier.standard',
+    'capsules.tier.premium',
+    'stickerSet.count',
   ]),
   // German. Populated 2026-08-16 while the locale went 67% -> 99.4%: a
   // translation push SURFACES cognates rather than removing them, so the
@@ -613,7 +626,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     // loanword or a kept product noun in this language, not a skipped string.
     'generator.tab.chat',
     'hub.feed.crews',
-    'hub.market.title',
     'workout.addCardio',
     'workout.tab.cardio',
     'workout.tagsLabel',
