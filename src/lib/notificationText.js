@@ -164,6 +164,9 @@ const SPECS = {
       if (m.result === 'declined') {
         return { key: 'notifications.row.nemesis_assigned.title_declined', en: '@{name} declined the challenge', vars: { name: 'rival_display_name' } };
       }
+      if (m.result === 'expired') {
+        return { key: 'notifications.row.nemesis_assigned.title_expired', en: 'Your challenge to @{name} expired', vars: { name: 'rival_display_name' } };
+      }
       // `rival_type` is gym|cardio and picks which rival this is. Two keys
       // rather than one with a {label} slot: "Gym Rival" and "Cardio Rival"
       // are feature names, and a slot would ask a translator to decline a
@@ -172,9 +175,11 @@ const SPECS = {
         ? { key: 'notifications.row.nemesis_assigned.title_cardio', en: '🎯 @{name} wants to be your Cardio Rival', vars: { name: 'rival_display_name' } }
         : { key: 'notifications.row.nemesis_assigned.title_gym',    en: '🎯 @{name} wants to be your Gym Rival',    vars: { name: 'rival_display_name' } };
     },
-    pick: (m) => (m.result === 'declined'
-      ? { key: 'notifications.row.nemesis_assigned.body_declined', en: "They backed out before the match started. Roll a new rival when you're ready." }
-      : { key: 'notifications.row.nemesis_assigned.body_invite',   en: "Confirm to start this week's challenge. Whoever goes AFK first forfeits." }),
+    pick: (m) => {
+      if (m.result === 'declined') return { key: 'notifications.row.nemesis_assigned.body_declined', en: "They backed out before the match started. Roll a new rival when you're ready." };
+      if (m.result === 'expired')  return { key: 'notifications.row.nemesis_assigned.body_expired',  en: "They didn't answer within 48 hours. Roll a new rival when you're ready." };
+      return { key: 'notifications.row.nemesis_assigned.body_invite', en: 'Accept within 48 hours. The match runs seven days and the bigger week wins.' };
+    },
   },
 };
 

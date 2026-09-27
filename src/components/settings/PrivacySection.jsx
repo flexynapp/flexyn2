@@ -168,7 +168,7 @@ export default function PrivacySection() {
   }, [profile?.read_receipts_enabled]);
 
   // ── Gym Rival opt-out ───────────────────────────────────────────────
-  // The backend honors nemesis_opt_out (assignGymRival filters it — DB
+  // The backend honors nemesis_opt_out (gym_rival_roll filters it — DB
   // column still named nemesis_opt_out pending the rename migration).
   const [gymRivalOptOut, setGymRivalOptOutLocal] = useState(false);
   useEffect(() => {
