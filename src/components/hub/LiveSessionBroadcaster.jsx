@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
 import * as workouts from '@/lib/data/workouts';
+import { track, EVENTS } from '@/lib/analytics';
 
 export default function LiveSessionBroadcaster({ onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -165,6 +166,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
           // sessions ever need marking, that needs a column first.
           [DURATION_COLUMN]: elapsedMin,
         });
+        track(EVENTS.WORKOUT_LOGGED, { via: 'live_session', exercises: grouped.length });
         savedToHistory = true;
       } catch (err) {
         console.warn('[live] save-as-workout failed:', err);

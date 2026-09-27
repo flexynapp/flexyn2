@@ -94,14 +94,16 @@ describe('nutrition reads', () => {
 });
 
 describe('nutrition writes', () => {
-  it('create inserts once with the caller\'s identity and tracks a meal or water', async () => {
+  it('create inserts once with the caller\'s identity and sends no analytics', async () => {
     results = [{ data: { id: 'n1', food_name: 'Rice' }, error: null }, { data: { id: 'n2', food_name: 'Water|16' }, error: null }];
     await nutrition.create({ date: '2026-09-27', food_name: 'Rice', calories: 200, user_id: 'x', created_by: 'x@y.z' });
     await nutrition.create({ date: '2026-09-27', food_name: 'Water|16', calories: 0 });
     const inserts = calls.filter((c) => c[1] === 'insert');
     expect(inserts).toHaveLength(2);
     expect(inserts[0][2]).toMatchObject({ food_name: 'Rice', user_id: 'u1', created_by: 'a@b.co' });
-    expect(track.mock.calls).toEqual([['meal_logged'], ['water_logged']]);
+    // The Nutrition page sends meal_logged and rewardWaterLog sends
+    // water_logged; a second copy from here counted each one twice.
+    expect(track).not.toHaveBeenCalled();
   });
 
   it('create and update refuse a profane food name before sending anything', () => {

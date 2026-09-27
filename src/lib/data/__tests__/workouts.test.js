@@ -88,14 +88,17 @@ describe('workouts writes', () => {
     notes: 'good', tags: [], idempotency_key: 'k1', total_volume: 500,
   };
 
-  it('create inserts once with the caller\'s identity injected and tracks it', async () => {
+  it('create inserts once with the caller\'s identity injected and sends no analytics', async () => {
     results = [{ data: { id: 'w1' }, error: null }];
     const row = await workouts.create({ ...payload, user_id: 'someone-else', created_by: 'x@y.z' });
     expect(row).toEqual({ id: 'w1' });
     expect(calls.filter((c) => c[1] === 'insert')).toEqual([
       ['workout_logs', 'insert', { ...payload, user_id: 'u1', created_by: 'a@b.co' }],
     ]);
-    expect(track).toHaveBeenCalledWith('workout_logged');
+    // The save screen sends workout_logged with { first, exercises }. The
+    // old client sent a second, bare copy from here, so every workout
+    // counted twice.
+    expect(track).not.toHaveBeenCalled();
   });
 
   it('create returns the existing row marked __duplicate on an idempotency conflict', async () => {

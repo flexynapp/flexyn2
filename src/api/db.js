@@ -12,7 +12,6 @@ import { getProfile, setProfile, patchProfile, clearProfile } from './profileCac
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 import { selectProfiles } from '@/lib/data/users';
 import { accountEmail } from '@/lib/guestIdentity';
-import { track, EVENTS } from '@/lib/analytics';
 import { isNative, NATIVE_AUTH_CALLBACK } from '@/lib/native';
 
 /* ── Entity name → Postgres table name ─────────────────────────────────── */
@@ -58,28 +57,6 @@ const OWNER_KEYS = ['user_id', 'created_by'];
 // which is how onboarding's training_equipment and session_minutes went
 // missing for weeks. Migrations now ship through the pipeline, so the schema
 // no longer lags the client and a 42703 / PGRST204 here is a real bug.
-
-// Product analytics for the handful of creates that mark a person actually
-// using the app (src/lib/analytics.js). Done here rather than at each call
-// site because every workout, meal, cardio and goal write funnels through this
-// one function, so no new entry point can forget it. Water shares
-// nutrition_logs with meals (food_name 'Water' or 'Water|N', meal_type null),
-// and is counted separately so "meal logged" means food.
-const CREATE_EVENTS = {
-  WorkoutLog: EVENTS.WORKOUT_LOGGED,
-  CardioLog:  EVENTS.CARDIO_LOGGED,
-  Goal:       EVENTS.GOAL_CREATED,
-  HubPost:    EVENTS.POST_CREATED,
-};
-function trackEntityCreated(entityName, row) {
-  if (entityName === 'NutritionLog') {
-    const isWater = /^Water(\|\d+)?$/.test(String(row?.food_name || ''));
-    track(isWater ? EVENTS.WATER_LOGGED : EVENTS.MEAL_LOGGED);
-    return;
-  }
-  const event = CREATE_EVENTS[entityName];
-  if (event) track(event);
-}
 
 function makeEntity(entityName) {
   const table = TABLE[entityName];
@@ -176,10 +153,7 @@ function makeEntity(entityName) {
       };
 
       const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
-      if (!error) {
-        trackEntityCreated(entityName, row);
-        return row;
-      }
+      if (!error) return row;
 
       // PostgreSQL 23505 unique_violation on an idempotency key —
       // a prior attempt of THIS save intent already landed. Fetch
