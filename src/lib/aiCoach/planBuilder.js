@@ -586,7 +586,7 @@ function formatNum(n) {
  *     kind: 'plan' | 'session',
  *     title, subtitle,
  *     exercises,          // StarterPlanView shape (for rendering)
- *     regimenPayload,     // ready for db.entities.Regimen.create
+ *     regimenPayload,     // ready for regimens.create
  *     workout,            // generateWorkout result (session only; for Start handoff)
  *     goal, label,
  *   }

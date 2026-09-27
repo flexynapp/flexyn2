@@ -5,6 +5,7 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import * as nutritionData from '@/lib/data/nutrition';
+import * as regimensData from '@/lib/data/regimens';
 import * as mealPlans from '@/lib/data/mealPlans';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
@@ -369,7 +370,7 @@ export default function Nutrition() {
   // "Fuel your training" banner in NutritionPlansModal.
   const { data: regimensForFuel = [] } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }, '-created_date', 50),
+    queryFn: () => regimensData.list(user.id),
     enabled: !!user?.email && showNutritionPlans,
   });
   const trainingFuel = useMemo(() => {

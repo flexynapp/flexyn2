@@ -19,6 +19,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
+import * as regimensData from '@/lib/data/regimens';
 import { setPendingWorkout } from '@/lib/pendingWorkout';
 
 export default function Coach() {
@@ -51,7 +52,7 @@ export default function Coach() {
   // Persist a generated plan to the user's Regimens. Payload is already in the
   // regimens shape (from planBuilder / buildStarterRegimen).
   const handleSaveRegimen = useCallback(async (payload) => {
-    const row = await db.entities.Regimen.create(payload);
+    const row = await regimensData.create(payload);
     queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
     return row;
   }, [queryClient, user?.email]);

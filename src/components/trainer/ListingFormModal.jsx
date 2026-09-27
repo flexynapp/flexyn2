@@ -12,9 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/lib/toast';
-import { db } from '@/api/db';
 import { calculateSplit, formatCents, dollarsToCents } from '@/lib/trainerSplit';
 import { createListing, updateListing } from '@/lib/data/trainerMarket';
+import * as regimensData from '@/lib/data/regimens';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -38,7 +38,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, on
 
   const { data: regimens = [] } = useQuery({
     queryKey: ['regimens', trainerId],
-    queryFn: () => db.entities.Regimen.filter({ user_id: trainerId }),
+    queryFn: () => regimensData.list(trainerId),
     enabled: !!trainerId,
   });
 

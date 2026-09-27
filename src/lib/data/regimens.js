@@ -3,8 +3,11 @@ import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-export const list = (userId) =>
-  db.entities.Regimen.filter({ user_id: userId }, '-created_date');
+// The user's own regimens, newest first. Every reader of the
+// ['regimens', email] cache calls this with no limit, so whichever page
+// fills the cache first leaves the same rows for the others.
+export const list = (userId, limit) =>
+  db.entities.Regimen.filter({ user_id: userId }, '-created_date', limit);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -14,11 +17,13 @@ function assertNoTextProfanity(fields) {
   }
 }
 
-export const create = (data) => {
+// async so a refused name rejects the promise instead of throwing before
+// the caller has one to .catch().
+export const create = async (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description });
   return db.entities.Regimen.create(data);
 };
-export const update = (id, data) => {
+export const update = async (id, data) => {
   const textFields = {};
   if (data.name !== undefined) textFields.name = data.name;
   if (data.description !== undefined) textFields.description = data.description;
