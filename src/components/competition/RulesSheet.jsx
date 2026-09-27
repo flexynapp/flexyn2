@@ -1,7 +1,7 @@
 // src/components/competition/RulesSheet.jsx
 //
 // The "i" button and the short ruleset behind it for Duels and Crew Wars.
-// A new ruleset is one more entry in RULESETS (Rival is meant to join).
+// A new ruleset is one more entry in RULESETS.
 // Each is four or five plain lines a new user can read in ten seconds, not
 // the full system: LeagueInfoSheet is the long-form explainer and these
 // deliberately are not.
@@ -11,6 +11,10 @@
 //   duels     — scored by the trigger on workout_logs (20260927184500)
 //   crewWars  — recompute_crew_war: top N lifters per side, N the smaller
 //               roster; starting a war is leader only (mig 358)
+//   rival     — gym_rival_score + gym_rival_settle_week; 48h AFK void;
+//               monthly bonus from rival_pay_month (20260927190000)
+//   pastYou   — past_you_settle (4% per ghost level), checkpoints days 3/5
+//               (20260927183000), weekly goals (20260927173000)
 //
 // It can open over full-screen surfaces (the Rival menu sits at z-[9999]),
 // so the dialog and its overlay are raised above them.
@@ -40,6 +44,27 @@ const RULESETS = {
       ['train', 'Everyone trains', 'Every workout your members log that week earns points for weight lifted, sessions and days trained.'],
       ['fair', 'Fair on size', 'Both crews count the same number of lifters. A bigger crew only counts its best members, so a small crew can still win.'],
       ['win', 'Most points wins', 'When the week ends, the crew with more points wins the war.'],
+    ],
+  },
+  rival: {
+    title: 'How Rival works',
+    intro: 'A seven day race against someone near your level. Gym Rival counts total weight lifted, Cardio Rival counts total distance.',
+    rules: [
+      ['start', 'Both accept', 'The race starts when you both accept and runs for seven days. If neither of you logs a session in the first 48 hours, it is cancelled.'],
+      ['train', 'Just train', 'Every session you log adds to your total. The higher total at the end wins.'],
+      ['prize', 'The prize', 'A win pays 5,000 XP, 500 coins and 5 capsules. If your rival never logged, you get 1,000 XP, 100 coins and 1 capsule. A tie pays nothing.'],
+      ['month', 'Monthly bonus', 'Win 3 weeks in one calendar month, counting Rival and Past You, for 2,000 XP, 200 coins and 2 capsules.'],
+    ],
+  },
+  pastYou: {
+    title: 'How Past You works',
+    intro: 'You race a ghost built from your own recent weeks. It trains evenly all week toward a target.',
+    rules: [
+      ['win', 'Beat the target', 'Pass the target within seven days to win 1,000 XP, 100 coins and a capsule.'],
+      ['checkpoints', 'Checkpoints', 'On day 3 and day 5, being on pace pays 100 XP and 10 coins.'],
+      ['goals', 'Weekly goals', 'Three weekly goals pay 150 XP and 15 coins each, win or lose.'],
+      ['grow', 'It grows with you', 'Win and Past You gets 4% stronger next week. PRs make it stronger too. Fall short and it eases off.'],
+      ['month', 'Monthly bonus', 'Every race you win counts toward the Rival monthly bonus: 3 wins in a calendar month pay 2,000 XP, 200 coins and 2 capsules.'],
     ],
   },
 };
