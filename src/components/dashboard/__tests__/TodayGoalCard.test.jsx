@@ -10,11 +10,7 @@ vi.mock('@/lib/LanguageContext', () => ({
   }),
 }));
 vi.mock('@/lib/WeightUnitContext', () => ({ useWeightUnit: () => ({ weightUnit: 'lbs' }) }));
-vi.mock('@/lib/goalProgress', () => ({
-  isCardioGoal: () => false,
-  computeCardioGoalProgress: () => ({ progress: 0 }),
-  computeStrengthGoalProgress: (g) => ({ progress: g._p }),
-}));
+vi.mock('@/lib/goalProgress', () => ({ goalProgress: (g) => g._p }));
 vi.mock('@/lib/goalSummary', () => ({ summarizeGoalTarget: (g) => g.exercise_name }));
 
 import TodayGoalCard from '../TodayGoalCard';
