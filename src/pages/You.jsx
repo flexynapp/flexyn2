@@ -29,6 +29,8 @@ import { isEnabled } from '@/lib/featureFlags';
 import { initialsFor } from '@/lib/initials';
 import { handle } from '@/lib/userDisplay';
 import LevelBar from '@/components/LevelBar';
+import SkinToggle from '@/components/skins/SkinToggle';
+import { useSkin } from '@/components/skins/useSkin';
 
 function Row({ icon: Icon, label, hint, onClick, tone }) {
   return (
@@ -59,6 +61,7 @@ export default function You() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const { skin } = useSkin();
   const name = user?.full_name || handle(user) || tFallback('you.title', 'You');
 
   const openAchievements = () => {
@@ -88,6 +91,18 @@ export default function You() {
       </button>
 
       <LevelBar totalXp={user?.total_xp || 0} compact={false} />
+
+      {/* The in-season skin's switch, deliberately here as well as in Settings › Display:
+          the look changes every screen, so the way out has to be one tap
+          from the tab people already use, not two screens deep. The row
+          disappears with the season. */}
+      {skin && (
+        <Group>
+          <div className="px-4">
+            <SkinToggle />
+          </div>
+        </Group>
+      )}
 
       <Group>
         <Row icon={TrendingUp} label={tFallback('nav.progress', 'Progress')} onClick={() => navigate('/progress')} />

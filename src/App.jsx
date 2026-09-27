@@ -26,6 +26,8 @@ import { DistanceUnitProvider } from '@/lib/DistanceUnitContext';
 import { RestTimerProvider } from '@/lib/RestTimerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import SkinPrompt from '@/components/skins/SkinPrompt';
+import SkinSlot from '@/components/skins/SkinSlot';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt';
 import LoginStreakSync from '@/components/LoginStreakSync';
 import LaunchSplash from './components/LaunchSplash';
@@ -507,6 +509,10 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}><RestTimerOverlay /></Suspense>
       <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
+      {/* Skin backdrop (src/components/skins/parts.js): behind the page,
+          renders nothing unless a skin is in season and switched on. */}
+      <SkinSlot name="Backdrop" />
+      <SkinPrompt />
       <AppUpdatePrompt />
       {/*
         Fires recordLogin() exactly once per session, regardless of

@@ -30,6 +30,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { NavVisibilityContext } from '@/lib/NavVisibilityContext';
 import OneShotTooltip from './OneShotTooltip';
+import SkinSlot from './skins/SkinSlot';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 
 // Per-tab subcomponent. Extracts the bottom-nav tile render so each
@@ -339,7 +340,7 @@ export default function Layout() {
     <NavVisibilityContext.Provider value={navHidden}>
     <div
       data-app-shell
-      className="min-h-[100dvh] bg-background font-body overscroll-y-none"
+      className="app-shell min-h-[100dvh] bg-background font-body overscroll-y-none"
     >
       {/* Desktop sidebar */}
       {/* `start-0` would pin this to the monitor's edge. On an ultrawide that
@@ -483,7 +484,7 @@ export default function Layout() {
       {/* ps-64, not ms-64: the padding sits INSIDE the capped shell, so the
           content column centres against the space beside the sidebar rather
           than against the whole monitor. */}
-      <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom)+var(--skin-nav-edge,0px))] lg:pb-0 overscroll-y-none">
         <Header />
         {/* Desktop Back. The phone header is lg:hidden and the sidebar has
             no Back, so pages opened from You (My Gym, Progress, Market…)
@@ -525,6 +526,7 @@ export default function Layout() {
           willChange: 'transform',
         }}
       >
+        <SkinSlot name="NavEdge" />
         <div className="flex justify-evenly items-start">
           {navItems.flatMap((item, idx) => {
             // "Lit" follows the section, so Progress lights You. A tap only

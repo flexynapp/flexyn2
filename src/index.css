@@ -466,7 +466,9 @@
        --nav-h          the nav's true occupied height on this device
        --above-nav      the nav plus the standard 16px float gap
     */
-    --nav-h: calc(67px + env(safe-area-inset-bottom));
+    /* + --skin-nav-edge: the room a skin's NavEdge row reserves on top of
+       the nav (0 without a skin), so floating controls clear it too. */
+    --nav-h: calc(67px + env(safe-area-inset-bottom) + var(--skin-nav-edge, 0px));
     --above-nav: calc(var(--nav-h) + 16px);
 
     /* THE ONE VALUE HERE THAT CLAMPS AGAINST WIDTH, and it has to.
@@ -523,6 +525,14 @@
   html {
     overscroll-behavior: none;
   }
+  /* Skins (src/lib/skins.js) with a Backdrop paint it at -z-10, under the
+     page. Layout's shell is opaque by default; while any skin is on it goes
+     transparent so the backdrop shows through the gaps. The body carries the
+     same background colour, so nothing else changes. */
+  html[data-skin] .app-shell {
+    background-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
     overscroll-behavior: none;

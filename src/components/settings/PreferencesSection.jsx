@@ -22,6 +22,7 @@ import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/hap
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import LanguagePicker from '../LanguagePicker';
 import { Group, Row, ToggleRow, SegmentedControl } from './SettingsPrimitives';
+import SkinToggle from '../skins/SkinToggle';
 import { detectTimeZone } from '@/lib/intl';
 
 export default function PreferencesSection() {
@@ -110,6 +111,8 @@ export default function PreferencesSection() {
             ]}
           />
         </div>
+        {/* The in-season skin's switch; renders nothing out of season. */}
+        <SkinToggle />
         <ToggleRow
           icon={Sparkles}
           label={t('settings.levelAnimations')}

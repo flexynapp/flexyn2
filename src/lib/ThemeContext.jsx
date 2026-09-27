@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, u
 import { db } from '@/api/db';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
+import { availableSkin, isSkinOn, writeSkinChoice, SKIN_EVENT } from '@/lib/skins';
 
 // The palette everyone runs while THEMES_ENABLED is false. It's also
 // THEMES[0], but naming it means the "which one is the default" question
@@ -254,6 +255,27 @@ export function ThemeProvider({ children }) {
     return false;
   });
 
+  // Skin (src/lib/skins.js). Independent of THEMES_ENABLED: a skin moves
+  // neutral tokens and adds ornaments; it never touches --primary. Resolved
+  // once per mount, like the time zone: a window cannot open or close
+  // without the app being relaunched in practice, and a mid-session flip
+  // would repaint the app under the user's thumb.
+  const [skin] = useState(() => availableSkin());
+  const [skinOn, setSkinOnState] = useState(() => isSkinOn(skin));
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (skin && skinOn) root.setAttribute('data-skin', skin.id);
+    else root.removeAttribute('data-skin');
+  }, [skin, skinOn]);
+
+  const setSkinOn = useCallback((on) => {
+    if (!skin) return;
+    setSkinOnState(on);
+    writeSkinChoice(skin, on);
+    try { window.dispatchEvent(new CustomEvent(SKIN_EVENT, { detail: { id: skin.id, on } })); } catch {}
+  }, [skin]);
+
   // Keep following the OS until the user expresses a preference. Someone who
   // has never opened the setting and whose phone flips to dark at sunset
   // should see the app flip with it.
@@ -402,7 +424,11 @@ export function ThemeProvider({ children }) {
     activeAnimation,
     darkMode,
     setDarkMode,
-  }), [themeId, setThemeId, lootThemeId, setLootThemeId, activeAnimation, darkMode, setDarkMode]);
+    skin,
+    skinOn,
+    setSkinOn,
+  }), [themeId, setThemeId, lootThemeId, setLootThemeId, activeAnimation, darkMode, setDarkMode,
+    skin, skinOn, setSkinOn]);
 
   return (
     <ThemeContext.Provider value={value}>

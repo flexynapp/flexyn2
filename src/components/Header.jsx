@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import FlexynLogo from './FlexynLogo';
+import SkinSlot from './skins/SkinSlot';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { fireLogoTapEgg } from '@/lib/logoTapEgg';
@@ -117,6 +118,7 @@ export default function Header() {
             className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
             <FlexynLogo className="h-11" />
+            <SkinSlot name="LogoMark" />
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't
