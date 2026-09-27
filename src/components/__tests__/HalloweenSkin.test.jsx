@@ -13,7 +13,7 @@ describe('skin slots', () => {
   it('render nothing unless a skin is in season AND on', () => {
     for (const c of [null, { skin: null, skinOn: true }, { skin: halloween, skinOn: false }]) {
       ctx = c;
-      const { container, unmount } = render(<><SkinSlot name="Overlay" /><SkinSlot name="NavEdge" /></>);
+      const { container, unmount } = render(<><SkinSlot name="Backdrop" /><SkinSlot name="NavEdge" /></>);
       expect(container.innerHTML).toBe('');
       unmount();
     }
@@ -29,14 +29,6 @@ describe('skin slots', () => {
 
 describe('Halloween parts', () => {
   const on = () => { ctx = { skin: halloween, skinOn: true }; };
-
-  it('overlay never takes taps and is hidden from screen readers', () => {
-    on();
-    render(<SkinSlot name="Overlay" />);
-    const el = screen.getByTestId('halloween-overlay');
-    expect(el.className).toContain('pointer-events-none');
-    expect(el.getAttribute('aria-hidden')).toBe('true');
-  });
 
   it('backdrop sits behind the page and never takes taps', () => {
     on();

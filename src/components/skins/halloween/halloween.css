@@ -37,6 +37,15 @@ html[data-skin="halloween"] {
   --sidebar-border: 30 26% 82%;
 }
 
+/* Space the pumpkin row needs above the bottom nav. Layout adds it to the
+   page's bottom padding and to --nav-h, so content and floating controls
+   are pushed up clear of the row instead of sliding under it. PumpkinPatch
+   is exactly this tall and clips, so it cannot outgrow the room it asked
+   for. skinFit.test.js checks both halves. */
+html[data-skin="halloween"] {
+  --skin-nav-edge: 36px;
+}
+
 html.dark[data-skin="halloween"] {
   --background: 20 16% 6%;
   --foreground: 35 30% 92%;
@@ -93,10 +102,11 @@ html.dark[data-skin="halloween"] {
   .hw-dangle { animation: none; }
 }
 
-/* Backdrop star twinkle. Opacity only. */
+/* Backdrop star twinkle. A multiplier on the sky's own ink strength, so it
+   can only ever dim the stars, never push them past the declared ink. */
 @keyframes hw-twinkle {
-  0%, 100% { opacity: 0.22; }
-  50%      { opacity: 0.08; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 .hw-twinkle { animation: hw-twinkle 3.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {

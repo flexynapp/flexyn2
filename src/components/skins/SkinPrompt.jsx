@@ -47,9 +47,9 @@ export default function SkinPrompt() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          // Same dock as PWAInstallPrompt: above the bottom nav on a phone,
-          // the app's corner on desktop. See --shell-inset in index.css.
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-3 end-3 lg:left-auto lg:end-[calc(var(--shell-inset)+1.5rem)] lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-md p-3 flex flex-col gap-2"
+          // Docks on --above-nav, which includes any skin's nav-edge row, so
+          // the card clears the pumpkins; the app's corner on desktop.
+          className="fixed bottom-[var(--above-nav)] start-3 end-3 lg:left-auto lg:end-[calc(var(--shell-inset)+1.5rem)] lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-md p-3 flex flex-col gap-2"
           role="dialog"
           aria-labelledby="skin-offer-title"
         >

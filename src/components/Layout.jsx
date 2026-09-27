@@ -484,7 +484,7 @@ export default function Layout() {
       {/* ps-64, not ms-64: the padding sits INSIDE the capped shell, so the
           content column centres against the space beside the sidebar rather
           than against the whole monitor. */}
-      <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom)+var(--skin-nav-edge,0px))] lg:pb-0 overscroll-y-none">
         <Header />
         {/* Desktop Back. The phone header is lg:hidden and the sidebar has
             no Back, so pages opened from You (My Gym, Progress, Market…)

@@ -1507,8 +1507,12 @@ workout has to resolve active injuries and pass them.
 
 Whole-app looks (Halloween first) are **skins**: data in `src/lib/skins.js`,
 parts in `src/components/skins/<id>/`, rendered through fixed slots
-(`Backdrop`, `Overlay`, `NavEdge`, `LogoMark`, `Icon`, `EmptyAccent`). A skin
+(`Backdrop`, `NavEdge`, `LogoMark`, `Icon`, `EmptyAccent`). A skin
 may move the neutral token ramp and never `--primary` or the state hues.
+**There is no slot above the page**: the old themes cut content off that
+way. Figures live in the Backdrop at the skin's declared `ink`; the NavEdge
+reserves its room through `--skin-nav-edge`. `skinFit.test.js` and
+`skinContrast.test.js` enforce both, so don't add an overlay slot back.
 **Read `docs/skins.md` before adding one.** Layout's shell carries
 `.app-shell` so it can go transparent while a skin's backdrop is on. Don't
 give it an opaque background again, or every backdrop silently disappears.

@@ -10,8 +10,9 @@
 //     any future server check can read it without pulling in components.
 //   • PARTS, in src/components/skins/<id>/. Its CSS (token overrides under
 //     html[data-skin="<id>"]) and whichever ornaments it wants, from a fixed
-//     set of slots the app renders: Overlay, Backdrop, NavEdge, LogoMark,
-//     Icon, EmptyAccent. See src/components/skins/parts.js.
+//     set of slots the app renders: Backdrop, NavEdge, LogoMark, Icon,
+//     EmptyAccent. See src/components/skins/parts.js. There is no slot
+//     above content, on purpose: see docs/skins.md.
 //
 // How to add one: docs/skins.md.
 //
@@ -51,6 +52,12 @@ export const SKINS = [
     // Late September so it is there for all of October, through the day
     // after Halloween so it doesn't vanish on the night itself.
     window: { start: { month: 9, day: 25 }, end: { month: 11, day: 1 } },
+    // The strongest any Backdrop figure may be drawn, as an alpha over the
+    // background: `foreground` for the ink figures, `primary` for anything
+    // in the brand colour (the moon). Text sits on the bare background
+    // between cards, so skinContrast.test.js proves every text colour still
+    // clears 4.5:1 over background mixed with each at this strength.
+    ink: { foreground: 0.14, primary: 0.2 },
     copy: {
       name: ['skin.halloween.name', 'Halloween look'],
       hint: ['skin.halloween.hint', 'Autumn colours, cobwebs, a witch and a pumpkin patch until November 1.'],

@@ -487,10 +487,9 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}><RestTimerOverlay /></Suspense>
       <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
-      {/* Skin slots (src/components/skins/parts.js). Both render nothing
-          unless a skin is in season and switched on. */}
+      {/* Skin backdrop (src/components/skins/parts.js): behind the page,
+          renders nothing unless a skin is in season and switched on. */}
       <SkinSlot name="Backdrop" />
-      <SkinSlot name="Overlay" />
       <SkinPrompt />
       <AppUpdatePrompt />
       {/*

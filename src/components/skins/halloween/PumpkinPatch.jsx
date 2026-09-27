@@ -5,20 +5,22 @@
 // in the fixed overlay, so it slides away with the nav on scroll instead of
 // being left floating at the bottom of the screen.
 //
-// It overlaps the last ~32px of page content above the nav. That content
-// scrolls past it, and pointer-events none means it can never eat a tap.
+// It never covers content: the skin declares --skin-nav-edge (36px) in
+// halloween.css, Layout adds that to the page's bottom padding and to
+// --nav-h, and this row is exactly that tall with overflow clipped, so it
+// cannot outgrow the room it reserved.
 
 import PumpkinMark from './PumpkinMark';
 
 // Sizes in px. Mixed so the row reads as a patch, not a pattern; the big
 // ones get carved faces. Enough to fill a 375px phone with small gaps, and
 // justify-between spreads them on anything wider.
-const PATCH = [30, 18, 24, 34, 16, 26, 20, 32, 18, 24, 28, 16, 30];
+export const PATCH = [30, 18, 24, 34, 16, 26, 20, 32, 18, 24, 28, 16, 30];
 
 export default function PumpkinPatch() {
   return (
     <div
-      className="absolute bottom-full inset-x-0 px-1 flex items-end justify-between pointer-events-none"
+      className="absolute bottom-full inset-x-0 h-[var(--skin-nav-edge,0px)] overflow-hidden px-1 flex items-end justify-between pointer-events-none"
       aria-hidden="true"
       data-testid="pumpkin-patch"
     >

@@ -4,7 +4,6 @@
 // entry in src/lib/skins.js; the slot contract is in ../parts.js.
 
 import './halloween.css';
-import HalloweenOverlay from './HalloweenOverlay';
 import HalloweenBackdrop from './HalloweenBackdrop';
 import PumpkinPatch from './PumpkinPatch';
 import PumpkinMark from './PumpkinMark';
@@ -19,7 +18,6 @@ function Icon({ className = 'w-4 h-4' }) {
 }
 
 export default {
-  Overlay: HalloweenOverlay,
   Backdrop: HalloweenBackdrop,
   NavEdge: PumpkinPatch,
   LogoMark,
