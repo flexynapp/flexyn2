@@ -5,7 +5,7 @@
 // the body is --primary (the brand orange already is pumpkin) and the
 // stem is the foreground ink. No new hue.
 
-export default function PumpkinMark({ className = 'w-4 h-4' }) {
+export default function PumpkinMark({ className = 'w-4 h-4', face = false }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
       <path
@@ -24,6 +24,13 @@ export default function PumpkinMark({ className = 'w-4 h-4' }) {
         stroke="hsl(var(--foreground) / 0.25)"
         strokeWidth="1"
       />
+      {face && (
+        // Carved face, cut in the background colour so it reads as a hole.
+        <path
+          d="M6.6 11.4L9.4 11.4L8 9.2ZM14.6 11.4L17.4 11.4L16 9.2ZM11.2 13.4L12.8 13.4L12 12.2ZM6.4 15.2Q12 19.6 17.6 15.2L16 16.2L15 15.4L13.6 16.6L12 15.6L10.4 16.6L9 15.4L8 16.2Z"
+          fill="hsl(var(--background))"
+        />
+      )}
     </svg>
   );
 }

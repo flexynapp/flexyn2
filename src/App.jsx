@@ -27,6 +27,7 @@ import { RestTimerProvider } from '@/lib/RestTimerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import HalloweenPrompt from '@/components/seasonal/HalloweenPrompt';
+import HalloweenDecor from '@/components/seasonal/HalloweenDecor';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt';
 import LoginStreakSync from '@/components/LoginStreakSync';
 import LaunchSplash from './components/LaunchSplash';
@@ -486,6 +487,7 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}><RestTimerOverlay /></Suspense>
       <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
+      <HalloweenDecor />
       <HalloweenPrompt />
       <AppUpdatePrompt />
       {/*

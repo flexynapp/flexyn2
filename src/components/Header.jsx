@@ -122,7 +122,7 @@ export default function Header() {
             className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
             <FlexynLogo className="h-11" />
-            {halloweenOn && <PumpkinMark className="w-4 h-4 -ms-1 self-start mt-1" />}
+            {halloweenOn && <PumpkinMark face className="w-5 h-5 -ms-1 self-start mt-0.5" />}
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't

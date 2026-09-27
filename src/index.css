@@ -3618,3 +3618,39 @@ html [data-sonner-toaster][data-sonner-theme] {
   --normal-text: hsl(var(--foreground));
   --normal-border: hsl(var(--border));
 }
+
+/* ── Halloween ornaments (HalloweenDecor.jsx) ────────────────────────
+   Transform-only keyframes so the flyover composites on the GPU. The
+   witch crosses in the first ~22% of a 36s cycle and the screen is quiet
+   for the rest; the bats trail her on the same clock. Written for LTR and
+   mirrored under [dir=rtl] so she flies the reading direction. */
+@keyframes hw-fly {
+  0%   { transform: translate3d(-110px, 0, 0); }
+  22%  { transform: translate3d(calc(100vw + 110px), -28px, 0); }
+  100% { transform: translate3d(calc(100vw + 110px), -28px, 0); }
+}
+@keyframes hw-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(6px) rotate(2deg); }
+}
+@keyframes hw-flap {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.35); }
+}
+@keyframes hw-dangle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(18px); }
+}
+.hw-fly    { animation: hw-fly 36s linear 3s infinite both; will-change: transform; }
+.hw-fly-b  { animation-delay: 3.5s; }
+.hw-fly-c  { animation-delay: 3.9s; }
+.hw-fly-d  { animation-delay: 4.3s; }
+.hw-bob    { animation: hw-bob 1.6s ease-in-out infinite; }
+.hw-flap   { animation: hw-flap 0.28s ease-in-out infinite; transform-origin: center; }
+.hw-dangle { animation: hw-dangle 7s ease-in-out infinite; }
+[dir="rtl"] .hw-motion { transform: scaleX(-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-motion { display: none; }
+  .hw-dangle { animation: none; }
+}

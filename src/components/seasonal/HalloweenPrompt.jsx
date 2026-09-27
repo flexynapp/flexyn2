@@ -55,7 +55,7 @@ export default function HalloweenPrompt() {
         >
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-              <PumpkinMark className="w-6 h-6" />
+              <PumpkinMark face className="w-7 h-7" />
             </div>
             <div className="flex-1 min-w-0">
               <p id="halloween-prompt-title" className="font-heading font-bold text-body leading-tight">
