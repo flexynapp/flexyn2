@@ -7,13 +7,13 @@
 // Guests do not compete (Kegan, 2026-09-27): every start button routes a
 // guest to ConnectAccountSheet instead, and the server refuses them anyway.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from 'framer-motion';
-import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Dumbbell, Footprints, Ghost, Users } from 'lucide-react';
+import { Target, Loader2, ChevronRight, AlertTriangle, Trophy, Swords, Dumbbell, Footprints, Ghost, Users } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, msUntilNextWeekStart, getGymRivalWeekState, rivalMetric } from '@/lib/data/gymRival';
+import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, getGymRivalWeekState, rivalMetric } from '@/lib/data/gymRival';
 import { getCrewBadges } from '@/lib/data/crews';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
@@ -47,8 +47,11 @@ export default function GymRivalCard({ currentUserId }) {
   // An event rather than a prop because this card is rendered deep inside
   // the start screen's tile switch, and the same hand-off shape is already
   // used for the Form Coach and the crews section.
+  // It opens whatever is live: the human match, the Past You race, or nothing
+  // (an empty menu rendered "@—" with a dead Challenge button).
+  const openLiveRef = useRef(() => {});
   useEffect(() => {
-    const handler = () => setMenuOpen(true);
+    const handler = () => openLiveRef.current();
     window.addEventListener('flexyn:open-rival', handler);
     return () => window.removeEventListener('flexyn:open-rival', handler);
   }, []);
@@ -70,12 +73,27 @@ export default function GymRivalCard({ currentUserId }) {
   const iAmInitiator = assignment ? assignment.user_id === currentUserId : true;
   const otherId = assignment ? (iAmInitiator ? assignment.rival_id : assignment.user_id) : null;
   const status = assignment?.status;
-  const voidThisWeek = status === 'void' && isThisWeek(assignment?.assigned_at);
   const settledRecent = status === 'completed' && assignment?.settled_at
     && (Date.now() - new Date(assignment.settled_at).getTime() < 2 * 86400_000);
+  // A void no longer locks anyone out until Monday (gym_rival_roll refuses
+  // only while a match is pending or active), so it is a note on the Find
+  // card, not a state of its own. No void timestamp exists; a void lands
+  // 48h after acceptance, so ten days from assignment covers it.
+  const recentVoid = status === 'void' && assignment?.assigned_at
+    && (Date.now() - new Date(assignment.assigned_at).getTime() < 10 * 86400_000);
   const myResult = assignment?.winner_id ? (assignment.winner_id === currentUserId ? 'win' : 'loss') : 'draw';
-  // A void/completed from a past week is stale — the user is free to roll again.
-  const hasActiveMatch = assignment && (status === 'pending' || status === 'active' || voidThisWeek || settledRecent);
+  const liveHuman = status === 'pending' || status === 'active';
+  const ghostLive = pastYou?.status === 'active';
+  const ghostSettledAt = pastYou?.status === 'completed' && pastYou.settled_at ? new Date(pastYou.settled_at).getTime() : 0;
+  const humanSettledAt = settledRecent ? new Date(assignment.settled_at).getTime() : 0;
+  // What the card shows, in priority order: a live human match, a live Past
+  // You race, then the more recent of the two results, then the Find card.
+  // The server allows only one live rival, so the first two never collide.
+  const view = liveHuman ? 'human'
+    : ghostLive ? 'ghost'
+    : humanSettledAt && humanSettledAt >= ghostSettledAt ? 'humanResult'
+    : ghostSettledAt ? 'ghost'
+    : 'find';
   const iConfirmed = assignment ? (iAmInitiator ? assignment.initiator_confirmed : assignment.rival_confirmed) : false;
 
   const { data: profile } = useQuery({
@@ -127,6 +145,13 @@ export default function GymRivalCard({ currentUserId }) {
   // Guests never reach the server with a start: they get the connect flyout.
   const asMember = (fn) => () => (isGuest ? setConnectOpen(true) : fn());
 
+  // The sheet renders nothing without a match, so a race started on another
+  // device (or a stale cache) made the tap do nothing. Fetch, then open.
+  const openPastYou = async () => {
+    await qc.fetchQuery({ queryKey: ['myPastYou', currentUserId], queryFn: getMyPastYou, staleTime: 0 }).catch(() => null);
+    setPastYouOpen(true);
+  };
+
   const rollMut = useMutation({
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row, type) => {
@@ -148,7 +173,7 @@ export default function GymRivalCard({ currentUserId }) {
     },
     onError: (err) => {
       if (err?.reason === 'guest_account') { setConnectOpen(true); return; }
-      if (err?.reason === 'past_you_in_progress') { setPastYouOpen(true); return; }
+      if (err?.reason === 'past_you_in_progress') { openPastYou(); return; }
       reportError(err, { feature: 'gymRival.roll', level: 'warning', userEmail: user?.email });
       toast.error(tFallback('gymRivalCard.findFailed', 'Could not find a Gym Rival. Try again.'));
     },
@@ -165,6 +190,11 @@ export default function GymRivalCard({ currentUserId }) {
   });
 
   const name  = profile?.username;
+
+  openLiveRef.current = () => {
+    if (view === 'ghost') openPastYou();
+    else if (view === 'human' || view === 'humanResult') setMenuOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -201,14 +231,14 @@ export default function GymRivalCard({ currentUserId }) {
   );
 
   // ── Racing Past You (or just finished) ──────────────────────────────────
-  if (!hasActiveMatch && pastYou) {
+  if (view === 'ghost') {
     const settledGhost = pastYou.status === 'completed';
     const ghostType = pastYou.rival_type === 'cardio'
       ? tFallback('gymRivalCard.cardioRival', 'Cardio Rival')
       : tFallback('gymRivalCard.gymRival', 'Gym Rival');
     return (
       <>
-        <motion.button type="button" onClick={() => setPastYouOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.99 }}
+        <motion.button type="button" onClick={openPastYou} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.99 }}
           className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${settledGhost && pastYou.won ? 'border-success/25 bg-success/5' : 'border-primary/20 bg-primary/5'}`}>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${settledGhost && pastYou.won ? 'bg-success/10' : 'bg-primary/10'}`}>
             {settledGhost && pastYou.won ? <Trophy className="w-6 h-6 text-success" /> : <Ghost className="w-6 h-6 text-primary" />}
@@ -248,7 +278,7 @@ export default function GymRivalCard({ currentUserId }) {
   }
 
   // ── No active match → prompt to find one ────────────────────────────────
-  if (!hasActiveMatch) {
+  if (view === 'find') {
     const ghostMode = mode === 'ghost';
     const busy = rollMut.isPending || startMut.isPending;
     const go = (type) => asMember(() => (ghostMode ? startMut.mutate(type) : rollMut.mutate(type)));
@@ -260,6 +290,12 @@ export default function GymRivalCard({ currentUserId }) {
             {ghostMode ? <Ghost className="w-5 h-5 text-primary" /> : <Target className="w-5 h-5 text-primary" />}
           </div>
           <p className="text-sm font-bold mb-1">{tFallback('gymRival.findTitle', 'Find Your Rival')}</p>
+          {recentVoid && (
+            <p className="text-xs text-muted-foreground mb-2 inline-flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-primary shrink-0" />
+              {tFallback('gymRivalCard.voidedNote', 'Your last match was voided because neither of you logged.')}
+            </p>
+          )}
 
           {/* Who you race: a person around your level, or Past You. */}
           <div role="radiogroup" aria-label={tFallback('pastYou.opponent', 'Opponent')}
@@ -305,29 +341,8 @@ export default function GymRivalCard({ currentUserId }) {
     );
   }
 
-  // ── Void this week → reset chip ─────────────────────────────────────────
-  if (voidThisWeek) {
-    return (
-      <>
-        <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4 flex items-center gap-3 text-start hover:bg-primary/10 active:bg-primary/10 transition-colors">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-micro font-black uppercase tracking-wider text-primary dark:text-primary">{tFallback("gymRivalCard.challengeVoided", "Challenge voided")}</span>
-            <p className="text-sm font-bold mt-0.5">Someone went AFK — no rewards</p>
-            <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Next roll in {(() => { const ms = msUntilNextWeekStart(); const d = Math.floor(ms / 86400000); const h = Math.floor((ms % 86400000) / 3600000); return d > 0 ? `${d}d ${h}h` : `${h}h`; })()}</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-        </motion.button>
-        {menu}
-      </>
-    );
-  }
-
   // ── Completed this week → result chip ───────────────────────────────────
-  if (settledRecent) {
+  if (view === 'humanResult') {
     const win = myResult === 'win';
     const draw = myResult === 'draw';
     return (
@@ -339,8 +354,10 @@ export default function GymRivalCard({ currentUserId }) {
           </div>
           <div className="flex-1 min-w-0">
             <span className={`text-micro font-black uppercase tracking-wider ${win ? 'text-success' : 'text-muted-foreground'}`}>{tFallback("gymRivalCard.lastWeekSResult", "Last week's result")}</span>
-            <p className="text-sm font-bold mt-0.5">{win ? 'You won! 🏆' : draw ? 'It was a draw' : `@${name || 'Your rival'} won`}</p>
-            <p className="text-xs text-muted-foreground">Tap to see the result & roll again</p>
+            <p className="text-sm font-bold mt-0.5">{win ? tFallback('gymRivalCard.youWon', 'You won')
+              : draw ? tFallback('gymRivalCard.draw', 'It was a draw')
+              : tFallback('gymRivalCard.theyWon', '@{n} won', { n: name || '—' })}</p>
+            <p className="text-xs text-muted-foreground">{tFallback('gymRivalCard.tapForResultRoll', 'Tap to see the result and roll again')}</p>
           </div>
           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
         </motion.button>

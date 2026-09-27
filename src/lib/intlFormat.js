@@ -170,3 +170,27 @@ export function detectTimeZone(now = new Date()) {
   const mm = String(abs % 60).padStart(2, '0');
   return `UTC${sign}${hh}:${mm}`;
 }
+
+/**
+ * A countdown in the viewer's language: "2d 5h", "5h 12m", "12m" in English,
+ * "2 d 5 h" in Spanish. Two units at most, because a countdown is read at a
+ * glance. Uses Intl's narrow units so no d/h/m letter is hardcoded; the Rival
+ * screens printed English units under a Spanish UI until this existed.
+ */
+export function formatDuration(ms, language) {
+  const totalMin = Math.max(0, Math.floor((Number(ms) || 0) / 60000));
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  const locale = toBcp47(language);
+  const unit = (n, u) => {
+    try {
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: u, unitDisplay: 'narrow' }).format(n);
+    } catch {
+      return `${n}${u[0]}`;
+    }
+  };
+  if (d > 0) return `${unit(d, 'day')} ${unit(h, 'hour')}`;
+  if (h > 0) return `${unit(h, 'hour')} ${unit(m, 'minute')}`;
+  return unit(m, 'minute');
+}

@@ -273,9 +273,12 @@ export function isThisWeek(date, now = new Date()) {
 //
 // Flat prize for winning the week — no level scaling.
 export const GYM_RIVAL_REWARD_BASE = { xp: 5000, coins: 500, capsules: 5 };
+// What gym_rival_settle_week pays when the loser never logged a session
+// (migration 20260927070000). Showing the full prize there overstated it 5x.
+export const GYM_RIVAL_REWARD_WALKOVER = { xp: 1000, coins: 100, capsules: 1 };
 
-export function computeRivalReward() {
-  return { ...GYM_RIVAL_REWARD_BASE };
+export function computeRivalReward({ walkover = false } = {}) {
+  return { ...(walkover ? GYM_RIVAL_REWARD_WALKOVER : GYM_RIVAL_REWARD_BASE) };
 }
 
 /** Update opt-out preference */

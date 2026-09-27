@@ -38,14 +38,16 @@ export function accountEmail(user) {
 /**
  * True for an account made by "Continue as guest" (`signInAnonymously()`).
  *
- * Reads `is_anonymous` when the caller has the auth user, and falls back to
- * the guest address shape, because the AuthContext user is the profile row
- * and older sessions merged it without the flag.
+ * `is_anonymous` decides whenever it is present. The guest address shape is
+ * only a fallback for a user object that lacks the flag: a guest who links
+ * Google or an email keeps `guest_<uuid>@flexyn.guest` in user_profiles.email
+ * (nothing rewrites it), so letting the address win kept a connected account
+ * locked out of Rival forever.
  *
  * @param {{is_anonymous?: boolean, email?: string}|null|undefined} user
  */
 export function isGuestAccount(user) {
   if (!user) return false;
-  if (user.is_anonymous === true) return true;
+  if (typeof user.is_anonymous === 'boolean') return user.is_anonymous;
   return typeof user.email === 'string' && user.email.endsWith('@flexyn.guest');
 }
