@@ -24,7 +24,7 @@ vi.mock('@/api/supabaseClient', () => {
   };
 });
 
-const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct, pastYouBasis } = await import('@/lib/data/pastYou');
+const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct, pastYouBasis, getPastYouGoals } = await import('@/lib/data/pastYou');
 const { isGuestAccount } = await import('@/lib/guestIdentity');
 
 beforeEach(() => { rpc.mockReset(); row = null; });
@@ -120,5 +120,34 @@ describe('pastYouBasis', () => {
   it('names the real average above the floor', () => {
     expect(pastYouBasis('gym', 5545, 4)).toBe('weeks');
     expect(pastYouBasis('cardio', 2501, 1)).toBe('weeks');
+  });
+});
+
+describe('getPastYouGoals', () => {
+  it('returns the three goals in a fixed order, clamped', async () => {
+    rpc.mockResolvedValue({ data: [
+      { key: 'cross', progress: 1, goal: 1, done: true },
+      { key: 'days', progress: 5, goal: 3, done: true },
+      { key: 'pr', progress: 0, goal: 1, done: false },
+    ], error: null });
+    const g = await getPastYouGoals('m1');
+    expect(rpc).toHaveBeenCalledWith('past_you_goals', { p_id: 'm1' });
+    expect(g.map((x) => x.key)).toEqual(['days', 'pr', 'cross']);
+    expect(g[0]).toMatchObject({ progress: 3, goal: 3, done: true });
+    expect(g[1]).toMatchObject({ progress: 0, done: false });
+  });
+
+  it('fills a goal the server left out as not done', async () => {
+    rpc.mockResolvedValue({ data: [{ key: 'days', progress: 2, goal: 3, done: false }], error: null });
+    const g = await getPastYouGoals('m1');
+    expect(g).toHaveLength(3);
+    expect(g[2]).toMatchObject({ key: 'cross', progress: 0, done: false });
+  });
+
+  it('is null when the RPC fails or returns nothing, so the section hides', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '42883' } });
+    expect(await getPastYouGoals('m1')).toBeNull();
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect(await getPastYouGoals('m1')).toBeNull();
   });
 });

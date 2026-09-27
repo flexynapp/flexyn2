@@ -101,3 +101,27 @@ export function pastYouBasis(rivalType, baseline, weeks) {
   const floor = PAST_YOU_BASELINE_FLOOR[rivalType === 'cardio' ? 'cardio' : 'gym'];
   return Number(baseline) <= floor ? 'floor' : 'weeks';
 }
+
+/** What each weekly goal pays at settlement, win or lose (migration 20260927173000). */
+export const PAST_YOU_GOAL_REWARD = { xp: 150, coins: 15 };
+
+/** The goals in the order the server returns them. */
+export const PAST_YOU_GOAL_KEYS = ['days', 'pr', 'cross'];
+
+/**
+ * The race's three weekly goals, as the server counts them right now (or as
+ * they were written at settlement). Null when unavailable, so the sheet can
+ * leave the section out rather than show three empty goals.
+ */
+export async function getPastYouGoals(id) {
+  if (!id) return null;
+  const { data, error } = await supabase.rpc('past_you_goals', { p_id: id });
+  if (error || !Array.isArray(data)) return null;
+  const byKey = new Map(data.map((g) => [g?.key, g]));
+  return PAST_YOU_GOAL_KEYS.map((key) => {
+    const g = byKey.get(key) || {};
+    const goal = Number(g.goal) || 1;
+    const progress = Math.min(goal, Math.max(0, Number(g.progress) || 0));
+    return { key, goal, progress, done: g.done === true };
+  });
+}

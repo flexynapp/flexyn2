@@ -12,11 +12,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Ghost, Dumbbell, Footprints, Trophy, Loader2 } from 'lucide-react';
+import { X, Ghost, Dumbbell, Footprints, Trophy, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getPastYouState, abandonPastYou, ghostBoostPct, pastYouBasis } from '@/lib/data/pastYou';
+import { getPastYouState, getPastYouGoals, abandonPastYou, ghostBoostPct, pastYouBasis, PAST_YOU_GOAL_REWARD } from '@/lib/data/pastYou';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -50,6 +50,13 @@ export default function PastYouSheet({ open, onClose, match }) {
   const { data: state, isFetching: stateFetching, refetch: refetchState } = useQuery({
     queryKey: ['pastYouState', match?.id],
     queryFn: () => getPastYouState(match.id),
+    enabled: open && !!match?.id,
+    staleTime: 60_000,
+  });
+
+  const { data: goals } = useQuery({
+    queryKey: ['pastYouGoals', match?.id],
+    queryFn: () => getPastYouGoals(match.id),
     enabled: open && !!match?.id,
     staleTime: 60_000,
   });
@@ -107,6 +114,18 @@ export default function PastYouSheet({ open, onClose, match }) {
 
   // The bar is the week's target. Your fill and the ghost's marker sit on it.
   const pctOf = (v) => (target > 0 ? Math.min(100, Math.max(0, (v / target) * 100)) : 0);
+
+  const goalLabel = (key) => {
+    if (key === 'days') return tFallback('pastYou.goalDays', 'Train on 3 different days');
+    if (key === 'pr') {
+      return isCardio
+        ? tFallback('pastYou.goalPrCardio', 'Beat your longest session')
+        : tFallback('pastYou.goalPrGym', 'Beat one of your best lifts');
+    }
+    return isCardio
+      ? tFallback('pastYou.goalCrossCardio', 'Log one lifting session')
+      : tFallback('pastYou.goalCrossGym', 'Log one cardio session');
+  };
 
   const basisKind = pastYouBasis(match.rival_type, state?.baseline ?? match.baseline, weeks);
   const basis = basisKind === 'weeks'
@@ -177,6 +196,40 @@ export default function PastYouSheet({ open, onClose, match }) {
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 {tFallback('pastYou.paceExplainer', 'Past You trains evenly all week and finishes on {target}.', { target: metricText(target) })}
+              </p>
+            </div>
+          )}
+
+          {goals && (
+            <div className="mb-6">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+                  {tFallback('pastYou.goalsTitle', 'Weekly goals')}
+                </p>
+                <p className="text-micro font-bold text-muted-foreground tabular-nums">
+                  {tFallback('pastYou.goalsMet', '{n} of 3 met', { n: String(goals.filter((g) => g.done).length) })}
+                </p>
+              </div>
+              <ul>
+                {goals.map((g) => (
+                  <li key={g.key} className="flex items-center gap-2 py-2.5 border-b border-border last:border-b-0">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${g.done ? 'bg-success text-white' : 'border border-border'}`}
+                      aria-hidden="true">
+                      {g.done && <Check className="w-3 h-3" />}
+                    </span>
+                    <span className={`flex-1 text-sm ${g.done ? 'text-muted-foreground' : 'font-bold'}`}>{goalLabel(g.key)}</span>
+                    <span className={`text-xs font-bold tabular-nums ${g.done ? 'text-success' : 'text-muted-foreground'}`}>
+                      {g.done
+                        ? tFallback('pastYou.goalDone', 'Done')
+                        : tFallback('pastYou.goalProgress', '{n} of {goal}', { n: String(g.progress), goal: String(g.goal) })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground mt-2">
+                {tFallback('pastYou.goalsReward', 'Each goal pays {xp} XP and {coins} coins, win or lose.', {
+                  xp: fmt(PAST_YOU_GOAL_REWARD.xp), coins: fmt(PAST_YOU_GOAL_REWARD.coins),
+                })}
               </p>
             </div>
           )}

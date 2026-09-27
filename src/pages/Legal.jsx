@@ -19,12 +19,11 @@
 // Google/Apple OAuth). They are NOT legal advice and have not been reviewed
 // by a lawyer.
 //
-// Three things only Kegan can supply are marked with LEGAL_TODO below and
-// currently render a visible placeholder rather than an invented fact:
-// the operating legal entity, the contact address for privacy requests, and
-// the governing jurisdiction. Fill those in before submitting to either
-// store — a policy naming no controller and giving no contact route fails
-// Art. 13(1)(a)-(b) on its face, and reviewers do check.
+// Three things only Kegan can supply (the operating entity, the contact
+// address for privacy requests, and the governing jurisdiction) are set
+// below. `Blank` still renders a visible placeholder if any is emptied,
+// rather than an invented fact: a policy naming no controller and giving no
+// contact route fails Art. 13(1)(a)-(b) on its face, and reviewers do check.
 //
 // Keep LAST_UPDATED accurate when the disclosures change.
 
@@ -34,16 +33,21 @@ import FlexynLogo from '@/components/FlexynLogo';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
 
-const LAST_UPDATED = '24 September 2026';
+const LAST_UPDATED = '27 September 2026';
 
-// LEGAL_TODO — replace all three with the real values.
-const ENTITY = null;          // e.g. 'Flexyn Ltd.'
-const CONTACT_EMAIL = null;   // e.g. 'privacy@flexyn.app'
-const JURISDICTION = null;    // e.g. 'the State of California, USA'
+// Supplied by Kegan, 2026-09-27. Flexyn is run by him as an individual, not
+// a company, so the controller is named as a person. Change ENTITY here if a
+// company is formed, and bump LAST_UPDATED when any of the three move.
+const ENTITY = 'Kegan Bergeron';
+const CONTACT_EMAIL = 'legal@flexyn.app';
+const JURISDICTION = 'the Commonwealth of Massachusetts, USA';
 
 /** Renders a real value, or a visibly-unfinished placeholder. */
 function Blank({ value, label }) {
   const { tFallback } = useLanguage();
+  if (value && value.includes('@')) {
+    return <a href={`mailto:${value}`} className="underline underline-offset-2">{value}</a>;
+  }
   if (value) return <span>{value}</span>;
   return (
     <span

@@ -29,17 +29,6 @@ const MACRO_COLUMN = {
   sodium_mg: 'sodium',
 };
 
-// Fields the app collects that nutrition_logs has no column for. They are
-// dropped here, on purpose and in one visible place, because the entity
-// layer no longer strips unknown columns (a missing column now fails the
-// save). Storing them needs a migration adding the columns; see
-// docs/nutrition-meal-logging-audit.md and mealWritePath.test.js.
-export const NOT_STORED = [
-  'sugar_g', 'cholesterol_mg',
-  'iron_mg', 'magnesium_mg', 'calcium_mg', 'potassium_mg',
-  'vitamin_a_iu', 'vitamin_c_mg', 'vitamin_d_iu', 'vitamin_b12_mcg',
-];
-
 export const create = (data) => {
   assertNoTextProfanity({ food_name: data.food_name, notes: data.notes });
   const row = { ...data };
@@ -47,7 +36,6 @@ export const create = (data) => {
     row[column] = data[alias] ?? data[column] ?? null;
     delete row[alias];
   }
-  for (const field of NOT_STORED) delete row[field];
   return db.entities.NutritionLog.create(row);
 };
 export const update = (id, data) => {

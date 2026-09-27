@@ -1,31 +1,15 @@
-// The Log Meal write path — what the form collects vs what the table stores.
+// The Log Meal write path: what the form collects vs what the table stores.
 //
-// ── THESE ARE CHARACTERIZATION TESTS. READ THIS BEFORE "FIXING" ONE. ──────
+// The form sends sixteen nutrient fields. Five carry a unit suffix the table
+// does not (protein_g -> protein and so on) and nutrition.create renames
+// them. The other eleven are stored under their own names.
 //
-// The block marked CHARACTERIZATION below asserts the CURRENT, DEFECTIVE
-// behaviour on purpose: ten of the sixteen nutrient fields `LogMealForm`
-// collects are silently discarded on save. They pass here because the bug is
-// real, not because it is correct. If migration 006 is applied and those
-// columns start existing, these tests SHOULD fail — INVERT them (flip the
-// expectation to "persisted"), do not delete them. Deleting removes the only
-// executable record of which fields the user can type and lose.
-//
-// The mechanism, established against production on 2026-08-11:
-//
-//   • `nutrition_logs` has 22 columns. Six are nutrients: calories, protein,
-//     carbs, fat, fiber, sodium.
-//   • `LogMealForm` renders 16 nutrient inputs (8 macros + 8 vitamins and
-//     minerals) and `Nutrition.jsx:1307` sends every one of them.
-//   • `src/lib/data/nutrition.js` `create()` dual-writes the five `_g`/`_mg`
-//     aliases onto the old un-suffixed column names, so those five survive.
-//   • The other ten — sugar_g, cholesterol_mg, iron_mg, magnesium_mg,
-//     calcium_mg, potassium_mg and the four vitamins — have no column and no
-//     alias. Until 2026-09-27 `db.js`'s strip-and-retry dropped each one on a
-//     PGRST204/42703. That machinery is gone; `nutrition.create` now drops
-//     them explicitly (`NOT_STORED`), so the user still gets a success toast
-//     for data that is never stored.
-//   • Migration 006 declares all sixteen columns and has never been applied.
-//
+// History, because the inverted block below is the record of it: until
+// 2026-09-27 ten of those fields (sugar, cholesterol, four minerals, four
+// vitamins) had no column. db.js silently stripped them on every save, then
+// nutrition.create dropped them by name, and the user got a success toast
+// for data that was never kept. Migration 20260927174000 added the columns.
+// These tests used to assert the loss; they now assert the fields persist.
 // Full write-up: docs/nutrition-meal-logging-audit.md.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -41,6 +25,9 @@ const REAL_COLUMNS = new Set([
   'serving_size', 'servings', 'calories', 'protein', 'carbs', 'fat', 'fiber',
   'sodium', 'food_item_id', 'created_at', 'updated_at', 'created_date',
   'notes', 'image_url', 'ai_meta',
+  // Added by migration 20260927174000.
+  'sugar_g', 'cholesterol_mg', 'iron_mg', 'magnesium_mg', 'calcium_mg',
+  'potassium_mg', 'vitamin_a_iu', 'vitamin_c_mg', 'vitamin_d_iu', 'vitamin_b12_mcg',
 ]);
 
 let insertAttempts = [];
@@ -66,7 +53,7 @@ vi.mock('@/api/supabaseClient', () => ({
 vi.mock('@/lib/pushCleanup', () => ({ unsubscribePushOnLogout: async () => {} }));
 vi.mock('@/lib/data/users', () => ({ selectProfiles: (build) => build({}) }));
 
-import { create as createNutritionLog, NOT_STORED } from '@/lib/data/nutrition';
+import { create as createNutritionLog } from '@/lib/data/nutrition';
 
 // Exactly what Nutrition.jsx sends after `safeEntry` coercion, for a
 // user who filled in every tile on both tabs of the form.
@@ -109,51 +96,48 @@ describe('nutrition create() — the five aliases that DO survive', () => {
     expect(finalPayload().calories).toBe(600);
   });
 
-  it('still succeeds despite the unknown columns — the save is not broken', async () => {
+  it('saves a fully filled form', async () => {
     const row = await createNutritionLog(FULL_FORM_ENTRY);
     expect(row).toMatchObject({ id: 'row-1' });
   });
 });
 
-describe('CHARACTERIZATION — ten nutrient fields the user can type and lose', () => {
-  // Invert these if migration 006 lands. Do not delete them.
-  const DISCARDED = [
+describe('the ten micronutrients are stored', () => {
+  const STORED = [
     'sugar_g', 'cholesterol_mg',
     'iron_mg', 'magnesium_mg', 'calcium_mg', 'potassium_mg',
     'vitamin_a_iu', 'vitamin_c_mg', 'vitamin_d_iu', 'vitamin_b12_mcg',
   ];
 
-  it.each(DISCARDED)('%s is dropped and never reaches the table', async (field) => {
+  it.each(STORED)('%s reaches the table with the value the user typed', async (field) => {
     await createNutritionLog(FULL_FORM_ENTRY);
-    expect(FULL_FORM_ENTRY).toHaveProperty(field);      // the form does send it
-    expect(finalPayload()).not.toHaveProperty(field);   // the table never sees it
+    expect(finalPayload()[field]).toBe(FULL_FORM_ENTRY[field]);
   });
 
-  it('matches the list nutrition.create drops on purpose', () => {
-    expect([...NOT_STORED].sort()).toEqual([...DISCARDED].sort());
-  });
-
-  it('drops exactly ten fields, no more and no fewer', async () => {
+  it('loses nothing: every field sent lands, apart from the five renamed aliases', async () => {
     await createNutritionLog(FULL_FORM_ENTRY);
-    const sent = new Set(Object.keys(FULL_FORM_ENTRY));
     const landed = new Set(Object.keys(finalPayload()));
-    // The five aliases are "lost" but their values survive under another
-    // name, so they are excluded here — this counts genuine data loss only.
     const aliases = new Set(['protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sodium_mg']);
-    const lost = [...sent].filter((k) => !landed.has(k) && !aliases.has(k));
-    expect(lost.sort()).toEqual([...DISCARDED].sort());
+    const lost = Object.keys(FULL_FORM_ENTRY).filter((k) => !landed.has(k) && !aliases.has(k));
+    expect(lost).toEqual([]);
   });
 
   it('sends one insert, with nothing for the table to reject', async () => {
     await createNutritionLog(FULL_FORM_ENTRY);
     expect(insertAttempts.length).toBe(1);
   });
+
+  it('leaves a micronutrient the user did not fill in absent, not zero', async () => {
+    const { iron_mg: _iron, ...rest } = FULL_FORM_ENTRY;
+    await createNutritionLog(rest);
+    expect(finalPayload()).not.toHaveProperty('iron_mg');
+  });
 });
 
 describe('a column the table lacks now fails the save', () => {
   // db.js used to strip an unknown column and retry, so the save "succeeded"
   // without it. That is how whole fields went missing unnoticed. Anything not
-  // dropped on purpose in nutrition.create must now surface as an error.
+  // the table has must surface as an error.
   it('rejects a field nutrition.create does not know about', async () => {
     await expect(createNutritionLog({ ...FULL_FORM_ENTRY, water_oz: 8 }))
       .rejects.toMatchObject({ code: 'PGRST204' });
