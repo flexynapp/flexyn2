@@ -1,21 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the data layer BEFORE importing the module under test.
-const filterMock = vi.fn();
+const listMock = vi.fn();
 const findByBarcodeMock = vi.fn();
 
-vi.mock('@/api/db', () => ({
-  db: {
-    entities: { FoodItem: { filter: (...args) => filterMock(...args) } },
-    functions: { invoke: vi.fn() },
-  },
-}));
 vi.mock('@/api/supabaseClient', () => ({ supabase: {} }));
-// The real listByBarcode, so the multi-row read still lands on filterMock
-// with the arguments the waterfall sends; only the single-row fallback is
-// replaced.
-vi.mock('@/lib/data/foodItems', async (importOriginal) => ({
-  ...(await importOriginal()),
+// The statements foodItems sends are pinned in its own tests. Here both of
+// its reads are faked: the multi-row read the waterfall uses first, and the
+// single-row fallback.
+vi.mock('@/lib/data/foodItems', () => ({
+  listByBarcode: (...args) => listMock(...args),
   findByBarcode: (...args) => findByBarcodeMock(...args),
 }));
 
@@ -24,13 +18,13 @@ import { lookupBarcode } from '@/lib/foodLookup';
 const BARCODE = '0123456789012';
 
 beforeEach(() => {
-  filterMock.mockReset();
+  listMock.mockReset();
   findByBarcodeMock.mockReset();
 });
 
 describe('lookupBarcode — community source normalisation', () => {
   it('prefers the nutrition jsonb when present', async () => {
-    filterMock.mockResolvedValue([{
+    listMock.mockResolvedValue([{
       id: 'r1',
       barcode: BARCODE,
       name: 'Almond Butter',
@@ -55,7 +49,7 @@ describe('lookupBarcode — community source normalisation', () => {
   });
 
   it('falls back to flat legacy columns when the jsonb is absent', async () => {
-    filterMock.mockResolvedValue([{
+    listMock.mockResolvedValue([{
       id: 'r2',
       barcode: BARCODE,
       name: 'Granola Bar',
@@ -94,7 +88,7 @@ describe('lookupBarcode — community source normalisation', () => {
   // its default or NULL, never at a real number. The fallback was firing only
   // on the reachable case, which was the wrong one.
   it('keeps a null jsonb field NULL rather than reading the flat column’s DEFAULT 0', async () => {
-    filterMock.mockResolvedValue([{
+    listMock.mockResolvedValue([{
       id: 'r3',
       barcode: BARCODE,
       name: 'White Claw Surge (Pineapple)',
@@ -124,7 +118,7 @@ describe('lookupBarcode — community source normalisation', () => {
     // The legacy row this fallback was written for: partial jsonb, no
     // `protein` key. `key in json` is false, so the flat column answers —
     // which is the behaviour the inverted test above must not take away.
-    filterMock.mockResolvedValue([{
+    listMock.mockResolvedValue([{
       id: 'r4',
       barcode: BARCODE,
       name: 'Yogurt',
@@ -139,7 +133,7 @@ describe('lookupBarcode — community source normalisation', () => {
   });
 
   it('picks the newest row when multiple share a barcode (NULL created_date loses)', async () => {
-    filterMock.mockResolvedValue([
+    listMock.mockResolvedValue([
       { id: 'null-date', barcode: BARCODE, name: 'Old Null', created_date: null, created_at: null },
       { id: 'old', barcode: BARCODE, name: 'Old', created_date: '2026-01-01T00:00:00Z' },
       { id: 'new', barcode: BARCODE, name: 'New', created_date: '2026-06-09T00:00:00Z', nutrition: { calories: 50 } },
@@ -151,7 +145,7 @@ describe('lookupBarcode — community source normalisation', () => {
   });
 
   it('falls back to findByBarcode when the multi-row filter throws', async () => {
-    filterMock.mockRejectedValue(new Error('42703'));
+    listMock.mockRejectedValue(new Error('42703'));
     findByBarcodeMock.mockResolvedValue({
       id: 'fb', barcode: BARCODE, name: 'Fallback Item',
       calories: 80, protein: 3, carbs: 14, fat: 1, fiber: 1, sodium: 30,
