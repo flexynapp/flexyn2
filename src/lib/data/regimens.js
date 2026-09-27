@@ -1,16 +1,18 @@
 // src/lib/data/regimens.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { ownedRows } from './ownedRows';
+
+const rows = ownedRows('regimens');
 
 // The user's own regimens, newest first. Every reader of the
 // ['regimens', email] cache calls this with no limit, so whichever page
 // fills the cache first leaves the same rows for the others.
 export const list = (userId, limit) =>
-  db.entities.Regimen.filter({ user_id: userId }, '-created_date', limit);
+  rows.filter({ user_id: userId }, '-created_date', limit);
 
 /** Fetch a regimen by id, or null (including one the policies hide). */
-export const get = (id) => db.entities.Regimen.get(id);
+export const get = (id) => rows.get(id);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -24,16 +26,16 @@ function assertNoTextProfanity(fields) {
 // the caller has one to .catch().
 export const create = async (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description });
-  return db.entities.Regimen.create(data);
+  return rows.create(data);
 };
 export const update = async (id, data) => {
   const textFields = {};
   if (data.name !== undefined) textFields.name = data.name;
   if (data.description !== undefined) textFields.description = data.description;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return db.entities.Regimen.update(id, data);
+  return rows.update(id, data);
 };
-export const remove = (id) => db.entities.Regimen.delete(id);
+export const remove = (id) => rows.remove(id);
 
 /**
  * Fetch all public templates from any user, sorted by copy count.
@@ -56,10 +58,9 @@ export const listPublic = async (limit = 100) => {
     // 42703s on those. Fall back to the legacy is_public-only path so
     // older deployments still surface public regimens.
     if (error.code === '42703') {
-      const rows = await db.entities.Regimen
+      return rows
         .filter({ is_public: true }, '-copy_count', limit)
         .catch(() => []);
-      return rows;
     }
     return [];
   }
@@ -71,7 +72,7 @@ export const listPublic = async (limit = 100) => {
  * Increments the original's copy_count and records authorship on the copy.
  */
 export const copyTemplate = async (original, user) => {
-  const copy = await db.entities.Regimen.create({
+  const copy = await rows.create({
     created_by: user.email,
     name: original.name,
     description: original.description || '',
