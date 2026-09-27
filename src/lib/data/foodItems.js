@@ -46,6 +46,14 @@ import { supabase } from '@/api/supabaseClient';
 const e = () => db.entities.FoodItem;
 
 /**
+ * Every record for a barcode, newest first by created_date, up to `limit`.
+ * Unlike findByBarcode this THROWS on a failed read, so the barcode
+ * waterfall can tell "nobody has submitted this" from "the read failed".
+ */
+export const listByBarcode = (barcode, limit = 10) =>
+  e().filter({ barcode }, '-created_date', limit);
+
+/**
  * Look up a barcode in the community database.
  * Returns the first matching record, or null if none.
  */
