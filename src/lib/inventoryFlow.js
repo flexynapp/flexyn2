@@ -3,18 +3,21 @@
 // ProfileMenu; previously: Hub). The capsule-claim logic was lifted from
 // Hub.jsx so the bag is no longer tied to the social route.
 //
-// Pattern:
+// Pattern (Layout mounts this once):
 //   const bag = useBagFlow();
-//   bag.openBag(); bag.bagOpen; bag.capsuleCount;  // bag UI
 //   <UserBag open={bag.bagOpen} onClose={bag.closeBag} onOpenCapsule={bag.openCapsule} />
-//   {bag.openingCapsule && <CapsuleOpener capsule={bag.openingCapsule}
-//        onClaim={bag.claimCapsule} onClose={bag.closeOpener} />}
+//   {bag.opening && <CapsuleOpener key={bag.openSeq} rows={bag.opening} next={bag.next}
+//        onClaim={bag.claim} onClaimAndOpenNext={bag.claimAndOpenNext} onClose={bag.closeOpener} />}
+//
+// Nothing here writes a capsule row. Capsules are spent by open_capsule_atomic
+// inside the opener; this module only finalizes legacy rolls through
+// finalize_capsule_claim and refreshes the caches.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
+import { CAPSULE_TIERS, MAX_OPEN_AT_ONCE, nextOnShelf, shelfByTier } from '@/lib/capsuleShelf';
 import { useAuth } from '@/lib/AuthContext';
 import * as capsules from '@/lib/data/capsules';
 import { asT } from '@/lib/translatorArg';
@@ -24,15 +27,38 @@ import { asT } from '@/lib/translatorArg';
 // it. Modeled on the existing `flexyn-title` cardio-header convention.
 export const OPEN_BAG_EVENT = 'flexyn-open-bag';
 
+// Custom event for surfaces outside the bag (the Capsules page) that want
+// the opener itself, skipping the bag. `detail.rows` is the capsules to open.
+export const OPEN_CAPSULES_EVENT = 'flexyn-open-capsules';
+
+// Everything an open changes, for one refresh.
+function capsuleRefreshKeys(email) {
+  return [
+    ['userInventory', email],
+    ['userCapsules', email],
+    ['userCapsulesCount', email],
+    ['capsuleOpenHistory', email],
+    ['capsulePity', email],
+  ];
+}
+
 export function useBagFlow(t) {
   const tf = asT(t);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [bagOpen, setBagOpen] = useState(false);
-  const [openingCapsule, setOpeningCapsule] = useState(null);
-  // Batch open — an array of same-type capsule rows. Mutually exclusive
-  // with openingCapsule; the opener renders whichever is set.
-  const [openingBatch, setOpeningBatch] = useState(null);
+  // The capsules the opener is running: one row or several of one tier.
+  const [opening, setOpening] = useState(null);
+  // Where the open started. Collecting from the bag lands back in the bag;
+  // collecting from the Capsules page lands back on the page, so the bag
+  // must not pop open over it.
+  const [origin, setOrigin] = useState('bag');
+  // Bumped on every open so "Collect and open the next" mounts a fresh
+  // opener rather than reusing the finished one's state.
+  const [openSeq, setOpenSeq] = useState(0);
+  // Rows already sent to the opener. The unopened-capsule cache can lag the
+  // server by a refetch, so "what's next" must never offer one of these.
+  const spentRef = useRef(new Set());
 
   // Unopened-capsule count — drives the badge on the Bag menu entry.
   const { data: capsuleCount = 0 } = useQuery({
@@ -46,143 +72,64 @@ export function useBagFlow(t) {
     staleTime: 30_000,
   });
 
-  // Minimal user_profiles row for inventory writes (id + flex_coins).
-  // Same query Hub.jsx used; distinct key from the global 'userProfile'
-  // to avoid clobbering full_name / avatar_url in the cache.
-  const { data: userProfile } = useQuery({
-    queryKey: ['hubUserProfile', user?.email],
-    queryFn: async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return null;
-      const { data } = await safeSelect({
-        columns: ['id', 'flex_coins'],
-        build: (cols) => supabase
-          .from('user_profiles')
-          .select(cols)
-          .eq('id', authUser.id)
-          .maybeSingle(),
-      });
-      return data;
-    },
-    enabled: !!user?.email,
-  });
-
   const openBag = useCallback(() => setBagOpen(true), []);
   const closeBag = useCallback(() => setBagOpen(false), []);
 
-  // Bag → Opener handoff. Closing the bag first prevents a brief frame
-  // where both surfaces render stacked.
-  const openCapsule = useCallback((capsuleRow) => {
+  const begin = useCallback((rows, from) => {
+    const list = (Array.isArray(rows) ? rows : [rows]).filter(r => r?.id).slice(0, MAX_OPEN_AT_ONCE);
+    if (list.length === 0) return;
+    list.forEach(r => spentRef.current.add(r.id));
+    // Closing the bag first prevents a frame where both surfaces stack.
     setBagOpen(false);
-    setOpeningBatch(null);
-    setOpeningCapsule(capsuleRow);
+    setOrigin(from);
+    setOpening(list);
+    setOpenSeq(n => n + 1);
   }, []);
 
-  /** Open several capsules of the same type in one spin. */
-  const openCapsuleBatch = useCallback((rows) => {
-    if (!Array.isArray(rows) || rows.length === 0) return;
-    // A one-item "batch" is just a normal open — routing it through the
-    // batch path would show the grid treatment for a single card.
-    if (rows.length === 1) {
-      setBagOpen(false);
-      setOpeningBatch(null);
-      setOpeningCapsule(rows[0]);
-      return;
-    }
-    setBagOpen(false);
-    setOpeningCapsule(null);
-    setOpeningBatch(rows);
-  }, []);
+  /** Open one capsule (from the bag). */
+  const openCapsule = useCallback((row) => begin([row], 'bag'), [begin]);
+  /** Open several capsules of one tier in one run (from the bag). */
+  const openCapsuleBatch = useCallback((rows) => begin(rows, 'bag'), [begin]);
 
-  const closeOpener = useCallback(() => {
-    setOpeningCapsule(null);
-    setOpeningBatch(null);
-  }, []);
+  // What the reveal can offer next: more of the same tier, else the rarest
+  // other tier still on the shelf. Read from the shelf cache, minus rows
+  // already spent in this session.
+  const next = useMemo(() => {
+    if (!opening || !user?.email) return null;
+    const cached = queryClient.getQueryData(['userCapsules', user.email]);
+    if (!Array.isArray(cached)) return null;
+    const left = cached.filter(r => r?.id && !spentRef.current.has(r.id));
+    const shelf = shelfByTier(left);
+    const tier = CAPSULE_TIERS.includes(opening[0]?.capsule_type) ? opening[0].capsule_type : 'standard';
+    return nextOnShelf(shelf, tier, 0);
+    // openSeq: recompute for every open, since spentRef changes in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opening, openSeq, user?.email, queryClient]);
 
-  const claimCapsule = useCallback(async (wonItem, opts = {}) => {
-    const capsuleId = openingCapsule?.id;
-    setOpeningCapsule(null);
-    // Re-open the bag so the user lands back where they came from rather
-    // than falling through to whatever surface was behind the opener.
-    setBagOpen(true);
-    if (!wonItem || !user?.email) return;
-
-    const refresh = () => {
-      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
-    queryClient.invalidateQueries({ queryKey: ['capsulePity', user.email] });
-    };
-
-    // Migration 255: open_capsule_atomic already inserted the inventory row
-    // in the same transaction that spent the capsule. Nothing is owed, so
-    // Claim is purely "acknowledge and close" — which is the entire point:
-    // there is no longer a window in which abandoning the reveal can
-    // destroy the item.
-    if (opts.granted) {
-      refresh();
-      toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
-      return;
-    }
-
-    // Legacy two-step path — only reachable on a pre-255 database, where
-    // the roll and the grant are still separate calls.
-    try {
-      if (!capsuleId) throw new Error('missing_capsule_id');
-      const { data, error } = await supabase.rpc('finalize_capsule_claim', {
-        p_capsule_id:  capsuleId,
-        p_item_id:     wonItem.id,
-        p_item_name:   wonItem.name,
-        p_item_emoji:  wonItem.emoji ?? '',
-        p_item_rarity: wonItem.rarity ?? 'common',
-        p_item_type:   wonItem.type   ?? 'sticker',
-        p_variant:     wonItem.variant ?? null,
-      });
-      if (error) throw error;
-      refresh();
-      // Announce what the SERVER granted. Since migration 267 finalize
-      // derives the item from loot_catalog and ignores the arguments above,
-      // so naming wonItem here could credit an item the user didn't get.
-      const grantedEmoji = data?.item_emoji ?? wonItem.emoji;
-      const grantedName  = data?.item_name  ?? wonItem.name;
-      toast.success(`${grantedEmoji} ${grantedName} added to your bag!`);
-    } catch (err) {
-      console.error('[inventoryFlow] legacy capsule claim failed:', err);
-      toast.error(tf('inventoryFlow.saveFailed', 'Could not save item. Try again.'));
-    }
-  }, [openingCapsule, user, queryClient]);
+  const closeOpener = useCallback(() => setOpening(null), []);
 
   /**
-   * Finalize every item from a batch open.
+   * Settle every result from an open, without touching the UI.
    *
-   * Each result is finalized by its own finalize_capsule_claim call — the
-   * same RPC and the same one-transaction guarantee as a single open, just
-   * N of them. Failures are counted rather than thrown so one bad row
-   * can't strand the other nine: the rolled rarity is already persisted on
-   * each user_capsules row, so a failed finalize loses nothing and stays
-   * retryable.
+   * Anything opened through open_capsule_atomic (mig 255) is already in
+   * inventory, so there is nothing to do but refresh. Only a legacy roll
+   * (a pre-255 database) still needs finalize_capsule_claim, one call per
+   * capsule, sequentially: firing a dozen concurrent grants is the shape
+   * the atomic RPCs were introduced to kill. Failures are counted rather
+   * than thrown so one bad row can't strand the rest; the rolled rarity is
+   * persisted on each capsule row, so a failed finalize stays retryable.
    */
-  const claimCapsuleBatch = useCallback(async (results) => {
-    setOpeningBatch(null);
-    setBagOpen(true);
+  const settle = useCallback(async (results) => {
     if (!Array.isArray(results) || results.length === 0 || !user?.email) return;
-
-    // Anything opened through open_capsule_atomic (mig 255) is already in
-    // inventory. Only legacy rolls still need finalizing.
     const pending = results.filter(r => !r.granted);
-    const alreadyGranted = results.length - pending.length;
-
-    let saved = alreadyGranted;
+    let saved = results.length - pending.length;
     let failed = 0;
+    let lastName = results.length === 1 ? results[0].item?.name : null;
 
-    // Sequential: each finalize credits inventory, and firing a dozen
-    // concurrent grants is the shape the atomic RPCs were introduced to
-    // kill.
     for (const { capsuleId, item } of pending) {
       try {
         if (!capsuleId) throw new Error('missing_capsule_id');
-        const { error } = await supabase.rpc('finalize_capsule_claim', {
+        const { data, error } = await supabase.rpc('finalize_capsule_claim', {
           p_capsule_id:  capsuleId,
           p_item_id:     item.id,
           p_item_name:   item.name,
@@ -192,43 +139,68 @@ export function useBagFlow(t) {
           p_variant:     item.variant ?? null,
         });
         if (error) throw error;
+        // Name what the SERVER granted. Since migration 267 finalize
+        // derives the item from loot_catalog and ignores the arguments.
+        if (results.length === 1) lastName = data?.item_name ?? item.name;
         saved += 1;
       } catch (err) {
-        console.warn('[inventoryFlow] batch finalize failed:', capsuleId, err?.message);
+        console.warn('[inventoryFlow] capsule finalize failed:', capsuleId, err?.message);
         failed += 1;
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
-    queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
-    queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
-    queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
-    queryClient.invalidateQueries({ queryKey: ['capsulePity', user.email] });
+    for (const key of capsuleRefreshKeys(user.email)) queryClient.invalidateQueries({ queryKey: key });
 
-    if (saved > 0) toast.success(`${saved} item${saved === 1 ? '' : 's'} added to your bag!`);
-    if (failed > 0) toast.error(`${failed} item${failed === 1 ? '' : 's'} could not be saved — try opening again.`);
-  }, [user, queryClient]);
+    if (saved === 1 && lastName) {
+      toast.success(tf('inventoryFlow.addedOne', '{item} is in your bag.', { item: lastName }));
+    } else if (saved > 1) {
+      toast.success(tf('inventoryFlow.addedMany', '{n} items are in your bag.', { n: saved }));
+    }
+    if (failed > 0) {
+      toast.error(tf('inventoryFlow.saveFailedMany', '{n} could not be saved. Open them again to retry.', { n: failed }));
+    }
+  }, [user, queryClient, tf]);
 
-  // Listen for the global "open bag" event so external surfaces (e.g.
-  // the StatsHub modal) can open the bag without holding a ref to the
-  // owner component.
+  /** Collect: close the opener, land back where the open started. */
+  const claim = useCallback(async (results) => {
+    setOpening(null);
+    if (origin === 'bag') setBagOpen(true);
+    await settle(results);
+  }, [origin, settle]);
+
+  /** Collect this open and go straight into the next one. */
+  const claimAndOpenNext = useCallback(async (results) => {
+    const target = next;
+    if (!target) { await claim(results); return; }
+    begin(target.rows, origin);
+    await settle(results);
+  }, [next, claim, begin, origin, settle]);
+
+  // Global events: "open the bag" from any surface, and "open these
+  // capsules" from the Capsules page.
   useEffect(() => {
-    const handler = () => setBagOpen(true);
-    window.addEventListener(OPEN_BAG_EVENT, handler);
-    return () => window.removeEventListener(OPEN_BAG_EVENT, handler);
-  }, []);
+    const onBag = () => setBagOpen(true);
+    const onCapsules = (e) => begin(e?.detail?.rows ?? [], 'page');
+    window.addEventListener(OPEN_BAG_EVENT, onBag);
+    window.addEventListener(OPEN_CAPSULES_EVENT, onCapsules);
+    return () => {
+      window.removeEventListener(OPEN_BAG_EVENT, onBag);
+      window.removeEventListener(OPEN_CAPSULES_EVENT, onCapsules);
+    };
+  }, [begin]);
 
   return {
     bagOpen,
     openBag,
     closeBag,
-    openingCapsule,
-    openingBatch,
+    opening,
+    openSeq,
+    next,
     openCapsule,
     openCapsuleBatch,
     closeOpener,
-    claimCapsule,
-    claimCapsuleBatch,
+    claim,
+    claimAndOpenNext,
     capsuleCount,
   };
 }
@@ -237,4 +209,9 @@ export function useBagFlow(t) {
 // to request that the bag be opened.
 export function requestOpenBag() {
   window.dispatchEvent(new CustomEvent(OPEN_BAG_EVENT));
+}
+
+/** Ask the global opener to open these capsule rows (one tier, up to ten). */
+export function requestOpenCapsules(rows) {
+  window.dispatchEvent(new CustomEvent(OPEN_CAPSULES_EVENT, { detail: { rows } }));
 }
