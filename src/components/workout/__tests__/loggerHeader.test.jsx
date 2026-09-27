@@ -114,3 +114,26 @@ describe('bar and volume', () => {
     expect(container.querySelector('.-me-8, .mt-1\\.5.flex.gap-2')).toBeNull();
   });
 });
+
+// The ⋯ button is absolute at the card's top right. Only the title row sits
+// level with it, so only that row keeps the right-hand reserve; the bar and
+// volume line below runs to the card's content edge, with or without a
+// muscles line (freestyle Bench Press has none).
+describe('right-hand reserve for the ⋯ button', () => {
+  for (const [label, ex] of [
+    ['with a muscles line', bench],
+    ['without a muscles line', { name: 'Bench Press', sets: bench.sets }],
+  ]) {
+    it(`sits on the title row only, ${label}`, async () => {
+      render(<Host initial={ex} />);
+      const title = await screen.findByRole('heading', { name: 'Bench Press' });
+      expect(title.parentElement.className).toMatch(/\bpe-8\b/);
+      const vol = screen.getByText(/vol$/);
+      const line = vol.parentElement;
+      expect(line.className).not.toMatch(/-me-8|\bpe-8\b/);
+      for (let el = line.parentElement; el && !/\bp-4\b/.test(el.className); el = el.parentElement) {
+        expect(el.className).not.toMatch(/\bpe-8\b/);
+      }
+    });
+  }
+});
