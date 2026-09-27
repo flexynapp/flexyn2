@@ -125,28 +125,23 @@ export async function recordWorkoutDay(user) {
   // off coinsAwarded, so claiming coins when neither path succeeded
   // would tell the user they got something they didn't.
   let coinsLanded = coinsAwarded === 0;
+  let coinsCredited = coinsAwarded;
   if (coinsAwarded > 0) {
-    const { error: coinsErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
+    // credit_flex_coins reports what the mint caps actually let through
+    // (2026-09-27 audit, item 22): increment_flex_coins returns nothing, so
+    // a capped day used to toast "+N coins" for a credit of 0.
+    const { data: credited, error: coinsErr } = await supabase.rpc('credit_flex_coins', { p_delta: coinsAwarded });
     if (!coinsErr) {
-      coinsLanded = true;
+      coinsCredited = Number(credited) || 0;
+      coinsLanded = coinsCredited > 0;
+    } else if (coinsErr.code === '42883' || coinsErr.code === 'PGRST202') {
+      // The web app can deploy a minute before its migration. Fall back to
+      // the old credit, which cannot say what landed, so keep the old claim.
+      const { error: incErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
+      if (!incErr) coinsLanded = true;
+      else console.warn('[workoutStreak] increment_flex_coins failed (coins not granted):', incErr);
     } else {
-      // Pre-030 host — fall back to the legacy RMW path so the streak
-      // grant still lands there (pre-030 also predates the 142/173
-      // trigger, so the direct write is allowed). On any other failure,
-      // don't RMW: mig 142/173 rejects direct flex_coins writes with
-      // 42501, and the race window was the documented bug anyway.
-      // coinsLanded stays false so the caller's toast doesn't lie.
-      if (coinsErr.code === '42883' || coinsErr.code === '42P01') {
-        const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
-        const { error: fallbackErr } = await supabase
-          .from('user_profiles')
-          .update({ flex_coins: fallbackCoins })
-          .eq('id', user.id);
-        if (fallbackErr) console.warn('[workoutStreak] fallback flex_coins write failed:', fallbackErr);
-        else coinsLanded = true;
-      } else {
-        console.warn('[workoutStreak] increment_flex_coins failed (coins not granted):', coinsErr);
-      }
+      console.warn('[workoutStreak] credit_flex_coins failed (coins not granted):', coinsErr);
     }
   }
 
@@ -172,7 +167,7 @@ export async function recordWorkoutDay(user) {
   return {
     isNewDay: true,
     streak: newStreak,
-    coinsAwarded: coinsLanded ? coinsAwarded : 0,
+    coinsAwarded: coinsLanded ? coinsCredited : 0,
     eliteCapsuleAwarded: eliteCapsule && capsuleLanded,
   };
 }

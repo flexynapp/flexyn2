@@ -73,6 +73,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
       else if (err === 'PIPELINE_MISSING')   toast.error(tFallback('gift.error.pipeline',       'Gifting not yet available on this server.'));
       else if (err === 'SELF_GIFT')          toast.error(tFallback('gift.error.self',           "You can't gift yourself coins."));
       else if (err === 'RECIPIENT_NOT_FOUND') toast.error(tFallback('gift.error.notFound',      'Recipient could not be found.'));
+      else if (err === 'RECIPIENT_AT_LIMIT') toast.error(tFallback('gift.error.recipientLimit', "They've hit today's coin limit. Nothing was sent."));
       else                                   toast.error(tFallback('gift.error.generic',        'Could not send gift. Try again.'));
     }
   };

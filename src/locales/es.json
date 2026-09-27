@@ -1901,6 +1901,7 @@
   "gift.error.insufficient": "No tienes monedas suficientes.",
   "gift.error.notFound": "No se ha encontrado al destinatario.",
   "gift.error.pipeline": "Los regalos aún no están disponibles en este servidor.",
+  "gift.error.recipientLimit": "Ha alcanzado el límite de monedas de hoy. No se envió nada.",
   "gift.error.self": "No puedes regalarte monedas a ti mismo.",
   "gift.maxPerGift": "Máximo 10.000 por regalo.",
   "gift.message": "Mensaje (opcional)",

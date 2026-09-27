@@ -1901,6 +1901,7 @@
   "gift.error.insufficient": "Vous n'avez pas assez de pièces.",
   "gift.error.notFound": "Destinataire introuvable.",
   "gift.error.pipeline": "Les cadeaux ne sont pas encore disponibles sur ce serveur.",
+  "gift.error.recipientLimit": "Cette personne a atteint la limite de pièces du jour. Rien n'a été envoyé.",
   "gift.error.self": "Vous ne pouvez pas vous offrir des pièces.",
   "gift.maxPerGift": "10 000 maximum par cadeau.",
   "gift.message": "Message (facultatif)",
