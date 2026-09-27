@@ -14,9 +14,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const filter = vi.fn();
+const nutritionFilter = vi.fn();
+const bodyFilter = vi.fn();
 
 vi.mock('@/api/db', () => ({
-  db: { entities: { WorkoutLog: { filter: (...a) => filter(...a) }, CardioLog: { filter: (...a) => filter(...a) } } },
+  db: {
+    entities: {
+      WorkoutLog: { filter: (...a) => filter(...a) },
+      CardioLog: { filter: (...a) => filter(...a) },
+      NutritionLog: { filter: (...a) => nutritionFilter(...a) },
+      BodyMetric: { filter: (...a) => bodyFilter(...a) },
+    },
+  },
 }));
 vi.mock('@/api/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@/api/safeSelect', () => ({ safeSelect: vi.fn(async () => ({ data: null })) }));
@@ -33,6 +42,10 @@ beforeEach(() => {
   vi.setSystemTime(TODAY);
   filter.mockReset();
   filter.mockResolvedValue([]);
+  nutritionFilter.mockReset();
+  nutritionFilter.mockResolvedValue([]);
+  bodyFilter.mockReset();
+  bodyFilter.mockResolvedValue([]);
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -393,5 +406,58 @@ describe('buildCoachContext — injury notes', () => {
       activeInjuries: [{ muscle_group: 'Core', severity: 'mild', status: 'active', injured_at: '2026-08-01' }],
     });
     expect(wire(ctx).injuries.active[0].notes).toBeNull();
+  });
+});
+
+// Meals and weigh-ins used to be read by a table NAME string
+// (`db.entities[name]`), which no grep for `entities.NutritionLog` could see.
+// They now go through their data modules; these pin what is read and that it
+// reaches the digest.
+describe('buildCoachContext — meals and body weight', () => {
+  it('reads the newest 200 meals and 60 weigh-ins for this user', async () => {
+    await buildCoachContext({ user: USER });
+
+    expect(nutritionFilter).toHaveBeenCalledWith({ user_id: 'u1' }, '-date', 200);
+    expect(bodyFilter).toHaveBeenCalledWith({ user_id: 'u1' }, '-date', 60);
+  });
+
+  it('reads neither without a signed in user', async () => {
+    await buildCoachContext({ user: null });
+
+    expect(nutritionFilter).not.toHaveBeenCalled();
+    expect(bodyFilter).not.toHaveBeenCalled();
+  });
+
+  it('summarises the last 7 days of meals and the weight trend', async () => {
+    nutritionFilter.mockResolvedValue([
+      { date: '2026-08-06', calories: 2000, protein: 150 },
+      { date: '2026-08-05', calories: 1800 },
+      { date: '2026-07-20', calories: 9999, protein: 999 },
+    ]);
+    bodyFilter.mockResolvedValue([
+      { date: '2026-08-06', weight_lbs: 180 },
+      { date: '2026-07-27', weight_lbs: 182 },
+    ]);
+
+    const ctx = await buildCoachContext({ user: USER });
+
+    expect(ctx.nutritionLast7).toMatchObject({
+      daysLogged: 2,
+      avgCaloriesPerLoggedDay: 1900,
+      avgProteinGPerLoggedDay: 150,
+      proteinDaysLogged: 1,
+    });
+    expect(ctx.bodyTrend).toMatchObject({ currentLb: 180, measuredDaysAgo: 1, changeLb: -2, overDays: 10 });
+  });
+
+  it('keeps the rest of the digest when the meal and weight reads fail', async () => {
+    nutritionFilter.mockRejectedValue(new Error('table gone'));
+    bodyFilter.mockRejectedValue(new Error('table gone'));
+
+    const ctx = await buildCoachContext({ user: USER, profile: { weight_unit: 'kg' } });
+
+    expect(ctx.units).toBe('kg');
+    expect(ctx.nutritionLast7).toBeNull();
+    expect(ctx.bodyTrend).toBeNull();
   });
 });
