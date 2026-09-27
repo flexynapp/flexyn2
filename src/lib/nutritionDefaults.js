@@ -80,7 +80,7 @@ function localTodayStr() {
 // A "training day" = the user logged a workout today. last_workout_date is
 // maintained by advance_workout_streak on every workout save, so we read it
 // straight off the profile — no extra query, no prop threading, so every
-// consumer of calculateDailyValues (CalorieTopBar, MacroNutrientBox,
+// consumer of calculateDailyValues (NutritionFocal, MacroNutrientBox,
 // MineralsVitaminsBox) reflects the cycled target automatically. Only the
 // macro/calorie keys the user actually set override; micros and unset
 // macros keep their computed value. Mirrors resolveToday() in

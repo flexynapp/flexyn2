@@ -8,7 +8,7 @@
 //
 // Every line states what the SERVER does, so when a rule changes the copy
 // here changes with it:
-//   duels     — scored by the trigger on workout_logs (20260927180000)
+//   duels     — scored by the trigger on workout_logs (20260927184500)
 //   crewWars  — recompute_crew_war: top N lifters per side, N the smaller
 //               roster; starting a war is leader only (mig 358)
 //

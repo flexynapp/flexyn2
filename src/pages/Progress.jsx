@@ -1,5 +1,5 @@
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
-import React, { useState, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useUrlState } from '@/hooks/useUrlState';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
@@ -20,10 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { fadeUp } from '@/lib/motion';
-import useCountUp from '@/hooks/useCountUp';
 import {
-  TrendingUp, BarChart2,
-  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw, Lightbulb,
+  TrendingUp, BarChart2, Camera, Ruler, ChevronRight, RefreshCw, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
@@ -42,8 +40,7 @@ import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // src/components/achievements/AchievementsVault.jsx.
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
-import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import ProgressFocal from '@/components/progress/ProgressFocal';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
@@ -322,169 +319,6 @@ function AnalyticsTab({ logs }) {
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
- *  ProgressCarousel — 4 slides (Streak / Workouts / Volume / Level)
- *  with motivational copy per slide.
- *
- *  This is now the SAME carousel as the Dashboard hero, not a carousel
- *  "modeled after" it. It used to be a private copy of the original
- *  design — one slide cross-fading in place, with `drag` on a card
- *  pinned by `dragConstraints={{ left: 0, right: 0 }}` so the gesture
- *  rubber-banded back to where it started and the slide changed after
- *  the fact. Nothing travelled with the thumb. The Dashboard hero had
- *  since been rebuilt as a real pager (a track holding every slide,
- *  translated under the finger, settling on a spring, clamped at the
- *  ends like an iOS home screen) and the two read as different
- *  components wearing the same dots.
- *
- *  Everything that moves is HeroPager; everything that is painted is
- *  src/lib/heroChrome.js. What is left here is this page's slide.
- *
- *  Two chrome changes came with it, both from CLAUDE.md's composition
- *  rules: the two blurred radial blobs (one animating on a 9s loop) are
- *  replaced by the band's smoothstep accent tint plus its 2px identity
- *  rule — "no gradient as decoration" — and `shadow-sm` is gone, since
- *  a resting surface is a hairline and nothing else.
- *
- *  This used to be a forwardRef exposing .goToId(id), so the stat tiles
- *  below the carousel could jump it to the matching slide when tapped.
- *  Those tiles moved into the Advanced Analytics modal (see heroStats),
- *  which receives them as data and has no handle on this component — so
- *  the bridge had no caller left. Removed rather than reconnected:
- *  wiring the modal's tiles back to a carousel behind it is a product
- *  decision, not a cleanup. HeroPager still exposes goToId for anyone
- *  who wants it.
- * ────────────────────────────────────────────────────────────────── */
-
-function ProgressCarousel({ slides }) {
-  const { tFallback } = useLanguage();
-  const pagerRef = useRef(null);
-  // The band paints the LIVE slide's accent — tint and identity rule —
-  // exactly as the Dashboard hero does. Seeded from slide 0 so the first
-  // paint is already correct rather than flashing brand-orange first.
-  const [accent, setAccent] = useState(() => heroSlideAccent(slides[0]));
-  const handleIndexChange = useCallback((_i, slide) => {
-    setAccent(heroSlideAccent(slide));
-  }, []);
-
-
-  return (
-    <div className="relative mb-3">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-muted dark:bg-card text-foreground touch-pan-y">
-        {/* Accent tint — the smoothstep falloff from heroChrome, keyed to
-            the slide on screen. Ends exactly on the card's own boundary,
-            so there is no edge in open space for Mach banding to find. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: heroTintGradient(accent) }}
-        />
-        {/* Slide identity — a 2px solid rule, after the tint so the tint
-            cannot wash it out. NO `transition-colors`: transitioning a
-            background-color whose value is `hsl(var(--x))` does not work,
-            and the rule would sit frozen on slide one's accent forever. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
-          style={{ background: `hsl(${accent})` }}
-        />
-
-        {/* No floating next-slide arrow. It was the only thing on this card
-            that could ever collide with the watermark, and it sat on top of
-            a surface whose whole interaction is a swipe. The Dashboard hero
-            has never had one — its chevrons live inside in-flow CTA buttons,
-            which is what this now copies. Slides advance by drag, by the
-            dots, and on the pager's own timer. (kegan, 2026-08-10.) */}
-
-        {/* min-h holds the card's rhythm on the page. It no longer has to
-            absorb the difference between slides: the pager mounts every
-            slide side by side in one flex row, so the track is already as
-            tall as its tallest page and rotation cannot resize the card. */}
-        <div className={`relative p-4 md:p-5 ${HERO_SLIDE_MIN_H}`}>
-          <HeroPager
-            ref={pagerRef}
-            slides={slides}
-            renderSlide={renderProgressSlide}
-            onIndexChange={handleIndexChange}
-            dotsClassName="mt-4"
-            dotLabel={(i) => tFallback('progress.carousel.slideN', 'Slide {n}', { n: i + 1 })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* The slide's figure. A slide that carries a numeric `count` and a
-   `formatCount` counts up to it (useCountUp) and formats each frame;
-   anything else renders its `value` string as before. A component rather
-   than inline because renderProgressSlide is a plain function and cannot
-   hold a hook. */
-function SlideFigure({ slide }) {
-  const hasCount = typeof slide.count === 'number' && typeof slide.formatCount === 'function';
-  const counted = useCountUp(hasCount ? slide.count : null, { duration: 700 });
-  if (!hasCount) return slide.value;
-  return slide.formatCount(Math.round(counted ?? slide.count));
-}
-
-/* One slide of the Progress carousel, in the hero's shared layout:
-   corner watermark, icon chip + kicker, the figure, the line of context.
-   The watermark is heroWatermarkStyle — 72px hard in the corner — rather
-   than the 96px inset copy this file used to carry, and the text column
-   reserves it with `pe-20` because an absolutely positioned icon creates
-   no clearance of its own. */
-function renderProgressSlide(slide, { count = 1 } = {}) {
-  const Icon = slide.icon;
-  return (
-    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
-      {Icon && (
-        <Icon aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={heroWatermarkStyle()} />
-      )}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center" style={{ background: `hsl(${heroSlideAccent(slide)} / 0.2)` }}>
-          <Icon className="w-4 h-4 text-foreground" />
-        </div>
-        <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
-          {slide.kicker}
-        </span>
-      </div>
-      {/* No AnimatePresence — the track IS the transition. A page that also
-          cross-fades its own contents while sliding reads as two animations
-          disagreeing, and with `mode="wait"` it renders empty for a beat
-          mid-slide, in full view of the page beside it. */}
-      <div className="min-w-0">
-        {/* An `empty` slide carries a sentence, not a figure, so it takes a
-            heading size rather than the display size a number gets. */}
-        <h3
-          className={`text-foreground break-words pe-20 ${slide.empty ? 'font-heading font-bold tracking-tight leading-tight text-balance' : 'font-display tabular-nums'}`}
-          style={{ fontSize: slide.empty ? 'clamp(1.25rem, 5vw, 1.5rem)' : 'clamp(2rem, 7vw, 3rem)' }}
-        >
-          <SlideFigure slide={slide} />
-        </h3>
-        <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
-          {slide.tip}
-        </p>
-
-        {/* CTA — the Dashboard hero's button, copied verbatim: same radius,
-            same fill, same chevron, same mt-3. It replaces the floating
-            arrow, so the only interactive thing on the card is now in the
-            text flow where it cannot reach the watermark. */}
-        {slide.cta && (
-          <button
-            type="button"
-            onClick={slide.cta.onClick}
-            className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
-          >
-            {slide.cta.label}
-            <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
 export default function Progress() {
@@ -598,21 +432,8 @@ export default function Progress() {
     return logs.filter(l => l.date && parseLocalDate(l.date) >= start && parseLocalDate(l.date) < end);
   }, [logs, statsFrame]);
 
-  const thisWeekLogs = useMemo(() => {
-    const cutoff = subDays(new Date(), 7);
-    return logs.filter(l => l.date && parseLocalDate(l.date) >= cutoff);
-  }, [logs]);
-
-  const lastWeekLogs = useMemo(() => {
-    const end   = subDays(new Date(), 7);
-    const start = subDays(new Date(), 14);
-    return logs.filter(l => l.date && parseLocalDate(l.date) >= start && parseLocalDate(l.date) < end);
-  }, [logs]);
-
   const frameVolume    = useMemo(() => calcVolume(frameLogs),    [frameLogs]);
   const prevVolume     = useMemo(() => calcVolume(prevFrameLogs), [prevFrameLogs]);
-  const thisWeekVolume = useMemo(() => calcVolume(thisWeekLogs), [thisWeekLogs]);
-  const lastWeekVolume = useMemo(() => calcVolume(lastWeekLogs), [lastWeekLogs]);
   const volumeDelta    = prevVolume > 0 ? ((frameVolume - prevVolume) / prevVolume) * 100 : null;
 
   // Workout and cardio counts for the PREVIOUS window, so all three figures
@@ -650,12 +471,6 @@ export default function Progress() {
   // (muscleGroupsThisWeek removed — muscle pills now computed inline
   //  from frameLogs inside the timeframe-aware stats card)
 
-  const totalVolume = useMemo(() => {
-    const fromProfile = Number(userProfile?.total_volume_lbs);
-    if (fromProfile > 0) return fromProfile;
-    return calcVolume(logs);
-  }, [logs, userProfile]);
-
   const topPRs = useMemo(() => {
     const map = {};
     logs.forEach(log => {
@@ -691,158 +506,6 @@ export default function Progress() {
   const lastWorkout     = logs[0] || null;
   const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), parseLocalDate(lastWorkout.date)) : null;
 
-  const streak = userProfile?.workout_streak ?? 0;
-  const level  = userProfile?.current_level  ?? 1;
-
-  // Hero stat tiles. These use the standard themed <Card> (bg-card /
-  // text-card-foreground / theme-card-accent) so they pick up the
-  // user's equipped loot theme automatically — same as every other
-  // card across the app. Each tile keeps its own color identity via
-  // an accent applied to the icon + value only (not a solid fill),
-  // mirroring the Dashboard StatTile pattern.
-  // One colour per stat. Three of these four were `text-primary`, so Streak,
-  // Workouts and Level were visually identical and the row read as one
-  // undifferentiated block — you could not tell the tiles apart at a glance,
-  // which is the entire job of a stat tile. Each now owns a semantic token:
-  //
-  //   streak   → primary      (orange — the brand's "keep going" colour, and
-  //                            the flame already reads orange everywhere else)
-  //   workouts → info         (blue)
-  //   volume   → success      (green — unchanged)
-  //   level    → accent       (the progression/reward colour)
-  //
-  // Tokens, not raw hex, so themes and dark mode keep working.
-  // The four hero tiles that used to sit here are gone with the old
-  // Advanced Analytics dialog (2026-08-10). They restated Streak /
-  // Workouts / Volume / Level — the same four the carousel directly
-  // behind the dialog was already showing, one swipe apart. The sheet
-  // that replaced it leads with a single figure instead.
-
-  // Carousel slides — one per heroStat. Each has a motivational tip
-  // tailored to the user's current state.
-  //
-  // `color` is the slide's accent, and it drives everything the band
-  // paints: the falloff tint, the 2px identity rule, the icon chip and
-  // the pagination dots. One hue per slide, matching the stat tiles
-  // above (streak → primary, workouts → info, volume → success) so the
-  // tile and the slide for the same stat agree — tapping through from
-  // one to the other lands somewhere that looks related.
-  //
-  // Budget tokens only, per CLAUDE.md — nothing here invents a hue.
-  //
-  // Level repeats `primary` rather than taking a fourth colour, and that
-  // is deliberate (kegan, 2026-08-09). It was briefly `destructive`, on
-  // the reasoning that four slides should get four hues; red reads fine
-  // on the dark band, but Level is a progression, not a warning, and
-  // orange is what the app already uses for it everywhere else — the
-  // LevelBar, the Lv pill, the level-up capsule. A repeated hue costs
-  // less than a wrong one. Don't "finish" the rotation.
-  //
-  // `--accent` is not the escape hatch either: it is a desaturated
-  // slate, so as a full-band tint it reads as dirt rather than colour.
-  // A brand-new account has nothing on either the Workouts or the Volume
-  // slide, and both used to render a display-size bare "0". A zero at that
-  // size reads as a failure the user did not commit (CLAUDE.md, "a section
-  // with no data must not render as zeros"), so both say what comes next.
-  const noTrainingYet = logs.length === 0 && !(totalVolume > 0);
-  const carouselSlides = [
-    {
-      id: 'streak',
-      icon: Flame,
-      color: 'var(--primary)',
-      kicker: tFallback('progress.slide.streak.kicker', 'Streak'),
-      count: streak || null,
-      formatCount: (n) => tFallback(
-        n === 1 ? 'progress.slide.streak.days_one' : 'progress.slide.streak.days_other',
-        n === 1 ? '{n} day' : '{n} days',
-        { n },
-      ),
-      value: streak
-        ? tFallback(
-            streak === 1 ? 'progress.slide.streak.days_one' : 'progress.slide.streak.days_other',
-            streak === 1 ? '{n} day' : '{n} days',
-            { n: streak },
-          )
-        : tFallback('progress.slide.streak.none', 'Start today'),
-      cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
-      tip: streak > 0
-        ? tFallback(
-            'progress.slide.streak.tipActive',
-            'Log a workout today to push your streak to {next} days. Skipping resets it to 0.',
-            { next: streak + 1 },
-          )
-        : tFallback(
-            'progress.slide.streak.tipNone',
-            'A single set counts. Log a workout today and the streak starts at 1.',
-          ),
-    },
-    {
-      id: 'workouts',
-      icon: Dumbbell,
-      color: 'var(--info)',
-      kicker: tFallback('progress.slide.workouts.kicker', 'Workouts'),
-      value: noTrainingYet
-        ? tFallback('progress.slide.workouts.empty', 'Your first workout starts the chart')
-        : `${logs.length}`,
-      count: noTrainingYet ? null : logs.length,
-      empty: noTrainingYet,
-      formatCount: (n) => `${n}`,
-      cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
-      tip: logs.length === 0
-        ? tFallback(
-            'progress.slide.workouts.tipNone',
-            'Your first workout unlocks history, trends, and your first PR.',
-          )
-        : tFallback(
-            logs.length === 1 ? 'progress.slide.workouts.tipSome_one' : 'progress.slide.workouts.tipSome_other',
-            logs.length === 1
-              ? '{n} workout logged. Three a week beats five-then-zero every time.'
-              : '{n} workouts logged. Three a week beats five-then-zero every time.',
-            { n: logs.length },
-          ),
-    },
-    {
-      id: 'volume',
-      icon: TrendingUp,
-      color: 'var(--success)',
-      kicker: tFallback('progress.slide.volume.kicker', 'Volume'),
-      value: totalVolume > 0
-        ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
-        : noTrainingYet
-          ? tFallback('progress.slide.volume.empty', 'Nothing lifted yet')
-          : '0',
-      empty: noTrainingYet,
-      count: totalVolume > 0 ? Math.round(fromLbs(totalVolume, weightUnit)) : null,
-      formatCount: (n) => `${formatBigNumber(n)} ${weightUnit}`,
-      cta: { label: tFallback('progress.slide.cta.analytics', 'See analytics'), onClick: () => setAdvancedAnalyticsOpen(true) },
-      tip: thisWeekVolume > 0 && lastWeekVolume > 0
-        ? tFallback(
-            'progress.slide.volume.tipCompare',
-            'This week: {thisWeek} {unit}. Last week: {lastWeek}. A 10% bump = new gains.',
-            {
-              thisWeek: formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit))),
-              lastWeek: formatBigNumber(Math.round(fromLbs(lastWeekVolume, weightUnit))),
-              unit: weightUnit,
-            },
-          )
-        : tFallback(
-            'progress.slide.volume.tipNone',
-            'Total weight × reps lifted. Track it weekly. Small bumps compound into PRs.',
-          ),
-    },
-    {
-      id: 'level',
-      icon: Zap,
-      color: 'var(--primary)',
-      kicker: tFallback('progress.slide.level.kicker', 'Level'),
-      value: tFallback('progress.stat.levelValue', 'Lv. {level}', { level }),
-      cta: { label: tFallback('progress.slide.cta.personalBests', 'Personal bests'), onClick: () => setPersonalBestsModalOpen(true) },
-      tip: tFallback(
-        'progress.slide.level.tip',
-        'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
-      ),
-    },
-  ];
 
   // ── Tab switch helper ─────────────────────────────────────────────────────
   // Auto-scroll-on-switch removed per user feedback: it was pushing
@@ -856,9 +519,7 @@ export default function Progress() {
   //
   // Vertical padding and the between-section gaps come off the fluid scale;
   // the horizontal inset does not. The scale is vertical only — "horizontal
-  // crowding is a wrapping problem, not a scaling one" — and px-4 is also
-  // what the carousel's -mx-4 cancels, so those two have to stay the same
-  // literal or the bleed stops lining up.
+  // crowding is a wrapping problem, not a scaling one".
   //
   // This is a PARTIAL conversion on purpose. Onboarding got the full
   // treatment because its steps must END at a fixed point, above a pinned
@@ -892,32 +553,29 @@ export default function Progress() {
         </div>
       ) : (
         <>
-          {/* ── Carousel — the page's ONE dominant element, and the only
-                thing that breaks the page inset.
-
-                "One dominant element per screen, and only it may bleed"
-                (CLAUDE.md). It had been one card among many, sitting under
-                two gradient CTAs that asked for a tap before the page had
-                shown anything worth tapping about. Those moved to text
-                links at the end of the Recent list; this became the band.
-
-                The negative margins cancel the page's own px-4 / md:px-6,
-                so the band runs edge to edge. A full-bleed band has no
-                side edges to round or draw, hence rounded-none and
-                border-x-0 — the 2px accent rule inside ProgressCarousel is
-                its identity, exactly as before.
-
-                Design: Penpot page "Progress — proposed layout", board B.
-                The carousel was KEPT there by kegan (2026-08-10) against a
-                proposal to replace it with the activity grid; see the
-                ledger on board C. ─────────────────────────────────────── */}
-          <motion.div {...fadeUp(0)} className="-mx-4 md:-mx-6 mb-2 [&_.rounded-2xl]:rounded-none [&_.border]:border-x-0">
-            <ProgressCarousel slides={carouselSlides} />
+          {/* ── Focal goal: the page's ONE dominant element (hero option D,
+                kegan 2026-09-27). The week's sessions against the user's own
+                target, the sentence that says what that means today, the
+                day dots, then a quieter stat row and one next step taken from
+                their own data. It replaced a four-slide carousel whose focal
+                point moved every few seconds. It no longer bleeds: nothing on
+                it has an edge to run to, and being the only large thing on
+                the screen is what makes it dominant. ─────────────────────── */}
+          <motion.div {...fadeUp(0)} className="mb-2">
+            <ErrorBoundary label="ProgressFocal">
+              <ProgressFocal
+                logs={logs}
+                userProfile={userProfile}
+                userId={user?.id}
+                weightUnit={weightUnit}
+                onOpenAnalytics={() => setAdvancedAnalyticsOpen(true)}
+                onOpenBests={() => setPersonalBestsModalOpen(true)}
+                onOpenPR={(name) => setPRHistoryExercise(name)}
+                onStart={() => navigate('/workout')}
+                onRepeat={(log) => navigate('/workout', { state: { repeatFromLog: log } })}
+              />
+            </ErrorBoundary>
           </motion.div>
-
-          {/* The 4 stat tiles (Streak / Workouts / Volume / Level) that
-              used to sit here now live inside the "Advanced Analytics"
-              modal — see the heroStats prop below. */}
 
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there

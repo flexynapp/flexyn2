@@ -26,11 +26,21 @@ export const PUMPKIN_FOOT = 21 / 24;
 export const SEAT = 1;
 export const seatOffset = (size) => -(size * (1 - PUMPKIN_FOOT) + SEAT);
 
+// Held at half strength so the graveyard's lit jack-o'-lanterns are the
+// brightest thing in the scene. At full orange these unlit pumpkins sat in
+// front of the lanterns and outshone them, and the lanterns cannot get
+// brighter without failing text contrast (skinContrast.test.js).
+// Set on the row, not on each pumpkin: opacity on a parent fades the row
+// as one layer, so the vine stays hidden behind each body instead of
+// showing through a see-through pumpkin.
+export const PATCH_OPACITY = 0.5;
+
 export default function PumpkinPatch() {
   return (
     <div
       className="absolute bottom-full inset-x-0 h-[var(--skin-nav-edge,0px)] overflow-hidden px-1 flex items-end justify-between pointer-events-none"
       aria-hidden="true"
+      style={{ opacity: PATCH_OPACITY }}
       data-testid="pumpkin-patch"
     >
       {/* The vine the patch grows on, drawn behind the pumpkins. */}

@@ -1,8 +1,8 @@
 // src/components/HeroPager.jsx
 //
-// The paged carousel engine behind every hero on the app — Dashboard's
-// HeroSlideshow, the Progress stat carousel and the Nutrition shortcuts
-// carousel. It owns the track, the gesture, the settle spring, the
+// The paged carousel engine behind the Workout hero. (Dashboard, Progress
+// and Nutrition used it too until 2026-09-27, when all three replaced their
+// carousels with one focal goal; see src/components/glance/.) It owns the track, the gesture, the settle spring, the
 // auto-rotation and the pagination dots. Callers own what a slide LOOKS
 // like and nothing else.
 //
