@@ -98,14 +98,30 @@ export async function getMyReferralStats() {
  * query string so a page refresh doesn't redundantly re-process it.
  * No-op when there's no ref param.
  */
+/** True for a string shaped like a referral code: six characters from
+ *  generate_referral_code()'s alphabet, ABCDEFGHJKLMNPQRSTUVWXYZ23456789
+ *  (no I, O, 0 or 1). Case-insensitive.
+ *
+ *  This used to be /^[A-Z2-9]{6}$/, which excludes 0 and 1 but NOT I and O,
+ *  so marketing tags like ?ref=reddit, ?ref=tiktok and ?ref=shorts were
+ *  stashed as referral codes. */
+export const REFERRAL_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
+export function isReferralCodeShape(value) {
+  return REFERRAL_CODE_RE.test(String(value || '').trim().toUpperCase());
+}
+
 export function capturePendingReferralCode() {
   if (typeof window === 'undefined') return;
   try {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get('ref');
     if (!ref) return;
-    const cleanedCode = ref.trim().toUpperCase().slice(0, 6);
-    if (!/^[A-Z2-9]{6}$/.test(cleanedCode)) return; // alphabet check (no I/O/0/1)
+    // Exactly six characters, never a truncation. Marketing links reuse
+    // ?ref= as a channel tag (?ref=alternativeto, ?ref=saashub), and slicing
+    // those to six gave "ALTERN" and "SAASHU", which pass the alphabet check
+    // and got stashed as referral codes nobody owns.
+    const cleanedCode = ref.trim().toUpperCase();
+    if (!isReferralCodeShape(cleanedCode)) return;
     localStorage.setItem(PENDING_KEY, cleanedCode);
     // Clean the URL so a refresh doesn't keep capturing.
     url.searchParams.delete('ref');
