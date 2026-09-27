@@ -274,7 +274,7 @@ export async function createSessionDuel({ opponentId, windowHours = 48 }) {
 }
 
 // There is no submit call any more: a trigger on workout_logs scores each
-// side from its best session in the window (20260927180000).
+// side from its best session in the window (20260927184500).
 
 /** The live duel (if any) for the current user, shown as a workout banner. */
 export async function getActiveDuel() {
