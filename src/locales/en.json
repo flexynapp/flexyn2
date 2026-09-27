@@ -1747,6 +1747,7 @@
   "exerciseLogger.finishThisExercise": "Finish this exercise?",
   "exerciseLogger.keepGoing": "Keep going",
   "exerciseLogger.tempo": "Tempo",
+  "exerciseSearch.noMatches": "No exercise matches that name.",
   "fastingTrackerCard.customFastingHours": "Custom fasting hours",
   "fastingTrackerCard.durationRange": "Enter a fasting duration between 1 and 48 hours.",
   "fastingTrackerCard.endFast": "End fast",
