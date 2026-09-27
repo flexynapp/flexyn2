@@ -138,13 +138,13 @@ export default function WinScreen({
                       transition={{ type: 'spring', stiffness: 420, damping: 18 }}
                       className="px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-bold"
                     >
-                      {tFallback('win.levelUnlocked', 'Level {n} unlocked', { n: after.level })}
+                      {tFallback('win.levelUnlocked', 'Lv. {n} unlocked', { n: after.level })}
                     </motion.span>
                   ) : (
                     <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">
                       {levelled
-                        ? tFallback('win.levelFromTo', 'Level {from} to {to}', { from: before.level, to: after.level })
-                        : tFallback('win.levelN', 'Level {n}', { n: after.level })}
+                        ? tFallback('win.levelFromTo', 'Lv. {from} to {to}', { from: before.level, to: after.level })
+                        : tFallback('win.levelN', 'Lv. {n}', { n: after.level })}
                     </span>
                   )}
                 </motion.div>

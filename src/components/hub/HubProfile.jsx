@@ -2753,7 +2753,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
                   {u.levelData && u.tier && (
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${u.tier.badge} shadow-sm`}>
-                        <span className="text-xs font-bold text-white drop-shadow">Lv {u.levelData.level}</span>
+                        <span className="text-xs font-bold text-white drop-shadow">Lv. {u.levelData.level}</span>
                       </div>
                       <span className={`text-xs font-bold uppercase tracking-widest ${u.tier.text}`}>{u.tier.name}</span>
                     </div>

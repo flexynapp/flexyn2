@@ -123,7 +123,7 @@ describe('CrewPage — opens the crew as a subject', () => {
 
   it('shows the crew level and record in the header', async () => {
     renderPage();
-    expect(await screen.findByText(/Lvl 12/)).toBeTruthy();
+    expect(await screen.findByText(/Lv\. 12/)).toBeTruthy();
     expect(screen.getByText('24')).toBeTruthy();
   });
 
@@ -216,7 +216,7 @@ describe('CrewPage — degrades on a pre-248 crew', () => {
     renderPage({ id: 'c1', name: 'Bare Crew', is_admin: false });
 
     expect(await screen.findByText('Bare Crew')).toBeTruthy();
-    expect(screen.queryByText(/Lvl /)).toBeNull();
+    expect(screen.queryByText(/Lv\. /)).toBeNull();
     expect(screen.queryByText(/in Division/)).toBeNull();
   });
 

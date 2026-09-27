@@ -56,7 +56,7 @@ export default function ThemeSelector({ open, onClose }) {
   const handleSelectBase = useCallback((theme) => {
     if (level < theme.unlockLevel) {
       toast.info(
-        tFallback('themeSelector.locked', '🔒 {name} unlocks at Level {level}',
+        tFallback('themeSelector.locked', '🔒 {name} unlocks at Lv. {level}',
                   { name: theme.name, level: theme.unlockLevel }),
         {
           description: tFallback(

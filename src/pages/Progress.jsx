@@ -834,7 +834,7 @@ export default function Progress() {
       icon: Zap,
       color: 'var(--primary)',
       kicker: tFallback('progress.slide.level.kicker', 'Level'),
-      value: tFallback('progress.stat.levelValue', 'Lv {level}', { level }),
+      value: tFallback('progress.stat.levelValue', 'Lv. {level}', { level }),
       cta: { label: tFallback('progress.slide.cta.personalBests', 'Personal bests'), onClick: () => setPersonalBestsModalOpen(true) },
       tip: tFallback(
         'progress.slide.level.tip',

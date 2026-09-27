@@ -248,7 +248,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
           {/* One metric row. Text, not tiles. */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-muted-foreground">
             {Number.isFinite(Number(crew.crew_level)) && (
-              <span><b className="text-foreground font-bold">Lvl {crew.crew_level}</b></span>
+              <span><b className="text-foreground font-bold">Lv. {crew.crew_level}</b></span>
             )}
             {placing && standings?.division != null && (
               <span>

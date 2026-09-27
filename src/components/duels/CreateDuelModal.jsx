@@ -101,7 +101,7 @@ function OpponentRow({ profile, stats, index, onSelect, onQuickSend, sending }) 
           <p className="text-micro text-muted-foreground truncate">
             {[
               name,
-              profile.current_level != null ? tFallback('createDuelModal.level', 'Lv {n}', { n: profile.current_level }) : null,
+              profile.current_level != null ? tFallback('createDuelModal.level', 'Lv. {n}', { n: profile.current_level }) : null,
             ].filter(Boolean).join(' · ') || ' '}
           </p>
         </div>

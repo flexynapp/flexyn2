@@ -145,7 +145,7 @@ export default function PastYouSheet({ open, onClose, match }) {
                 {tFallback('pastYou.finalLine', '{you} against a target of {target}', { you: metricText(you), target: metricText(target) })}
               </p>
               <p className="text-sm font-bold mt-2">
-                {tFallback('pastYou.nextLevel', 'Past You is level {n} next week', { n: String(match.next_level ?? level) })}
+                {tFallback('pastYou.nextLevel', 'Past You is Lv. {n} next week', { n: String(match.next_level ?? level) })}
               </p>
             </div>
           ) : (
@@ -185,7 +185,7 @@ export default function PastYouSheet({ open, onClose, match }) {
             <Row label={tFallback('pastYou.targetRow', 'Target')}>{metricText(target)}</Row>
             <Row label={tFallback('pastYou.levelRow', 'Past You level')}>
               {boost > 0
-                ? tFallback('pastYou.levelValue', 'Level {n}, {p}% stronger', { n: String(level), p: String(boost) })
+                ? tFallback('pastYou.levelValue', 'Lv. {n}, {p}% stronger', { n: String(level), p: String(boost) })
                 : tFallback('pastYou.levelOne', 'Level 1')}
             </Row>
             <Row label={tFallback('pastYou.basisRow', 'Built from')} valueClass="max-w-[60%]">{basis}</Row>
@@ -224,7 +224,7 @@ export default function PastYouSheet({ open, onClose, match }) {
               {confirmQuit ? (
                 <div className="mt-2 rounded-xl border border-border p-3">
                   <p className="text-xs text-muted-foreground mb-2">
-                    {tFallback('pastYou.quitConfirm', 'End this race? You get no reward, and Past You stays at level {n}.', { n: String(level) })}
+                    {tFallback('pastYou.quitConfirm', 'End this race? You get no reward, and Past You stays at Lv. {n}.', { n: String(level) })}
                   </p>
                   <div className="flex gap-2">
                     <button onClick={() => setConfirmQuit(false)}

@@ -184,7 +184,7 @@ export default function StatsHubModal({ open, onClose }) {
                 </div>
                 <div className="min-w-0">
                   <p className="font-heading font-black text-4xl leading-none drop-shadow">
-                    {tFallback('levelBar.level', 'Lv {n}', { n: levelInfo.level })}
+                    {tFallback('levelBar.level', 'Lv. {n}', { n: levelInfo.level })}
                   </p>
                   {equippedTitle ? (
                     <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur w-fit max-w-full">

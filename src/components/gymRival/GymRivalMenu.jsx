@@ -370,7 +370,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <p className="font-heading font-black text-2xl">@{rivalName}</p>
                     <CrewLine crew={rivalCrew} className="mt-0.5" />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {tFallback('gymRivalMenu.levelAndRecord', 'Level {lv} · {w}–{l} record', {
+                      {tFallback('gymRivalMenu.levelAndRecord', 'Lv. {lv} · {w}–{l} record', {
                         lv: String(rival?.current_level ?? '—'),
                         w: String(rivalRecord?.wins ?? 0),
                         l: String(rivalRecord?.losses ?? 0),
@@ -651,7 +651,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <span className="block text-sm font-black truncate">@{rivalName}</span>
                     <CrewLine crew={rivalCrew} />
                     <span className="block text-micro text-muted-foreground">
-                      {tFallback('gymRivalMenu.levelN', 'Level {lv}', { lv: String(rival?.current_level ?? '—') })}
+                      {tFallback('gymRivalMenu.levelN', 'Lv. {lv}', { lv: String(rival?.current_level ?? '—') })}
                     </span>
                   </span>
                 </button>

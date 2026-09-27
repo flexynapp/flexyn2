@@ -90,7 +90,7 @@ function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt,
           {' '}{tFallback('crew.discover.of', 'of')}{' '}
           <span className="tabular-nums">{fmt(cap)}</span>
           {Number.isFinite(Number(crew.crew_level)) && (
-            <> · {tFallback('crew.discover.lvl', 'Lvl')} {crew.crew_level}</>
+            <> · {tFallback('crew.discover.lvl', 'Lv.')} {crew.crew_level}</>
           )}
         </p>
 
