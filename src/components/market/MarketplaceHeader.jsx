@@ -1,150 +1,89 @@
 // src/components/market/MarketplaceHeader.jsx
-// Marketplace banner: title, balance, bag shortcut, list CTA, sort
-// controls, and the ambient drift particles.
-// Split out of MarketplaceFeed.jsx.
+//
+// The Market's top row, from the round 2 design: the title (visible from lg
+// up; the phone header already shows it), the coin balance, refresh, the
+// bag, and the capsules shelf with a count of what is waiting to be opened.
+//
+// Presentational. Every action is a prop, so the header renders without a
+// router or a query client (see marketplaceRefresh.test.jsx).
 
-import { motion } from 'framer-motion';
-import { ShoppingBag, RefreshCw, ArrowUpDown, Package } from 'lucide-react';
-import { requestOpenBag } from '@/lib/inventoryFlow';
+import { RefreshCw } from 'lucide-react';
 import { useNumberFormatter } from '@/lib/intl';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import { useLanguage } from '@/lib/LanguageContext';
 
-// Ambient drift particles (used by DailyChestBlock). `tone` resolves against the live theme rather
-// than the old hardcoded violet hexes, which were invisible against a
-// light background and ignored whichever loot theme the user equipped.
-
-const TONE = {
-  primary: 'hsl(var(--primary))',
-  accent:  '#fbbf24',
-};
-
-const prefersReducedMotion = () => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-  catch { return false; }
-};
-
-export function DriftParticles({ particles }) {
-  if (prefersReducedMotion()) return null;
-  return particles.map((p, i) => (
-    <motion.div
-      key={i}
-      className="absolute pointer-events-none rounded-full"
-      style={{
-        width: p.size, height: p.size,
-        left: `${p.x}%`, bottom: 0,
-        background: TONE[p.tone] ?? TONE.primary,
-        opacity: 0,
-        filter: 'blur(0.5px)',
-      }}
-      animate={{ y: [0, -p.travel], opacity: [0, 0.55, 0] }}
-      transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: 'easeOut' }}
-      aria-hidden="true"
-    />
-  ));
+// The bag glyph from the design: a tote with a handle.
+function BagGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 8h14l-1 12H6z M9 8V6.5a3 3 0 0 1 6 0V8" />
+    </svg>
+  );
 }
 
-// Sort used to live here as two toggle buttons in a second row. It moved
-// to MarketFilterBar, next to the type/rarity/affordability controls it
-// belongs with — which also lets this banner shrink to a single row.
 export default function MarketplaceHeader({
-  flexCoins, onRefresh, refreshing = false, onList, listableCount = 0, onOpenTradeHistory,
-  listIsPrimary = true,
+  flexCoins, onRefresh, refreshing = false, capsuleCount = 0, onOpenCapsules, onOpenBag,
 }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
+  const iconBtn = 'relative w-11 h-11 inline-flex items-center justify-center rounded-full text-foreground hover:bg-secondary active:bg-secondary transition-colors';
 
-
-  // A plain card. It was a rotating primary gradient with eight drifting
-  // particles, both decoration the UI rules ban, redrawn every frame.
   return (
-    <div className="rounded-2xl p-4 flex flex-col gap-3 border border-border bg-card">
-
-      {/* Row 1: title + balance + bag + list CTA */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="hidden lg:block w-5 h-5 text-primary" aria-hidden="true" />
-          {/* This is the page's only <h1> — Market.jsx deliberately doesn't
-              render one (see the comment there). Below lg the fixed app
-              header already shows "Marketplace" as the child-route title,
-              so here it is sr-only there and the word appears once, the
-              same treatment Progress, Nutrition and MyGym get. From lg up
-              that header is hidden and this is the visible title. */}
-          <h1 className="sr-only lg:not-sr-only font-heading font-bold text-lg">{tFallback("layout.marketplace", "Marketplace")}</h1>
-          {/* The icon SPINS while the refetch is in flight, and the button
-              disables itself. Without that this control was unfalsifiable:
-              the common case is that nothing has changed since the last
-              load, so the grid re-renders identically and a working refresh
-              was pixel-identical to a dead button — the same shape of bug
-              as the suppressed toasts (see the toast-policy section of
-              CLAUDE.md). The spin is what says "I checked". */}
-          <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            aria-label={tFallback("marketplaceHeader.refreshListings", "Refresh listings")}
-            aria-busy={refreshing}
-            title={tFallback("marketplaceHeader.refreshListings", "Refresh listings")}
-            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary disabled:opacity-100"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-          {/* Trade history — the consolidated timeline of every trade offer
-              the viewer sent or received (reads the existing hub_messages
-              markers, no migration). */}
-          <a
-            href="/market/trades"
-            onClick={(e) => { e.preventDefault(); onOpenTradeHistory?.(); }}
-            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
-            aria-label={tFallback("marketplaceHeader.tradeHistory", "Trade history")}
-            title={tFallback("marketplaceHeader.tradeHistory", "Trade history")}
-          >
-            <ArrowUpDown className="w-4 h-4" />
-          </a>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-secondary border border-border rounded-full px-3 py-1.5">
-            <FlexCoinIcon size={18} />
-            <span className="text-foreground font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
-          </div>
-          {/* My Bag — opens the bag drawer through the global OPEN_BAG_EVENT
-              so the user doesn't have to navigate back to ProfileMenu. Also
-              drives the capsule-open flow (see inventoryFlow.js). */}
-          <button
-            onClick={requestOpenBag}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 active:bg-secondary/70 transition-colors shrink-0"
-            aria-label={tFallback("marketplaceHeader.openMyBag", "Open My Bag")}
-          >
-            <Package className="w-4 h-4 shrink-0" />
-            {/* Once the listable count reaches two digits the List Item
-                button grows and squeezes this one until "My Bag" wraps to
-                two lines. Seen at 20 items. */}
-            <span className="whitespace-nowrap">{tFallback("profile.myBag", "My Bag")}</span>
-          </button>
-          <button
-            onClick={onList}
-            // Live count of listable items (stickers you own that aren't
-            // already listed). Removes the tap-and-discover cycle for users
-            // with nothing to sell; doubles as a satisfying tick-up when a
-            // capsule opens and inventory grows.
-            // Primary only when the Daily Chest is not waiting to be claimed;
-            // see MarketplaceFeed. Otherwise an outline, so the page keeps
-            // exactly one orange button.
-            className={`px-4 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap shrink-0 ${
-              listIsPrimary
-                ? 'bg-primary text-primary-foreground hover:opacity-90'
-                : 'border border-border bg-background text-foreground hover:bg-secondary active:bg-secondary'
-            } ${listableCount === 0 ? 'opacity-60' : ''}`}
-          >
-            List Item
-            {listableCount > 0 && (
-              <span className="ms-1 font-semibold tabular-nums opacity-80">
-                · {listableCount > 99 ? '99+' : listableCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
+    <div className="flex items-center gap-1 h-12">
+      {/* The page's only <h1>. Below lg the fixed app header shows "Market"
+          as the child-route title, so here it is sr-only there. */}
+      <h1 className="sr-only lg:not-sr-only lg:font-display lg:text-display">
+        {tFallback('hub.market.title', 'Market')}
+      </h1>
+      <span
+        className="flex-1 inline-flex items-center gap-1.5 text-body font-semibold tabular-nums lg:flex-none lg:ms-auto lg:me-2"
+        aria-label={tFallback('marketplaceHeader.balance', 'Your coins: {n}', { n: fmt(flexCoins) })}
+      >
+        <FlexCoinIcon size={18} />
+        <span aria-hidden="true">{fmt(flexCoins)}</span>
+      </span>
+      {/* The icon spins while the refetch is in flight and the button
+          disables itself: a refresh that returns identical data changes
+          nothing else on screen, so the spin is the whole signal. */}
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={refreshing}
+        aria-label={tFallback('marketplaceHeader.refreshListings', 'Refresh listings')}
+        aria-busy={refreshing}
+        title={tFallback('marketplaceHeader.refreshListings', 'Refresh listings')}
+        className={`${iconBtn} text-muted-foreground disabled:opacity-100`}
+      >
+        <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+      </button>
+      {onOpenBag && (
+        <button
+          type="button"
+          onClick={onOpenBag}
+          aria-label={tFallback('marketplaceHeader.openMyBag', 'Open My Bag')}
+          className={iconBtn}
+        >
+          <BagGlyph />
+        </button>
+      )}
+      {onOpenCapsules && (
+        <button
+          type="button"
+          onClick={onOpenCapsules}
+          aria-label={capsuleCount > 0
+            ? tFallback('marketplaceHeader.capsulesWaiting', 'Your capsules, {n} to open', { n: capsuleCount })
+            : tFallback('marketplaceHeader.capsules', 'Your capsules')}
+          className={`${iconBtn} -me-2`}
+        >
+          <CapsuleCanister tier="standard" height={28} />
+          {capsuleCount > 0 && (
+            <span className="absolute top-1 end-0.5 min-w-4 h-4 px-1 rounded-full bg-foreground text-background text-micro font-bold leading-4 text-center tabular-nums" aria-hidden="true">
+              {capsuleCount > 99 ? '99+' : capsuleCount}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 }

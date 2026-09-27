@@ -105,7 +105,7 @@ describe('the marketplace grid keeps the shape', () => {
   it('positions the rows that host popLayout exits', () => {
     // popLayout measures offsetTop/offsetLeft, which need a positioned
     // ancestor or exiting cards jump.
-    expect(feed).toMatch(/LISTING_ROW\s*=[^;]*\brelative\b/s);
+    expect(feed).toMatch(/LISTING_LIST\s*=[^;]*\brelative\b/s);
     expect(feed).toMatch(/grid grid-cols-2 sm:grid-cols-3 gap-3 relative/);
   });
 
