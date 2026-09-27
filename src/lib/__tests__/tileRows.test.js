@@ -61,8 +61,11 @@ describe('tileRows — the width matches the key that names it', () => {
     // eight rows, and dropping the nutrients a scanned label does not carry
     // made the count data-driven. It stays 2-up at `sm` because it renders
     // inside a `sm:max-w-md` sheet, not a page column.
+    // '2-4-6' is the sticker set sheet (2026-09-27): every sticker in the
+    // catalog as a numbered tile, four across on a phone and six from `sm`.
+    // The catalog grows, so the last row is data-driven.
     expect(Object.keys(ITEMS).sort()).toEqual(
-      ['2-1-2', '2-2-2', '2-3-3', '2-3-5', '3-1-2', '3-2-3', '3-2-4', '3-3-4'],
+      ['2-1-2', '2-2-2', '2-3-3', '2-3-5', '2-4-6', '3-1-2', '3-2-3', '3-2-4', '3-3-4'],
     );
   });
 

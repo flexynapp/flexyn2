@@ -68,6 +68,7 @@ const ITEMS = {
   // gap-2 (0.5rem)
   '2-3-5': 'shrink-0 basis-[calc((100%_-_1rem)/3_-_1px)] sm:basis-[calc((100%_-_2rem)/5_-_1px)]',
   '2-3-3': 'shrink-0 basis-[calc((100%_-_1rem)/3_-_1px)]',
+  '2-4-6': 'shrink-0 basis-[calc((100%_-_1.5rem)/4_-_1px)] sm:basis-[calc((100%_-_2.5rem)/6_-_1px)]',
   '2-2-2': 'shrink-0 basis-[calc((100%_-_0.5rem)/2_-_1px)]',
   '2-1-2': 'shrink-0 basis-full sm:basis-[calc((100%_-_0.5rem)/2_-_1px)]',
   // gap-3 (0.75rem)
