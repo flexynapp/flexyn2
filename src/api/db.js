@@ -153,32 +153,8 @@ function makeEntity(entityName) {
       };
 
       const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
-      if (!error) return row;
-
-      // PostgreSQL 23505 unique_violation on an idempotency key —
-      // a prior attempt of THIS save intent already landed. Fetch
-      // and return the existing row so the caller treats it as a
-      // successful save (mig 142, audit C-2). Tagged via
-      // `__duplicate = true` on the returned object so the caller
-      // can skip side-effects (XP/volume re-credit).
-      if (error.code === '23505' && enriched.idempotency_key && enriched.user_id) {
-        const isIdempotencyConflict = /idempotency/i.test(error.message || '')
-          || error.constraint === 'workout_logs_idempotency_idx';
-        if (isIdempotencyConflict) {
-          const { data: existing, error: fetchErr } = await supabase
-            .from(table)
-            .select('*')
-            .eq('user_id', enriched.user_id)
-            .eq('idempotency_key', enriched.idempotency_key)
-            .maybeSingle();
-          if (!fetchErr && existing) {
-            existing.__duplicate = true;
-            return existing;
-          }
-        }
-      }
-
-      throw error;
+      if (error) throw error;
+      return row;
     },
 
     /** update(id, data) — patch and return the updated row. */

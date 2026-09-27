@@ -41,11 +41,41 @@ function assertNoTextProfanity(fields) {
   }
 }
 
-/** Create a new workout log. Returns the saved record. */
+/**
+ * Create a new workout log. Returns the saved record.
+ *
+ * A retried save carries the same `idempotency_key` as the attempt that may
+ * already have landed (mig 142, audit C-2). When the unique index refuses
+ * it, the row that landed is returned marked `__duplicate: true`, so the
+ * save screen treats it as saved and skips XP, volume and streak credits.
+ */
 export const create = (data) => {
   assertNoTextProfanity({ notes: data.notes });
-  return db.entities.WorkoutLog.create(data);
+  return db.entities.WorkoutLog.create(data).catch(async (error) => {
+    const existing = await findSavedDuplicate(error, data.idempotency_key);
+    if (existing) return existing;
+    throw error;
+  });
 };
+
+async function findSavedDuplicate(error, idempotencyKey) {
+  if (error?.code !== '23505' || !idempotencyKey) return null;
+  const isIdempotencyConflict = /idempotency/i.test(error.message || '')
+    || error.constraint === 'workout_logs_idempotency_idx';
+  if (!isIdempotencyConflict) return null;
+  const { data: { session } } = await supabase.auth.getSession()
+    .catch(() => ({ data: { session: null } }));
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  const { data: existing, error: fetchErr } = await supabase
+    .from('workout_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('idempotency_key', idempotencyKey)
+    .maybeSingle();
+  if (fetchErr || !existing) return null;
+  return { ...existing, __duplicate: true };
+}
 
 /** Update a workout log by id. */
 export const update = (id, data) => {

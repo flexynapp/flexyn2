@@ -118,6 +118,27 @@ describe('workouts writes', () => {
     expect(track).not.toHaveBeenCalled();
   });
 
+  it('create throws a unique violation that is not the idempotency key, without a lookup', async () => {
+    results = [{ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "workout_logs_pkey"' } }];
+    await expect(workouts.create(payload)).rejects.toMatchObject({ code: '23505' });
+    expect(calls.filter((c) => c[1] === 'maybeSingle')).toHaveLength(0);
+  });
+
+  it('create throws the conflict when the save carried no idempotency key', async () => {
+    results = [{ data: null, error: { code: '23505', constraint: 'workout_logs_idempotency_idx' } }];
+    const { idempotency_key: _k, ...noKey } = payload;
+    await expect(workouts.create(noKey)).rejects.toMatchObject({ code: '23505' });
+    expect(calls.filter((c) => c[1] === 'maybeSingle')).toHaveLength(0);
+  });
+
+  it('create throws the original conflict when the saved row cannot be read back', async () => {
+    results = [
+      { data: null, error: { code: '23505', constraint: 'workout_logs_idempotency_idx' } },
+      { data: null, error: null },
+    ];
+    await expect(workouts.create(payload)).rejects.toMatchObject({ code: '23505' });
+  });
+
   it('create throws any other error, including a missing column', async () => {
     results = [{ data: null, error: { code: 'PGRST204' } }];
     await expect(workouts.create(payload)).rejects.toMatchObject({ code: 'PGRST204' });
