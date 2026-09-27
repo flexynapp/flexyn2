@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Swords, Loader2, ChevronRight, Radar } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
+import { RulesButton } from '@/components/competition/RulesSheet';
 import { useLanguage } from '@/lib/LanguageContext';
 import { timeLeft } from '@/lib/timeLeft';
 import { useNumberFormatter } from '@/lib/intl';
@@ -392,7 +393,7 @@ export default function CrewWarsMenu({ open, onClose, crew, currentUserId }) {
   const loading = warLoading || (!war && queuedLoading);
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={tFallback('crewWars.title', 'Crew Wars')}>
+    <BottomSheet open={open} onClose={onClose} title={tFallback('crewWars.title', 'Crew Wars')} headerAction={<RulesButton ruleset="crewWars" />}>
       <Chrome crew={crew} onGoToCrew={goToCrew} tFallback={tFallback}>
         {loading ? (
           <div className="flex items-center justify-center py-14">

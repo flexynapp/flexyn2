@@ -42,11 +42,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 // Block body rather than an implicit return: the sr-only close label below is
 // a real string a screen-reader user hears, so it needs tFallback, and a hook
 // cannot live in an expression-bodied arrow.
-const DialogContent = React.forwardRef(({ className, children, title, closeClassName, ...props }, ref) => {
+const DialogContent = React.forwardRef(({ className, overlayClassName, children, title, closeClassName, ...props }, ref) => {
   const { tFallback } = useLanguage();
   return (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(

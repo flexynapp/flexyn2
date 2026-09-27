@@ -1,5 +1,5 @@
 // src/lib/data/duels.js
-// Workout Duels — challenge, accept, submit results, score.
+// Workout Duels: challenge, accept, and read results the server scores.
 
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
@@ -160,6 +160,7 @@ const DUEL_ERRORS = {
   result_already_submitted:   ['duels.error.alreadySubmitted', 'You already submitted a workout for this duel.'],
   workout_outside_duel_window:['duels.error.outsideWindow', 'Log a workout after the duel started, then submit it.'],
   implausible_workout_log:    ['duels.error.implausible', 'That workout cannot be used for a duel.'],
+  opponent_no_session:        ['duels.error.noSession', 'They have no workout to beat yet.'],
 };
 
 export function duelErrorCode(err) {
@@ -257,20 +258,23 @@ export async function cancelDuel(id) {
 }
 
 /**
- * Submit a logged workout as this user's duel entry. The server scores it
- * from the workout log itself, refuses a workout from before the duel was
- * accepted, resolves the winner once both sides are in, and notifies the
- * other lifter. Returns the refreshed duel row.
+ * Take on someone's latest workout. Starts at once, no acceptance: their side
+ * is that session, and your best workout in the window has to beat it. The
+ * server refuses a private profile you do not follow and anyone with no
+ * session to copy (opponent_no_session).
  */
-export async function submitDuelResult(duelId, workoutLogId) {
-  const { error } = await supabase.rpc('submit_duel_result_atomic', {
-    p_duel_id:        duelId,
-    p_result:         {},
-    p_workout_log_id: workoutLogId,
+export async function createSessionDuel({ opponentId, windowHours = 48 }) {
+  if (!opponentId) throw new Error('opponent_required');
+  const { data, error } = await supabase.rpc('create_session_duel', {
+    p_opponent_id:  opponentId,
+    p_window_hours: windowHours,
   });
   if (error) throw error;
-  return getDuel(duelId);
+  return data;
 }
+
+// There is no submit call any more: a trigger on workout_logs scores each
+// side from its best session in the window (20260927180000).
 
 /** The live duel (if any) for the current user, shown as a workout banner. */
 export async function getActiveDuel() {

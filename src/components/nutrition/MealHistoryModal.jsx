@@ -13,7 +13,6 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getDateLocale } from '@/lib/dateLocales';
-import { db } from '@/api/db';
 import * as nutritionData from '@/lib/data/nutrition';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
@@ -302,7 +301,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
     queryKey: ['nutritionHistory', user?.email],
     // Newest-logged first (created_at, not just date) so today's latest meal
     // is at the top and the user doesn't have to scroll to their latest entry.
-    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', FETCH_LIMIT),
+    queryFn: () => nutritionData.listRecent(user.id, FETCH_LIMIT),
     enabled: !!user?.email && open,
   });
 

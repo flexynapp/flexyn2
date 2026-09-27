@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Loader2, ScanBarcode, BookOpen, History } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { db } from '@/api/db';
+import * as nutritionData from '@/lib/data/nutrition';
 import { listMineForSearch } from '@/lib/data/foodItems';
 import { listMine as listMyRecipes } from '@/lib/data/nutritionRecipes';
 import { rankFoodMatches, recentFoods, FOOD_SOURCE } from '@/lib/foodSearch';
@@ -62,7 +62,7 @@ export default function FoodSearchSheet({ open, onClose, onPick }) {
     // Shares the key the Log Meal form's History tab already uses, so opening
     // one warms the other rather than refetching 300 rows twice.
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
+    queryFn: () => nutritionData.listRecent(user.id, 300),
     enabled,
     staleTime: 60_000,
   });
