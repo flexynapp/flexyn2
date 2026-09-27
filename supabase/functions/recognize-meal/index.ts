@@ -115,7 +115,17 @@ Deno.serve(async (req: Request) => {
   // hand back the real error than mask it with a bookkeeping one.
   const fail = async (obj: unknown, status = 200) => {
     if (consumed) {
-      try { await client.rpc('refund_recognize_meal_quota'); } catch (_e) { /* best effort */ }
+      // Refunds are service-role only (2026-09-27 audit): a user-callable
+      // refund let anyone loop consume/refund past every cap. The caller's
+      // id comes from the getUser() check above, never from the request.
+      try {
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (serviceKey) {
+          await createClient(supabaseUrl, serviceKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          }).rpc('refund_recognize_meal_quota_for', { p_user_id: user.id });
+        }
+      } catch (_e) { /* best effort */ }
     }
     return json(obj, status);
   };
