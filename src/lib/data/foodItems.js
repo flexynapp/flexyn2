@@ -40,10 +40,10 @@
 // and the second never had a caller. Both were removed on 2026-08-12 rather
 // than left as an unused door back into the shared catalogue.
 
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { ownedRows } from './ownedRows';
 
-const e = () => db.entities.FoodItem;
+const rows = ownedRows('food_items');
 
 /**
  * Every record for a barcode, newest first by created_date, up to `limit`.
@@ -51,7 +51,7 @@ const e = () => db.entities.FoodItem;
  * waterfall can tell "nobody has submitted this" from "the read failed".
  */
 export const listByBarcode = (barcode, limit = 10) =>
-  e().filter({ barcode }, '-created_date', limit);
+  rows.filter({ barcode }, '-created_date', limit);
 
 /**
  * Look up a barcode in the community database.
@@ -60,7 +60,7 @@ export const listByBarcode = (barcode, limit = 10) =>
 export const findByBarcode = async (barcode) => {
   if (!barcode) return null;
   try {
-    const results = await e().filter({ barcode }, '-created_date', 1);
+    const results = await rows.filter({ barcode }, '-created_date', 1);
     return results?.[0] || null;
   } catch {
     return null;
