@@ -472,7 +472,7 @@ const EXERCISE_LIBRARY = [
 
 export { EXERCISE_LIBRARY };
 
-export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail }) {
+export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail, panelEndClassName = 'end-0' }) {
   const { t, tFallback, language } = useLanguage();
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
@@ -581,7 +581,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
           lower. The filter persists while the panel is closed; it just
           is not drawn over the page. */}
       {open && query.trim().length >= 1 && (
-        <div className="absolute z-50 top-full mt-1 start-0 end-0 bg-card border border-border rounded-2xl shadow-md overflow-hidden">
+        <div className={`absolute z-50 top-full mt-1 start-0 ${panelEndClassName} bg-card border border-border rounded-2xl shadow-md overflow-hidden`}>
           <div className="flex gap-1 overflow-x-auto px-2 py-2 border-b border-border scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
             {EQUIPMENT_FILTERS.map(f => (
               <button
@@ -615,7 +615,9 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
             </div>
           ) : (
             <p className="px-3 py-3 text-sm text-muted-foreground">
-              {tFallback('exerciseSearch.noMatches', 'No exercise matches that name.')}
+              {equipmentFilter === 'all'
+                ? tFallback('exerciseSearch.noMatches', 'No exercise matches that name.')
+                : tFallback('exerciseSearch.noMatchesFiltered', 'Nothing matches with this equipment. Try All.')}
             </p>
           )}
         </div>

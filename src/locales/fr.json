@@ -1729,6 +1729,7 @@
   "exerciseLogger.keepGoing": "Continuer",
   "exerciseLogger.tempo": "Tempo",
   "exerciseSearch.noMatches": "Aucun exercice ne correspond à ce nom.",
+  "exerciseSearch.noMatchesFiltered": "Rien ne correspond à cet équipement. Essayez Tout.",
   "fastingTrackerCard.customFastingHours": "Heures de jeûne personnalisées",
   "fastingTrackerCard.durationRange": "Saisissez une durée de jeûne entre 1 et 48 heures.",
   "fastingTrackerCard.endFast": "Terminer le jeûne",
