@@ -4,7 +4,7 @@
     "purple": 67,
     "gradient": 30,
     "backdropBlur": 75,
-    "sparkles": 76,
+    "sparkles": 72,
     "heavyShadow": 57,
     "colouredShadow": 25,
     "offScaleRadius": 28,
@@ -115,7 +115,6 @@
     "sparkles": {
       "src/components/dashboard/CustomQuotesModal.jsx": 2,
       "src/components/dashboard/DiscoveryCards.jsx": 2,
-      "src/components/dashboard/HeroSlideshow.jsx": 4,
       "src/components/dashboard/questVisuals.jsx": 2,
       "src/components/gyms/GymFeedTab.jsx": 3,
       "src/components/Header.jsx": 2,

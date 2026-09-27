@@ -17,19 +17,18 @@
 // here computes an award.
 
 import React, { useMemo } from 'react';
-import { Dumbbell, Trophy, CalendarCheck, RotateCcw } from 'lucide-react';
+import { Trophy, CalendarCheck, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useNumberFormatter, useDateFormatter, useListFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { fromLbs } from '@/lib/weightUnit';
 import { calculateLevelFromXp, MAX_LEVEL } from '@/lib/xpSystem';
 import { parseLocalDate, toLocalDateString } from '@/lib/dateUtils';
 import { workoutTitle } from '@/lib/workoutTitle';
 import { track, EVENTS } from '@/lib/analytics';
-import { weekSummary, weekHeadline, weekDetail, ringShare } from '@/lib/focalGoal';
+import { weekSummary } from '@/lib/focalGoal';
 import { personalBestEvents, personalBestCounts, weeklyVolumeSeries } from '@/lib/glanceStats';
-import FocalHero from '@/components/glance/FocalHero';
-import FocalRing from '@/components/glance/FocalRing';
-import WeekDots from '@/components/glance/WeekDots';
+// The ring, the sentence and the dots are shared with Today's hero.
+import WeekFocal from '@/components/glance/WeekFocal';
 import GlanceStatRow, { StatMeter, Sparkline } from '@/components/glance/GlanceStatRow';
 import NextStepRow from '@/components/glance/NextStepRow';
 
@@ -54,66 +53,11 @@ export default function ProgressFocal({
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const fmtDate = useDateFormatter();
-  const list = useListFormatter();
   // One clock for the whole render, so the ring, the dots and the next step
   // cannot disagree about which day it is across midnight.
   const now = useMemo(() => nowProp || new Date(), [nowProp]);
 
   const week = useMemo(() => weekSummary({ logs, profile: userProfile, now }), [logs, userProfile, now]);
-  const t = (desc) => {
-    if (!desc) return null;
-    const vars = {};
-    for (const [k, v] of Object.entries(desc.vars || {})) vars[k] = typeof v === 'number' ? fmt(v) : v;
-    return tFallback(desc.key, desc.fallback, vars);
-  };
-  const dayName = (i) => fmtDate(week.days[i].date, { weekday: 'long' });
-
-  const headline = t(weekHeadline(week));
-  const detail = t(weekDetail(week, (idx) => list(idx.map(dayName))));
-
-  // ── The figure ──────────────────────────────────────────────────────────
-  const numeral = 'font-display tabular-nums text-foreground';
-  const numeralSize = { fontSize: 'clamp(2.25rem, 11vw, 2.75rem)' };
-  const caption = 'text-micro font-bold uppercase tracking-[0.04em] text-muted-foreground';
-  let figure;
-  if (!week.everTrained) {
-    // Nothing logged, ever. No "0": the ring holds the goal they chose, or an
-    // icon when they chose none.
-    figure = (
-      <FocalRing share={0} advance={week.done}>
-        {week.target ? (
-          <>
-            <span className={numeral} style={numeralSize}>{fmt(week.target)}</span>
-            <span className={`${caption} mt-1 px-3`}>{tFallback('progress.focal.ring.perWeek', 'Per week')}</span>
-          </>
-        ) : (
-          <Dumbbell className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
-        )}
-      </FocalRing>
-    );
-  } else if (week.target) {
-    figure = (
-      <FocalRing
-        share={ringShare(week.done, week.target)}
-        advance={week.done}
-        label={tFallback('progress.focal.ring.aria', '{done} of {target} sessions this week', { done: fmt(week.done), target: fmt(week.target) })}
-      >
-        <span className={numeral} style={numeralSize}>
-          {fmt(week.done)}
-          <span className="text-muted-foreground" style={{ fontSize: '0.6em' }}>/{fmt(week.target)}</span>
-        </span>
-        <span className={`${caption} mt-1`}>{tFallback('progress.focal.ring.thisWeek', 'This week')}</span>
-      </FocalRing>
-    );
-  } else {
-    // No target: the count, with no ring to fill against a goal nobody set.
-    figure = (
-      <div className="shrink-0 flex flex-col items-start min-w-[88px]">
-        <span className={numeral} style={numeralSize}>{fmt(week.done)}</span>
-        <span className={`${caption} mt-1`}>{tFallback('progress.focal.ring.thisWeek', 'This week')}</span>
-      </div>
-    );
-  }
 
   // ── Stat row ────────────────────────────────────────────────────────────
   const totalXp = Number(userProfile?.total_xp) || 0;
@@ -241,11 +185,9 @@ export default function ProgressFocal({
 
   return (
     <div className="flex flex-col" style={{ gap: 'var(--fluid-section)' }}>
-      <FocalHero
-        figure={figure}
-        headline={headline}
-        detail={detail}
-        action={!week.everTrained && onStart ? (
+      <WeekFocal
+        week={week}
+        aside={!week.everTrained && onStart ? (
           <button
             type="button"
             onClick={onStart}
@@ -254,9 +196,7 @@ export default function ProgressFocal({
             {tFallback('progress.focal.start', 'Start a session')}
           </button>
         ) : null}
-      >
-        <WeekDots days={week.days} />
-      </FocalHero>
+      />
       <GlanceStatRow cells={cells} />
       <NextStepRow page="progress" userId={userId} candidates={candidates} />
     </div>
