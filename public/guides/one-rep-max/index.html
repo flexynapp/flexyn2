@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One rep max calculator (Epley and Brzycki) | Flexyn</title>
+<meta name="description" content="Free one rep max calculator. Enter the weight and reps of a hard set to estimate your 1RM with the Epley and Brzycki formulas, plus a percentage table.">
+<link rel="canonical" href="https://flexyn.netlify.app/guides/one-rep-max/">
+<meta name="theme-color" content="#13171b">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Flexyn">
+<meta property="og:title" content="One rep max calculator (Epley and Brzycki)">
+<meta property="og:description" content="Free one rep max calculator. Enter the weight and reps of a hard set to estimate your 1RM with the Epley and Brzycki formulas, plus a percentage table.">
+<meta property="og:url" content="https://flexyn.netlify.app/guides/one-rep-max/">
+<meta property="og:image" content="https://flexyn.netlify.app/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="One rep max calculator (Epley and Brzycki)">
+<meta name="twitter:description" content="Free one rep max calculator. Enter the weight and reps of a hard set to estimate your 1RM with the Epley and Brzycki formulas, plus a percentage table.">
+<meta name="twitter:image" content="https://flexyn.netlify.app/og-card.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Figtree:wght@400..800&family=Leckerli+One&display=swap">
+<style>:root{--bg:#f9f7f5;--fg:#191f24;--muted:#5f6b77;--card:#fff;--line:#dfe3e7;--pri:#c2560c;--btn:#f37616;--btn-fg:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#13171b;--fg:#f5f2f0;--muted:#89949f;--card:#191f24;--line:#2a333c;--pri:#f7913f}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 Figtree,system-ui,sans-serif}
+a{color:var(--pri)}
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:8px;color:var(--fg);text-decoration:none;font-family:'Leckerli One',cursive;font-size:26px}
+.brand img{width:32px;height:32px;border-radius:8px}
+.cta{display:inline-block;background:var(--btn);color:var(--btn-fg);text-decoration:none;font-weight:700;padding:10px 18px;border-radius:12px;font-size:15px}
+main{padding:40px 0 24px}
+.kicker{color:var(--pri);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:13px;margin:0 0 8px}
+h1{font-family:Archivo,sans-serif;font-stretch:75%;font-weight:850;text-transform:uppercase;font-size:clamp(38px,9vw,58px);line-height:.95;margin:0 0 16px}
+h2{font-family:Archivo,sans-serif;font-weight:750;font-size:24px;line-height:1.2;margin:40px 0 8px}
+h3{font-size:18px;margin:24px 0 4px}
+.lede{font-size:19px;color:var(--muted);margin:0 0 8px}
+.meta{font-size:14px;color:var(--muted);margin:0 0 32px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:24px 0}
+.box h2{margin-top:0}
+label{display:block;font-size:14px;color:var(--muted);margin:10px 0 4px}
+input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.out{font-family:Archivo,sans-serif;font-weight:800;font-size:32px;margin:16px 0 0}
+.note{font-size:14px;color:var(--muted)}
+.try{border-top:1px solid var(--line);margin-top:48px;padding-top:24px}
+.related a{display:block;padding:6px 0}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0 48px;font-size:14px;color:var(--muted)}
+footer a{color:var(--muted)}</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"One rep max calculator (Epley and Brzycki)","description":"Free one rep max calculator. Enter the weight and reps of a hard set to estimate your 1RM with the Epley and Brzycki formulas, plus a percentage table.","datePublished":"2026-09-27","dateModified":"2026-09-27","mainEntityOfPage":"https://flexyn.netlify.app/guides/one-rep-max/","image":"https://flexyn.netlify.app/og-card.png","author":{"@type":"Organization","name":"Flexyn","url":"https://flexyn.netlify.app/"},"publisher":{"@type":"Organization","name":"Flexyn","logo":{"@type":"ImageObject","url":"https://flexyn.netlify.app/icon-512.png"}}}</script>
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="/guides/"><img src="/icon-192.png" alt="" width="32" height="32">Flexyn</a><a class="cta" href="/">Open Flexyn</a></div></header>
+<main class="wrap">
+<article>
+<p class="kicker">Calculator</p>
+<h1>Estimate your one rep max</h1>
+<p class="lede">You do not need to test a true max to know roughly where it is. A hard set of 3 to 10 reps gives a useful estimate.</p>
+<p class="meta">Updated September 2026</p>
+<div class="box" id="calc">
+<h2>1RM calculator</h2>
+<div class="row">
+<div><label for="w">Weight lifted</label><input id="w" type="number" inputmode="decimal" value="185" min="0" step="any"></div>
+<div><label for="r">Reps completed</label><input id="r" type="number" inputmode="numeric" value="5" min="1" max="12" step="1"></div>
+</div>
+<p class="out" id="result" aria-live="polite"></p>
+<p class="note" id="detail"></p>
+<table id="pct" aria-label="Percentages of estimated one rep max"></table>
+</div>
+
+<h2>The formulas</h2>
+<ul>
+<li><strong>Epley</strong>: 1RM = weight × (1 + reps ÷ 30)</li>
+<li><strong>Brzycki</strong>: 1RM = weight × 36 ÷ (37 − reps)</li>
+</ul>
+<p>Both give close answers in the 3 to 10 rep range and drift apart above that. The calculator shows both and uses their average as the headline number. It stops at 12 reps, because estimates from very high rep sets are unreliable.</p>
+
+<h2>How to use the number</h2>
+<p>Most programs prescribe work as a percentage of 1RM. A rough guide many coaches use:</p>
+<table>
+<tr><th>Goal</th><th>Typical load</th><th>Typical reps</th></tr>
+<tr><td>Strength</td><td>80 to 90%</td><td>2 to 6</td></tr>
+<tr><td>Muscle size</td><td>65 to 80%</td><td>6 to 12</td></tr>
+<tr><td>Technique and warm-up</td><td>40 to 60%</td><td>5 to 8</td></tr>
+</table>
+
+<h2>Make the estimate honest</h2>
+<ul>
+<li>Use a set taken close to failure with good form. An easy set underestimates.</li>
+<li>Use a recent set. Your max from three months ago is history.</li>
+<li>Recalculate every few weeks rather than retesting a true max. It is safer and costs no training days.</li>
+</ul>
+</article>
+<section class="try">
+<h2>Try it in Flexyn</h2>
+<p>Flexyn estimates a 1RM from every set you log with the Epley formula, and shows how close each set is to your best as you type it. It is free and runs in your browser.</p>
+<p><a class="cta" href="/">Open Flexyn</a></p>
+</section>
+<section class="related">
+<h2>More guides</h2>
+<a href="/guides/progressive-overload/">Progressive overload, made simple</a>
+<a href="/guides/plate-math/">Plate math for any barbell</a>
+<a href="/guides/deload-week/">When to take a deload week</a>
+<a href="/guides/rest-between-sets/">How long to rest between sets</a>
+<a href="/guides/gamified-workout-tracker/">A workout tracker that plays like a game</a>
+</section>
+</main>
+<footer><div class="wrap"><a href="/guides/">All guides</a> · <a href="/">Flexyn app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
+<script>(function(){var w=document.getElementById('w'),r=document.getElementById('r'),o=document.getElementById('result'),d=document.getElementById('detail'),t=document.getElementById('pct');
+function rd(x){return Math.round(x*2)/2;}
+function calc(){var W=+w.value,R=Math.round(+r.value);t.innerHTML='';if(!(W>0)||!(R>=1)){o.textContent='';d.textContent='';return;}
+if(R>12){o.textContent='Use 12 reps or fewer';d.textContent='Estimates from sets above 12 reps are too loose to be useful.';return;}
+var e=R===1?W:W*(1+R/30),b=R===1?W:W*36/(37-R),m=(e+b)/2;o.textContent='About '+rd(m);d.textContent='Epley '+rd(e)+', Brzycki '+rd(b)+'. Same units as the weight you entered.';
+var h='<tr><th>Percent</th><th>Load</th></tr>';[95,90,85,80,75,70,65,60].forEach(function(p){h+='<tr><td>'+p+'%</td><td>'+rd(m*p/100)+'</td></tr>';});t.innerHTML=h;}
+w.addEventListener('input',calc);r.addEventListener('input',calc);calc();})();</script>
+</body>
+</html>

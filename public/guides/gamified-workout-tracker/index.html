@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A gamified workout tracker with XP, levels and loot | Flexyn</title>
+<meta name="description" content="Flexyn is a free workout tracker for lifters with XP, levels, loot capsules, weekly leagues and crews, plus an AI coach that reads your logged sets.">
+<link rel="canonical" href="https://flexyn.netlify.app/guides/gamified-workout-tracker/">
+<meta name="theme-color" content="#13171b">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Flexyn">
+<meta property="og:title" content="A gamified workout tracker with XP, levels and loot">
+<meta property="og:description" content="Flexyn is a free workout tracker for lifters with XP, levels, loot capsules, weekly leagues and crews, plus an AI coach that reads your logged sets.">
+<meta property="og:url" content="https://flexyn.netlify.app/guides/gamified-workout-tracker/">
+<meta property="og:image" content="https://flexyn.netlify.app/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="A gamified workout tracker with XP, levels and loot">
+<meta name="twitter:description" content="Flexyn is a free workout tracker for lifters with XP, levels, loot capsules, weekly leagues and crews, plus an AI coach that reads your logged sets.">
+<meta name="twitter:image" content="https://flexyn.netlify.app/og-card.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Figtree:wght@400..800&family=Leckerli+One&display=swap">
+<style>:root{--bg:#f9f7f5;--fg:#191f24;--muted:#5f6b77;--card:#fff;--line:#dfe3e7;--pri:#c2560c;--btn:#f37616;--btn-fg:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#13171b;--fg:#f5f2f0;--muted:#89949f;--card:#191f24;--line:#2a333c;--pri:#f7913f}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 Figtree,system-ui,sans-serif}
+a{color:var(--pri)}
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:8px;color:var(--fg);text-decoration:none;font-family:'Leckerli One',cursive;font-size:26px}
+.brand img{width:32px;height:32px;border-radius:8px}
+.cta{display:inline-block;background:var(--btn);color:var(--btn-fg);text-decoration:none;font-weight:700;padding:10px 18px;border-radius:12px;font-size:15px}
+main{padding:40px 0 24px}
+.kicker{color:var(--pri);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:13px;margin:0 0 8px}
+h1{font-family:Archivo,sans-serif;font-stretch:75%;font-weight:850;text-transform:uppercase;font-size:clamp(38px,9vw,58px);line-height:.95;margin:0 0 16px}
+h2{font-family:Archivo,sans-serif;font-weight:750;font-size:24px;line-height:1.2;margin:40px 0 8px}
+h3{font-size:18px;margin:24px 0 4px}
+.lede{font-size:19px;color:var(--muted);margin:0 0 8px}
+.meta{font-size:14px;color:var(--muted);margin:0 0 32px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:24px 0}
+.box h2{margin-top:0}
+label{display:block;font-size:14px;color:var(--muted);margin:10px 0 4px}
+input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.out{font-family:Archivo,sans-serif;font-weight:800;font-size:32px;margin:16px 0 0}
+.note{font-size:14px;color:var(--muted)}
+.try{border-top:1px solid var(--line);margin-top:48px;padding-top:24px}
+.related a{display:block;padding:6px 0}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0 48px;font-size:14px;color:var(--muted)}
+footer a{color:var(--muted)}</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"A gamified workout tracker with XP, levels and loot","description":"Flexyn is a free workout tracker for lifters with XP, levels, loot capsules, weekly leagues and crews, plus an AI coach that reads your logged sets.","datePublished":"2026-09-27","dateModified":"2026-09-27","mainEntityOfPage":"https://flexyn.netlify.app/guides/gamified-workout-tracker/","image":"https://flexyn.netlify.app/og-card.png","author":{"@type":"Organization","name":"Flexyn","url":"https://flexyn.netlify.app/"},"publisher":{"@type":"Organization","name":"Flexyn","logo":{"@type":"ImageObject","url":"https://flexyn.netlify.app/icon-512.png"}}}</script>
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="/guides/"><img src="/icon-192.png" alt="" width="32" height="32">Flexyn</a><a class="cta" href="/">Open Flexyn</a></div></header>
+<main class="wrap">
+<article>
+<p class="kicker">Flexyn</p>
+<h1>A workout tracker that plays like a game</h1>
+<p class="lede">Streaks and badges get people through the first week. What keeps them training is seeing real progress. Flexyn tries to do both.</p>
+<p class="meta">Updated September 2026</p>
+<h2>What it is</h2>
+<p>Flexyn is a workout tracker built for people who lift. You log sets, it keeps your history, and a coach uses that history to plan your next session. On top of that sits a game layer: XP, levels, capsules to open, weekly leagues and crews to train with.</p>
+<p>It is a web app. It runs in your browser and installs to your phone's home screen. Native App Store and Play Store apps are in progress but not released yet.</p>
+
+<h2>The training side</h2>
+<ul>
+<li><strong>Fast logging.</strong> Last session sits next to each set. Type the weight and the plates for each side appear under it.</li>
+<li><strong>Next-step suggestions.</strong> When your last session went well it suggests a small jump. When it did not, it suggests holding the weight.</li>
+<li><strong>PR tracking.</strong> Each set shows how close it is to your best, and personal records are kept per lift.</li>
+<li><strong>AI coach.</strong> Ask about your training in plain language and it answers from what you actually logged. A free account gets 20 messages a day.</li>
+<li><strong>Weekly review.</strong> Every Sunday it summarises your week: lifting, cardio, sleep, food and more, depending on what you track.</li>
+</ul>
+
+<h2>The game side</h2>
+<ul>
+<li><strong>XP and levels.</strong> Training earns XP and Flex Coins. They are calculated on the server, so a level means the same thing for everyone.</li>
+<li><strong>Capsules and a market.</strong> Open capsules for stickers, titles and frames, and trade them with other lifters.</li>
+<li><strong>Weekly leagues.</strong> Bronze through Legend. Qualifying takes training days, not just logging in.</li>
+<li><strong>Crews.</strong> Train with friends, chase crew challenges for trophies, and take on other crews in week-long Crew Wars.</li>
+<li><strong>Daily quests and streaks.</strong> Small goals for the days you need a reason to show up.</li>
+</ul>
+
+<h2>Who it is for</h2>
+<p>People who train in a gym, want a proper log, and like a bit of competition. If you want a bare spreadsheet, it is probably more than you need. If a tracker has never held your attention past a month, it might be worth a try.</p>
+
+<h2>Limits worth knowing</h2>
+<ul>
+<li>No wearable sync yet (Apple Health, Google Fit and Strava are listed as coming soon).</li>
+<li>Photo meal recognition is capped at 3 scans a day.</li>
+<li>The app is in English, Spanish and French.</li>
+</ul>
+</article>
+<section class="try">
+<h2>Try it in Flexyn</h2>
+<p>Flexyn is free to use. Open it in your browser, continue as a guest or sign in with email, and log your first set in under a minute.</p>
+<p><a class="cta" href="/">Open Flexyn</a></p>
+</section>
+<section class="related">
+<h2>More guides</h2>
+<a href="/guides/progressive-overload/">Progressive overload, made simple</a>
+<a href="/guides/plate-math/">Plate math for any barbell</a>
+<a href="/guides/one-rep-max/">Estimate your one rep max</a>
+<a href="/guides/deload-week/">When to take a deload week</a>
+<a href="/guides/rest-between-sets/">How long to rest between sets</a>
+</section>
+</main>
+<footer><div class="wrap"><a href="/guides/">All guides</a> · <a href="/">Flexyn app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
+
+</body>
+</html>
