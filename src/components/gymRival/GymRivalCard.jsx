@@ -25,6 +25,7 @@ import { formatDistance } from '@/lib/distanceUnit';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import GymRivalMenu from '@/components/gymRival/GymRivalMenu';
 import PastYouSheet from '@/components/gymRival/PastYouSheet';
+import RivalMonthStrip from '@/components/gymRival/RivalMonthStrip';
 import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
 import { getMyPastYou, startPastYou } from '@/lib/data/pastYou';
 import { isGuestAccount } from '@/lib/guestIdentity';
@@ -209,6 +210,7 @@ export default function GymRivalCard({ currentUserId }) {
 
   const menu = (
     <>
+      {!isGuest && <RivalMonthStrip currentUserId={currentUserId} />}
       <GymRivalMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
