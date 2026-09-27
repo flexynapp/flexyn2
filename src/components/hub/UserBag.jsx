@@ -21,7 +21,7 @@ import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
-import { RARITY, ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
+import { ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
 import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import CapsuleIcon from '@/components/loot/CapsuleIcon';
@@ -35,15 +35,14 @@ import { useNumberFormatter } from '@/lib/intl';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import { sellPriceFor } from '@/lib/sellPrice';
 
 // Lazy — the Collection pulls in every catalog (themes alone is ~800
 // lines) and only mounts on an explicit tap.
 const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
 
-// Sell price is half the hidden base value, rounded down.
-const SELL_PRICE = Object.fromEntries(
-  Object.entries(RARITY).map(([k, v]) => [k, Math.floor((v.baseCoins ?? 10) / 2)])
-);
+// Sell price is half the hidden base value, rounded down. Shared with the
+// capsule reveal through src/lib/sellPrice.js; the server prices the sale.
 
 // Map capsule_type string → display metadata.
 //
@@ -133,8 +132,7 @@ function StickerGroupCard({ group, onSell, selling }) {
   // We use group[0] for display info, count for badge.
   const item   = group[0];
   const count  = group.length;
-  const variantMult = item.variant ? (VARIANTS[item.variant]?.sellMultiplier ?? 1) : 1;
-  const price  = Math.floor((SELL_PRICE[item.item_rarity] ?? 2) * variantMult);
+  const price  = sellPriceFor(item.item_rarity, item.variant);
 
   // Unlisted items are the ones available to sell.
   const unlisted = group.filter(i => !i.is_listed);
@@ -722,10 +720,9 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   const duplicateSales = stickerGroups.flatMap(group => {
     const unlisted = group.filter(i => !i.is_listed);
     const extras = unlisted.slice(0, Math.max(0, unlisted.length - 1)); // keep one
-    const variantMult = (row) => row.variant ? (VARIANTS[row.variant]?.sellMultiplier ?? 1) : 1;
     return extras.map(row => ({
       row,
-      price: Math.floor((SELL_PRICE[row.item_rarity] ?? 2) * variantMult(row)),
+      price: sellPriceFor(row.item_rarity, row.variant),
     }));
   });
   const duplicateTotal = duplicateSales.reduce((n, d) => n + d.price, 0);
