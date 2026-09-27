@@ -61,7 +61,7 @@ function parseLocalDate(s) {
 // `workout_logs.date` is a DATE column, so on its own it cannot answer a
 // question posed in hours: a log dated two calendar days ago is anywhere
 // between 24 and 72 hours old depending on the hour it happened and the
-// hour you ask. `created_at` IS a timestamptz and `db.entities` selects
+// hour you ask. `created_at` IS a timestamptz and workouts.list selects
 // `*`, so it is on every row we hold.
 //
 // Use it when the log was RECORDED on the day it happened — then it is the

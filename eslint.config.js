@@ -210,6 +210,39 @@ export default [
       "no-undef": "error",
     },
   },
+  // The Base44-shaped `db.entities.X` client is gone (removed 2026-09-27).
+  // It built a table accessor from a string, so nothing checked the name:
+  // PostActivityBlock asked for an entity called 'Workout' for months and
+  // got a silent failure. Tables are reached through src/lib/data/, one
+  // module per table. `db.entities` is now undefined, and this makes any
+  // attempt to use it a lint error rather than a runtime TypeError.
+  {
+    files: ["src/**/*.{js,mjs,cjs,jsx}"],
+    ignores: ["**/*.test.{js,mjs,cjs,jsx}", "**/__tests__/**", "src/lib/i18n-langs/**"],
+    // This glob reaches files the blocks above leave out (src/App.jsx,
+    // src/api, src/components/ui), so it must be able to parse JSX itself.
+    // It adds only this one rule to them.
+    languageOptions: {
+      parserOptions: { ecmaVersion: 2022, sourceType: "module", ecmaFeatures: { jsx: true } },
+    },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[object.name='db'][property.name='entities']",
+          message: "db.entities was removed. Read and write tables through src/lib/data/.",
+        },
+        {
+          selector: "MemberExpression[object.name='db'][computed=true][property.value='entities']",
+          message: "db.entities was removed. Read and write tables through src/lib/data/.",
+        },
+        {
+          selector: "VariableDeclarator[init.name='db'] > ObjectPattern > Property[key.name='entities']",
+          message: "db.entities was removed. Read and write tables through src/lib/data/.",
+        },
+      ],
+    },
+  },
   // Test files use Vitest globals (describe/it/expect/vi/beforeEach/…) and
   // occasional Node globals (global, process). Declare them so no-undef
   // doesn't flag them as undeclared.

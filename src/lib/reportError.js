@@ -9,7 +9,7 @@
 // Usage:
 //   import { reportError } from '@/lib/reportError';
 //
-//   try { await db.entities.WorkoutLog.create(payload); }
+//   try { await workouts.create(payload); }
 //   catch (err) { reportError(err, { feature: 'workout.save', userEmail: user.email }); }
 //
 // The console output stays in dev so debugging is unchanged. In prod,
