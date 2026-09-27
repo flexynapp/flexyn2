@@ -33,6 +33,8 @@ import { listRecentMoodLogs } from '@/lib/data/moodLogs';
 import { listRecentStepLogs } from '@/lib/data/stepLogs';
 import * as workoutLogs from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
+import * as nutritionData from '@/lib/data/nutrition';
+import * as bodyMetricsData from '@/lib/data/bodyMetrics';
 
 
 // ── Log dates are calendar days, not instants ────────────────────────────────
@@ -850,18 +852,6 @@ async function _safe(fn) {
   try { return (await fn()) || []; } catch { return []; }
 }
 
-/** Same, for a db entity that a test may not have mocked. Reading
- *  `db.entities.X.filter` on an unmocked entity throws SYNCHRONOUSLY, which a
- *  trailing `.catch()` on the call never sees — so the guard has to be here. */
-async function _safeEntity(name, userId, limit) {
-  if (!userId) return [];
-  try {
-    const entity = db?.entities?.[name];
-    if (typeof entity?.filter !== 'function') return [];
-    return (await entity.filter({ user_id: userId }, '-date', limit)) || [];
-  } catch { return []; }
-}
-
 export async function buildCoachContext({
   user,
   profile = {},
@@ -1021,8 +1011,10 @@ export async function buildCoachContext({
     _safe(() => listRecentSleepLogs(14)),
     _safe(() => listRecentMoodLogs(14)),
     _safe(() => listRecentStepLogs(14)),
-    _safeEntity('NutritionLog', user?.id, 200),
-    _safeEntity('BodyMetric', user?.id, 60),
+    // _safe also catches a synchronous throw, so an unmocked table in a test
+    // degrades to [] like a failed read.
+    user?.id ? _safe(() => nutritionData.list(user.id, 200)) : [],
+    user?.id ? _safe(() => bodyMetricsData.list(user.id, 60)) : [],
   ]);
 
   try {
