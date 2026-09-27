@@ -4510,6 +4510,7 @@
   "pageNotFound.goHome": "Go Home",
   "pageNotFound.pageNotFound": "Page Not Found",
   "pastYou.ahead": "You're {v} ahead of Past You",
+  "pastYou.basisFloor": "The minimum target. Your recent weeks were lighter than this",
   "pastYou.basisRow": "Built from",
   "pastYou.basisStarter": "A starter target, until you have some history",
   "pastYou.basisWeeks": "Your average over the last {n} training weeks",

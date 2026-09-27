@@ -16,7 +16,7 @@ import { X, Ghost, Dumbbell, Footprints, Trophy, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getPastYouState, abandonPastYou, ghostBoostPct } from '@/lib/data/pastYou';
+import { getPastYouState, abandonPastYou, ghostBoostPct, pastYouBasis } from '@/lib/data/pastYou';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -103,9 +103,12 @@ export default function PastYouSheet({ open, onClose, match }) {
   // The bar is the week's target. Your fill and the ghost's marker sit on it.
   const pctOf = (v) => (target > 0 ? Math.min(100, Math.max(0, (v / target) * 100)) : 0);
 
-  const basis = weeks > 0
+  const basisKind = pastYouBasis(match.rival_type, state?.baseline ?? match.baseline, weeks);
+  const basis = basisKind === 'weeks'
     ? tFallback('pastYou.basisWeeks', 'Your average over the last {n} training weeks', { n: String(weeks) })
-    : tFallback('pastYou.basisStarter', 'A starter target, until you have some history');
+    : basisKind === 'floor'
+      ? tFallback('pastYou.basisFloor', 'The minimum target. Your recent weeks were lighter than this')
+      : tFallback('pastYou.basisStarter', 'A starter target, until you have some history');
 
   return createPortal(
     <AnimatePresence>

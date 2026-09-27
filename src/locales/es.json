@@ -4479,6 +4479,7 @@
   "pageNotFound.goHome": "Ir al inicio",
   "pageNotFound.pageNotFound": "Página no encontrada",
   "pastYou.ahead": "Le sacas {v} a Past You",
+  "pastYou.basisFloor": "El objetivo mínimo. Tus últimas semanas fueron más ligeras",
   "pastYou.basisRow": "Basado en",
   "pastYou.basisStarter": "Un objetivo inicial, hasta que tengas historial",
   "pastYou.basisWeeks": "Tu promedio de las últimas {n} semanas de entrenamiento",
