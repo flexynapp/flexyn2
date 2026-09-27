@@ -82,8 +82,11 @@ describe('TodayLogCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Good' }));
     await waitFor(() => expect(logMoodAction).toHaveBeenCalledTimes(1));
     expect(logMoodAction.mock.calls[0][0]).toMatchObject({ mood: 4 });
-    // Optimistic: the choice shows while it saves.
-    expect(screen.getByText('Good')).toBeTruthy();
+    // Optimistic: the row reads as logged while it saves. The chips animate
+    // out, so "Good" is briefly on screen twice (chip and row value); wait
+    // for the exit rather than racing it.
+    expect(screen.getByRole('button', { name: 'Mood logged. Open readiness' })).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText('Good')).toHaveLength(1));
   });
 
   it('opens the readiness sheet on the signal whose pill was tapped', () => {
