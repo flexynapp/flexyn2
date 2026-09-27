@@ -10,18 +10,14 @@
 // already gates its macro bar on `macroKcal > 0` for exactly this reason;
 // this is the same rule applied per tile.
 //
-// It is not hypothetical here. `sugar_g` and `cholesterol_mg` have NO COLUMN
-// in `nutrition_logs` — migration 006 declares them and has never been
-// applied — so `db.js`'s strip-and-retry drops them from every insert and
-// those two tiles were structurally incapable of ever showing a non-zero
-// number. They read 0.0g/0mg for every user, every day, since launch.
-// See docs/nutrition-meal-logging-audit.md.
+// It was not hypothetical here. Until 2026-09-27 `sugar_g` and
+// `cholesterol_mg` had no column in `nutrition_logs`, so every save dropped
+// them and those two tiles read 0.0g/0mg for every user since launch.
+// Migration 20260927174000 added the columns; rows logged before it still
+// carry NULL there. See docs/nutrition-meal-logging-audit.md.
 //
-// Sugar is the one of the two that CAN be recovered: the photo-AI path
-// stores it inside `ai_meta.sugar_g`, which survives because ai_meta is a
-// real jsonb column. Four production rows carry a sugar figure there that
-// this box was throwing away. Cholesterol has no such backdoor and simply
-// stays hidden until the column exists.
+// Older photo-AI rows kept sugar inside `ai_meta.sugar_g` (a jsonb column,
+// so it survived), which is why the sum below falls back to it.
 //
 // The count of tiles is therefore decided by DATA, which is what makes
 // `grid-cols-N` wrong here and `tileRow()` right — a grid packs a partial
@@ -64,11 +60,8 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
         fat_g:          acc.fat_g          + (entry.fat_g          ?? entry.fat        ?? 0),
         sodium_mg:      acc.sodium_mg      + (entry.sodium_mg      ?? entry.sodium     ?? 0),
         fiber_g:        acc.fiber_g        + (entry.fiber_g        ?? entry.fiber      ?? 0),
-        // `sugar_g` has no column. The photo-AI path tucks it into ai_meta,
-        // which is a real jsonb column and therefore survives the insert —
-        // so read there before giving up. `openMealDetail` already resolves
-        // sugar this way (Nutrition.jsx:1035); this box did not, and threw
-        // away a figure it was being handed.
+        // Photo-AI rows logged before the sugar_g column existed carry
+        // sugar only in ai_meta, so fall back to it.
         sugar_g:        acc.sugar_g        + (Number(entry.sugar_g ?? entry.ai_meta?.sugar_g) || 0),
         cholesterol_mg: acc.cholesterol_mg + (entry.cholesterol_mg                    || 0),
       }),

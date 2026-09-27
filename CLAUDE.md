@@ -732,6 +732,14 @@ DEFAULT 0` would have zeroed every glass of water ever logged (that default
 has since been removed), and its `workout_logs` block adds `duration_minutes`,
 which is the wrong column name and must stay unapplied.
 
+**Update 2026-09-27: the ten micronutrients are stored now.** Migration
+`20260927174000_nutrition_logs_micronutrients.sql` added sugar, cholesterol,
+the four minerals and the four vitamins under the form's own names, nullable
+with no default (so the water rows stay NULL). The five `_g`/`_mg` aliases and
+`water_oz` are still absent on purpose: `nutrition.create` renames the aliases,
+and water stays encoded in `food_name`. Archived 006 is history now; never
+apply it.
+
 **Water lives in this table too, and it dominates every count.** 118 of the
 126 rows are hydration — `meal_type IS NULL`, `food_name` of `'Water'` (8 oz)
 or `'Water|N'` (N oz). The encoding is deliberate and handled in five places;
@@ -951,7 +959,7 @@ a different class of bug:
 
 | Layer | Where | What it catches |
 |---|---|---|
-| ~~Write strip-and-retry~~ | removed 2026-09-27 | `src/api/db.js` `makeEntity` create/update and `updateMe` used to drop a column the table lacked and retry (`updateMe` could even fall back to saving only the onboarding flags). That is how data went unsaved for weeks, so a missing column now throws. A field the app collects but deliberately does not store is dropped by name at its writer (`NOT_STORED` in `src/lib/data/nutrition.js`). |
+| ~~Write strip-and-retry~~ | removed 2026-09-27 | `src/api/db.js` `makeEntity` create/update and `updateMe` used to drop a column the table lacked and retry (`updateMe` could even fall back to saving only the onboarding flags). That is how data went unsaved for weeks, so a missing column now throws. A field the app collects but deliberately does not store must be dropped by name at its writer. |
 | Read strip-and-retry | `src/api/safeSelect.js` | Same, but for `supabase.from().select()` chains |
 | Per-region ErrorBoundary | Wrapped around each major card on Dashboard / Workout / Progress / Goals / Nutrition | Render-time throws inside the section |
 | Route-level ErrorBoundary | `src/App.jsx` on every route | Render-time throws in a whole page chunk |

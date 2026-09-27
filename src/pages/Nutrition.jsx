@@ -1363,9 +1363,9 @@ export default function Nutrition() {
       sodium_mg: entry.sodium_mg ? String(entry.sodium_mg) : '',
       fiber_g:   entry.fiber_g   ? String(entry.fiber_g)   : '',
       sugar_g:   entry.sugar_g   ? String(entry.sugar_g)   : '',
-      // The remaining micronutrient fields have no column on nutrition_logs
-      // (migration 006 is unapplied), so there is nothing to carry across.
-      // See docs/nutrition-meal-logging-audit.md.
+      // Search results do not carry the remaining micronutrients yet
+      // (nutrition_logs has stored them only since 2026-09-27), so the
+      // user fills them in if they want them.
       cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '',
       potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '',
       vitamin_b12_mcg: '',
