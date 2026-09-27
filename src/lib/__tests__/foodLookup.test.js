@@ -10,7 +10,12 @@ vi.mock('@/api/db', () => ({
     functions: { invoke: vi.fn() },
   },
 }));
-vi.mock('@/lib/data/foodItems', () => ({
+vi.mock('@/api/supabaseClient', () => ({ supabase: {} }));
+// The real listByBarcode, so the multi-row read still lands on filterMock
+// with the arguments the waterfall sends; only the single-row fallback is
+// replaced.
+vi.mock('@/lib/data/foodItems', async (importOriginal) => ({
+  ...(await importOriginal()),
   findByBarcode: (...args) => findByBarcodeMock(...args),
 }));
 
