@@ -34,3 +34,18 @@ export function accountEmail(user) {
   if (user?.id) return `guest_${user.id}@flexyn.guest`;
   return null;
 }
+
+/**
+ * True for an account made by "Continue as guest" (`signInAnonymously()`).
+ *
+ * Reads `is_anonymous` when the caller has the auth user, and falls back to
+ * the guest address shape, because the AuthContext user is the profile row
+ * and older sessions merged it without the flag.
+ *
+ * @param {{is_anonymous?: boolean, email?: string}|null|undefined} user
+ */
+export function isGuestAccount(user) {
+  if (!user) return false;
+  if (user.is_anonymous === true) return true;
+  return typeof user.email === 'string' && user.email.endsWith('@flexyn.guest');
+}

@@ -26,7 +26,8 @@
    "PR",
    "Capsule",
    "Level",
-   "Lv"
+   "Lv",
+   "Past You"
   ],
   "$levelNote": "Level and Lv were ADDED 2026-08-16 on kegan's instruction — \"the word Level in the profile or anywhere displaying the users Level or LV\". They had been translated everywhere (es Nivel, fr Niveau, it Livello, pl Poziom) and 28 strings per locale were converted back. SCOPE: the gamified user Level stat only. Ordinary English prose about something else stays translated — \"activity level\" and \"experience level\" in the Coach onboarding, and \"blocked at the browser level\". And \"level\" as an ADJECTIVE meaning tied is a different word entirely: gymRivalCard.levelSoFar, gymRivalMenu.levelWith, gymRivalMenu.lifetimeNote and crewWars.levelPegging all mean neck-and-neck and must stay translated.",
   "exempt": {
@@ -46,7 +47,8 @@
    "gymRivalMenu.levelWith": "Level — the adjective: tied with @{n}",
    "gymRivalMenu.lifetimeNote": "Level — the adjective: the week starts even",
    "notify.nemesisAssigned.body": "Level — comparable ability, not the user Level stat; Gym Rival matches on strength rating"
-  }
+  },
+  "$pastYouNote": "Past You is the ghost rival (Kegan named it, 2026-09-27). A product name like Crew and Capsule, so it stays English. Its level is the gamified Level and keeps that word too; pastYou.level is the adjective (tied) and is translated."
  },
  "es": {
   "Workout": "Entrenamiento",

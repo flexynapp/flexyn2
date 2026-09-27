@@ -205,6 +205,26 @@ export async function startNativeOAuth(provider) {
   return { status: 'browser_opened' };
 }
 
+/**
+ * Link a provider to the CURRENT account (a guest upgrading) through the
+ * system browser. Same PKCE round trip as startNativeOAuth, so the deep link
+ * listener completes it; the difference is that the identity lands on the
+ * signed-in guest instead of starting a new account.
+ *
+ * @param {'google'|'apple'} provider
+ */
+export async function startNativeLink(provider) {
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider,
+    options: { redirectTo: NATIVE_AUTH_CALLBACK, skipBrowserRedirect: true },
+  });
+  if (error) throw error;
+  if (!data?.url) throw new Error('oauth_url_missing');
+  const { Browser } = await import('@capacitor/browser');
+  await Browser.open({ url: data.url });
+  return { status: 'browser_opened' };
+}
+
 /** 32 random bytes, hex. The RAW nonce: it goes to Supabase, never to Apple. */
 export function randomNonce(bytes = 32) {
   const buf = new Uint8Array(bytes);
