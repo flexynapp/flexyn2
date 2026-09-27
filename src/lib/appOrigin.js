@@ -141,3 +141,29 @@ export function shareOrigin() {
   if (typeof window === 'undefined' || !window.location) return '';
   return isNative() ? canonicalOrigin() : window.location.origin;
 }
+
+/**
+ * The address printed on a share-card image. The image is permanent (it
+ * lives on in someone's Stories, camera roll or group chat), so it takes
+ * the durable origin, like a printed QR, and drops the scheme to read as
+ * an address rather than a link.
+ *
+ * @returns {string} e.g. "flexyn.netlify.app"
+ */
+export function shareCardHost() {
+  return canonicalOrigin().replace(/^https?:\/\//, '');
+}
+
+/**
+ * The link attached to a share sheet next to a card image, tagged with
+ * ?ref= so analytics can tell which card brought a visitor in
+ * (acquisitionProps in src/lib/analytics.js). The tag must not look like a
+ * referral code, which ?ref= also carries: keep it a slug with an
+ * underscore, e.g. "share_pr".
+ *
+ * @param {string} tag
+ * @returns {string}
+ */
+export function shareCardLink(tag) {
+  return `${canonicalOrigin()}/?ref=${encodeURIComponent(tag)}`;
+}

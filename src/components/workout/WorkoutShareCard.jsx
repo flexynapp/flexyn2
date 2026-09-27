@@ -21,6 +21,7 @@ import { formatNumber } from '@/lib/intl';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { workoutDurationMin } from '@/lib/workoutDuration';
 import { track, EVENTS } from '@/lib/analytics';
+import { shareCardHost, shareCardLink } from '@/lib/appOrigin';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -61,8 +62,8 @@ function computeStats(workout, opts = {}) {
 
 /** Draw the share card on the given canvas. */
 // `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
-// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
-// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+// FLEXYN stays English (brand). The footer is the app's address, so
+// whoever sees the card can find the app; it is not copy to translate. Labels are keyed.
 function drawCard(ctx, { username, dateStr, stats, language, t }) {
   const tf = asT(t);
   const W = CANVAS_W;
@@ -199,7 +200,7 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('LOG. PROGRESS. LEVEL UP.', W / 2, H - 60);
+  ctx.fillText(shareCardHost(), W / 2, H - 60);
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -343,6 +344,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
             files: [file],
             title: tFallback('shareCard.workoutTitle', 'My Flexyn workout'),
             text: tFallback('shareCard.workoutText', 'Just crushed a workout in Flexyn'),
+            url: shareCardLink('share_workout'),
           });
           track(EVENTS.SHARED, { card: 'workout', method: 'share' });
           return;
