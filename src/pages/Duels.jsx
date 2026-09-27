@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { haptic } from '@/lib/haptic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Swords, Trophy, Plus, Dumbbell, Timer, Crown, ArrowLeft } from 'lucide-react';
+import { Swords, Trophy, Plus, Dumbbell, Timer, Target, Crown, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { listMyDuels, cancelDuel, getDuel, duelErrorMessage } from '@/lib/data/duels';
 import { duelTypeName, duelStatusName } from '@/components/duels/duelLabels';
@@ -42,7 +42,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
   const statusStyle  = STATUS_STYLE[duel.status] || STATUS_STYLE.expired;
   const yourMove     = !isChallenger && duel.status === 'pending';
-  const Icon         = TYPE_ICON[duel.type] || Swords;
+  const Icon         = duel.mode === 'session' ? Target : (TYPE_ICON[duel.type] || Swords);
   const opponentName = opponent?.username ? `@${opponent.username}` : null;
 
   return (
@@ -70,7 +70,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
             ? (tFallback('duels.youChallenged', 'You challenged'))
             : (tFallback('duels.challengedBy', 'Challenged by'))}
           {opponentName ? <span className="text-foreground"> {opponentName}</span> : null} ·{' '}
-          <span className="text-muted-foreground">{duelTypeName(duel.type, tFallback)}</span>
+          <span className="text-muted-foreground">{duelTypeName(duel.type, tFallback, duel.mode)}</span>
         </p>
         {/* Deadline countdown for active/pending duels */}
         {['pending', 'active'].includes(duel.status) && duel.expires_at && (() => {

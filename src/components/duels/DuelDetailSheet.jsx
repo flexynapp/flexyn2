@@ -1,44 +1,27 @@
 // src/components/duels/DuelDetailSheet.jsx
-// Bottom sheet showing duel details, session template (mirror), and result card when complete.
+// Bottom sheet showing a duel: live scores while it runs, the session to beat
+// (Mirror and Session duels), and the result card when it is over.
 
 import React, { useState } from 'react';
 import { motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { haptic } from '@/lib/haptic';
-import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { X, Swords, Dumbbell, Timer, Trophy, Target, Crown, Check, Loader2, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { useNumberFormatter } from '@/lib/intl';
+import { useNumberFormatter, formatDuration } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
-import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/api/supabaseClient';
-import { submitDuelResult, acceptDuel, declineDuel, duelErrorMessage } from '@/lib/data/duels';
+import { acceptDuel, declineDuel, duelErrorMessage } from '@/lib/data/duels';
 import { duelTypeName, duelStatusName, templateSetCount } from '@/components/duels/duelLabels';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const TYPE_ICON  = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
-// The workout this duel can take: the newest plausible log with sets in it,
-// logged after the duel was accepted. The server refuses anything older
-// (workout_outside_duel_window), and the sheet used to offer the user's
-// latest log from ANY date, so pressing Submit on a fresh duel always failed.
-async function eligibleWorkout(userId, duel) {
-  const since = duel.accepted_at || duel.created_at;
-  const { data } = await supabase
-    .from('workout_logs')
-    .select('id, exercises, created_at, implausible')
-    .eq('user_id', userId)
-    .gte('created_at', since)
-    .lte('created_at', duel.expires_at)
-    .order('created_at', { ascending: false })
-    .limit(10);
-  return (data || []).find((r) => !r.implausible
-    && (r.exercises || []).some((e) => (e.sets || []).length)) || null;
-}
-
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
+  const navigate = useNavigate();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!duel);
   // Above the `if (!duel) return null` below, because hooks cannot sit behind
@@ -48,18 +31,12 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const tap = reduceMotion ? undefined : { scale: 0.97 };
   const fmt = useNumberFormatter();
   const { weightUnit } = useWeightUnit();
-  const { user } = useAuth();
   const qc = useQueryClient();
-  const [busy, setBusy] = useState(null); // 'submit' | 'accept' | 'decline'
-  const { data: latestLog } = useQuery({
-    queryKey: ['duelEligibleWorkout', user?.id, duel?.id, duel?.accepted_at],
-    queryFn: () => eligibleWorkout(user.id, duel),
-    enabled: !!user?.id && !!duel && duel.status === 'active',
-    staleTime: 30_000,
-  });
+  const [busy, setBusy] = useState(null); // 'accept' | 'decline'
   if (!duel) return null;
 
-  const Icon         = TYPE_ICON[duel.type] || Swords;
+  const session      = duel.mode === 'session';
+  const Icon         = session ? Target : (TYPE_ICON[duel.type] || Swords);
   const isChallenger = duel.challenger_id === currentUserId;
   const myResult     = isChallenger ? duel.challenger_result : duel.opponent_result;
   const theirResult  = isChallenger ? duel.opponent_result   : duel.challenger_result;
@@ -85,7 +62,18 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
     : '—';
   const fmtVolDelta = (lbs) => `${fmt(Math.round(fromLbs(Number(lbs) || 0, weightUnit)))} ${unitSuffix}`;
 
-  const canSubmit  = duel.status === 'active' && !myResult;
+  // Scores come from the server (a trigger on workout_logs keeps each side's
+  // best session in the window), so there is nothing to submit: the one
+  // action is to go and train. In a session duel only the challenger trains;
+  // the opponent's side is the session being taken on.
+  const canTrain   = duel.status === 'active' && (!session || isChallenger);
+  const myScore    = myResult?.score != null ? Number(myResult.score) : null;
+  const theirScore = theirResult?.score != null ? Number(theirResult.score) : null;
+  const lead = myScore != null && theirScore != null
+    ? (myScore > theirScore ? 'me' : theirScore > myScore ? 'them' : 'even')
+    : null;
+  const msLeft = duel.expires_at ? new Date(duel.expires_at) - Date.now() : 0;
+  const theirLabel = opponentName ? `@${opponentName}` : tFallback('duelDetailSheet.rival', 'Rival');
   const canRespond = !isChallenger && duel.status === 'pending';
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['activeDuel'] });
@@ -108,8 +96,11 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
       setBusy(null);
     }
   };
-  const handleSubmit = () => latestLog && run('submit', () => submitDuelResult(duel.id, latestLog.id),
-    tFallback('duelDetailSheet.resultSubmitted', 'Result submitted!'));
+  const handleTrain = () => {
+    haptic('primary');
+    onClose?.();
+    navigate('/workout');
+  };
   const handleAccept = () => run('accept', () => acceptDuel(duel.id),
     tFallback('duelInviteCard.accepted', 'Duel accepted! Game on. 🔥'));
   const handleDecline = () => run('decline', () => declineDuel(duel.id),
@@ -159,7 +150,11 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
         <div className="flex items-center justify-between px-5 pt-2 pb-4">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 text-primary" />
-            <span className="font-bold">{duelTypeName(duel.type, tFallback)}</span>
+            <span className="font-bold">
+              {session && opponentName && isChallenger
+                ? tFallback('duelDetailSheet.sessionTitle', "Beat @{name}'s session", { name: opponentName })
+                : duelTypeName(duel.type, tFallback, duel.mode)}
+            </span>
           </div>
           <motion.button type="button" whileTap={tap} onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4 text-muted-foreground" />
@@ -173,7 +168,15 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               <div className="flex items-center gap-2 mb-4">
                 <Crown className={`w-5 h-5 ${won ? 'text-success' : 'text-muted-foreground'}`} />
                 <span className="font-black text-base">
-                  {won
+                  {session
+                    ? (isChallenger
+                        ? (won
+                            ? tFallback('duelDetailSheet.beatSession', "You beat @{name}'s session", { name: opponentName || '' })
+                            : tFallback('duelDetailSheet.sessionHeld', 'Their session held'))
+                        : (lost
+                            ? tFallback('duelDetailSheet.yourSessionBeaten', '@{name} beat your session', { name: opponentName || '' })
+                            : tFallback('duelDetailSheet.yourSessionHeld', 'Your session held')))
+                    : won
                     ? (walkover
                         ? tFallback('duelDetailSheet.wonWalkover', 'You won. Your rival never trained.')
                         : tFallback('duelDetailSheet.youWon', 'You won'))
@@ -231,15 +234,51 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                   {duelStatusName(duel.status, tFallback)}
                 </span>
               </div>
+              {duel.status === 'active' && msLeft > 60_000 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{tFallback('duelDetailSheet.timeLeft', 'Time left')}</span>
+                  <span className="font-semibold tabular-nums">{formatDuration(msLeft, language)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{tFallback("duelDetailSheet.yourResult", "Your result")}</span>
-                <span className="font-semibold">{myResult ? fmtVol(myResult.volume) : tFallback('duelDetailSheet.notSubmitted', 'Not submitted')}</span>
+                <span className="text-muted-foreground">
+                  {session && !isChallenger ? tFallback('duelDetailSheet.yourSession', 'Your session') : tFallback('duelDetailSheet.yourBest', 'Your best')}
+                </span>
+                <span className="font-semibold tabular-nums">{myResult ? fmtVol(myResult.volume) : tFallback('duelDetailSheet.noWorkoutYet', 'No workout yet')}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{opponentName ? `@${opponentName}` : tFallback('duelDetailSheet.rival', 'Rival')}</span>
-                <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : tFallback('duelDetailSheet.waiting', 'Waiting')}</span>
+                <span className="text-muted-foreground">
+                  {session && isChallenger ? tFallback('duelDetailSheet.theirSession', 'Their session') : theirLabel}
+                </span>
+                <span className="font-semibold tabular-nums">{theirResult ? fmtVol(theirResult.volume) : tFallback('duelDetailSheet.noWorkoutYet', 'No workout yet')}</span>
               </div>
+              {duel.status === 'active' && lead && (
+                <motion.p
+                  key={lead}
+                  initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`pt-1 text-xs font-bold ${lead === 'me' ? 'text-success' : lead === 'them' ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {lead === 'me'
+                    ? tFallback('duelDetailSheet.youLead', 'You lead')
+                    : lead === 'them'
+                      ? (session
+                          ? tFallback('duelDetailSheet.notYet', 'Not beaten yet')
+                          : tFallback('duelDetailSheet.theyLead', '{name} leads', { name: theirLabel }))
+                      : tFallback('duelDetailSheet.even', 'Even so far')}
+                </motion.p>
+              )}
             </div>
+          )}
+
+          {duel.status === 'active' && (
+            <p className="text-xs text-muted-foreground">
+              {session
+                ? (isChallenger
+                    ? tFallback('duelDetailSheet.sessionHint', 'Finish every set and lift more in total than their session. Your best workout counts automatically.')
+                    : tFallback('duelDetailSheet.sessionOpponentHint', '{name} is trying to beat your last workout. Nothing to do on your side.', { name: theirLabel }))
+                : tFallback('duelDetailSheet.autoScore', 'Your best workout before time runs out counts automatically. No need to submit.')}
+            </p>
           )}
 
           {/* The opponent answers here. The invite push says "Tap to accept or
@@ -270,20 +309,15 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
             </div>
           )}
 
-          {/* Submit — sends the newest workout logged since the duel was
-              accepted. The server scores it from the log itself. */}
-          {canSubmit && (
+          {canTrain && (
             <motion.button
               type="button"
               whileTap={tap}
-              onClick={handleSubmit}
-              disabled={!!busy || !latestLog}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
+              onClick={handleTrain}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
             >
-              {busy === 'submit' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {latestLog
-                ? tFallback('duelDetailSheet.submitLatest', 'Submit my latest workout')
-                : tFallback('duelDetailSheet.logToSubmit', 'Log a workout to submit')}
+              <Play className="w-4 h-4" />
+              {tFallback('duelDetailSheet.startWorkout', 'Start a workout')}
             </motion.button>
           )}
 
@@ -302,7 +336,9 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
           {/* Mirror — session template */}
           {duel.type === 'mirror' && duel.session_template?.exercises?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duelDetailSheet.sessionTemplate", "Session Template")}</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{session
+                ? tFallback('duelDetailSheet.sessionToBeat', 'Session to beat')
+                : tFallback("duelDetailSheet.sessionTemplate", "Session Template")}</p>
               <div className="space-y-1.5">
                 {duel.session_template.exercises.map((ex, i) => (
                   <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 text-xs">

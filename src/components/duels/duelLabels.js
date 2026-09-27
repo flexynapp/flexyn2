@@ -17,7 +17,10 @@ const STATUS_NAME = {
   expired:   'Expired',
 };
 
-export function duelTypeName(type, tFallback) {
+export function duelTypeName(type, tFallback, mode) {
+  // A session duel is a Mirror against the opponent's last workout, started
+  // without them (20260927180000). It reads as its own kind.
+  if (mode === 'session') return tFallback('duel.type.session.name', 'Session Duel');
   const key = type in TYPE_NAME ? type : 'open';
   return tFallback(`duel.type.${key}.name`, TYPE_NAME[key]);
 }
