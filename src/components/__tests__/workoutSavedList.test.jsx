@@ -30,7 +30,7 @@ const tFallback = (key, english) => english;
 
 // What the list's OWN query returns.
 let listRows = [];
-const filterSpy = vi.fn(async () => listRows);
+const listSpy = vi.fn(async () => listRows);
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('framer-motion', () => ({
@@ -43,10 +43,11 @@ vi.mock('@/lib/dateLocales', () => ({ getDateLocale: () => undefined }));
 vi.mock('@/lib/intl', () => ({ useNumberFormatter: () => (n) => String(n) }));
 vi.mock('@/api/db', () => ({
   db: {
-    entities: { WorkoutLog: { filter: (...a) => filterSpy(...a) } },
     auth: { me: async () => ({ include_bar_in_volume: false }) },
   },
 }));
+
+vi.mock('@/lib/data/workouts', () => ({ list: (...a) => listSpy(...a) }));
 
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 
@@ -66,7 +67,7 @@ const mount = (props = {}) => render(
 beforeEach(() => {
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   listRows = [log()];
-  filterSpy.mockClear();
+  listSpy.mockClear();
 });
 afterEach(cleanup);
 
@@ -102,8 +103,8 @@ describe('the cache entry it reads is its own', () => {
 
   it('still asks for 500 — the limit it always meant to use', async () => {
     mount();
-    await waitFor(() => expect(filterSpy).toHaveBeenCalled());
-    expect(filterSpy.mock.calls[0][2]).toBe(500);
+    await waitFor(() => expect(listSpy).toHaveBeenCalled());
+    expect(listSpy.mock.calls[0][1]).toBe(500);
   });
 });
 

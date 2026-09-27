@@ -1,7 +1,7 @@
 // Every screen that reads or writes workout_logs now goes through
 // src/lib/data/workouts.js. These tests pin the exact statements that module
-// sends, through the real db.js underneath it, so the next step (replacing
-// db.entities inside this module) has to reproduce them exactly.
+// sends. They were written against the old db.js client and pass unchanged
+// on ownedRows, which is the proof the swap sent the same statements.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -179,9 +179,9 @@ describe('workouts writes', () => {
 });
 
 describe('one door to workout_logs', () => {
-  // Only this module may use the old entity for workout logs. A new call site
-  // elsewhere would skip whatever this module does next.
-  it('no other source file touches db.entities.WorkoutLog', () => {
+  // The old entity client is gone from workout logs everywhere, this module
+  // included.
+  it('no source file touches db.entities.WorkoutLog', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -190,7 +190,6 @@ describe('one door to workout_logs', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'workouts.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*WorkoutLog\b/.test(code)) offenders.push(rel);
       }

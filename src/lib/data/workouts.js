@@ -1,15 +1,17 @@
 // src/lib/data/workouts.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { ownedRows } from './ownedRows';
 import { containsProfanity } from '@/lib/profanityFilter';
+
+const rows = ownedRows('workout_logs');
 
 /** List the current user's workout logs, newest first. */
 export const list = (userId, limit = 50) =>
-  db.entities.WorkoutLog.filter({ user_id: userId }, '-date', limit);
+  rows.filter({ user_id: userId }, '-date', limit);
 
 /** The current user's workout logs on one calendar day (yyyy-MM-dd). */
 export const listForDate = (userId, date, limit = 50) =>
-  db.entities.WorkoutLog.filter({ user_id: userId, date }, '-date', limit);
+  rows.filter({ user_id: userId, date }, '-date', limit);
 
 /**
  * Just the `date` of each log on or after `since` (yyyy-MM-dd). For callers
@@ -31,7 +33,7 @@ export async function listDatesSince(userId, since) {
 
 /** Fetch a workout log by id. */
 export const get = (id) =>
-  db.entities.WorkoutLog.get(id);
+  rows.get(id);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -51,7 +53,7 @@ function assertNoTextProfanity(fields) {
  */
 export const create = (data) => {
   assertNoTextProfanity({ notes: data.notes });
-  return db.entities.WorkoutLog.create(data).catch(async (error) => {
+  return rows.create(data).catch(async (error) => {
     const existing = await findSavedDuplicate(error, data.idempotency_key);
     if (existing) return existing;
     throw error;
@@ -80,12 +82,12 @@ async function findSavedDuplicate(error, idempotencyKey) {
 /** Update a workout log by id. */
 export const update = (id, data) => {
   if (data.notes !== undefined) assertNoTextProfanity({ notes: data.notes });
-  return db.entities.WorkoutLog.update(id, data);
+  return rows.update(id, data);
 };
 
 /** Delete a workout log by id. */
 export const remove = (id) =>
-  db.entities.WorkoutLog.delete(id);
+  rows.remove(id);
 
 /**
  * Best-effort: reconcile any recent workout_logs that landed on the
