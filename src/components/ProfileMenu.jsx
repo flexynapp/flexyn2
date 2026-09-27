@@ -4,7 +4,7 @@ import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { requestOpenJournal } from '@/lib/journalOverlay';
-import { LogOut, User, Trash2, Settings, ChevronRight, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
+import { LogOut, User, Settings, ChevronRight, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { handle } from '@/lib/userDisplay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
@@ -610,15 +610,10 @@ export default function ProfileMenu({ compact = false, hideTrigger = false } = {
                       <LogOut className="w-4 h-4" />
                       {t('profile.signOut')}
                     </button>
-                    <div className="border-t border-border">
-                      <button
-                        onClick={() => { setOpen(false); setDeleteConfirmText(''); setDeleteOpen(true); }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        {t('profile.deleteAccount')}
-                      </button>
-                    </div>
+                    {/* Delete account lives in Settings › Account now, one
+                        home for it on every screen size. This component still
+                        owns the confirm dialog; Settings opens it through
+                        requestProfilePanel('deleteAccount'). */}
                   </motion.div>
             ) : (
               <button
