@@ -10,13 +10,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const createEntity = vi.fn();
-vi.mock('@/api/db', () => ({
-  db: { entities: { WorkoutTemplate: {
+// The statements are pinned in templatesStatements.test.js; here the row
+// helper is faked so the assertions read what the module handed it.
+vi.mock('../ownedRows', () => ({
+  ownedRows: () => ({
     create: (...a) => createEntity(...a),
     filter: vi.fn(() => Promise.resolve([])),
     update: vi.fn(() => Promise.resolve({})),
-    delete: vi.fn(() => Promise.resolve(true)),
-  } } },
+    remove: vi.fn(() => Promise.resolve(true)),
+  }),
 }));
 vi.mock('@/api/supabaseClient', () => ({
   supabase: { from: vi.fn(), rpc: vi.fn(() => Promise.resolve({})) },
