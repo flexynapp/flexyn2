@@ -67,7 +67,7 @@ function Harness({ logs, onStart, onHome = () => {} }) {
   );
 }
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 
 describe('ComebackScreen — both buttons lead somewhere', () => {
   it('shows after a long absence', () => {

@@ -35,6 +35,7 @@ function daysAgoISO(days) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   sessionStorage.clear();
 });
 
@@ -174,12 +175,14 @@ describe('useComebackProtocol — dismiss() takes the screen down', () => {
     expect(result.current.triggered).toBe(false);
   });
 
-  it('writes the dismissal flag scoped to the user', () => {
+  it('writes the dismissal to localStorage, scoped to the user and keyed to the last session', () => {
+    const log = logHoursAgo(24 * 10);
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [], userId: 'user-a',
+      workoutLogs: [log], userId: 'user-a',
     }));
     act(() => { result.current.dismiss(); });
-    expect(sessionStorage.getItem('flexyn.comebackDismissed.user-a')).toBe('true');
+    expect(localStorage.getItem('flexyn.comebackDismissed.user-a'))
+      .toBe(new Date(log.created_at).toISOString());
   });
 
   // One tab, two accounts: signing out and back in used to inherit the
@@ -200,11 +203,11 @@ describe('useComebackProtocol — dismiss() takes the screen down', () => {
     expect(b.current.triggered).toBe(true);
   });
 
-  it('survives a sessionStorage write failure (private mode / quota)', () => {
+  it('survives a storage write failure (private mode / quota)', () => {
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
-    const { result } = renderHook(() => useComebackProtocol({ workoutLogs: [] }));
+    const { result } = renderHook(() => useComebackProtocol({ workoutLogs: [logHoursAgo(24 * 10)] }));
     expect(() => act(() => { result.current.dismiss(); })).not.toThrow();
     setItemSpy.mockRestore();
   });
@@ -218,6 +221,66 @@ describe('useComebackProtocol — picks the most recent session', () => {
     const { result } = renderHook(() => useComebackProtocol({
       workoutLogs: [logHoursAgo(24 * 100), logHoursAgo(5)],
       hasActiveSession: false,
+    }));
+    expect(result.current.triggered).toBe(false);
+  });
+});
+
+// THE "ODD TIMES" BUG (2026-09-27). The dismissal lived in sessionStorage,
+// which an installed PWA loses every time the OS kills and relaunches it.
+// "Go to my dashboard" therefore held only until the next relaunch, and the
+// screen reappeared on the next visit to the Workout tab, for the same
+// absence the user had already answered. A remount with sessionStorage
+// cleared is exactly what a relaunch looks like to this hook.
+describe('useComebackProtocol — one screen per absence, across relaunches', () => {
+  it('stays dismissed after an app relaunch (fresh sessionStorage)', () => {
+    const logs = [logHoursAgo(24 * 10)];
+    const first = renderHook(() => useComebackProtocol({ workoutLogs: logs, userId: 'u' }));
+    expect(first.result.current.triggered).toBe(true);
+    act(() => { first.result.current.dismiss(); });
+    first.unmount();
+
+    sessionStorage.clear();
+    const relaunched = renderHook(() => useComebackProtocol({ workoutLogs: logs, userId: 'u' }));
+    expect(relaunched.result.current.triggered).toBe(false);
+  });
+
+  it('re-arms for the NEXT absence once the user has trained again', () => {
+    const old = logHoursAgo(24 * 20);
+    const first = renderHook(() => useComebackProtocol({ workoutLogs: [old], userId: 'u' }));
+    act(() => { first.result.current.dismiss(); });
+    first.unmount();
+
+    // Trained 10 days ago, after the dismissed absence, then went away again.
+    const again = renderHook(() => useComebackProtocol({
+      workoutLogs: [old, logHoursAgo(24 * 10)], userId: 'u',
+    }));
+    expect(again.result.current.triggered).toBe(true);
+  });
+});
+
+describe('useComebackProtocol — cardio counts as training', () => {
+  it('a run yesterday means no comeback screen, however old the last lift', () => {
+    const { result } = renderHook(() => useComebackProtocol({
+      workoutLogs: [logHoursAgo(24 * 30)],
+      cardioLogs: [logHoursAgo(24)],
+    }));
+    expect(result.current.triggered).toBe(false);
+  });
+
+  it('measures the absence from the newer of the two', () => {
+    const { result } = renderHook(() => useComebackProtocol({
+      workoutLogs: [logHoursAgo(24 * 30)],
+      cardioLogs: [logHoursAgo(24 * 5)],
+    }));
+    expect(result.current.triggered).toBe(true);
+    expect(result.current.daysSince).toBe(5);
+  });
+
+  it('cardio alone does not make a brand-new lifter a returning one', () => {
+    const { result } = renderHook(() => useComebackProtocol({
+      workoutLogs: [],
+      cardioLogs: [logHoursAgo(24 * 30)],
     }));
     expect(result.current.triggered).toBe(false);
   });

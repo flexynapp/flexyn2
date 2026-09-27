@@ -5,9 +5,11 @@
 //
 // Rules:
 //   • Triggers only after MORE THAN 72 HOURS away (kegan, 2026-08-16)
-//   • Only triggers once per return window (stored in sessionStorage)
+//   • Only triggers once per return window (stored in localStorage, keyed to
+//     the session the absence is measured from)
 //   • Never triggers if the user has a paused/active session
 //   • Requires at least 1 workout log to confirm the user isn't brand new
+//   • Cardio counts as training: a run yesterday is not an absence
 //   • Clears after the user completes or dismisses the comeback screen
 
 import { useCallback, useMemo, useState } from 'react';
@@ -16,17 +18,27 @@ import { differenceInCalendarDays, endOfDay, isSameDay } from 'date-fns';
 const INACTIVITY_THRESHOLD_HOURS = 72;
 
 // Per-device dismissal, namespaced per the `flexyn.<feature>.<userId>`
-// convention. It used to be one global `fn_comeback_dismissed` key, which
-// meant signing out and back in as someone else in the same tab inherited
-// the previous account's dismissal — the second user's comeback screen was
-// suppressed by a decision they never made.
+// convention (a single global key once let one account's dismissal
+// suppress the next account's screen in the same tab).
+//
+// The value is the instant of the session the absence is measured FROM,
+// and it lives in localStorage. It used to be the string 'true' in
+// sessionStorage, and that is why the screen came back at odd times:
+// sessionStorage dies with the tab, and an installed PWA gets a fresh one
+// every time iOS or Android kills and relaunches it. So "Go to my
+// dashboard" held only until the app was next swiped away, and the next
+// visit to the Workout tab, hours or days later, said "Welcome back" again
+// to someone who had already answered it. Keying on the last session
+// instead of a boolean is what makes "once per return window" literal: the
+// dismissal holds across relaunches for this absence, and training again
+// moves the anchor, so the NEXT absence gets its own screen.
 function storageKey(userId) {
   return `flexyn.comebackDismissed.${userId || 'anon'}`;
 }
 
-function readDismissed(userId) {
-  try { return sessionStorage.getItem(storageKey(userId)) === 'true'; }
-  catch { return false; }
+function readDismissedAnchor(userId) {
+  try { return localStorage.getItem(storageKey(userId)); }
+  catch { return null; }
 }
 
 // Parse a 'YYYY-MM-DD' date string as a LOCAL calendar date, not UTC.
@@ -72,11 +84,12 @@ function lastTrainedAt(log) {
 /**
  * @param {Object} params
  * @param {Array}  params.workoutLogs  — all workout logs
+ * @param {Array}  params.cardioLogs   — cardio logs; any training ends an absence
  * @param {boolean} params.hasActiveSession — true if a paused session exists
  * @param {string} params.userId — scopes the dismissal flag to this account
  * @returns {{ triggered: boolean; daysSince: number; dismiss: () => void }}
  */
-export function useComebackProtocol({ workoutLogs = [], hasActiveSession = false, userId } = {}) {
+export function useComebackProtocol({ workoutLogs = [], cardioLogs = [], hasActiveSession = false, userId } = {}) {
   // Dismissal has to be REACT STATE, not sessionStorage alone.
   //
   // This was the bug that made both buttons on the screen dead. `dismiss()`
@@ -99,35 +112,44 @@ export function useComebackProtocol({ workoutLogs = [], hasActiveSession = false
     // Not enough history to determine comeback
     if (workoutLogs.length === 0) return { triggered: false, daysSince: 0 };
 
-    // Already dismissed this return window. Read inside the memo so a late
-    // `userId` (auth resolves after first render) re-checks the right key.
-    if (readDismissed(userId)) return { triggered: false, daysSince: 0 };
-
     // Most recent session across the whole list rather than logs[0]. The
     // caller sorts by `-date`, but that is a DATE sort with arbitrary
     // ordering inside a day, and an unsorted list would otherwise let an
     // ancient log claim a months-long absence.
+    //
+    // Cardio is in the scan because it is training. Measuring from lifts
+    // alone greeted someone who ran yesterday with "It's been 12 days."
+    // The comeback SESSION is still built from lifts only (ComebackScreen);
+    // only the question "has this person been away?" reads both.
     let latest = null;
-    for (const log of workoutLogs) {
+    for (const log of [...workoutLogs, ...cardioLogs]) {
       const t = lastTrainedAt(log);
       if (t && (!latest || t.instant > latest.instant)) latest = t;
     }
     if (!latest) return { triggered: false, daysSince: 0 };
 
+    // Already dismissed for THIS absence. Read inside the memo so a late
+    // `userId` (auth resolves after first render) re-checks the right key.
+    const anchor = latest.instant.toISOString();
+    if (readDismissedAnchor(userId) === anchor) return { triggered: false, daysSince: 0, anchor };
+
     const now = new Date();
     const hoursSince = (now.getTime() - latest.instant.getTime()) / 3_600_000;
     const daysSince = differenceInCalendarDays(now, latest.day);
 
-    return { triggered: hoursSince > INACTIVITY_THRESHOLD_HOURS, daysSince };
+    return { triggered: hoursSince > INACTIVITY_THRESHOLD_HOURS, daysSince, anchor };
     // `dismissTick` is not read in the body on purpose: it is the recompute
     // signal for dismiss(), which changes no other input. Removing it from
     // this list restores the dead-button bug described above.
-  }, [workoutLogs, hasActiveSession, userId, dismissTick]);
+  }, [workoutLogs, cardioLogs, hasActiveSession, userId, dismissTick]);
 
+  const anchor = result.anchor;
   const dismiss = useCallback(() => {
-    try { sessionStorage.setItem(storageKey(userId), 'true'); } catch {}
+    if (anchor) {
+      try { localStorage.setItem(storageKey(userId), anchor); } catch {}
+    }
     setDismissTick((t) => t + 1);
-  }, [userId]);
+  }, [userId, anchor]);
 
-  return { ...result, dismiss };
+  return { triggered: result.triggered, daysSince: result.daysSince, dismiss };
 }
