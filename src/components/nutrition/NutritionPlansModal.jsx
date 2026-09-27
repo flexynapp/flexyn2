@@ -339,7 +339,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
 
   const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
   // Use the SAME goal-driven calorie target the rest of the nutrition UI shows
-  // (CalorieTopBar / MacroNutrientBox via calculateDailyValues). Onboarding
+  // (NutritionFocal / MacroNutrientBox via calculateDailyValues). Onboarding
   // saves the goal/activity inputs, not a stored calorie number, so reading a
   // `daily_calorie_target` field left plans stuck at the 2000 kcal base.
   const targetCalories = useNutritionTargets(userProfile)?.calories || null;

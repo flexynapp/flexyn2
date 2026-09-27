@@ -1,8 +1,9 @@
 // src/lib/heroChrome.js
 //
 // The hero carousel's shared CHROME — the gradient maths, the watermark
-// geometry and the accent lookup that the Dashboard hero, the Progress
-// stat carousel and the Nutrition shortcuts carousel all paint with.
+// geometry and the accent lookup the Dashboard hero paints with. (The
+// Progress and Nutrition carousels that also used it were replaced by a
+// focal goal on 2026-09-27; see src/components/glance/.)
 //
 // All of this lived privately inside Dashboard.jsx / HeroSlideshow.jsx while
 // Progress and Nutrition carried a second, older treatment (two blurred

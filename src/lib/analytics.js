@@ -52,6 +52,12 @@ export const EVENTS = Object.freeze({
   REFERRAL_CLAIMED:     'referral_claimed',
   ONBOARDING_STEP:      'onboarding_step',
   PUSH_ENABLED:         'push_enabled',
+  // The stat strip and the one next step that replaced the page carousels.
+  // Each carries { page, id } only: which page and which tile or feature.
+  GLANCE_TILE_OPENED:   'glance_tile_opened',
+  NEXT_STEP_SHOWN:      'next_step_shown',
+  NEXT_STEP_OPENED:     'next_step_opened',
+  NEXT_STEP_DISMISSED:  'next_step_dismissed',
 });
 const KNOWN = new Set(Object.values(EVENTS));
 

@@ -1554,7 +1554,7 @@ export default function Dashboard() {
       //
       // Gone from here: MacroRingWidget, CalorieProgressWidget and
       // HydrationRing. All three duplicated the Nutrition tab, which owns
-      // MacroNutrientBox, CalorieTopBar and WaterTracker — no feature lost.
+      // MacroNutrientBox, NutritionFocal and WaterTracker — no feature lost.
       // Sleep / mood / steps are NOT duplicated anywhere, which is why they
       // stayed on the page rather than going with them.
       case 'recovery': return (

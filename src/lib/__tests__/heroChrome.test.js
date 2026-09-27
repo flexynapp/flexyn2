@@ -34,30 +34,10 @@ describe('the watermark keeps its corner', () => {
   });
 });
 
-describe('nothing floats over the hero', () => {
-  const PAGES = ['src/pages/Progress.jsx', 'src/pages/Nutrition.jsx'];
-
-  it.each(PAGES)('%s has no absolutely-positioned control on the card', async (file) => {
-    const fs = await import('fs');
-    const src = fs.readFileSync(file, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')      // strip block comments
-      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '');  // and JSX comments
-    // The two shapes the arrow took across its two fixes. Either one
-    // returning means a control is floating over the watermark again.
-    expect(src, `${file} re-adds a centred floating control`).not.toMatch(/absolute end-3 top-1\/2/);
-    expect(src, `${file} re-adds a bottom-anchored floating control`).not.toMatch(/absolute end-3 bottom-3/);
-    expect(src, `${file} still imports the retired button`).not.toMatch(/HERO_NEXT_BUTTON/);
-  });
-
-  it.each(PAGES)('%s shares the hero height rather than pinning its own', async (file) => {
-    const fs = await import('fs');
-    const src = fs.readFileSync(file, 'utf8');
-    // Anchored to the slide container's padding: the tab bar's
-    // `min-h-[48px]` is the Apple HIG tap-target floor and unrelated.
-    expect(src, `${file} hardcodes its own hero height`).not.toMatch(/p-4 md:p-5 min-h-\[/);
-    expect(src).toMatch(/HERO_SLIDE_MIN_H/);
-  });
-});
+// 'nothing floats over the hero' lived here and pinned Progress and
+// Nutrition to the shared carousel chrome. Both pages dropped their carousel
+// for a focal goal (hero option D, 2026-09-27), so there is no hero card on
+// either for a control to float over.
 
 describe('the retired constant stays retired', () => {
   it('is no longer exported', async () => {

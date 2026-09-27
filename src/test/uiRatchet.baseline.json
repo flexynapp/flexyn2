@@ -3,7 +3,7 @@
   "$totals": {
     "purple": 67,
     "gradient": 30,
-    "backdropBlur": 79,
+    "backdropBlur": 75,
     "sparkles": 76,
     "heavyShadow": 57,
     "colouredShadow": 25,
@@ -109,8 +109,6 @@
       "src/pages/Gauntlet.jsx": 3,
       "src/pages/GymMap.jsx": 2,
       "src/pages/Legal.jsx": 1,
-      "src/pages/Nutrition.jsx": 2,
-      "src/pages/Progress.jsx": 2,
       "src/pages/PublicGymLanding.jsx": 1,
       "src/pages/PublicProfile.jsx": 1
     },
