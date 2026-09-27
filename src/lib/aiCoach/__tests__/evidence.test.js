@@ -11,7 +11,7 @@ import { generateWorkout } from '../workoutGenerator';
 import { buildCoachPlan, withEditedWorkout, evidenceForExercises } from '../planBuilder';
 
 const PROFILE = { weight_lbs: 190, gender: 'male', birthday: '1995-01-01' };
-const USER = { email: 'a@b.c' };
+const USER = { id: 'u1', email: 'a@b.c' };
 
 /** A log that gives Bench Press a real top set the generator can seed from. */
 const benchLog = (date = '2026-07-30') => ({

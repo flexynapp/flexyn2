@@ -506,16 +506,16 @@ export async function getRegimenCloneCount(regimenId) {
 /**
  * Feature 19: Check if the user has already cloned this regimen template.
  * Returns true if a row with `original_template_id = regimenId` and
- * `created_by = userEmail` already exists in their library.
+ * `user_id = userId` already exists in their library.
  */
-export async function hasClonedRegimen(regimenId, userEmail) {
-  if (!regimenId || !userEmail) return false;
+export async function hasClonedRegimen(regimenId, userId) {
+  if (!regimenId || !userId) return false;
   try {
     const { data, error } = await supabase
       .from('regimens')
       .select('id')
       .eq('original_template_id', regimenId)
-      .eq('created_by', userEmail)
+      .eq('user_id', userId)
       .limit(1);
     if (error) return false;
     return (data?.length ?? 0) > 0;

@@ -48,6 +48,9 @@ function parseSort(sort) {
   return { column: desc ? sort.slice(1) : sort, ascending: !desc };
 }
 
+/* Columns that scope a read to one person (see filter() below). */
+const OWNER_KEYS = ['user_id', 'created_by'];
+
 /* ── Build a reusable entity accessor ───────────────────────────────────── */
 // Per-table cache of columns the running DB schema doesn't have. The
 // write-path strip-and-retry (create/update below) drops any column that
@@ -112,6 +115,15 @@ function makeEntity(entityName) {
   return {
     /** filter(conditions, sort, limit) — conditions is a plain equality map */
     async filter(conditions = {}, sort, limit = 1000) {
+      // An owner key that arrives empty means "no user yet", never "anyone".
+      // The loop below skips nullish conditions, so without this a query for
+      // the signed-in user's rows would run unfiltered while auth loads and
+      // return every row the table's policies let the caller read.
+      for (const key of OWNER_KEYS) {
+        if (key in conditions && (conditions[key] === undefined || conditions[key] === null || conditions[key] === '')) {
+          return [];
+        }
+      }
       const { data, error } = await readQuery((from) => {
         let q = from.select('*');
         Object.entries(conditions).forEach(([k, v]) => {

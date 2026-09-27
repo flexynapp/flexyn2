@@ -24,7 +24,7 @@ vi.mock('@/api/supabaseClient', () => {
   };
 });
 
-const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct } = await import('@/lib/data/pastYou');
+const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct, pastYouBasis } = await import('@/lib/data/pastYou');
 const { isGuestAccount } = await import('@/lib/guestIdentity');
 
 beforeEach(() => { rpc.mockReset(); row = null; });
@@ -106,5 +106,19 @@ describe('helpers', () => {
   it('a guest who connected an account is not a guest, whatever the profile email says', () => {
     // user_profiles.email keeps the guest address after linking; the flag wins.
     expect(isGuestAccount({ is_anonymous: false, email: 'guest_x@flexyn.guest' })).toBe(false);
+  });
+});
+
+describe('pastYouBasis', () => {
+  it('names the starter target when there is no history', () => {
+    expect(pastYouBasis('gym', 10000, 0)).toBe('starter');
+  });
+  it('names the floor when a light average was raised to it', () => {
+    expect(pastYouBasis('gym', 5000, 4)).toBe('floor');
+    expect(pastYouBasis('cardio', 2500, 2)).toBe('floor');
+  });
+  it('names the real average above the floor', () => {
+    expect(pastYouBasis('gym', 5545, 4)).toBe('weeks');
+    expect(pastYouBasis('cardio', 2501, 1)).toBe('weeks');
   });
 });

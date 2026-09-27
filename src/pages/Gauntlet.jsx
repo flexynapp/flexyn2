@@ -271,7 +271,7 @@ export default function Gauntlet() {
 
   const { data: weekLogs = [] } = useQuery({
     queryKey: ['gauntlet-weekly-logs', user?.email, weeklyGauntlet?.id],
-    queryFn:  () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn:  () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
     enabled:  !!user?.email && !!weeklyGauntlet?.id && scoringSupported && attemptOpen,
     staleTime: 60_000,
   });

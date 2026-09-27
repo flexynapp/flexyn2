@@ -57,7 +57,7 @@ export default function CardioSavedList({ onSelectLog, search = '' }) {
     // route map and blanked most of the detail rows SILENTLY: DetailRow
     // returns null for a missing value rather than erroring.
     queryKey: cardioLogsKey(user?.email, 'savedList'),
-    queryFn: () => cardioData.listSummaries(user.email, 500),
+    queryFn: () => cardioData.listSummaries(user.id, 500),
     enabled: !!user?.email,
   });
 

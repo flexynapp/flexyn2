@@ -599,7 +599,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         userEmail: user?.email,
       }));
       // Check for PRs
-      const prior = await cardioData.listForPRs(user.email);
+      const prior = await cardioData.listForPRs(user.id);
       const priorOnly = prior.filter(l => l.id !== createdLog.id);
       const prs = detectNewPRs(createdLog, priorOnly);
       for (const pr of prs) {

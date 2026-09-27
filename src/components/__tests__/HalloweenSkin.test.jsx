@@ -45,4 +45,18 @@ describe('Halloween parts', () => {
     expect(el.className).toContain('pointer-events-none');
     expect(el.querySelectorAll('svg').length).toBeGreaterThan(10);
   });
+
+  it('flyover movers use a physical inset, since the lane itself mirrors in RTL', () => {
+    // .hw-motion is scaleX(-1) under [dir=rtl]. A start-0 inside it flips a
+    // second time: measured, the witch began 110px on screen and flew off
+    // the left edge in two seconds instead of crossing from the right.
+    on();
+    render(<SkinSlot name="Backdrop" />);
+    const movers = screen.getByTestId('halloween-backdrop').querySelectorAll('.hw-motion .hw-fly');
+    expect(movers.length).toBeGreaterThan(0);
+    for (const m of movers) {
+      expect(m.getAttribute('class')).toMatch(/\bleft-0\b/);
+      expect(m.getAttribute('class')).not.toMatch(/\bstart-0\b/);
+    }
+  });
 });

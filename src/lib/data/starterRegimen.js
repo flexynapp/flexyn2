@@ -653,7 +653,7 @@ export async function ensureStarterRegimen({ user, profile } = {}) {
   // read hiccup falls through to creation — better than silently no-op'ing.
   let existing = [];
   try {
-    existing = await db.entities.Regimen.filter({ created_by: user.email }, '-created_date', 1);
+    existing = await db.entities.Regimen.filter({ user_id: user.id }, '-created_date', 1);
   } catch {
     // Treat read failure as "no regimens"; the create() path has its own
     // strip-and-retry resilience.

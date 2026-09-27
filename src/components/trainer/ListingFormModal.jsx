@@ -18,7 +18,7 @@ import { createListing, updateListing } from '@/lib/data/trainerMarket';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
-export default function ListingFormModal({ open, onClose, listing, trainerId, userEmail, onSaved }) {
+export default function ListingFormModal({ open, onClose, listing, trainerId, onSaved }) {
   const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
@@ -37,9 +37,9 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
   const savingRef = useRef(false);
 
   const { data: regimens = [] } = useQuery({
-    queryKey: ['regimens', userEmail],
-    queryFn: () => db.entities.Regimen.filter({ created_by: userEmail }),
-    enabled: !!userEmail,
+    queryKey: ['regimens', trainerId],
+    queryFn: () => db.entities.Regimen.filter({ user_id: trainerId }),
+    enabled: !!trainerId,
   });
 
   const priceCents = dollarsToCents(priceInput);

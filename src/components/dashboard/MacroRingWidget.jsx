@@ -82,6 +82,9 @@ export default function MacroRingWidget({ userProfile = {} }) {
     staleTime: 5 * 60_000,
   });
   const logEmail = authEmail || user?.email || userProfile?.email || null;
+  // Rows are read by owner id: an email can change (a guest linking an
+  // address), and rows written after that carry the new one.
+  const logUserId = user?.id || userProfile?.id || null;
 
   const { data: todayLogs = [] } = useQuery({
     // Shared key with src/pages/Nutrition.jsx + CalorieProgressWidget so all
@@ -89,15 +92,15 @@ export default function MacroRingWidget({ userProfile = {} }) {
     // selecting the suffixed names 400'd the whole query and read as empty.
     queryKey: ['nutritionLogs', logEmail, today],
     queryFn: async () => {
-      if (!logEmail) return [];
+      if (!logUserId) return [];
       const { data } = await supabase
         .from('nutrition_logs')
         .select('calories, protein, carbs, fat')
-        .eq('created_by', logEmail)
+        .eq('user_id', logUserId)
         .eq('date', today);
       return data || [];
     },
-    enabled: !!logEmail,
+    enabled: !!logEmail && !!logUserId,
     staleTime: 60_000,
     refetchInterval: 120_000,
   });

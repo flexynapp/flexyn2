@@ -1268,14 +1268,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // one is a privacy decision rather than a UI one (the same reasoning as
   // useHeroContests below).
   const { data: heroLogs = [] } = useQuery({
-    queryKey: ['profileLifts', email],
+    queryKey: ['profileLifts', user?.id],
     queryFn: async () => {
-      if (!email) return [];
+      if (!user?.id) return [];
       try {
-        return await db.entities.WorkoutLog.filter({ created_by: email }, '-date', 500);
+        return await db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 500);
       } catch { return []; }
     },
-    enabled: isSelf && !!email,
+    enabled: isSelf && !!user?.id,
     staleTime: 5 * 60_000,
   });
   // Both derived from the same logs on purpose — a server-side streak counter
@@ -2162,7 +2162,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         */}
         <div className="peer">
           <ProfileLiftStats
-            userEmail={email}
+            userId={isSelf ? user?.id : null}
             longestStreak={isSelf
               ? user?.longest_workout_streak
               : targetUser?.longest_workout_streak}

@@ -517,7 +517,7 @@ export default function Progress() {
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'progress'),
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   // The regimens query is gone (2026-08-10). Its ONLY consumer was the
@@ -538,12 +538,12 @@ export default function Progress() {
   });
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'progress'),
-    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   const { data: rawBodyMetrics = [] } = useQuery({
     queryKey: ['bodyMetrics', user?.email],
-    queryFn: () => db.entities.BodyMetric.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => db.entities.BodyMetric.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 

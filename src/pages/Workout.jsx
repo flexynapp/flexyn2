@@ -697,25 +697,25 @@ export default function Workout() {
 
   const { data: rawRegimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }),
     enabled: !!user?.email,
   });
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'workout'),
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'workout'),
-    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 100),
+    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', 100),
     enabled: !!user?.email,
   });
 
   const { data: rawGoals = [] } = useQuery({
     queryKey: ['goals', user?.email],
-    queryFn: () => db.entities.Goal.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Goal.filter({ user_id: user.id }),
     enabled: !!user?.email,
   });
 

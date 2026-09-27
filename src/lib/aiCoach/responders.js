@@ -74,22 +74,22 @@ function classifyExercise(name) {
   return null;
 }
 
-async function _fetchRecentWorkouts(userEmail, days = 14) {
-  if (!userEmail) return [];
+async function _fetchRecentWorkouts(userId, days = 14) {
+  if (!userId) return [];
   const since = subDays(new Date(), days);
   try {
-    const all = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 200);
+    const all = await db.entities.WorkoutLog.filter({ user_id: userId }, '-date', 200);
     return (all || []).filter(w => { const d = parseLogDate(w.date); return d && d >= since; });
   } catch {
     return [];
   }
 }
 
-async function _fetchRecentCardio(userEmail, days = 14) {
-  if (!userEmail) return [];
+async function _fetchRecentCardio(userId, days = 14) {
+  if (!userId) return [];
   const since = subDays(new Date(), days);
   try {
-    const all = await db.entities.CardioLog.filter({ created_by: userEmail }, '-date', 200);
+    const all = await db.entities.CardioLog.filter({ user_id: userId }, '-date', 200);
     return (all || []).filter(l => { const d = parseLogDate(l.date); return d && d >= since; });
   } catch {
     return [];
@@ -113,7 +113,7 @@ async function _fetchProfile(userId) {
 
 async function whatToTrain({ user, t, language }) {
   const T = asT(t);
-  const workouts = await _fetchRecentWorkouts(user?.email, 7);
+  const workouts = await _fetchRecentWorkouts(user?.id, 7);
   if (workouts.length === 0) {
     return T('coach.reply.train.none', [
       "👋 Looks like you haven't logged any workouts in the last 7 days.",
@@ -191,9 +191,9 @@ async function whatToTrain({ user, t, language }) {
 async function progressCheck({ user, t, language }) {
   const T = asT(t);
   const [thisWeek, lastWeek, profile] = await Promise.all([
-    _fetchRecentWorkouts(user?.email, 7),
+    _fetchRecentWorkouts(user?.id, 7),
     (async () => {
-      const all = await _fetchRecentWorkouts(user?.email, 14);
+      const all = await _fetchRecentWorkouts(user?.id, 14);
       const cutoff = subDays(new Date(), 7);
       return all.filter(w => { const d = parseLogDate(w.date); return d && d < cutoff; });
     })(),
@@ -261,7 +261,7 @@ async function progressCheck({ user, t, language }) {
 
 async function shouldIncrease({ user, t, language }) {
   const T = asT(t);
-  const workouts = await _fetchRecentWorkouts(user?.email, 21);
+  const workouts = await _fetchRecentWorkouts(user?.id, 21);
   if (workouts.length < 3) {
     return T('coach.reply.overload.needData',
       "I need at least 3 sessions of recent data to give you a real answer. Log a few workouts first.");
@@ -338,7 +338,7 @@ async function shouldIncrease({ user, t, language }) {
 
 async function soreness({ user, t, language }) {
   const T = asT(t);
-  const recent = await _fetchRecentWorkouts(user?.email, 3);
+  const recent = await _fetchRecentWorkouts(user?.id, 3);
   const last = recent[0];
   if (!last) {
     return T('coach.reply.sore.noTraining',
@@ -372,7 +372,7 @@ async function soreness({ user, t, language }) {
 
 async function consistency({ user, t, language }) {
   const T = asT(t);
-  const last30 = await _fetchRecentWorkouts(user?.email, 30);
+  const last30 = await _fetchRecentWorkouts(user?.id, 30);
   const days = new Set(last30.map(w => w.date));
   const ratio = days.size / 30;
 
@@ -399,7 +399,7 @@ async function consistency({ user, t, language }) {
 async function prsResponder({ user, t, language }) {
   const T = asT(t);
   // Personal records by exercise: max single-set weight × reps
-  const all = await _fetchRecentWorkouts(user?.email, 365);
+  const all = await _fetchRecentWorkouts(user?.id, 365);
   if (all.length === 0) return T('coach.reply.prs.none',
       "No workouts logged yet. Log a few sessions and I'll surface your PRs.");
 
@@ -439,7 +439,7 @@ async function prsResponder({ user, t, language }) {
 
 async function weakAreas({ user, t, language }) {
   const T = asT(t);
-  const last14 = await _fetchRecentWorkouts(user?.email, 14);
+  const last14 = await _fetchRecentWorkouts(user?.id, 14);
   const tally = { chest: 0, back: 0, shoulders: 0, arms: 0, legs: 0, core: 0 };
   for (const w of last14) {
     for (const ex of w.exercises || []) {
@@ -470,7 +470,7 @@ async function weakAreas({ user, t, language }) {
 
 async function cardioSuggest({ user, t, language }) {
   const T = asT(t);
-  const cardio = await _fetchRecentCardio(user?.email, 7);
+  const cardio = await _fetchRecentCardio(user?.id, 7);
   const totalSec = cardio.reduce((s, c) => s + (Number(c.duration_seconds) || 0), 0);
   const totalMin = Math.round(totalSec / 60);
 
@@ -538,10 +538,10 @@ async function hydration({ t } = {}) {
 
 async function goalStatus({ user, t, language }) {
   const T = asT(t);
-  if (!user?.email) return T('coach.reply.goals.signIn',
+  if (!user?.id) return T('coach.reply.goals.signIn',
       "Sign in to see your goals.");
   try {
-    const goals = await db.entities.Goal.filter({ created_by: user.email }, '-created_date', 50).catch(() => []);
+    const goals = await db.entities.Goal.filter({ user_id: user.id }, '-created_date', 50).catch(() => []);
     const active = goals.filter(g => g.status !== 'completed');
     if (active.length === 0) {
       return T('coach.reply.goals.none',
@@ -675,7 +675,7 @@ async function recoveryCheck({ user, t, language }) {
   // a recovery score on the same heuristic the Dashboard surfaces use.
   const [recent, latestWorkout] = await Promise.all([
     listRecentSleepLogs(7).catch(() => []),
-    _fetchRecentWorkouts(user?.email, 14).then(arr => arr?.[0]).catch(() => null),
+    _fetchRecentWorkouts(user?.id, 14).then(arr => arr?.[0]).catch(() => null),
   ]);
 
   const todays = recent[recent.length - 1] || null;
@@ -851,12 +851,12 @@ async function _safe(fn) {
 /** Same, for a db entity that a test may not have mocked. Reading
  *  `db.entities.X.filter` on an unmocked entity throws SYNCHRONOUSLY, which a
  *  trailing `.catch()` on the call never sees — so the guard has to be here. */
-async function _safeEntity(name, userEmail, limit) {
-  if (!userEmail) return [];
+async function _safeEntity(name, userId, limit) {
+  if (!userId) return [];
   try {
     const entity = db?.entities?.[name];
     if (typeof entity?.filter !== 'function') return [];
-    return (await entity.filter({ created_by: userEmail }, '-date', limit)) || [];
+    return (await entity.filter({ user_id: userId }, '-date', limit)) || [];
   } catch { return []; }
 }
 
@@ -999,8 +999,8 @@ export async function buildCoachContext({
   };
 
   const [workouts, cardio, profileRow] = await Promise.all([
-    _fetchRecentWorkouts(user?.email, 365).catch(() => []),
-    _fetchRecentCardio(user?.email, 14).catch(() => []),
+    _fetchRecentWorkouts(user?.id, 365).catch(() => []),
+    _fetchRecentCardio(user?.id, 14).catch(() => []),
     _fetchProfile(user?.id).catch(() => null),
   ]);
 
@@ -1019,8 +1019,8 @@ export async function buildCoachContext({
     _safe(() => listRecentSleepLogs(14)),
     _safe(() => listRecentMoodLogs(14)),
     _safe(() => listRecentStepLogs(14)),
-    _safeEntity('NutritionLog', user?.email, 200),
-    _safeEntity('BodyMetric', user?.email, 60),
+    _safeEntity('NutritionLog', user?.id, 200),
+    _safeEntity('BodyMetric', user?.id, 60),
   ]);
 
   try {

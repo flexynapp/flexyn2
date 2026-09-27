@@ -3,8 +3,8 @@ import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-export const list = (email) =>
-  db.entities.Regimen.filter({ created_by: email }, '-created_date');
+export const list = (userId) =>
+  db.entities.Regimen.filter({ user_id: userId }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -81,48 +81,4 @@ export const copyTemplate = async (original, user) => {
   // bypasses RLS (direct cross-user update is rejected by Postgres policies).
   await supabase.rpc('increment_copy_count', { p_table: 'regimens', p_id: original.id }).catch(() => {});
   return copy;
-};
-
-/**
- * Cascade-purge regimens for a deleted account, EXCEPT public templates
- * that have been copied by other users — those are tombstoned (kept as
- * rows but stripped of authorship + hidden from new copies) so that any
- * existing copies still resolve `original_template_id` cleanly.
- *
- * Without this distinction, deleting an account that had popular public
- * templates left every clone with a dangling original_template_id, and
- * any UI that fetched the original (for credit / reporting / "see new
- * version") would 404 forever.
- */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const batch = await db.entities.Regimen.filter({ created_by: email }).catch(() => []);
-  if (!batch || batch.length === 0) return;
-
-  await Promise.all(batch.map(async (r) => {
-    // Public template with copies → tombstone, don't delete.
-    // - is_public=false so it stops appearing in template listings.
-    // - name prefixed [Deleted account] so any UI that still shows it
-    //   gives the user clear context.
-    // - description cleared so deleted user's words don't linger.
-    // - copy_count preserved so historical popularity is intact.
-    if (r.is_public && (r.copy_count || 0) > 0) {
-      try {
-        await db.entities.Regimen.update(r.id, {
-          is_public:   false,
-          name:        '[Deleted account] ' + (r.name?.slice(0, 80) || 'Regimen'),
-          description: '',
-        });
-      } catch (err) {
-        console.warn('[regimens] tombstone failed for', r.id, err);
-      }
-      return;
-    }
-    // Private OR uncopied public template → safe to delete entirely.
-    try {
-      await db.entities.Regimen.delete(r.id);
-    } catch (err) {
-      console.warn('[regimens] delete failed for', r.id, err);
-    }
-  }));
 };

@@ -87,3 +87,17 @@ export function withReason(error) {
 export function ghostBoostPct(level) {
   return Math.max(0, (Number(level) || 1) - 1) * 4;
 }
+
+/**
+ * The lowest baseline the server will set (half the starter target): roughly
+ * one light real session. Mirrors past_you_plan in migration 20260927160000,
+ * which floors a sandbagged average here so a tiny week cannot farm a win.
+ */
+export const PAST_YOU_BASELINE_FLOOR = { gym: 5000, cardio: 2500 };
+
+/** Which sentence explains where the target came from. */
+export function pastYouBasis(rivalType, baseline, weeks) {
+  if (!(weeks > 0)) return 'starter';
+  const floor = PAST_YOU_BASELINE_FLOOR[rivalType === 'cardio' ? 'cardio' : 'gym'];
+  return Number(baseline) <= floor ? 'floor' : 'weeks';
+}
