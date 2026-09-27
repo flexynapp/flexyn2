@@ -14,14 +14,14 @@
 //   sender_email     TEXT
 //   conversation_id  UUID
 
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import { supabase } from '@/api/supabaseClient';
 import { getProfile } from '@/api/profileCache';
 import { isPollVote } from '@/lib/dmPolls';
 import { reportError } from '@/lib/reportError';
 
-const conv = () => db.entities.HubConversation;
-const msg  = () => db.entities.HubMessage;
+const conv = () => ownedRows('hub_conversations');
+const msg  = () => ownedRows('hub_messages');
 
 // ── Per-conversation last-read tracking ───────────────────────────────────────
 // Stored in localStorage so the badge clears instantly when a conversation is
@@ -532,11 +532,11 @@ export const purgeForUser = async (email) => {
   if (!email) return;
   const emailLc = email.toLowerCase();
   const sentMessages = await msg().filter({ sender_email: email }, '-created_date', 1000).catch(() => []);
-  await Promise.all(sentMessages.map(m => msg().delete(m.id).catch(() => {})));
+  await Promise.all(sentMessages.map(m => msg().remove(m.id).catch(() => {})));
   const myConvs = await conv().filter({}, '-created_date', 500).catch(() => []);
   const orphanConvs = myConvs.filter(c => {
     const others = (c.participant_emails || []).filter(e => e && e.toLowerCase() !== emailLc);
     return others.length === 0; // only the leaving user (or empty) → safe to delete
   });
-  await Promise.all(orphanConvs.map(c => conv().delete(c.id).catch(() => {})));
+  await Promise.all(orphanConvs.map(c => conv().remove(c.id).catch(() => {})));
 };

@@ -32,39 +32,40 @@ const _convState = {
   createReturn: { id: 'legacy-conv' },
 };
 
-vi.mock('@/api/db', () => ({
-  db: {
-    entities: {
-      HubMessage: {
-        filter: vi.fn(async (conditions, sort, limit) => {
-          _msgState.lastFilterConditions = conditions;
-          _msgState.lastFilterSort = sort;
-          _msgState.lastFilterLimit = limit;
-          return _msgState.filterReturn;
-        }),
-        create: vi.fn(async (payload) => {
-          _msgState.createCalls.push(payload);
-          return { ..._msgState.createReturn, ...payload };
-        }),
-        update: vi.fn(async () => ({})),
-      },
-      HubConversation: {
-        filter: vi.fn(async (conditions) => {
-          _convState.filterCalls.push(conditions);
-          if (_convState.filterByConditions) {
-            return _convState.filterByConditions(conditions) ?? [];
-          }
-          return _convState.filterReturn;
-        }),
-        create: vi.fn(async (payload) => {
-          _convState.createCalls.push(payload);
-          return _convState.createReturn;
-        }),
-        update: vi.fn(async () => ({})),
-      },
+// The statements ownedRows sends are proven identical to the old client's
+// in ownedRowsEquivalence.test.js; here each table's rows are faked.
+vi.mock('@/lib/data/ownedRows', () => {
+  const byTable = {
+    hub_messages: {
+      filter: vi.fn(async (conditions, sort, limit) => {
+        _msgState.lastFilterConditions = conditions;
+        _msgState.lastFilterSort = sort;
+        _msgState.lastFilterLimit = limit;
+        return _msgState.filterReturn;
+      }),
+      create: vi.fn(async (payload) => {
+        _msgState.createCalls.push(payload);
+        return { ..._msgState.createReturn, ...payload };
+      }),
+      update: vi.fn(async () => ({})),
     },
-  },
-}));
+    hub_conversations: {
+      filter: vi.fn(async (conditions) => {
+        _convState.filterCalls.push(conditions);
+        if (_convState.filterByConditions) {
+          return _convState.filterByConditions(conditions) ?? [];
+        }
+        return _convState.filterReturn;
+      }),
+      create: vi.fn(async (payload) => {
+        _convState.createCalls.push(payload);
+        return _convState.createReturn;
+      }),
+      update: vi.fn(async () => ({})),
+    },
+  };
+  return { ownedRows: (table) => byTable[table] };
+});
 
 // ── supabase mock ───────────────────────────────────────────────────────────
 // listOlderMessages uses the client directly to express the `< created_date`
