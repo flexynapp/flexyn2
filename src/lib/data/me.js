@@ -64,14 +64,10 @@ export const logout = () => db.auth.logout();
  * the row "ghost-like" so the existing filterAfterReset and ghost-user
  * filters in the leaderboards hide the account.
  *
- * IMPORTANT: also clears one-time grant flags so re-onboarding feels
- * like a fresh start. Without these resets, a user who resets and
- * re-onboards would silently miss the day-1 capsule reward, the
- * level-up rewards (because the awarded-through counter was at their
- * old peak level), the daily chest (locked to "already claimed today"),
- * and the achievement-milestone capsules. The audit caught this on
- * the first-workout reward specifically; all four flags share the
- * same bug class so they're all reset here.
+ * Grant markers that pay out again after a reset (level-up capsules,
+ * daily chest, milestone capsules) are cleared server-side by
+ * reset_my_profile_stats. The first-workout capsule is deliberately not:
+ * it is a once-per-account reward, and its flag is server-only.
  *
  * Unknown columns: db.js's create/updateMe retries on 42703 / PGRST204
  * and strips the missing column, so this is safe on hosts that
@@ -130,10 +126,10 @@ export const resetForDeletion = async () => {
       overthrow_count: 0,
     }),
 
-    // One-time grant flags that remain client-writable — clearing these
-    // means the user gets the corresponding reward again on their next
-    // eligible event (mirrors "fresh start" UX).
-    first_workout_capsule_granted: false,
+    // first_workout_capsule_granted is NOT reset here. It is server-only
+    // since the 2026-09-27 audit: clearing it from the client let anyone
+    // re-claim the premium capsule and 75 coins in a loop, and a reset
+    // followed by a first workout was the same loop with extra steps.
     nemesis_opt_out: false,
 
     // Onboarding state — back to gate so the next sign-in shows
