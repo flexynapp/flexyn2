@@ -951,7 +951,7 @@ a different class of bug:
 
 | Layer | Where | What it catches |
 |---|---|---|
-| Write strip-and-retry | `src/api/db.js` `updateMe` only | 42703 / PGRST204 missing-column on profile upserts. **Removed from `makeEntity` create/update on 2026-09-27**: a missing column there now throws, because silently dropping it is how data went unsaved for weeks. A field the app collects but deliberately does not store is dropped by name at its writer (`NOT_STORED` in `src/lib/data/nutrition.js`). |
+| ~~Write strip-and-retry~~ | removed 2026-09-27 | `src/api/db.js` `makeEntity` create/update and `updateMe` used to drop a column the table lacked and retry (`updateMe` could even fall back to saving only the onboarding flags). That is how data went unsaved for weeks, so a missing column now throws. A field the app collects but deliberately does not store is dropped by name at its writer (`NOT_STORED` in `src/lib/data/nutrition.js`). |
 | Read strip-and-retry | `src/api/safeSelect.js` | Same, but for `supabase.from().select()` chains |
 | Per-region ErrorBoundary | Wrapped around each major card on Dashboard / Workout / Progress / Goals / Nutrition | Render-time throws inside the section |
 | Route-level ErrorBoundary | `src/App.jsx` on every route | Render-time throws in a whole page chunk |
