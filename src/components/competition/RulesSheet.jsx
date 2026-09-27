@@ -85,7 +85,14 @@ export default function RulesSheet({ ruleset, open, onClose }) {
   );
 }
 
-// The "i" button. Owns its own open state so a caller adds one element.
+// The rules button: a hairline pill with the info icon and a label, so a new
+// user reads it as "how this works" rather than guessing at a bare icon.
+// Colours are the app's own tokens: primary for the mark, foreground for the
+// label, the resting hairline border, and no fill of its own so it
+// takes the colour of whatever surface it sits on. Owns its open state so a caller adds
+// one element.
+const HOW_IT_WORKS = 'How it works';
+
 export function RulesButton({ ruleset, className = '' }) {
   const { tFallback } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -96,10 +103,10 @@ export function RulesButton({ ruleset, className = '' }) {
       <button
         type="button"
         onClick={() => { haptic('subtle'); setOpen(true); }}
-        aria-label={tFallback(`rules.${ruleset}.title`, set.title)}
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 ${className}`}
+        className={`h-8 ps-2 pe-3 rounded-lg border border-border flex items-center gap-1 text-caption font-semibold text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 whitespace-nowrap ${className}`}
       >
-        <Info className="w-5 h-5" />
+        <Info className="w-4 h-4 text-primary" aria-hidden="true" />
+        {tFallback('rules.howItWorks', HOW_IT_WORKS)}
       </button>
       <RulesSheet ruleset={ruleset} open={open} onClose={() => setOpen(false)} />
     </>
@@ -107,10 +114,11 @@ export function RulesButton({ ruleset, className = '' }) {
 }
 
 // Exported for the catalog test: every line must have a key in en/es/fr.
-export const RULE_KEYS = Object.fromEntries(
-  Object.entries(RULESETS).flatMap(([id, set]) => [
+export const RULE_KEYS = Object.fromEntries([
+  ['rules.howItWorks', HOW_IT_WORKS],
+  ...Object.entries(RULESETS).flatMap(([id, set]) => [
     [`rules.${id}.title`, set.title],
     [`rules.${id}.intro`, set.intro],
     ...set.rules.flatMap(([r, t, b]) => [[`rules.${id}.${r}.title`, t], [`rules.${id}.${r}.body`, b]]),
   ]),
-);
+]);
