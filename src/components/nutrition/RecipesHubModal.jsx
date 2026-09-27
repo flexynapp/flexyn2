@@ -39,7 +39,7 @@ import {
   PencilLine, History, Compass, ChevronRight, MoreHorizontal,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { db } from '@/api/db';
+import * as nutritionData from '@/lib/data/nutrition';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
 import { recipeFromLog } from '@/lib/data/nutritionRecipes';
@@ -126,7 +126,7 @@ export default function RecipesHubModal({
   // the one screen that offers the route, is on screen.
   const history = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn:  () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
+    queryFn:  () => nutritionData.listRecent(user.id, 300),
     enabled:  !!user?.email && open && tab === 'mine' && (mine.data?.length === 0),
     staleTime: 60_000,
   });

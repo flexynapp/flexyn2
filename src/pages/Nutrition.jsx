@@ -667,7 +667,7 @@ export default function Nutrition() {
 
   const { data: rawLogs = EMPTY_LOGS, isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
-    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id, date }),
+    queryFn: () => nutritionData.listForDate(user.id, date),
     enabled: !!user?.email
   });
   // Also wait for the profile so macro goals render correctly on first paint

@@ -11,6 +11,18 @@ export const PLANNER_LOG_TAG = 'planner';
 export const list = (userId, limit = 50) =>
   db.entities.NutritionLog.filter({ user_id: userId }, '-date', limit);
 
+// Newest logged first, for history, search and "log it again" lists.
+export const listRecent = (userId, limit = 300) =>
+  db.entities.NutritionLog.filter({ user_id: userId }, '-created_at', limit);
+
+// One day's diary, meals and water together. The Nutrition page takes the
+// rows in whatever order the table returns them and sorts them itself; the
+// hydration ring asks for newest first and caps the read.
+export const listForDate = (userId, date, { newestFirst = false, limit } = {}) =>
+  newestFirst
+    ? db.entities.NutritionLog.filter({ user_id: userId, date }, '-created_date', limit ?? 100)
+    : db.entities.NutritionLog.filter({ user_id: userId, date }, undefined, limit);
+
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
     if (typeof val === 'string' && containsProfanity(val)) {
