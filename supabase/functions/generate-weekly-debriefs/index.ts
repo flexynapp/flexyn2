@@ -1,4 +1,4 @@
-// supabase/functions/generateWeeklyDebriefs/index.ts
+// supabase/functions/generate-weekly-debriefs/index.ts
 //
 // Weekly Reviews — the scheduled generator. Invoked by pg_cron on Sunday
 // evening; also callable by hand with a service-role token for a backfill.
@@ -25,7 +25,7 @@
 //
 // ── Auth ───────────────────────────────────────────────────────────────────
 //   X-Cron-Secret: <DEBRIEF_CRON_SECRET>       (pg_cron)
-//   Authorization: Bearer <service_role_jwt>   (manual / backfill)
+//   Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY, compared exactly>  (manual / backfill)
 // verify_jwt is deliberately FALSE: the cron authenticates with the header
 // above, and a gateway JWT check would reject it before this handler's own
 // auth gate runs. Same posture as send-push.
@@ -77,15 +77,12 @@ serve(async (req) => {
   const cronSecret = Deno.env.get('DEBRIEF_CRON_SECRET') || '';
   const incoming = req.headers.get('x-cron-secret') || '';
   const bearer = ((req.headers.get('authorization') || '').match(/^Bearer\s+(\S+)/i) || [])[1] || '';
-  const roleClaim = (() => {
-    try {
-      const p = bearer.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      return JSON.parse(atob(p + '='.repeat((4 - (p.length % 4)) % 4)))?.role || null;
-    } catch { return null; }
-  })();
+  // SECURITY (2026-09-27 audit): an unverified role=service_role claim in the
+  // Bearer payload used to count as authorised. verify_jwt is off here, so a
+  // hand-made token could run the whole loop and push to every active user.
+  // Only the cron secret or the exact service key authorise now.
   const authorised = (cronSecret.length > 0 && safeEqual(incoming, cronSecret))
-    || (serviceRoleKey.length > 0 && safeEqual(bearer, serviceRoleKey))
-    || roleClaim === 'service_role';
+    || (serviceRoleKey.length > 0 && safeEqual(bearer, serviceRoleKey));
 
   if (!authorised) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });

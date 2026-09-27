@@ -449,19 +449,13 @@ verify_jwt = false
 [functions.storage-gc]
 verify_jwt = false
 
-# generateWeeklyDebriefs is deployed by hand, never by the integration.
-# The CLI reads config.toml through a loader that lowercases every key, so
-# this entry becomes the slug "generateweeklydebriefs" and the deploy looks
-# for supabase/functions/generateweeklydebriefs/index.ts. Linux paths are
-# case-sensitive, the bundle fails, and the whole functions step stops there,
-# which also held back every function listed after it (report-notify first).
-# Setting an explicit entrypoint would not help: the slug would still be
-# lowercased and deploy a second function the cron never calls. The real fix
-# is renaming the function to a lowercase slug and pointing the Vault's
-# debrief_func_url at it; until then it stays disabled here, like the other
-# camelCase function below.
-[functions.generateWeeklyDebriefs]
-enabled = false
+# The weekly review generator. It was the camelCase generateWeeklyDebriefs,
+# which the CLI could never deploy: the config loader lowercases every key,
+# so the bundle looked for a folder that did not exist and stopped the whole
+# functions step. Renamed to kebab-case on 2026-09-27; migration
+# 20260927063000 points the Vault's debrief_func_url at this slug. The cron
+# authenticates with X-Cron-Secret, so the gateway JWT check stays off.
+[functions.generate-weekly-debriefs]
 verify_jwt = false
 
 [functions.report-notify]

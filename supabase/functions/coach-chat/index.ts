@@ -27,7 +27,7 @@
 // (Bearer JWT + client.auth.getUser()), same posture as recognize-meal.
 //
 // Setup: supabase secrets set ANTHROPIC_API_KEY="sk-ant-..."
-//        (already set — recognize-meal and generateWeeklyDebriefs use it)
+//        (already set — recognize-meal and generate-weekly-debriefs use it)
 //
 // Deploying: the Supabase CLI does NOT work in this repo — there is no
 // supabase/config.toml, so `supabase functions deploy` errors with

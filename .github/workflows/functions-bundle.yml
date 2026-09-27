@@ -42,7 +42,7 @@ jobs:
           IMAGE: public.ecr.aws/supabase/edge-runtime:v1.76.2
           FUNCTIONS: >-
             send-push recognize-meal coach-chat storage-gc
-            generateWeeklyDebriefs report-notify delete-account osm-gyms-fill
+            generate-weekly-debriefs report-notify delete-account osm-gyms-fill
         run: |
           failed=""
           for fn in $FUNCTIONS; do

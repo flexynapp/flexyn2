@@ -85,7 +85,7 @@
 // discards the response, and pg_cron records `succeeded` because the SQL
 // itself was fine.
 //
-// `send-push` and `generateWeeklyDebriefs` are both deployed verify_jwt:
+// `send-push` and `generate-weekly-debriefs` are both deployed verify_jwt:
 // false for exactly this reason — they authenticate with their own shared
 // secrets too. Turning it on here does not add a layer, it removes the
 // only working caller.
