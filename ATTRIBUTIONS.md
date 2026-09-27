@@ -113,3 +113,16 @@ is not wired into the app's font stack and nothing imports it.
 
 Regenerating the card requires it, so removing the file silently makes the
 social card unreproducible rather than breaking a build.
+
+## Onboarding welcome photo
+
+`public/onboarding/hero-front-squat.jpg` — a woman front squatting in a busy
+gym, by **Marvin Cors** (@rizlas) on Unsplash:
+https://unsplash.com/photos/a-woman-lifting-a-barbell-in-a-gym-qv9IUYVFiM4
+
+Used under the **Unsplash License** (free for commercial use, no attribution
+required; credited here anyway). It is a standard Unsplash photo, not an
+Unsplash+ one. Cropped to 780x1688 (2x a 390x844 phone) and re-encoded as a
+JPEG under 150 KB. It is lifestyle photography of a person training, not
+product imagery, so the "no manufacturer photography" rule above does not
+apply to it.

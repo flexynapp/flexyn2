@@ -7,7 +7,7 @@
     "sparkles": 76,
     "heavyShadow": 60,
     "colouredShadow": 28,
-    "offScaleRadius": 31,
+    "offScaleRadius": 29,
     "subFloorText": 0,
     "hoverMotion": 58
   },
@@ -239,7 +239,6 @@
       "src/components/ThemeSelector.jsx": 2,
       "src/components/ui/drawer.jsx": 1,
       "src/pages/DuelInviteLanding.jsx": 1,
-      "src/pages/Onboarding.jsx": 2,
       "src/pages/SignInToContinue.jsx": 1
     },
     "subFloorText": {},

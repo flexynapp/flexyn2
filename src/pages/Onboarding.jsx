@@ -3,11 +3,11 @@
 // carousel, multi-select goals, experience level, stat scrubbers,
 // schedule picker, loading animation, and personalised reveal.
 
-import { Fragment, createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { Fragment, createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -23,6 +23,7 @@ import { buildStarterRegimen, ensureStarterRegimen, TRAINING_EQUIPMENT, SESSION_
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
 import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
+import GoalIcon from '@/components/onboarding/GoalIcon';
 import { askStarterPlanCoach } from '@/lib/aiCoach/starterPlanCoach';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
@@ -69,12 +70,12 @@ const OnboardingCoachContext = createContext(null);
 // Selection is primary against grey; the icon and the label are what tell
 // the goals apart.
 const GOALS = [
-  { id: 'strength',  title: 'Build strength', sub: 'Compound lifts. Heavy. Honest.',         icon: 'dumbbell'      },
-  { id: 'muscle',    title: 'Add muscle',     sub: 'Hypertrophy program, smart volume.',     icon: 'flame'         },
-  { id: 'lose',      title: 'Lose fat',       sub: 'Recomp without losing the gains.',       icon: 'trending-down' },
-  { id: 'speed',     title: 'Run faster',     sub: 'Sharpen your pace, intervals & tempo.', icon: 'zap'           },
-  { id: 'endurance', title: 'Run further',    sub: 'Build distance without burning out.',    icon: 'activity'      },
-  { id: 'mobility',  title: 'Move better',    sub: 'Mobility, flexibility, longevity.',      icon: 'wind'          },
+  { id: 'strength',  title: 'Build strength', sub: 'Compound lifts. Heavy. Honest.' },
+  { id: 'muscle',    title: 'Add muscle',     sub: 'Hypertrophy program, smart volume.' },
+  { id: 'lose',      title: 'Lose fat',       sub: 'Recomp without losing the gains.' },
+  { id: 'speed',     title: 'Run faster',     sub: 'Sharpen your pace, intervals & tempo.' },
+  { id: 'endurance', title: 'Run further',    sub: 'Build distance without burning out.' },
+  { id: 'mobility',  title: 'Move better',    sub: 'Mobility, flexibility, longevity.' },
 ];
 
 // Goals that are cardio/running — used to decide whether the "sharpen your plan"
@@ -133,186 +134,6 @@ const AGE_MAX = PROFILE_RANGES.age.max;
 // 20-character ceiling is enforced by the field's maxLength and by
 // handleUsernameChange.
 
-/* ── Feature visual components (animated SVG illustrations for the carousel) ── */
-
-function FeatVisualCoach({ accent }) {
-  return (
-    <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
-      {[0, 1, 2].map(i => (
-        <div key={i} style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          border: `1.5px solid ${accent}`,
-          animation: `ob-ring-grow 2.4s ${i * 0.6}s cubic-bezier(0,0,0.2,1) infinite`,
-          opacity: 0,
-        }} />
-      ))}
-      <div style={{
-        position: 'absolute', inset: 16, borderRadius: '50%',
-        background: `radial-gradient(circle at 32% 32%, ${accent}, ${accent.replace(')', ' / 0.55)')})`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 10px 28px -6px ${accent.replace(')', ' / 0.6)')}`,
-        animation: 'ob-coach-pulse 2.2s ease-in-out infinite',
-      }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2v8"/><path d="M5 12a7 7 0 0 0 14 0"/><circle cx="12" cy="14" r="2" fill="white"/>
-        </svg>
-      </div>
-      {/* orbiting dot */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', width: 8, height: 8, marginLeft: -4, marginTop: -4 }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: accent, boxShadow: `0 0 10px ${accent}`,
-          animation: 'ob-orbit-dot 3.5s linear infinite',
-        }} />
-      </div>
-    </div>
-  );
-}
-
-// Sample rows inside a PICTURE of the log screen, not the log screen. The
-// exercise name is data in a mock-up; keying it would put a translator's word
-// inside an illustration whose numbers stay English either way.
-function FeatVisualLog({ accent }) {
-  const rows = [{ label: 'Bench', val: '185 × 5' }, { label: 'Bench', val: '195 × 5' }, { label: 'Bench', val: '205 × 5' }];
-  return (
-    <div style={{ width: 108, display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-      {rows.map((row, i) => (
-        <div key={i} style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '7px 10px', borderRadius: 8,
-          background: 'hsl(var(--card) / 0.8)',
-          border: `1px solid ${accent.replace(')', ' / 0.22)')}`,
-          fontFamily: 'monospace', fontSize: 11,
-          opacity: 0,
-          animation: `ob-spring-in 0.4s ${0.15 + i * 0.18}s cubic-bezier(0.16,1,0.3,1) both`,
-        }}>
-          <span style={{ color: 'hsl(var(--muted-foreground))' }}>{row.label}</span>
-          <span style={{ color: 'hsl(var(--foreground))', fontWeight: 700 }}>
-            {row.val}
-            <span style={{
-              display: 'inline-block', width: 1.5, height: 10,
-              background: accent, marginLeft: 2, verticalAlign: 'middle',
-              animation: 'ob-type-cursor 0.9s step-end infinite',
-            }} />
-          </span>
-        </div>
-      ))}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 1 }}>
-        <span style={{
-          fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: accent,
-          letterSpacing: '0.1em', opacity: 0,
-          animation: 'ob-spring-in 0.4s 0.7s cubic-bezier(0.16,1,0.3,1) both',
-        }}>+ PR</span>
-      </div>
-    </div>
-  );
-}
-
-function FeatVisualProgress({ accent }) {
-  const heights = [22, 30, 28, 44, 38, 56, 62];
-  return (
-    <div style={{ width: 108, height: 88, position: 'relative', flexShrink: 0 }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 1, background: 'hsl(var(--border))' }} />
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 76, padding: '0 2px' }}>
-        {heights.map((h, i) => (
-          <div key={i} style={{
-            flex: 1, height: h,
-            background: i === heights.length - 1
-              ? `linear-gradient(180deg, ${accent}, ${accent.replace(')', ' / 0.55)')})`
-              : 'hsl(var(--muted-foreground) / 0.35)',
-            borderRadius: '3px 3px 0 0',
-            transformOrigin: 'bottom',
-            animation: `ob-count-bar 0.5s ${i * 0.07}s cubic-bezier(0.34,1.56,0.64,1) both`,
-            boxShadow: i === heights.length - 1 ? `0 -6px 14px ${accent.replace(')', ' / 0.38)')}` : 'none',
-          }} />
-        ))}
-      </div>
-      <div style={{
-        position: 'absolute', right: 2, top: 0,
-        padding: '2px 6px', borderRadius: 4,
-        background: accent, color: 'white',
-        fontFamily: 'monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-        opacity: 0, animation: 'ob-spring-in 0.4s 0.65s cubic-bezier(0.16,1,0.3,1) both',
-      }}>+12%</div>
-    </div>
-  );
-}
-
-function FeatVisualRecovery({ accent }) {
-  const { tFallback } = useLanguage();
-  return (
-    <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
-      <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
-        <circle cx="50" cy="50" r="40" fill="none" stroke={accent} strokeWidth="6" strokeLinecap="round"
-          strokeDasharray="251"
-          style={{ animation: 'ob-recovery-fill 1.5s 0.2s cubic-bezier(0.16,1,0.3,1) both' }} />
-      </svg>
-      <div style={{
-        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-heading, Archivo, sans-serif)', fontSize: 28, fontWeight: 800,
-          color: 'hsl(var(--foreground))', letterSpacing: '-0.04em', lineHeight: 1,
-          overflow: 'hidden', height: '1em',
-        }}>
-          <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.6s cubic-bezier(0.16,1,0.3,1) both' }}>82</span>
-        </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 600, color: 'hsl(var(--muted-foreground))', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>{tFallback("onboarding.ready", "Ready")}</div>
-      </div>
-    </div>
-  );
-}
-
-function FeatVisualStreak({ accent }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-      <div style={{ position: 'relative' }}>
-        <svg width="62" height="72" viewBox="0 0 68 80" style={{ animation: 'ob-streak-flame 1.8s ease-in-out infinite' }}>
-          <defs>
-            <linearGradient id="ob-flame-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(50 100% 65%)" />
-              <stop offset="60%" stopColor={accent} />
-              <stop offset="100%" stopColor="hsl(0 80% 50%)" />
-            </linearGradient>
-          </defs>
-          <path d="M34 6 C 50 22, 60 36, 60 52 C 60 68, 48 76, 34 76 C 20 76, 8 68, 8 52 C 8 40, 16 32, 22 28 C 22 38, 28 42, 32 38 C 32 28, 30 18, 34 6 Z" fill="url(#ob-flame-grad)" />
-        </svg>
-        <div style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-heading, Archivo, sans-serif)', fontSize: 26, fontWeight: 800, color: 'white',
-          // Tight shadow, not a soft halo. `0 2px 6px` spread the glyph edges
-          // over ~6px and was the other half of why this number read as
-          // low-quality; 1px keeps it legible against the pale top of the
-          // flame without smearing it. (Audit 18 #15.)
-          textShadow: '0 1px 2px rgba(0,0,0,0.45)', paddingTop: 10, overflow: 'hidden',
-        }}>
-          <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.5s cubic-bezier(0.16,1,0.3,1) both' }}>47</span>
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 3 }}>
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} style={{
-            width: 7, height: 7, borderRadius: 2,
-            background: i < 6 ? accent : 'hsl(var(--muted-foreground) / 0.3)',
-            animation: i < 6 ? `ob-spring-in 0.3s ${0.55 + i * 0.05}s cubic-bezier(0.16,1,0.3,1) both` : 'none',
-            opacity: i < 6 ? 0 : 1,
-          }} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const FEATURES = [
-  { id: 'coach',    eyebrow: 'AI Coach',   title: 'A coach that adapts in real time',       sub: 'Reads your sets. Adjusts tomorrow. No guesswork.',                              accent: 'hsl(26 95% 56%)',  Visual: FeatVisualCoach    },
-  { id: 'log',      eyebrow: 'Smart Log',  title: 'Logging that finishes your sentence',    sub: 'Auto-detects sets, plates, RPE. Hands stay on the bar.',                        accent: 'hsl(217 91% 60%)', Visual: FeatVisualLog      },
-  { id: 'progress', eyebrow: 'Progress',   title: 'Watch your numbers climb',               sub: 'PR tracking, volume curves, e1RM that actually mean something.',                 accent: 'hsl(160 64% 45%)', Visual: FeatVisualProgress },
-  { id: 'recovery', eyebrow: 'Recovery',   title: 'Train hard. Recover smarter.',           sub: 'Readiness score syncs with sleep, soreness, last session.',                      accent: 'hsl(280 60% 60%)', Visual: FeatVisualRecovery },
-  { id: 'streaks',  eyebrow: 'Streaks',    title: 'Show up. Stack the days.',               sub: 'Streak shields, weekly missions, and the only leaderboard that matters: yours.', accent: 'hsl(14 92% 56%)',  Visual: FeatVisualStreak   },
-];
-
 const LOADING_TASKS = [
   'Reading your goals',
   'Mapping training volume',
@@ -332,18 +153,9 @@ const LOADING_TASKS = [
 function Icon({ name, size = 22, strokeWidth = 2.2, color = 'currentColor' }) {
   const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round' };
   switch (name) {
-    case 'dumbbell':      return <svg {...p}><path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/></svg>;
-    case 'flame':         return <svg {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
-    case 'trending-down': return <svg {...p}><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>;
-    case 'activity':      return <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
-    case 'zap':           return <svg {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
-    case 'wind':          return <svg {...p}><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>;
     case 'check':         return <svg {...p}><polyline points="20 6 9 17 4 12"/></svg>;
     case 'arrow-right':   return <svg {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
     case 'arrow-left':    return <svg {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>;
-    case 'user':          return <svg {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-    case 'ruler':         return <svg {...p}><path d="M21.3 8.7L8.7 21.3a2.4 2.4 0 0 1-3.4 0L2.7 18.7a2.4 2.4 0 0 1 0-3.4L15.3 2.7a2.4 2.4 0 0 1 3.4 0l2.6 2.6a2.4 2.4 0 0 1 0 3.4z"/><path d="m7.5 10.5 2 2"/><path d="m10.5 7.5 2 2"/><path d="m13.5 4.5 2 2"/><path d="m4.5 13.5 2 2"/></svg>;
-    case 'scale':         return <svg {...p}><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
     default: return null;
   }
 }
@@ -445,17 +257,14 @@ function StepHeader({ step, total, onBack }) {
            all ten form steps) was the last one left. Opaque `bg-card` also
            drops a composited layer that existed to blur an Aurora the button
            covers anyway. (Onboarding polish #7) */
+        /* Round, per the brand direction: the back button and the CTA
+           are the two controls every step shares, and both are now pills. */
         <button onClick={onBack} aria-label={tFallback('onboarding.common.back', 'Back')}
-          className="w-11 h-11 rounded-lg border border-border/70 bg-card flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
+          className="w-11 h-11 rounded-full border border-border/70 bg-card flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
       )}
-      <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
-        <motion.div className="h-full rounded-full bg-primary"
-          initial={{ width: `${((step - 1) / total) * 100}%` }}
-          animate={{ width: `${(step / total) * 100}%` }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
-      </div>
+      <ProgressSwoosh step={step} total={total} />
       {/* This slot always holds 44px, unlike the back slot above. Removing
           the "02/11" label left nothing on this side, so the bar ran flush
           to the content edge and read as running off the screen — the
@@ -470,23 +279,71 @@ function StepHeader({ step, total, onBack }) {
   );
 }
 
+/* The progress bar ends in the logo's swoosh: a straight run that curls up
+   at its leading edge, the same stroke the welcome headline is underlined
+   with. It is still ONE indicator (see the note above StepHeader), just
+   drawn in the brand's own line.
+
+   The curl cannot be a stretched SVG. The bar is `flex-1`, so its width
+   changes with the phone and with whether the Back button is present, and a
+   viewBox scaled to fit would squash the curve on a narrow bar and flatten it
+   on a wide one. So the fill is a box animated to `step / total` of the
+   width, holding a straight segment that takes whatever is left and a
+   fixed 20x16 curl that never scales. `min-w-5` keeps the curl whole on step
+   one of a long flow, where the fraction is narrower than the curl.
+
+   `role="progressbar"` with the numbers, because the brand board's visible
+   "Step N of M" label was deliberately NOT restored (it is the third
+   rendering of one fact that the note above StepHeader removed); a screen
+   reader still gets it said in words. */
+function ProgressSwoosh({ step, total }) {
+  const { tFallback } = useLanguage();
+  const reduce = useReducedMotion();
+  const pct = (n) => `${Math.max(0, Math.min(1, n / total)) * 100}%`;
+  return (
+    <div role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={step}
+      aria-valuetext={tFallback('onboarding.common.stepOf', 'Step {n} of {total}', { n: step, total })}
+      className="relative flex-1 h-4">
+      <div aria-hidden="true" className="absolute inset-x-0 top-2.5 h-1 rounded-full bg-border" />
+      <motion.div aria-hidden="true" className="absolute start-0 top-0 h-4 min-w-5 flex"
+        initial={{ width: reduce ? pct(step) : pct(step - 1) }}
+        animate={{ width: pct(step) }}
+        transition={{ duration: reduce ? 0 : 0.5, ease: [0.16, 1, 0.3, 1] }}>
+        <span className="flex-1 mt-2.5 h-1 rounded-s-full bg-primary" />
+        <svg width="20" height="16" viewBox="0 0 20 16" fill="none"
+          className="block shrink-0 text-primary rtl:-scale-x-100">
+          <path d="M0 12H0.2C11.2 12 16.2 9.8 18 4" stroke="currentColor" strokeWidth="4"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    SHARED: KINETIC HEADING
 ═══════════════════════════════════════════════════════════════ */
 
+// Every question is set in the app's one display style (`.font-display`:
+// Archivo 800, condensed, uppercase), per the brand direction. It is a page
+// title, which is what that style is reserved for. The size is the fluid
+// heading token scaled by 1.1: condensed capitals are narrower than the
+// mixed-case Archivo this replaced, so a question wraps to the same or fewer
+// lines at 10% more size, and the step keeps its fit on a 667pt SE.
 function KineticHeading({ text, accentWord }) {
+  const reduce = useReducedMotion();
   const words = text.split(' ');
   return (
     <div className="mb-2">
-      <h1 className="font-heading font-bold leading-[1.05] tracking-tight text-foreground m-0"
-        style={{ fontSize: 'var(--fluid-heading)' }}>
+      <h1 className="font-display text-foreground m-0"
+        style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
         {/* A real space between the word spans, not a margin: with only a
             margin the heading's text was "Whatareyouherefor?", which is what
             screen readers and copy and paste got. */}
         {words.map((w, i) => (
           <Fragment key={i}>
             {i > 0 && ' '}
-            <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+            <motion.span initial={reduce ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="inline-block"
               style={{ color: isAccent(w, accentWord) ? 'hsl(var(--primary))' : undefined }}>
@@ -507,14 +364,18 @@ function PrimaryBtn({ onClick, disabled, children, className = '' }) {
   return (
     <button onClick={onClick} disabled={disabled}
       style={{ height: 'var(--fluid-cta-h)' }}
-      className={`w-full rounded-2xl font-heading font-bold text-body flex items-center justify-center gap-2 transition-all
+      /* A pill with dark ink, per the brand direction. White on this orange
+         measures under 3:1, so the ink is `primary-ink`, the same ink a
+         picked OptionCard uses: one rule for "text on primary" across the
+         flow. */
+      className={`w-full rounded-full font-heading font-extrabold text-body flex items-center justify-center gap-2 transition-all
         ${disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
           /* shadow-md, not a coloured bloom. `shadow-primary/25` threw an
              orange haze onto the background under the button, which reads as
              a gradient rather than as depth — and coloured shadows are on the
              banned list in CLAUDE.md for exactly that reason. */
-          : 'bg-primary text-primary-foreground hover:brightness-105 active:scale-[0.98] shadow-md'}
+          : 'bg-primary text-primary-ink hover:brightness-105 active:scale-[0.98] shadow-md'}
         ${className}`}>
       {children}
     </button>
@@ -524,56 +385,50 @@ function PrimaryBtn({ onClick, disabled, children, className = '' }) {
 /* ═══════════════════════════════════════════════════════════════
    SHARED: OPTION CARD
 
-   The selectable row the form steps are built from — goals, experience
-   levels, anything added later. It exists so those steps speak the same
-   visual language as the welcome screen's feature card, which is the
-   reference for how this flow should look:
+   The selectable row the form steps are built from: goals, experience
+   levels, anything added later.
 
-     · flat card on `--card`, no tint at all — chosen or not
-     · hairline border that takes the option's accent when it is
-     · no shadow
+     · at rest: flat card on `--card`, hairline `--border`, no shadow
+     · picked: the whole card fills with `--primary`, and everything on it
+       (title, sub, glyph, pick pill) inks in `--primary-ink`
 
-   The shadow matters. These cards used to cast a coloured drop shadow
-   (`0 8px 24px -10px <accent>`), which CLAUDE.md bans outright: coloured
-   shadows are on the published list of signals people use to spot generated
-   UI, and it is most of why the step read as dated. Elevation here is two
-   levels — hairline at rest, `shadow-md` when something genuinely floats —
-   and a card sitting in a list is at rest.
+   The picked state used to be an orange hairline and an orange pill on an
+   otherwise unchanged card, and at a glance six unpicked cards and six cards
+   with one picked looked the same. A solid fill is the brand direction's
+   answer and it is also the plainest one: the thing you chose is the thing
+   that is orange. Primary is the one acting hue, and a picked answer is
+   exactly what the Continue button below is about to act on.
 
-   A selected card spends its accent in exactly three places — the border,
-   the icon tile behind the glyph, and the pick pill — and nowhere else. No
-   wash across the card. The first version lit the corner with a blurred
-   accent blob, which is a gradient however it's built: it bleeds a hue
-   across half the surface, changes the text's background as it goes, and
-   with several picked the list reads as a set of differently-tinted
-   rectangles rather than a set of cards, one of which is chosen.
+   Still no coloured shadow and no tint wash: the fill IS the state, so
+   nothing else has to carry it. Elevation stays two levels (hairline at
+   rest, `shadow-md` only for things that float) and a card in a list rests.
 
-   `leading` and `trailing` are what carry the accent; pass whatever the step
-   needs (an icon tile, a bar chart, a pick-order pill).
+   The card sets `color` and lets `currentColor` flow down, so `leading` and
+   `trailing` should draw in currentColor (GoalIcon, the level bars, the pill
+   below) rather than naming a colour. A child that hardcodes primary
+   disappears into a picked card.
 ═══════════════════════════════════════════════════════════════ */
 
 function OptionCard({
-  selected, accent = 'hsl(var(--primary))', onClick,
+  selected, onClick,
   leading, title, sub, trailing, delay = 0,
 }) {
+  const reduce = useReducedMotion();
   return (
     <motion.button type="button" onClick={onClick} aria-pressed={selected}
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full overflow-hidden flex items-center gap-2 px-4 rounded-2xl border text-start cursor-pointer transition-colors"
-      style={{
-        paddingBlock: 'var(--fluid-card-y)',
-        borderColor: selected ? accent : 'hsl(var(--border))',
-        background: 'hsl(var(--card))',
-      }}>
+      className={`relative w-full overflow-hidden flex items-center gap-2 px-4 rounded-2xl border text-start cursor-pointer transition-colors ${
+        selected ? 'bg-primary border-primary text-primary-ink' : 'bg-card border-border text-foreground'}`}
+      style={{ paddingBlock: 'var(--fluid-card-y)' }}>
       {leading && <span className="shrink-0 flex items-center">{leading}</span>}
       <span className="flex-1 min-w-0 block">
-        <span className="block font-heading font-bold leading-tight tracking-tight text-foreground"
+        <span className="block font-heading font-bold leading-tight tracking-tight"
           style={{ fontSize: 'var(--fluid-card-title)' }}>
           {title}
         </span>
         {sub && (
-          <span className="block leading-[1.45] text-muted-foreground"
+          <span className={`block leading-[1.45] ${selected ? 'text-primary-ink/75' : 'text-muted-foreground'}`}
             style={{ fontSize: 'var(--fluid-card-sub)' }}>
             {sub}
           </span>
@@ -584,179 +439,17 @@ function OptionCard({
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FEATURE CAROUSEL (Welcome screen)
-═══════════════════════════════════════════════════════════════ */
-
-function FeatureCarousel() {
-  const { tFallback } = useLanguage();
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const DURATION = 3800;
-
-  useEffect(() => {
-    if (paused) return;
-    const t = setTimeout(() => setIdx(i => (i + 1) % FEATURES.length), DURATION);
-    return () => clearTimeout(t);
-  }, [idx, paused]);
-
-  const F = FEATURES[idx];
-  const Visual = F.Visual;
-
-  /* The five illustrations are drawn at fixed natural sizes between 59×71 and
-     108×104, and their frame is now elastic — the card is this screen's flex-1
-     element (see WelcomeStep), so the panel runs from roughly 130px tall on an
-     iPhone SE to 260px on a 15 Pro Max. Scaling each illustration to fit is
-     what turns that extra height into a bigger picture instead of more padding
-     around a small one, which was the entire point of letting the card flex.
-     Fit on BOTH axes off the natural size: these five have very different
-     aspect ratios (the streak flame is portrait, the progress bars landscape),
-     so a height-only scale leaves the wide ones swimming in tint and crops the
-     tall ones. `offsetWidth`/`offsetHeight` are layout values and ignore the
-     transform, so reading them off the scaled node itself is safe and doesn't
-     feed back. Capped at 2 so FeatVisualCoach's rings — they animate out to
-     scale(2.4) — fade before the panel clips them, and floored at 0.5 rather
-     than 1: a floor of 1 means "never shrink", which on a short viewport left
-     a 100px illustration inside a 62px panel and sliced the recovery ring in
-     half, top and bottom.
-
-     `compact` is the same measurement answering a second question. The stacked
-     card — illustration above, copy below — needs vertical room to be worth
-     having; under ~300px of stage it degrades into a sliver of art over three
-     lines of text. Below that threshold the card lays out side-by-side
-     instead, which is far more height-efficient. This is a real case, not a
-     legacy-device edge: an iPhone SE is 667px, and in mobile Safari before the
-     app is installed the expanded URL bar takes another ~90px off any phone. */
-  const stageRef = useRef(null);
-  const frameRef = useRef(null);
-  const visualRef = useRef(null);
-  const [compact, setCompact] = useState(false);
-  const [illScale, setIllScale] = useState(1);
-  useLayoutEffect(() => {
-    const stage = stageRef.current, frame = frameRef.current, vis = visualRef.current;
-    if (!stage || !frame || !vis) return;
-    const fit = () => {
-      setCompact(stage.clientHeight < 300);
-      const nw = vis.offsetWidth, nh = vis.offsetHeight;
-      if (!nw || !nh) return;
-      setIllScale(Math.max(0.5, Math.min(2,
-        Math.min(frame.clientWidth * 0.86 / nw, frame.clientHeight * 0.86 / nh))));
-    };
-    fit();
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(fit);
-    ro.observe(stage);
-    ro.observe(frame);
-    return () => ro.disconnect();
-  }, [idx]);
-
-  // Swipe affordance — user feedback ("make this carousel people
-  // requested to scroll") flagged that the auto-rotating pips didn't
-  // signal the cards were interactive. Drag-to-swipe plus the peeking
-  // neighbours below makes the gesture discoverable.
-  const handleDragEnd = (_e, info) => {
-    const dx = info.offset.x;
-    const vx = info.velocity.x;
-    if (dx < -40 || vx < -400) {
-      setIdx(i => (i + 1) % FEATURES.length);
-      setPaused(true);
-      setTimeout(() => setPaused(false), 4000);
-    } else if (dx > 40 || vx > 400) {
-      setIdx(i => (i - 1 + FEATURES.length) % FEATURES.length);
-      setPaused(true);
-      setTimeout(() => setPaused(false), 4000);
-    }
-  };
-
+/* The pick marker on an OptionCard: an empty ring at rest, a filled ink disc
+   with the tick (or the pick ORDER on a multi-select) once chosen. Ink disc,
+   primary glyph, because the card behind it is primary. */
+function PickPill({ selected, order = null }) {
   return (
-    /* The rail is this screen's ONE dominant element, and the only thing
-       allowed to break the shell's px-6 inset (`-mx-6`) — see the composition
-       rules in CLAUDE.md. It is also the only flexible block on the screen:
-       everything above and below is `shrink-0`, so all leftover viewport
-       height lands here instead of being divided into three equal voids the
-       way `justify-between` used to divide it (89px each at 812px tall,
-       ~130px on a 15 Pro Max — a third of the screen holding nothing). */
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.5 }}
-      className="relative -mx-6 flex-1 min-h-0 flex flex-col">
-      <div ref={stageRef} className="relative flex-1 min-h-0 overflow-hidden"
-        onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-        {/* Peeking neighbours. A card whose edge you can see reads as swipeable
-            in a way a static hint never did — this replaces the bouncing `›`
-            chevron, which also used to force a `pe-5` gutter into the copy
-            column to stop the sub-line wrapping under it. (Audit 18 #16.)
-            Geometry: the active card is inset 42px each side, so a neighbour
-            sits one card-width plus a 12px gutter away and shows 30px. */}
-        {[-1, 1].map(dir => (
-          <div key={dir} aria-hidden="true"
-            className="absolute inset-y-5 rounded-[20px] border border-border/60 pointer-events-none"
-            style={{
-              width: 'calc(100% - 84px)',
-              insetInlineStart: dir < 0 ? 'calc(114px - 100%)' : 'calc(100% - 30px)',
-              background: 'hsl(var(--card) / 0.6)',
-            }} />
-        ))}
-
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.22}
-          onDragEnd={handleDragEnd}
-          className={`absolute inset-y-0 start-[42px] end-[42px] rounded-[20px] border border-border overflow-hidden p-5 flex touch-pan-y cursor-grab active:cursor-grabbing ${compact ? 'flex-row items-center gap-4' : 'flex-col'}`}
-          // No backdrop-filter. CLAUDE.md's UI rules ban glassmorphism outright
-          // ("backdrop-blur is on the published list of signals designers use to
-          // identify generated UI"), and it had a second cost here: backdrop-filter
-          // promotes the whole subtree to its own composited layer, which is why
-          // the streak card's "47" rendered soft next to the rest of the page.
-          // (Audit 18 #15.)
-          style={{ background: 'hsl(var(--card))' }}>
-          {/* accent glow */}
-          <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
-            style={{ background: F.accent, opacity: 0.18 }} />
-
-          {/* Illustration panel — takes every pixel the copy doesn't need. */}
-          <div ref={frameRef}
-            className={`relative rounded-2xl flex items-center justify-center overflow-hidden ${compact ? 'h-full w-[40%] shrink-0' : 'flex-1 min-h-0 w-full'}`}
-            style={{ background: F.accent.replace(')', ' / 0.07)') }}>
-            {/* keyed so it remounts + plays the entry animation on each slide */}
-            <div key={F.id} ref={visualRef} style={{ transform: `scale(${illScale})`, animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
-              <Visual accent={F.accent} />
-            </div>
-          </div>
-
-          {/* Copy */}
-          <div key={`copy-${F.id}`} className={`relative ${compact ? 'flex-1 min-w-0' : 'shrink-0 pt-4'}`}
-            style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both' }}>
-            <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>
-              {tFallback(`onboarding.feature.${F.id}.eyebrow`, F.eyebrow)}
-            </div>
-            <div className={`font-heading font-bold leading-tight tracking-tight text-foreground mb-1.5 ${compact ? 'text-body' : 'text-title'}`}>
-              {tFallback(`onboarding.feature.${F.id}.title`, F.title)}
-            </div>
-            <div className="text-caption leading-[1.45] text-muted-foreground">
-              {tFallback(`onboarding.feature.${F.id}.sub`, F.sub)}
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* pip indicators with progress fill */}
-      <div className="flex gap-1.5 pt-3.5 items-center justify-center shrink-0">
-        {FEATURES.map((f, i) => {
-          const active = i === idx;
-          return (
-            <button key={f.id} onClick={() => setIdx(i)}
-              aria-label={tFallback('onboarding.feature.showAria', 'Show {name}', { name: tFallback(`onboarding.feature.${f.id}.eyebrow`, f.eyebrow) })}
-              className="relative h-1 rounded-full cursor-pointer border-none p-0 transition-all duration-500 before:absolute before:content-[''] before:-inset-y-5 before:-inset-x-1"
-              style={{ width: active ? 28 : 6, background: active ? 'hsl(var(--muted) / 0.7)' : 'hsl(var(--muted-foreground) / 0.3)' }}>
-              {active && (
-                <span key={idx} className="absolute inset-0 rounded-full overflow-hidden"
-                  style={{ background: F.accent, transformOrigin: 'left center', animation: paused ? 'none' : `ob-pip-progress ${DURATION}ms linear forwards` }} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </motion.div>
+    <span className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors font-mono text-micro font-bold ${
+      selected ? 'bg-primary-ink text-primary' : 'border-[1.5px] border-border'}`}>
+      {selected && (order != null
+        ? order
+        : <Icon name="check" size={13} strokeWidth={3} />)}
+    </span>
   );
 }
 
@@ -764,79 +457,116 @@ function FeatureCarousel() {
    STEP 1: WELCOME
 ═══════════════════════════════════════════════════════════════ */
 
+// The welcome screen is a photo, a headline and one button. It used to be a
+// headline over an auto-rotating five-card feature carousel (FeatureCarousel,
+// five animated illustrations in five hues, a pip strip, a "V 2.0" label and
+// an orange radial glow behind the active card). Five selling points on the
+// first screen meant none of them landed, the hues broke the four-hue rule,
+// and the carousel was the flexible element the whole layout was built around.
+// The brand direction replaced it with a lifter: it says what the app is for
+// before a single word is read, and the copy is left to say one thing.
+//
+// The PHOTO does not live here. It is WelcomeBackdrop, mounted by the shell,
+// because this step renders inside `.safe-page` (24px inline padding, a 420px
+// cap) and inside a motion.div that carries a transform while the step
+// animates, which would make any absolute layer in here jump mid-transition.
+// The shell's root is the only box that is already full bleed and never moves.
+//
+// `dark` is set on the step root on purpose: the copy sits on a darkened
+// photo in both themes, so it has to read the dark theme's tokens even when
+// the app is light. It changes which values the tokens resolve to, not which
+// tokens are used.
+const WELCOME_PHOTO = '/onboarding/hero-front-squat.jpg';
+
+// The headline is sized by the SMALLER of width and height. Width decides how
+// many lines the sentence wraps to; height decides whether those lines leave
+// room for the photo. On a 375x667 SE the height term wins (about 48px) so the
+// whole block from headline down stays in the bottom half; on a 430x932 Pro Max it caps
+// at 64px, which is the board's size scaled to that width.
+const WELCOME_HEADLINE_SIZE = 'clamp(40px, min(15vw, calc(7.2 * var(--vhu))), 64px)';
+
+function WelcomeBackdrop() {
+  const { tFallback } = useLanguage();
+  const reduce = useReducedMotion();
+  return (
+    <motion.div className="dark absolute inset-0 overflow-hidden bg-background"
+      initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduce ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}>
+      <img src={WELCOME_PHOTO}
+        alt={tFallback('onboarding.welcome.photoAlt', 'A lifter front squatting in a busy gym')}
+        width={780} height={1688} decoding="async"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: '50% 30%' }} />
+      {/* ONE linear scrim, and it is legibility, not decoration: the top
+          stop keeps the logo and "Log in" readable over the gym ceiling
+          lights, and the ramp from the middle down is what the headline and
+          the button sit on. The board drew this as a flat 38% wash plus a
+          separate bottom gradient; one gradient with the same stops draws
+          the same picture with one layer fewer. */}
+      <div aria-hidden="true" className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, hsl(var(--background) / 0.55) 0%, hsl(var(--background) / 0.3) 18%, hsl(var(--background) / 0.38) 42%, hsl(var(--background) / 0.86) 66%, hsl(var(--background)) 86%)',
+        }} />
+    </motion.div>
+  );
+}
+
 function WelcomeStep({ onNext, onSignIn }) {
   const { tFallback } = useLanguage();
-  // The hero animates word by word, so the copy has to survive being split on
-  // spaces in any language — hence two line keys rather than one string with a
-  // hardcoded <br>. The accent word is its own key because "mean" is the
-  // emphasis in English and the equivalent word sits elsewhere in the sentence
-  // in most other languages; if a translation doesn't contain it, nothing is
-  // accented and the headline still reads correctly.
-  const line1 = tFallback('onboarding.welcome.headline1', 'Train like you').split(' ');
-  const line2 = tFallback('onboarding.welcome.headline2', 'actually mean it.').split(' ');
-  const accent = tFallback('onboarding.welcome.accentWord', 'mean');
-  let delay = 0.15;
+  const reduce = useReducedMotion();
+  // One gentle fade for the whole bottom block. The old hero bobbed in word
+  // by word, which is a lot of motion for the first frame anyone sees, and
+  // it had to be skipped entirely for reduced motion anyway.
+  const enter = reduce
+    ? {}
+    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] } };
   return (
-    /* `gap-6` + a single flexible child, NOT `justify-between`.
-       This column used to be four fixed-height blocks (43 + 128 + 184 + 130 =
-       485px) distributed with `justify-between`, so every spare pixel of
-       viewport was split into three identical gutters — 41px on an iPhone SE,
-       89px at 812, ~130px on a 15 Pro Max. Nothing was allowed to absorb the
-       slack, so the slack became the layout, and the taller the phone the
-       emptier the first screen looked. `gap-5` was also in the banned 12–20px
-       middle spacing register (CLAUDE.md). Now the three chrome blocks are
-       `shrink-0` at a 24px rhythm and FeatureCarousel is `flex-1`, so extra
-       height goes into the one element that can use it. */
-    <div className="flex flex-col h-full pt-3 gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-          <FlexynLogo className="h-9" />
-        </motion.div>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-          className="font-mono text-micro font-semibold text-muted-foreground tracking-[0.16em] uppercase">V 2.0</motion.div>
-      </div>
-
-      {/* Hero */}
-      <div className="shrink-0">
-        <h1 className="font-heading font-bold text-[44px] leading-[0.97] tracking-[-0.045em] text-foreground m-0">
-          {line1.map((w, i) => (
-            <Fragment key={`l1-${i}`}>
-              {i > 0 && ' '}
-              <motion.span initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-                className="inline-block">{w}</motion.span>
-            </Fragment>
-          ))}
-          {' '}<br />
-          {line2.map((w, i) => (
-            <Fragment key={`l2-${i}`}>
-              {i > 0 && ' '}
-              <motion.span initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-                className={`inline-block ${isAccent(w, accent) ? 'text-primary' : ''}`}>{w}</motion.span>
-            </Fragment>
-          ))}
-        </h1>
-      </div>
-
-      {/* Feature carousel */}
-      <FeatureCarousel />
-
-      {/* CTAs */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.95, duration: 0.4 }}
-        className="flex flex-col gap-2 shrink-0">
-        <PrimaryBtn onClick={onNext}>
-          {tFallback('onboarding.welcome.cta', 'Get started')} <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
-        </PrimaryBtn>
-        <p className="text-center text-micro font-medium text-muted-foreground/80 tracking-wide">
-          {tFallback('onboarding.welcome.trustLine', 'Free to start · no card needed')}
-        </p>
-        <button onClick={onSignIn}
-          className="text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-[44px] py-2 text-center">
-          {tFallback('onboarding.welcome.haveAccount', 'I already have an account')}
+    <div className="dark relative flex flex-col h-full text-foreground">
+      <div className="flex items-center justify-between shrink-0 h-11">
+        <FlexynLogo className="h-8" />
+        <button type="button" onClick={onSignIn}
+          className="h-11 min-w-11 px-1 -me-1 flex items-center justify-center text-body font-semibold text-foreground hover:text-primary active:text-primary transition-colors">
+          {tFallback('onboarding.welcome.logIn', 'Log in')}
         </button>
+      </div>
+
+      {/* The photo shows through this. It is the flexible element now, so
+          spare height on a tall phone becomes more lifter, not more gap. */}
+      <div className="flex-1 min-h-0" />
+
+      <motion.div {...enter} className="shrink-0 flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          {/* Two keys, not one sentence plus an accent WORD. The accent here
+              is a two word phrase ("learns you."), which the single-token
+              matcher KineticHeading uses cannot express, and in Spanish and
+              French the phrase moves anyway. Each locale writes the sentence
+              in two halves and the second half is orange. */}
+          <h1 className="font-display m-0" style={{ fontSize: WELCOME_HEADLINE_SIZE, lineHeight: 0.9 }}>
+            {tFallback('onboarding.welcome.brandHeadline', 'Train with a plan that')}{' '}
+            <span className="text-primary">{tFallback('onboarding.welcome.brandAccent', 'learns you.')}</span>
+          </h1>
+          {/* The swoosh: the logo's stroke, drawn as an underline that
+              curls up at its end. Same curve the progress bar ends in on
+              every form step, so the first screen introduces the motif the
+              rest of the flow repeats. */}
+          <svg viewBox="0 0 300 22" fill="none" aria-hidden="true"
+            className="block w-[300px] max-w-full h-auto text-primary rtl:-scale-x-100">
+            <path d="M2.5 18.5H257.5C279.5 18.5 289.5 14.8 297.5 3.5"
+              stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+          </svg>
+          <p className="m-0 text-body leading-normal text-foreground/85 max-w-[320px]">
+            {tFallback('onboarding.welcome.brandSub', 'A few questions. A program built around your body, your week and your goal.')}
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <PrimaryBtn onClick={onNext}>
+            {tFallback('onboarding.welcome.buildPlan', 'Build my plan')}
+            <Icon name="arrow-right" size={20} strokeWidth={2.4} />
+          </PrimaryBtn>
+          <p className="m-0 text-center text-label text-muted-foreground">
+            {tFallback('onboarding.welcome.freeLine', 'Free. No card needed.')}
+          </p>
+        </div>
       </motion.div>
     </div>
   );
@@ -912,31 +642,20 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                 title={tFallback(`onboarding.goal.${g.id}.title`, g.title)}
                 sub={tFallback(`onboarding.goal.${g.id}.sub`, g.sub)}
                 leading={
-                  <span className="rounded-lg flex items-center justify-center transition-colors"
-                    style={{
-                      width: 'var(--fluid-tile)', height: 'var(--fluid-tile)',
-                      background: selected ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--secondary))',
-                      color: selected ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                    }}>
-                    <Icon name={g.icon} size={20} strokeWidth={2} />
+                  /* The brand goal glyphs, two-tone at rest and inked with the
+                     card once picked. No tile behind them: the glyph already
+                     carries its own accent, and a grey square around it was a
+                     second container inside the card. Sized by the same fluid
+                     token the tile used, so the row height does not move. */
+                  <span className="flex items-center justify-center"
+                    style={{ width: 'var(--fluid-tile)', height: 'var(--fluid-tile)' }}>
+                    <GoalIcon id={g.id} picked={selected} size="100%" />
                   </span>
                 }
                 trailing={
-                  /* A pill, not a tick box. The square checkbox was the one
-                     form control on a screen made entirely of cards, and it
-                     is what the multi-select order number sat inside — so it
-                     had to carry a number anyway, which a checkbox never
-                     does. Round mirrors the carousel pips. */
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center transition-all font-mono text-micro font-bold"
-                    style={{
-                      border: selected ? 'none' : '1.5px solid hsl(var(--border))',
-                      background: selected ? 'hsl(var(--primary))' : 'transparent',
-                      color: 'white',
-                    }}>
-                    {selected && (selectedIds.length > 1
-                      ? order
-                      : <Icon name="check" size={13} strokeWidth={3} color="white" />)}
-                  </span>
+                  /* The order number only when several are picked; a single
+                     pick is just a tick. */
+                  <PickPill selected={selected} order={selectedIds.length > 1 ? order : null} />
                 }
               />
             );
@@ -1006,17 +725,20 @@ const TIME_DISTANCE_FOR_EVENT = {
   '5k': '5k', '10k': '10k', half: '5k', marathon: '5k', general: '5k',
 };
 
-function Chip({ children, active, accent = 'hsl(var(--primary))', onClick }) {
+function Chip({ children, active, onClick }) {
   return (
     /* min-h-11. These measured 31.5px tall — twelve of them on one step, and
-       they are the only controls the sharpen step has. (Onboarding polish #5) */
-    <button type="button" onClick={onClick}
-      className="rounded-full font-semibold transition-all cursor-pointer px-3.5 py-1.5 min-h-11 text-label"
-      style={{
-        border: `1.5px solid ${active ? accent : 'hsl(var(--border))'}`,
-        background: 'hsl(var(--card))',
-        color: active ? accent : 'hsl(var(--foreground))',
-      }}>
+       they are the only controls the sharpen step has. (Onboarding polish #5)
+
+       Picked is a solid primary fill with primary-ink text, the same rule as
+       OptionCard. It used to take a per-section `accent`, and two sections
+       passed hues of their own (a yellow for the cardio event, a second
+       literal orange for the lifts), which put five colours on one step
+       against a four-hue system. aria-pressed so the state is not colour
+       alone. */
+    <button type="button" onClick={onClick} aria-pressed={!!active}
+      className={`rounded-full font-semibold transition-colors cursor-pointer px-3.5 py-1.5 min-h-11 text-label border-[1.5px] ${
+        active ? 'bg-primary border-primary text-primary-ink' : 'bg-card border-border text-foreground'}`}>
       {children}
     </button>
   );
@@ -1136,10 +858,10 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
 
         {wantsCardio && (
           <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
-            <SectionLabel accent="hsl(45 93% 55%)" title={tFallback('onboarding.sharpen.cardioPrompt', 'What are you training for?')} />
+            <SectionLabel accent="hsl(var(--primary))" title={tFallback('onboarding.sharpen.cardioPrompt', 'What are you training for?')} />
             <div className="flex flex-wrap gap-2">
               {CARDIO_EVENTS.map(e => (
-                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => pickEvent(e.id)}>
+                <Chip key={e.id} active={s.cardioEvent === e.id} onClick={() => pickEvent(e.id)}>
                   {tFallback(`onboarding.sharpen.event.${e.id}`, e.label)}
                 </Chip>
               ))}
@@ -1176,10 +898,10 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
 
         {wantsStrength && (
           <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
-            <SectionLabel accent="hsl(26 95% 56%)" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
+            <SectionLabel accent="hsl(var(--primary))" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
             <div className="flex flex-wrap gap-2">
               {liftChips.map(n => (
-                <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
+                <Chip key={n} active={focus.includes(n)} onClick={() => toggleFocus(n)}>{n}</Chip>
               ))}
             </div>
             <div>
@@ -1375,23 +1097,20 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
                 title={tFallback(`onboarding.level.${l.id}.label`, l.label)}
                 sub={tFallback(`onboarding.level.${l.id}.sub`, l.sub)}
                 leading={
-                  /* mini bar chart */
+                  /* Mini bar chart. On a picked card the lit bars take the
+                     card's ink and the unlit ones a faint ink, because primary
+                     bars on a primary card would draw nothing. */
                   <span className="flex items-end gap-0.5 w-10 justify-center">
                     {[1, 2, 3, 4].map(b => (
-                      <span key={b} className="block rounded-sm transition-colors"
-                        style={{ width: 4, height: b * 5 + 4, background: b <= l.bars ? 'hsl(var(--primary))' : 'hsl(var(--border))' }} />
+                      <span key={b} className={`block rounded-sm transition-colors ${
+                        b <= l.bars
+                          ? (selected ? 'bg-primary-ink' : 'bg-primary')
+                          : (selected ? 'bg-primary-ink/25' : 'bg-border')}`}
+                        style={{ width: 4, height: b * 5 + 4 }} />
                     ))}
                   </span>
                 }
-                trailing={
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center transition-all"
-                    style={{
-                      border: selected ? 'none' : '1.5px solid hsl(var(--border))',
-                      background: selected ? 'hsl(var(--primary))' : 'transparent',
-                    }}>
-                    {selected && <Icon name="check" size={13} strokeWidth={3} color="white" />}
-                  </span>
-                }
+                trailing={<PickPill selected={selected} />}
               />
             );
           })}
@@ -4062,6 +3781,12 @@ export default function Onboarding() {
     <OnboardingCoachContext.Provider value={coachCtx}>
     <div className="fixed inset-0 bg-background overflow-hidden" style={{ height: '100svh' }}>
       <Aurora />
+
+      {/* The welcome photo, full bleed behind the shell. See WelcomeBackdrop
+          for why it is mounted here rather than inside WelcomeStep. */}
+      <AnimatePresence>
+        {stepName === 'welcome' && <WelcomeBackdrop key="welcome-backdrop" />}
+      </AnimatePresence>
 
       {/* Mounted at the root rather than inside the step, so the sheet
           survives the AnimatePresence step transition — applying a
