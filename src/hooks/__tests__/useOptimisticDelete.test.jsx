@@ -2,7 +2,7 @@
 // optimistic remove, undo path (no server call), commit path (server
 // call fires after timeout), and unmount-flushes-pending.
 //
-// Sonner toast is mocked to capture the action callback so we can
+// The feedback pill's store is mocked to capture the action callback so we can
 // simulate the Undo tap directly.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -12,17 +12,12 @@ import { useOptimisticDelete } from '../useOptimisticDelete';
 
 // Capture every toast() call so tests can pull out the action callback.
 const toastCalls = [];
-vi.mock('sonner', () => ({
-  toast: Object.assign(
-    (label, options) => {
-      toastCalls.push({ label, options });
-      return Math.random();
-    },
-    {
-      success: vi.fn(),
-      error: vi.fn(),
-    }
-  ),
+vi.mock('@/lib/feedbackStore', () => ({
+  show: (kind, label, options) => {
+    if (kind === 'default') toastCalls.push({ label, options });
+    return Math.random();
+  },
+  dismiss: vi.fn(),
 }));
 
 function wrap(client) {

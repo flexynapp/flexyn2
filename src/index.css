@@ -3492,39 +3492,17 @@ html[data-theme-tier] {
   .coll-sheen::after { animation: none; opacity: 0; }
 }
 
-/* ── Toasts wear the app's surface ──────────────────────────────────────
-   sonner ships its own palette and its <Toaster> defaults to theme="light".
-   App.jsx passed no theme and there were no overrides here, so EVERY toast
-   in the app rendered stock white chrome — on a dark UI, on all of the
-   ThemeSelector themes.
-
-   Passing theme={darkMode} (ThemedToaster in App.jsx) fixes the icons and
-   the shadow, but sonner's dark is a generic grey that still isn't --card.
-   These three variables ARE the toast surface, so binding them to tokens
-   makes toasts follow whichever theme is active rather than tracking a
-   light/dark boolean.
-
-   `richColors` is off, so every type — success, error, info, warning —
-   resolves through --normal-*. One binding covers all of them and the type
-   is carried by sonner's icon. Turn richColors on and the --success-* /
-   --error-* families need the same treatment.
-
-   ── Why this lives OUTSIDE @layer base, which is the whole trick ────────
-   Specificity is not what decides this. sonner injects its <style>
-   UNLAYERED at runtime, and in the cascade an unlayered declaration beats a
-   layered one however specific the layered rule is — layer order is
-   evaluated before specificity ever gets a look in. Verified in the browser
-   with a rule pair isolated from sonner: `#id` unlayered beat
-   `html body div#id.a.b.c` inside a layer.
-
-   So the rule sits at top level, unlayered, where it meets sonner on equal
-   terms and wins on specificity (0,2,1) vs (0,2,0). Do not move it into a
-   @layer to tidy it up — that silently switches it off, and the failure
-   presents as a theme bug rather than a cascade one.
-
-   The attribute is data-sonner-theme, NOT data-theme. */
-html [data-sonner-toaster][data-sonner-theme] {
-  --normal-bg: hsl(var(--card));
-  --normal-text: hsl(var(--foreground));
-  --normal-border: hsl(var(--border));
+/* ── The feedback pill (components/feedback/FeedbackPill.jsx) ─────────────
+   One surface in every theme on purpose, like the phone's own Dynamic
+   Island: a near-black pill with light text reads as the app speaking, not
+   as one more card on the page. Because the surface never changes, its
+   hues are fixed at the DARK theme's values of --success and --destructive
+   (the light-theme values are tuned for white cards and fall to ~2:1 on
+   black). These are the same two hues, re-stepped, not new ones. */
+:root {
+  --pill-bg: 210 22% 7%;
+  --pill-fg: 30 15% 95%;
+  --pill-muted: 210 10% 66%;
+  --pill-success: 152 52% 52%;
+  --pill-danger: 0 75% 63%;
 }

@@ -1,20 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the real sonner so we can observe what the policy wrapper forwards.
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    error: vi.fn(),
-    success: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-    warning: vi.fn(),
-    loading: vi.fn(),
-    custom: vi.fn(),
-    dismiss: vi.fn(),
-  }),
-}));
+// Mock the store behind the feedback pill so we can observe what the policy
+// wrapper forwards. (sonner was replaced by FeedbackPill on 2026-09-27; the
+// wrapper's contract is unchanged.)
+vi.mock('@/lib/feedbackStore', () => ({ show: vi.fn(), dismiss: vi.fn() }));
 
-import { toast as sonnerToast } from 'sonner';
+import { show } from '@/lib/feedbackStore';
 import { toast } from '../toast';
 
 beforeEach(() => {
@@ -22,9 +13,9 @@ beforeEach(() => {
 });
 
 describe('toast policy wrapper', () => {
-  it('forwards errors to sonner (failures never go silent)', () => {
+  it('forwards errors to the pill (failures never go silent)', () => {
     toast.error('Something broke', { description: 'x' });
-    expect(sonnerToast.error).toHaveBeenCalledWith('Something broke', { description: 'x' });
+    expect(show).toHaveBeenCalledWith('error', 'Something broke', { description: 'x' });
   });
 
   // Reversed on 2026-08-04. Success is the confirmation class: under the
@@ -34,13 +25,13 @@ describe('toast policy wrapper', () => {
   // success goes back behind keepIfAction, flip this test with it.
   it('forwards success toasts even without an action', () => {
     toast.success('Saved!');
-    expect(sonnerToast.success).toHaveBeenCalledWith('Saved!');
+    expect(show).toHaveBeenCalledWith('success', 'Saved!');
   });
 
   it('forwards a success toast that carries an action', () => {
     const action = { label: 'Undo', onClick: () => {} };
     toast.success('Saved!', { action });
-    expect(sonnerToast.success).toHaveBeenCalledWith('Saved!', { action });
+    expect(show).toHaveBeenCalledWith('success', 'Saved!', { action });
   });
 
   // Reversed on 2026-08-05, for the same reason success was reversed the day
@@ -58,25 +49,25 @@ describe('toast policy wrapper', () => {
     toast.info('fyi');
     toast.message('hey');
     toast.warning('careful');
-    expect(sonnerToast.info).toHaveBeenCalledWith('fyi');
-    expect(sonnerToast.message).toHaveBeenCalledWith('hey');
-    expect(sonnerToast.warning).toHaveBeenCalledWith('careful');
+    expect(show).toHaveBeenCalledWith('info', 'fyi');
+    expect(show).toHaveBeenCalledWith('message', 'hey');
+    expect(show).toHaveBeenCalledWith('warning', 'careful');
   });
 
   it('silences a plain toast() call', () => {
     toast('just a note');
-    expect(sonnerToast).not.toHaveBeenCalled();
+    expect(show).not.toHaveBeenCalled();
   });
 
   it('keeps a plain toast() that carries an action (Undo / Retry)', () => {
     const action = { label: 'Undo', onClick: () => {} };
     toast('Deleted', { action });
-    expect(sonnerToast).toHaveBeenCalledWith('Deleted', { action });
+    expect(show).toHaveBeenCalledWith('default', 'Deleted', { action });
   });
 
   it('keeps a method toast that carries an action', () => {
     const action = { label: 'Retry', onClick: () => {} };
     toast.message('Upload failed', { action });
-    expect(sonnerToast.message).toHaveBeenCalledWith('Upload failed', { action });
+    expect(show).toHaveBeenCalledWith('message', 'Upload failed', { action });
   });
 });

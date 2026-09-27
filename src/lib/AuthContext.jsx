@@ -189,7 +189,7 @@ export function AuthProvider({ children }) {
                 if (pending) {
                   const res = await claimReferral(pending);
                   if (res?.ok) {
-                    const { toast } = await import('sonner');
+                    const { toast } = await import('./toast');
                     toast.success(`Welcome! +200 coins and an Elite capsule are yours.`);
                   }
                   // Silent on failure — already-claimed / self-referral

@@ -9,7 +9,7 @@ getWasFirstLaunchThisSession();
 // covered the top 32px of the screen with pointer-events:auto — sitting on
 // top of the Header and eating taps on the messages / bell / profile
 // buttons. Sonner is the only toaster.
-import { Toaster as SonnerToaster } from "sonner"
+import FeedbackPill from "@/components/feedback/FeedbackPill"
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -18,7 +18,7 @@ import { BrowserRouter as Router, Route, Routes, useParams, Navigate } from 'rea
 import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import { ThemeProvider, useTheme } from '@/lib/ThemeContext';
+import { ThemeProvider } from '@/lib/ThemeContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
@@ -148,36 +148,6 @@ const Settings    = lazy(() => import('./pages/Settings'));
 // "content loading" without matching any one page exactly. Rendered in the
 // normal content flow (not fixed) so it sits inside the Layout chrome that's
 // already painted (header + bottom nav), matching where the real page lands.
-// The toast host. A component rather than an inline <SonnerToaster> because
-// it has to read the app's theme, and App() is the thing that RENDERS
-// <ThemeProvider> — a hook there would be outside its own provider.
-//
-// Two things are being fixed here, and they are separate:
-//
-//   • `theme`. sonner's Toaster defaults to theme="light" and only consults
-//     prefers-color-scheme when you pass theme="system". Nothing was passed,
-//     so every toast rendered stock white chrome on the dark app. "system"
-//     would not have fixed it either: dark mode here is ThemeContext state
-//     persisted to `fn-dark-mode` and the user's profile, so an OS-light /
-//     app-dark user would still have got a white toast. The app's own
-//     boolean is the only correct source.
-//
-//   • the surface colours, which are bound to tokens in index.css so toasts
-//     track whichever ThemeSelector theme is active, not just light/dark.
-//
-// `bottom` clears the fixed bottom nav including its home-indicator inset —
-// see the --above-nav note in index.css.
-function ThemedToaster() {
-  const { darkMode } = useTheme();
-  return (
-    <SonnerToaster
-      position="bottom-center"
-      theme={darkMode ? 'dark' : 'light'}
-      style={{ bottom: 'var(--above-nav)' }}
-    />
-  );
-}
-
 function PageLoader() {
   return (
     <div
@@ -553,7 +523,7 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
-        <ThemedToaster />
+        <FeedbackPill />
       </QueryClientProvider>
     </RestTimerProvider>
     </AuthProvider>
