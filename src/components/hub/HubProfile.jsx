@@ -18,7 +18,6 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { buildTrainingWeek, currentStreak } from '@/lib/trainingWeek';
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
@@ -29,6 +28,7 @@ import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubReactions from '@/lib/data/hubReactions';
 import * as me from '@/lib/data/me';
 import { selectProfiles } from '@/lib/data/users';
+import * as usersData from '@/lib/data/users';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import { hasAnyProfanity } from '@/lib/useProfanityGuard';
 import { reverseGeocode } from '@/lib/geocode';
@@ -2663,7 +2663,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
     queryKey: ['hubProfileUsers', ids],
     queryFn: async () => {
       if (!ids.length) return [];
-      const users = await db.entities.User.list().catch(() => []);
+      const users = await usersData.list().catch(() => []);
       // Resolve the follower/following rows by user_id — never off the
       // view's email column (which no longer exists).
       return users.filter(u => ids.includes(u.id)).map(u => ({

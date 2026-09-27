@@ -9,7 +9,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap, MapPin, Map } from 'lucide-react';
-import { db } from '@/api/db';
+import * as usersData from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -59,7 +59,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
 
   const { data: allUsers = [], isLoading } = useQuery({
     queryKey: ['allUsersLeaderboards'],
-    queryFn: () => db.entities.User.list(),
+    queryFn: () => usersData.list(),
     enabled: open,
   });
 
