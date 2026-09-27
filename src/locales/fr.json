@@ -5908,6 +5908,8 @@
   "today.fuel.open": "Ouvrir Nutrition",
   "today.fuel.title": "Repas et eau",
   "today.fuel.water": "Eau",
+  "today.readiness.unscored": "Notez votre sommeil de la nuit pour obtenir un score.",
+  "today.readiness.unscoredLabel": "Pas de score",
   "today.war.leading": "Vous menez {mine} à {theirs}",
   "today.war.tied": "Égalité à {mine}",
   "today.war.trailing": "Vous êtes mené {mine} à {theirs}",

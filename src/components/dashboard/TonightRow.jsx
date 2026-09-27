@@ -151,11 +151,14 @@ export default function TonightRow({ readiness, onOpen }) {
             ? tFallback('dashboard.tonight.sleepLogged', 'Sleep logged. Open readiness')
             : `${tapToLog}: ${tFallback('dashboard.tonight.sleep', 'SLEEP')}`}
         >
-          {[1, 2, 3, 4, 5].map((n) => (
+          {/* Quality is optional when logging sleep, and most nights carry
+              none. Five hollow stars under "7 h" read as a zero star night,
+              so the stars appear only when a rating exists. */}
+          {quality != null && [1, 2, 3, 4, 5].map((n) => (
             <Star
               key={n}
               className={`w-2.5 h-2.5 ${
-                quality != null && n <= quality
+                n <= quality
                   ? 'text-primary fill-primary'
                   : 'text-muted-foreground/30'
               }`}

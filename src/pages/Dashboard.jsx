@@ -71,9 +71,8 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
-import { useNumberFormatter } from '@/lib/intl';
+import { useNumberFormatter, formatDate } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { getDateLocale } from '@/lib/dateLocales';
 import { heroTintGradient, HERO_FADE_GRADIENT } from '@/lib/heroChrome';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
@@ -1033,14 +1032,13 @@ export default function Dashboard() {
     // Reset means reset: a section the user collapsed comes back too.
     setCollapsedSections(new Set());
     try { sessionStorage.removeItem(collapsedKey); } catch { /* private mode */ }
-    // Reset also unhides everything. Previously it left hidden sections
-    // hidden, so "Reset" restored the order but not the sections the user
-    // had removed — and there was no other way to get them all back at
-    // once. The state change flows into the sync effect below, so the
-    // server copy is reset too rather than resurrecting on the next
-    // device. clearLayoutLocal drops all three local keys, including the
-    // hidden-sections one the old code missed.
-    setHiddenSections(new Set());
+    // Reset also restores the hidden set, to the Today DEFAULTS: anything the
+    // user hid comes back, the retired sections stay retired. It used to
+    // empty the set, which was right while every section showed by default;
+    // since the Today redesign that brought back all ten retired sections.
+    // The state change flows into the sync effect below, so the server copy
+    // is reset too. clearLayoutLocal drops all three local keys.
+    setHiddenSections(new Set(TODAY_RETIRED_SECTIONS));
     clearLayoutLocal(user?.id);
   };
 
@@ -1209,18 +1207,6 @@ export default function Dashboard() {
     queryKey: ['goals', user?.email],
     queryFn: () => db.entities.Goal.filter({ user_id: user.id }, '-created_date'),
     enabled: !!user?.email,
-  });
-
-  // Lightweight meal-log query for the StreakRescueCard. Only needs the
-  // date column — small payload, generous staleTime since the rescue
-  // card only checks "logged anything today?" not specific entries.
-  // Without this query the streak-rescue card would fire on users who
-  // logged a meal today but not a workout. (Audit 08 #1.)
-  const { data: rawNutritionLogs = [] } = useQuery({
-    queryKey: ['nutritionLogsRecent', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-date', 20),
-    enabled: !!user?.email,
-    staleTime: 5 * 60_000,
   });
 
   const { data: userProfile = {} } = useQuery({
@@ -1394,16 +1380,17 @@ export default function Dashboard() {
   // "this week" depending on which side of midnight UTC the user is on.
   const thisWeekLogs = useMemo(
     () => {
-      // Hoist out of the filter callback — new Date() inside the
-      // predicate fires once per log row when N items can be 50+,
-      // which is wasteful when the reference instant is unchanged.
-      const cutoff = subDays(new Date(), 7);
+      // Anchored on `today` (local midnight, on a minute tick) rather than
+      // new Date(), so a PWA resumed the next morning recomputes. Log dates
+      // are local midnights, so the strict isAfter gives the same set either
+      // way.
+      const cutoff = subDays(today, 7);
       return logs.filter(l => {
         const d = parseLocalDate(l.date);
         return d && isAfter(d, cutoff);
       });
     },
-    [logs]
+    [logs, today]
   );
 
   const muscleGroupCount = useMemo(() => {
@@ -1423,15 +1410,15 @@ export default function Dashboard() {
       // Hoist reference instants — calling new Date() twice per filter
       // call is both wasteful and risks edge cases where the two calls
       // straddle midnight (extremely unlikely but theoretically possible).
-      const sevenAgo = subDays(new Date(), 7);
-      const fourteenAgo = subDays(new Date(), 14);
+      const sevenAgo = subDays(today, 7);
+      const fourteenAgo = subDays(today, 14);
       return logs.filter(l => {
         const d = parseLocalDate(l.date);
         if (!d) return false;
         return isAfter(d, fourteenAgo) && !isAfter(d, sevenAgo);
       });
     },
-    [logs]
+    [logs, today]
   );
 
   const lastWeekWorkoutCount = lastWeekLogs.length;
@@ -1482,7 +1469,9 @@ export default function Dashboard() {
     cardioLogs.forEach(l => addStamp(l.date));
     if (stamps.size === 0) return 0;
     const stampOf = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    let cursor = startOfDay(new Date());
+    // `today`, not new Date(): a streak alive yesterday must read 0 the
+    // morning after a missed day even when no new log arrives to recompute.
+    let cursor = new Date(today);
     if (!stamps.has(stampOf(cursor))) {
       const yesterday = new Date(cursor);
       yesterday.setDate(yesterday.getDate() - 1);
@@ -1497,7 +1486,7 @@ export default function Dashboard() {
       cursor = prev;
     }
     return count;
-  }, [logs, cardioLogs]);
+  }, [logs, cardioLogs, today]);
 
   const lastWorkoutDate = useMemo(() => {
     const all = [...logs.map(l => l.date), ...cardioLogs.map(l => l.date)]
@@ -1506,18 +1495,6 @@ export default function Dashboard() {
     if (all.length === 0) return null;
     return new Date(Math.max(...all.map(d => d.getTime())));
   }, [logs, cardioLogs]);
-
-  // Most-recent meal date for the StreakRescueCard's "logged anything
-  // today?" check. Same parseLocalDate convention as workout dates so
-  // the late-evening / timezone-edge cases line up.
-  const lastMealDate = useMemo(() => {
-    const all = rawNutritionLogs
-      .map(l => l.date)
-      .map(parseLocalDate)
-      .filter(d => d && !isNaN(d.getTime()));
-    if (all.length === 0) return null;
-    return new Date(Math.max(...all.map(d => d.getTime())));
-  }, [rawNutritionLogs]);
 
   const daysSinceLast = useMemo(() => {
     if (!lastWorkoutDate) return null;
@@ -1541,7 +1518,9 @@ export default function Dashboard() {
   // while their real name sat unused one property away. The username is a
   // database key; the name is what a person answers to.
   const firstName = user?.full_name?.trim().split(/\s+/)[0] || user?.username || '';
-  const todayLabel = format(new Date(), 'EEEE, MMMM d', { locale: getDateLocale(language) });
+  // Intl, not date-fns: 'EEEE, MMMM d' with a date-fns locale translates the
+  // words but keeps English word order ("domingo, septiembre 27").
+  const todayLabel = formatDate(today, language, { weekday: 'long', month: 'long', day: 'numeric' });
 
   // Format weekly volume nicely (1.2k for big numbers).
   // Use fmt() for ALL branches so digit grouping + decimal separator
@@ -1681,11 +1660,12 @@ export default function Dashboard() {
           {/* Rest day means the streak is deliberately paused, so the rescue
               prompt would be nagging about a choice the user just made. */}
           {!isRestDay && (
-            <StreakRescueCard
-              streakDays={streak}
-              lastWorkoutDate={lastWorkoutDate?.toISOString()}
-              lastMealDate={lastMealDate?.toISOString()}
-            />
+            <ErrorBoundary label="StreakRescueCard">
+              <StreakRescueCard
+                streakDays={streak}
+                lastWorkoutDate={lastWorkoutDate?.toISOString()}
+              />
+            </ErrorBoundary>
           )}
         </React.Fragment>
       );

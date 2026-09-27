@@ -45,12 +45,26 @@ import { track, EVENTS } from '@/lib/analytics';
 // right granularity.
 const DISMISS_KEY = (userId) => `flexyn.pushOptInDismissed.${userId || 'anon'}`;
 
-function readDismissed(userId) {
-  try { return localStorage.getItem(DISMISS_KEY(userId)) === '1'; }
-  catch { return false; }
+// Two kinds of dismissal, stored differently because they expire differently.
+//   '1'            the native prompt was shown and closed. Expires as soon as
+//                  permission reads 'default' again (Audit 08 #23).
+//   'snooze:<ms>'  the user pressed "Not now". Holds for SNOOZE_MS whatever
+//                  the permission says. It used to be a plain '1', and since
+//                  "Not now" never touches permission (it stays 'default'),
+//                  the expiry rule above undid it on the very next visit.
+const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function readDismissal(userId) {
+  try { return localStorage.getItem(DISMISS_KEY(userId)); }
+  catch { return null; }
 }
-function writeDismissed(userId) {
-  try { localStorage.setItem(DISMISS_KEY(userId), '1'); }
+function isSnoozed(raw, now = Date.now()) {
+  if (!raw || !raw.startsWith('snooze:')) return false;
+  const at = Number(raw.slice(7));
+  return Number.isFinite(at) && now - at < SNOOZE_MS;
+}
+function writeDismissed(userId, value = '1') {
+  try { localStorage.setItem(DISMISS_KEY(userId), value); }
   catch { /* best-effort */ }
 }
 
@@ -73,11 +87,16 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
   // (Audit 08 #23.)
   useEffect(() => {
     if (!user?.id) return;
+    const raw = readDismissal(user.id);
+    if (isSnoozed(raw)) {
+      setDismissed(true);
+      return;
+    }
     if (push.permission === 'default') {
       setDismissed(false);
       return;
     }
-    setDismissed(readDismissed(user.id));
+    setDismissed(raw === '1');
   }, [user?.id, push.permission]);
 
   // Gate all the show conditions in one place. Each is intentionally
@@ -130,7 +149,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
   };
 
   const handleDismiss = () => {
-    writeDismissed(user?.id);
+    writeDismissed(user?.id, `snooze:${Date.now()}`);
     setDismissed(true);
   };
 

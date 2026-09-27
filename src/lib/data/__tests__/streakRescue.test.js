@@ -79,25 +79,26 @@ describe('shouldShowStreakRescue', () => {
     ).toBe(false);
   });
 
-  it('returns false when user already logged a meal today', () => {
-    expect(
-      shouldShowStreakRescue({
-        streakDays: 5,
-        lastMealDate: NIGHT.toISOString(),
-        userEmail: EMAIL,
-        now: NIGHT,
-      })
-    ).toBe(false);
-  });
-
-  it('returns true after 6 PM with active streak and no activity today', () => {
-    // Workout/meal were yesterday.
+  it('still warns when only a meal or water was logged today', () => {
+    // A meal does not extend the workout streak the card warns about.
     const yesterday = new Date('2025-05-20T18:00:00').toISOString();
     expect(
       shouldShowStreakRescue({
         streakDays: 5,
         lastWorkoutDate: yesterday,
-        lastMealDate: yesterday,
+        lastMealDate: NIGHT.toISOString(),
+        userEmail: EMAIL,
+        now: NIGHT,
+      })
+    ).toBe(true);
+  });
+
+  it('returns true after 6 PM with active streak and no activity today', () => {
+    const yesterday = new Date('2025-05-20T18:00:00').toISOString();
+    expect(
+      shouldShowStreakRescue({
+        streakDays: 5,
+        lastWorkoutDate: yesterday,
         userEmail: EMAIL,
         now: NIGHT,
       })
