@@ -70,7 +70,7 @@ describe('mergeWidgetOrder', () => {
 
 // v5 (the Today screen) hides sections on every layout it meets, so the
 // pairing tests below look only at the steps they are about.
-const pairingSteps = (applied) => applied.filter(name => name !== 'today-screen');
+const pairingSteps = (applied) => applied.filter(name => name !== 'today-screen' && name !== 'one-streak-on-today');
 
 describe('applyLayoutMigrations', () => {
   // A layout saved before versioning: streak and challenges nowhere near
@@ -367,14 +367,14 @@ describe('v5: the Today screen', () => {
 
   it('hides every retired section and keeps what was already hidden', () => {
     const { layout, applied } = applyLayoutMigrations(v4(), 4);
-    expect(applied).toEqual(['today-screen']);
+    expect(applied).toEqual(['today-screen', 'one-streak-on-today']);
     for (const id of TODAY_RETIRED_SECTIONS) expect(layout.hiddenSections).toContain(id);
     expect(layout.hiddenSections.filter(id => id === 'journal')).toHaveLength(1);
   });
 
   it('leaves the Today sections visible', () => {
     const { layout } = applyLayoutMigrations(v4(), 4);
-    for (const id of ['recovery', 'streak', 'challenges']) expect(layout.hiddenSections).not.toContain(id);
+    for (const id of ['recovery', 'challenges']) expect(layout.hiddenSections).not.toContain(id);
   });
 
   it('touches neither the order nor the pairings, so a restore lands where it was', () => {
@@ -393,3 +393,25 @@ describe('v5: the Today screen', () => {
   });
 });
 
+describe('v6: one streak on Today', () => {
+  const v5 = () => ({
+    hiddenSections: ['stats', 'journal'],
+    widgetOrder: ['fuel', 'recovery', 'streak', 'challenges', 'stats', 'journal'],
+    sectionLayouts: {},
+  });
+
+  it('hides the login streak pill and nothing else', () => {
+    const { layout, applied } = applyLayoutMigrations(v5(), 5);
+    expect(applied).toEqual(['one-streak-on-today']);
+    expect(layout.hiddenSections.sort()).toEqual(['journal', 'stats', 'streak']);
+    expect(layout.widgetOrder).toEqual(v5().widgetOrder);
+  });
+
+  it('does not re-hide the pill once someone restores it', () => {
+    const migrated = applyLayoutMigrations(v5(), 5).layout;
+    const restored = { ...migrated, hiddenSections: migrated.hiddenSections.filter(id => id !== 'streak') };
+    const again = applyLayoutMigrations(restored, LAYOUT_DEFAULTS_VERSION);
+    expect(again.applied).toEqual([]);
+    expect(again.layout.hiddenSections).not.toContain('streak');
+  });
+});

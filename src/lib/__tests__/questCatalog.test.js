@@ -143,6 +143,22 @@ describe('QUEST_DIFFICULTY rewards', () => {
 describe('pickDailyQuests', () => {
   const userId = 'user-uuid-1';
 
+  // "Complete a goal" handed to someone with no goal cannot be finished.
+  it('never picks a skipped family, and still fills every tier', () => {
+    for (let i = 0; i < 120; i++) {
+      const d = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+      const set = pickDailyQuests(`skip-u${i % 7}`, d, true, { skipFamilies: ['goals'] });
+      expect(set).toHaveLength(4);
+      expect(set.some(q => q.family === 'goals')).toBe(false);
+    }
+  });
+
+  it('leaves the day unchanged when nothing is skipped', () => {
+    const plain = pickDailyQuests(userId, '2026-01-15', true).map(q => q.id);
+    const none = pickDailyQuests(userId, '2026-01-15', true, { skipFamilies: [] }).map(q => q.id);
+    expect(none).toEqual(plain);
+  });
+
   it('returns exactly one quest per difficulty', () => {
     const quests = pickDailyQuests(userId, '2026-01-15');
     expect(quests).toHaveLength(3);

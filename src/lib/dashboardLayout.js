@@ -81,7 +81,7 @@ export function mergeWidgetOrder(saved, defaults) {
    one must not imply the other.
    ══════════════════════════════════════════════════════════════════ */
 
-export const LAYOUT_DEFAULTS_VERSION = 5;
+export const LAYOUT_DEFAULTS_VERSION = 6;
 
 /**
  * Sections the Today screen (navigation redesign, phase 3) no longer shows
@@ -90,10 +90,18 @@ export const LAYOUT_DEFAULTS_VERSION = 5;
  * numbers, goals and recap in You › Progress, quick actions in the + sheet,
  * league and friends in Social › Compete, the chest in You › Rewards.
  */
-export const TODAY_RETIRED_SECTIONS = [
+// What v5 hid, frozen: a migration step must keep meaning what it meant when
+// it shipped, so later additions go in their own step below.
+const V5_RETIRED_SECTIONS = [
   'stats', 'actions', 'chest', 'league', 'friends', 'progress',
   'journal', 'discover', 'motivation', 'customize',
 ];
+
+// 'streak' is the LOGIN streak pill. Today shows one streak, the training
+// streak in the hero; the login streak lives on You (Kegan, 27 Sep).
+const V6_RETIRED_SECTIONS = ['streak'];
+
+export const TODAY_RETIRED_SECTIONS = [...V5_RETIRED_SECTIONS, ...V6_RETIRED_SECTIONS];
 
 /**
  * Move `first` to sit immediately before `second` and mark both 'half', so
@@ -205,7 +213,16 @@ const LAYOUT_MIGRATIONS = [
   {
     to: 5,
     name: 'today-screen',
-    apply: (layout) => hideSections(layout, TODAY_RETIRED_SECTIONS),
+    apply: (layout) => hideSections(layout, V5_RETIRED_SECTIONS),
+  },
+  // v6: one streak on Today. Two flames a few rows apart ("3 day streak"
+  // for opening the app, the hero's count for training) read as the same
+  // number disagreeing with itself. The login pill moves to You; hidden,
+  // not removed, so edit mode can still restore it here.
+  {
+    to: 6,
+    name: 'one-streak-on-today',
+    apply: (layout) => hideSections(layout, V6_RETIRED_SECTIONS),
   },
 ];
 

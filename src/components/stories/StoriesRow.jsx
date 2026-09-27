@@ -167,9 +167,16 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
 
 // ── Single avatar button ──────────────────────────────────────────────────────
 
+// Compact geometry (Today). 48px keeps a face recognisable and the 3px ring
+// band on whole pixels (48 -> 42 -> 38); the 64px cell still fits "Votre story"
+// at the 11px floor. The pill overlap is how far a pill sits over the crown.
+const COMPACT_CIRCLE = 48;
+const COMPACT_CELL = 64;
+const OWN_PILL_OVERLAP = 10;
+
 function StoryAvatarButton({
   group, onPress, onNoteLike, onNoteEditOwn, isUploading, likedNoteIds,
-  notePillRef, noteEditorOpen,
+  notePillRef, noteEditorOpen, compact = false,
 }) {
   const { tFallback } = useLanguage();
   const noStory     = group.stories.length === 0;
@@ -198,14 +205,26 @@ function StoryAvatarButton({
   // 60, not the 57 the stack actually measures: the extra 3px is slack for
   // scripts whose glyphs sit taller in the same line-height (the app ships
   // 15 languages), and it costs nothing — the row is already this tall.
-  const topReserve = group.isOwn ? 40 : 60;
+  //
+  // Compact (Today): the own pill tucks OVER the avatar's top edge instead of
+  // standing on a 40px shelf above it, which is most of what made the strip
+  // 131px tall on an SE for a row that usually holds two circles. It only
+  // covers the crown of a 48px circle, the same place Instagram puts a note.
+  // A friend's note keeps its full reserve: the like row under the bubble
+  // would otherwise sit on their face, and friend notes are the rare case.
+  const pillOverlap = compact && group.isOwn ? OWN_PILL_OVERLAP : 0;
+  const topReserve = group.isOwn
+    ? (compact ? (group.note ? 40 : 24) - OWN_PILL_OVERLAP : 40)
+    : 60;
+  const circle = compact ? COMPACT_CIRCLE : 60;
+  const cell = compact ? COMPACT_CELL : 68;
 
   return (
     <motion.button
       whileTap={{ scale: 0.90 }}
       onClick={onPress}
       className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
-      style={{ minWidth: 68, paddingTop: hasTopPill ? topReserve : 0 }}
+      style={{ minWidth: cell, paddingTop: hasTopPill ? topReserve : 0 }}
       aria-label={group.isOwn ? tFallback('stories.yourStory', 'Your story') : group.username}
     >
       <div className="relative w-full flex justify-center">
@@ -225,7 +244,7 @@ function StoryAvatarButton({
               // what pushed its top edge up against the app header with
               // almost nothing between them. Shrinking it moves the top edge
               // down and buys that gap back without moving the avatar row.
-              marginBottom: 4,
+              marginBottom: pillOverlap ? -pillOverlap : 4,
               zIndex: 10,
               opacity: noteEditorOpen ? 0 : 1,
               pointerEvents: noteEditorOpen ? 'none' : 'auto',
@@ -251,7 +270,7 @@ function StoryAvatarButton({
               /* No shadow: a hairline border is the resting elevation here,
                  and it matches the empty pill beside it. Width comes from
                  the wrapper's max-content + 72px cap. */
-              <div className="w-full px-2 py-1 rounded-lg cursor-pointer relative bg-card border border-border">
+              <div className={`w-full px-2 py-1 rounded-lg cursor-pointer relative bg-card border border-border ${pillOverlap ? 'ring-2 ring-background' : ''}`}>
                 <p className="text-micro leading-tight text-center line-clamp-2 select-none text-foreground">
                   {group.note.text}
                 </p>
@@ -274,7 +293,9 @@ function StoryAvatarButton({
                  var(--radius), and lg is the sanctioned name (tailwind.config
                  pins xl as a compatibility alias). */
               <div
-                className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border border-dashed border-border bg-muted/70 cursor-pointer whitespace-nowrap"
+                // Opaque with a background-coloured ring when it sits on the
+                // avatar, or the circle shows through the dashed pill.
+                className={`flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border border-dashed border-border cursor-pointer whitespace-nowrap ${pillOverlap ? 'bg-muted ring-2 ring-background' : 'bg-muted/70'}`}
               >
                 <Plus className="w-2.5 h-2.5 text-muted-foreground stroke-[3]" />
                 <span className="text-micro font-bold text-muted-foreground select-none">
@@ -304,12 +325,12 @@ function StoryAvatarButton({
             between users and the ring looked mismatched. The ring band is just
             transparent when there's no story. */}
         <div
-          className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
+          className="rounded-full flex items-center justify-center"
           // INTEGER padding: a fractional band (2.5px) rounds to 2px on one
           // edge and 3px on the other at non-integer device pixel ratios, so
           // the ring looked thicker on one side. 3px keeps every layer on a
           // whole pixel (60 → 54 → 50).
-          style={{ padding: '3px', ...(hasRing ? ringStyle : {}) }}
+          style={{ width: circle, height: circle, padding: '3px', ...(hasRing ? ringStyle : {}) }}
         >
           <div className="rounded-full overflow-hidden bg-background w-full h-full p-[2px]">
             <div className="w-full h-full rounded-full overflow-hidden">
@@ -344,7 +365,8 @@ function StoryAvatarButton({
       </div>
 
       <span
-        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground"
+        className="text-micro font-medium text-center truncate leading-tight text-muted-foreground"
+        style={{ width: cell }}
       >
         {group.isOwn ? tFallback('stories.yourStory', 'Your story') : group.username}
       </span>
@@ -357,7 +379,7 @@ function StoryAvatarButton({
 // Same paddingTop:40 as note-bearing avatars so circles align with `items-end`.
 // The "+ Add" pill occupies that top padding area, mirroring where notes appear.
 
-function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
+function QuickAddAvatarItem({ profile, onAdd, onViewProfile, compact = false }) {
   const { tFallback } = useLanguage();
   const [state, setState] = useState('idle'); // idle | adding | added
 
@@ -391,7 +413,9 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
   return (
     <div
       className="flex flex-col items-center gap-1 shrink-0 relative"
-      style={{ minWidth: 68, paddingTop: 40 }}
+      // Compact: the "+ Add" pill overlaps the avatar's crown, same move as
+      // the own "+ Note" pill, so a suggestion does not re-grow the strip.
+      style={{ minWidth: compact ? COMPACT_CELL : 68, paddingTop: compact ? 24 - OWN_PILL_OVERLAP : 40 }}
     >
       <div className="relative w-full flex justify-center">
         {/* "+ Add" pill — its own button now, no longer the whole cell */}
@@ -408,7 +432,7 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
             bottom:    '100%',
             left:      '50%',
             transform: 'translateX(-50%)',
-            marginBottom: 6,
+            marginBottom: compact ? -OWN_PILL_OVERLAP : 6,
             zIndex: 10,
             // Content-sized, capped at the cell. It was a hard `width: 68` —
             // the width of the CELL — so the pill spanned its slot edge to
@@ -420,9 +444,10 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
             // (de "Hinzugefügt", pt "Adicionado"), so a fixed width was never
             // going to hold anyway.
             width: 'max-content',
-            maxWidth: 68,
+            maxWidth: compact ? COMPACT_CELL : 68,
           }}
-          className="focus:outline-none"
+          // Over the avatar the tinted pill needs an opaque floor under it.
+          className={`focus:outline-none ${compact ? 'rounded-lg bg-background ring-2 ring-background' : ''}`}
         >
           <div
             className={`flex items-center justify-center gap-0.5 py-1 rounded-xl border transition-colors whitespace-nowrap ${
@@ -450,7 +475,8 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
           whileTap={{ scale: 0.90 }}
           onClick={handleViewProfile}
           aria-label={`View ${profile.username}'s profile`}
-          className="w-[60px] h-[60px] rounded-full overflow-hidden ring-1 ring-border/60 bg-secondary focus:outline-none"
+          className="rounded-full overflow-hidden ring-1 ring-border/60 bg-secondary focus:outline-none"
+          style={{ width: compact ? COMPACT_CIRCLE : 60, height: compact ? COMPACT_CIRCLE : 60 }}
         >
           <AvatarImage avatarUrl={profile.avatar_url} username={profile.username} />
         </motion.button>
@@ -460,7 +486,8 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
         type="button"
         onClick={handleViewProfile}
         aria-label={`View ${profile.username}'s profile`}
-        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground active:text-foreground transition-colors focus:outline-none"
+        className="text-micro font-medium text-center truncate leading-tight text-muted-foreground hover:text-foreground active:text-foreground transition-colors focus:outline-none"
+        style={{ width: compact ? COMPACT_CELL : 68 }}
       >
         @{profile.username}
       </button>
@@ -508,11 +535,17 @@ function qaIsStale(cache) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+// `compact` (Today only): 48px circles in a 60px cell, pills tucked over the
+// avatar's crown and no hairline under the strip. Kegan kept stories on Today
+// (27 Sep) on condition the row costs less space: it measured 131px on a
+// 375x667 SE for two circles, more than the greeting below it. Hub keeps the
+// full size because there the strip IS the page's subject.
+//
 // `tightOnShort` (Dashboard only): on a short phone (max-height 700px, the
 // 375x667 iPhone SE class) the strip's bottom margin and the hairline's gap
 // each drop one step, because the Today CTA below has to clear the bottom nav
 // on first paint. Hub keeps its spacing; the flag is opt-in for that reason.
-export default function StoriesRow({ onViewProfile, tightOnShort = false } = {}) {
+export default function StoriesRow({ onViewProfile, tightOnShort = false, compact = false } = {}) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
@@ -884,10 +917,13 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
             type="button"
             onClick={openStoryPicker}
             className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
-            style={{ minWidth: 68 }}
+            style={{ minWidth: compact ? COMPACT_CELL : 68 }}
             aria-label={tFallback('stories.add', 'Add a story')}
           >
-            <span className="relative w-[60px] h-[60px] flex items-center justify-center">
+            <span
+              className="relative flex items-center justify-center"
+              style={{ width: compact ? COMPACT_CIRCLE : 60, height: compact ? COMPACT_CIRCLE : 60 }}
+            >
               <svg
                 viewBox="0 0 60 60"
                 className="absolute inset-0 w-full h-full motion-safe:animate-[spin_24s_linear_infinite]"
@@ -902,7 +938,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
                   strokeDasharray="6 7"
                 />
               </svg>
-              <span className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className={`${compact ? 'w-9 h-9' : 'w-11 h-11'} rounded-full bg-primary/10 flex items-center justify-center`}>
                 <Plus className="w-5 h-5 text-primary stroke-[3]" />
               </span>
             </span>
@@ -924,15 +960,19 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
                 whileTap={{ scale: 0.90 }}
                 onClick={() => setCrewStoryViewerOpen({ crew, stories, idx: 0 })}
                 className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
-                style={{ minWidth: 68 }}
+                style={{ minWidth: compact ? COMPACT_CELL : 68 }}
               >
                 {/* INTEGER 3px band, matching StoryAvatarButton. A
                     fractional 2.5px rounds to 2px on one side and 3px on
                     the other at device pixel ratios other than 2, which
                     is the uneven-ring bug the friend avatars already fixed. */}
                 <div
-                  className="w-[60px] h-[60px] rounded-full flex items-center justify-center p-[3px]"
-                  style={{ background: 'linear-gradient(135deg, #FF6600 0%, #FFAA00 100%)' }}
+                  className="rounded-full flex items-center justify-center p-[3px]"
+                  style={{
+                    width: compact ? COMPACT_CIRCLE : 60,
+                    height: compact ? COMPACT_CIRCLE : 60,
+                    background: 'linear-gradient(135deg, #FF6600 0%, #FFAA00 100%)',
+                  }}
                 >
                   <div className="w-full h-full rounded-full overflow-hidden bg-background p-[2px]">
                     <div className="w-full h-full rounded-full overflow-hidden">
@@ -951,7 +991,10 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
                     </div>
                   </div>
                 </div>
-                <span className="text-micro font-medium text-muted-foreground w-[68px] text-center truncate leading-tight">
+                <span
+                  className="text-micro font-medium text-muted-foreground text-center truncate leading-tight"
+                  style={{ width: compact ? COMPACT_CELL : 68 }}
+                >
                   {crew.name}
                 </span>
               </motion.button>
@@ -970,6 +1013,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
               likedNoteIds={likedNoteIds}
               notePillRef={group.isOwn ? notePillRef : null}
               noteEditorOpen={noteEditorOpen}
+              compact={compact}
             />
           ))}
 
@@ -977,7 +1021,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
           {showQuickAdd && (
             <>
               {/* Soft vertical separator */}
-              <div className="self-center shrink-0 w-px h-[52px] rounded-full bg-border/60 mx-2" />
+              <div className={`self-center shrink-0 w-px ${compact ? 'h-10' : 'h-[52px]'} rounded-full bg-border/60 mx-2`} />
 
               {visibleQaList.length > 0 ? (
                 <>
@@ -987,6 +1031,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
                       profile={profile}
                       onAdd={handleQuickAdd}
                       onViewProfile={onViewProfile}
+                      compact={compact}
                     />
                   ))}
                 </>
@@ -1015,7 +1060,9 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false } = {})
             leaderboard, feed). Screenshot feedback flagged the lack
             of a visual break between sections. Uses border instead of
             full-width hr so it tucks neatly inside the bleed edge. */}
-        <div className={`h-px bg-border/60 mx-4 md:mx-6 mt-2 ${tightOnShort ? '[@media(max-height:700px)]:mt-1' : ''}`} />
+        {!compact && (
+          <div className={`h-px bg-border/60 mx-4 md:mx-6 mt-2 ${tightOnShort ? '[@media(max-height:700px)]:mt-1' : ''}`} />
+        )}
       </div>
 
       {/* Hidden file input */}

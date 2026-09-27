@@ -11,6 +11,24 @@ export const list = (userId, limit = 50) =>
 export const listForDate = (userId, date, limit = 50) =>
   db.entities.WorkoutLog.filter({ user_id: userId, date }, '-date', limit);
 
+/**
+ * Just the `date` of each log on or after `since` (yyyy-MM-dd). For callers
+ * that count sessions rather than show them: the nutrition target only needs
+ * how many days had training in the last 30, and used to fetch up to 1,000
+ * full rows (exercises JSONB included) to learn it.
+ */
+export async function listDatesSince(userId, since) {
+  const { data, error } = await supabase
+    .from('workout_logs')
+    .select('date')
+    .eq('user_id', userId)
+    .gte('date', since)
+    .order('date', { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Fetch a workout log by id. */
 export const get = (id) =>
   db.entities.WorkoutLog.get(id);
