@@ -2,6 +2,7 @@
 //
 // The overlays that used to open only from the header's profile menu:
 // Weekly Reviews, Injuries, and the sign-out / delete-account confirms.
+// Delete account is requested from Settings › Account; the rest from You.
 //
 // Navigation redesign, phase 2: the profile menu became the You tab, but
 // ProfileMenu still OWNS these overlays (it stays mounted in the header
