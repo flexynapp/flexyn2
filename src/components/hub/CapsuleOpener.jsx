@@ -3,7 +3,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, BookOpen } from 'lucide-react';
+import { X, Package, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS, lootDescription } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
@@ -1056,7 +1056,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
         {/* Header */}
         <div className="relative flex items-center justify-between px-5 pt-5 pb-3">
           <h2 id="capsule-opener-title" className="text-lg font-bold tracking-wide flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" aria-hidden="true" />
+            <Package className="w-5 h-5 text-primary" aria-hidden="true" />
             {tFallback("capsuleOpener.openCapsule", "Open Capsule")}
           </h2>
           {(phase === 'idle' || phase === 'claimed') && (

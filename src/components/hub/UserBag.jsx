@@ -12,7 +12,7 @@
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square, Search, LibraryBig } from 'lucide-react';
+import { X, Package, Sticker, Palette, ShoppingBag, Store, Crown, Square, Search, LibraryBig } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -778,7 +778,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     // "Stickers" tab no longer carries a "N dupes" badge — duplicates
     // are already visualized by the per-card ×N count, so labeling the
     // tab with "dupes" was redundant and a bit jargony.
-    { id: 'stickers', label: 'Stickers', icon: Sparkles, count: stickers.length },
+    { id: 'stickers', label: 'Stickers', icon: Sticker, count: stickers.length },
     { id: 'titles',   label: 'Titles',   icon: Crown,    count: titles.length    },
     { id: 'frames',   label: 'Frames',   icon: Square,   count: frames.length    },
     { id: 'themes',   label: 'Themes',   icon: Palette,  count: themes.length    },
@@ -980,7 +980,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               )
             ) : activeTab === 'stickers' ? (
               fStickerGroups.length === 0 ? (
-                <EmptyState icon={Sparkles} label={q ? `No stickers match "${query}".` : 'No stickers yet — open a capsule!'} />
+                <EmptyState icon={Package} label={q ? `No stickers match "${query}".` : 'No stickers yet. Open a capsule!'} />
               ) : (
                 <>
                   {duplicateSales.length > 0 && (
