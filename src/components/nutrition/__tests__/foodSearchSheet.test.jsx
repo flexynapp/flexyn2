@@ -9,7 +9,7 @@
 //
 //   • **which table each of the three sources reads.** The stub is keyed by
 //     table name, so a source silently pointed at the wrong table fails here.
-//     It also pins the `created_by` scoping, which is the whole answer to
+//     It also pins the owner scoping, which is the whole answer to
 //     "does Search search a shared food database?" — it does not, on purpose.
 //   • **what the sheet puts on screen for a zero.** jsdom paints nothing, but
 //     it does render text, and "0 cal" beside three foods with real numbers
@@ -137,11 +137,11 @@ describe('FoodSearchSheet — the three sources it reads', () => {
     expect(tables).toContain('nutrition_logs');
 
     // THE ANSWER TO "does this search a shared food database?" — it does not.
-    // `created_by = <the caller>` is deliberate (see foodItems.js), and this
+    // `user_id = <the caller>` is deliberate (see foodItems.js), and this
     // assertion is what stops the filter being dropped by accident rather
     // than by decision.
     expect(CALLS).toEqual(expect.arrayContaining([
-      ['food_items', 'eq', 'created_by', 'mine@flexyn.test'],
+      ['food_items', 'eq', 'user_id', 'u-1'],
     ]));
     // Nothing asks the database for `is_verified`, because nothing is meant to.
     expect(CALLS.some(c => JSON.stringify(c).includes('is_verified'))).toBe(false);

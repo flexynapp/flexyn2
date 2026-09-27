@@ -54,6 +54,9 @@ export function useTodayFuel(userProfile = {}) {
     staleTime: 5 * 60_000,
   });
   const logEmail = authEmail || user?.email || userProfile?.email || null;
+  // Rows are read by owner id: an email can change (a guest linking an
+  // address), and rows written after that carry the new one.
+  const logUserId = user?.id || userProfile?.id || null;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['nutritionLogs', logEmail, today, 'todayGlance'],
@@ -61,11 +64,11 @@ export function useTodayFuel(userProfile = {}) {
       const { data } = await supabase
         .from('nutrition_logs')
         .select('calories, food_name, meal_type, created_at')
-        .eq('created_by', logEmail)
+        .eq('user_id', logUserId)
         .eq('date', today);
       return data || [];
     },
-    enabled: !!logEmail,
+    enabled: !!logEmail && !!logUserId,
     staleTime: 60_000,
   });
 

@@ -121,7 +121,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
     if (!log?.id) return;
     let cancelled = false;
     (async () => {
-      const all = await cardioData.listForPRs(user.email);
+      const all = await cardioData.listForPRs(user.id);
       if (cancelled) return;
       const prior = all.filter(l =>
         l.id !== log.id &&

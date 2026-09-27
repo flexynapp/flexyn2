@@ -236,7 +236,7 @@ describe('buildCoachContext — degrades rather than blanking', () => {
   describe('cardio is read from the columns that exist', () => {
     it('converts duration_seconds and distance_meters', async () => {
       filter.mockImplementation((q) => Promise.resolve(
-        q && q.created_by
+        q && q.user_id
           ? [
               { date: '2026-08-06', duration_seconds: 1800, distance_meters: 5200 },
               { date: '2026-08-03', duration_seconds: 2400, distance_meters: 7000 },
@@ -252,7 +252,7 @@ describe('buildCoachContext — degrades rather than blanking', () => {
 
     it('falls back to duration_min on an older row', async () => {
       filter.mockImplementation((q) => Promise.resolve(
-        q && q.created_by ? [{ date: '2026-08-06', duration_min: 45, distance_meters: 0 }] : []
+        q && q.user_id ? [{ date: '2026-08-06', duration_min: 45, distance_meters: 0 }] : []
       ));
 
       const ctx = await buildCoachContext({ user: USER });

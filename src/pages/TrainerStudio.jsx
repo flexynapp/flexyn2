@@ -307,7 +307,6 @@ export default function TrainerStudio() {
               onClose={() => { setFormOpen(false); setEditingListing(null); }}
               listing={editingListing}
               trainerId={user?.id}
-              userEmail={user?.email}
               onSaved={() => { setFormOpen(false); setEditingListing(null); refresh(); }}
             />
           </Suspense>

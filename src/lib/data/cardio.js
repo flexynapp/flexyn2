@@ -16,7 +16,7 @@ const PR_COLUMNS = ['id', 'type', 'distance_meters', 'duration_seconds', 'date',
 /**
  * The user's prior cardio logs, for PR detection.
  *
- * Every cardio save ran `CardioLog.filter({created_by}, '-date', 1000)` to
+ * Every cardio save ran `CardioLog.filter({user_id}, '-date', 1000)` to
  * find previous bests, and `makeEntity().filter` issues `select('*')` — so
  * each save downloaded up to a thousand FULL rows, `gps_track` JSONB
  * included, to read four numbers off each.
@@ -31,14 +31,14 @@ const PR_COLUMNS = ['id', 'type', 'distance_meters', 'duration_seconds', 'date',
  * safeSelect per the resilience rule in CLAUDE.md: an explicit column list
  * is exactly what strips-and-retries when a host is missing one.
  */
-export async function listForPRs(email, limit = 1000) {
-  if (!email) return [];
+export async function listForPRs(userId, limit = 1000) {
+  if (!userId) return [];
   const { data } = await safeSelect({
     columns: PR_COLUMNS,
     build: (cols) => supabase
       .from('cardio_logs')
       .select(cols)
-      .eq('created_by', email)
+      .eq('user_id', userId)
       .order('date', { ascending: false })
       .limit(limit),
   });
@@ -50,14 +50,14 @@ export async function listForPRs(email, limit = 1000) {
 const SUMMARY_COLUMNS = ['id', 'type', 'date', 'distance_meters', 'duration_seconds'];
 
 /** The saved-workouts list. Five columns × 500 rows instead of everything. */
-export async function listSummaries(email, limit = 500) {
-  if (!email) return [];
+export async function listSummaries(userId, limit = 500) {
+  if (!userId) return [];
   const { data } = await safeSelect({
     columns: SUMMARY_COLUMNS,
     build: (cols) => supabase
       .from('cardio_logs')
       .select(cols)
-      .eq('created_by', email)
+      .eq('user_id', userId)
       .order('date', { ascending: false })
       .limit(limit),
   });
@@ -88,11 +88,11 @@ export async function getById(id) {
   }
 }
 
-export const list = (email, limit = 50) =>
-  db.entities.CardioLog.filter({ created_by: email }, '-date', limit);
+export const list = (userId, limit = 50) =>
+  db.entities.CardioLog.filter({ user_id: userId }, '-date', limit);
 
-export const listByDate = (email, date) =>
-  db.entities.CardioLog.filter({ created_by: email, date }, '-created_date', 50);
+export const listByDate = (userId, date) =>
+  db.entities.CardioLog.filter({ user_id: userId, date }, '-created_date', 50);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -111,19 +111,3 @@ export const update = (id, data) => {
   return db.entities.CardioLog.update(id, data);
 };
 export const remove = (id) => db.entities.CardioLog.delete(id);
-
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const PAGE = 100;
-  let total = 0;
-  while (true) {
-    const batch = await db.entities.CardioLog
-      .filter({ created_by: email }, '-created_date', PAGE).catch(() => []);
-    if (!batch || batch.length === 0) break;
-    await Promise.all(batch.map(r =>
-      db.entities.CardioLog.delete(r.id).catch(() => {})
-    ));
-    total += batch.length;
-    if (batch.length < PAGE || total > 5000) break;
-  }
-};

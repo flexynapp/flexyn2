@@ -27,7 +27,7 @@ export default function BodyMetricsTab() {
   // for a moment, which makes the row count depend on mount order.
   const { data: rawLogs = [] } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'bodyMetrics'),
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 

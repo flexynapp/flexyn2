@@ -4,8 +4,8 @@ import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 /** List the current user's workout logs, newest first. */
-export const list = (email, limit = 50) =>
-  db.entities.WorkoutLog.filter({ created_by: email }, '-date', limit);
+export const list = (userId, limit = 50) =>
+  db.entities.WorkoutLog.filter({ user_id: userId }, '-date', limit);
 
 /** Fetch a workout log by id. */
 export const get = (id) =>
@@ -50,26 +50,4 @@ export const reconcileMyVolume = async () => {
     return { ok: false, error: error.message };
   }
   return { ok: true, reconciled: data?.reconciled ?? 0, delta: Number(data?.delta || 0) };
-};
-
-/**
- * Page through and delete every workout log owned by a user.
- * Used by account deletion. Best-effort; safe to call repeatedly.
- */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const PAGE = 100;
-  let total = 0;
-   
-  while (true) {
-    const batch = await db.entities.WorkoutLog
-      .filter({ created_by: email }, '-created_date', PAGE)
-      .catch(() => []);
-    if (!batch || batch.length === 0) break;
-    await Promise.all(batch.map(r =>
-      db.entities.WorkoutLog.delete(r.id).catch(() => {})
-    ));
-    total += batch.length;
-    if (batch.length < PAGE || total > 5000) break;
-  }
 };

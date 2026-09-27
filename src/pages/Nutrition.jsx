@@ -559,7 +559,7 @@ export default function Nutrition() {
   // "Fuel your training" banner in NutritionPlansModal.
   const { data: regimensForFuel = [] } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }, '-created_date', 50),
+    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }, '-created_date', 50),
     enabled: !!user?.email && showNutritionPlans,
   });
   const trainingFuel = useMemo(() => {
@@ -667,7 +667,7 @@ export default function Nutrition() {
 
   const { data: rawLogs = EMPTY_LOGS, isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email, date }),
+    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id, date }),
     enabled: !!user?.email
   });
   // Also wait for the profile so macro goals render correctly on first paint
@@ -757,7 +757,7 @@ export default function Nutrition() {
             build: (cols) => supabase
               .from('nutrition_logs')
               .select(cols, { count: 'exact', head: true })
-              .eq('created_by', user?.email)
+              .eq('user_id', user?.id)
               .not('food_name', 'like', 'Water%'),
           });
           if (!error && count === 1) {

@@ -427,12 +427,12 @@ export default function HubComposer({ onClose }) {
   // ── Load shareable activities ──
   const { data: recentWorkouts = [] } = useQuery({
     queryKey: ['composer.workouts', user?.email],
-    queryFn: () => workouts.list(user.email, 10),
+    queryFn: () => workouts.list(user.id, 10),
     enabled: !!user?.email,
   });
   const { data: recentCardio = [] } = useQuery({
     queryKey: ['composer.cardio', user?.email],
-    queryFn: () => cardio.list(user.email, 10),
+    queryFn: () => cardio.list(user.id, 10),
     enabled: !!user?.email,
   });
   // Hydration shares the meal table: a glass of water is a `nutrition_logs`
@@ -456,7 +456,7 @@ export default function HubComposer({ onClose }) {
   // shared helper is the better end state.
   const { data: recentMeals = [] } = useQuery({
     queryKey: ['composer.meals', user?.email],
-    queryFn: () => nutrition.list(user.email, 20).then(meals =>
+    queryFn: () => nutrition.list(user.id, 20).then(meals =>
       meals
         .filter(m => !(m.food_name === 'Water' || m.food_name?.startsWith?.('Water|')))
         .slice(0, 10)
@@ -466,7 +466,7 @@ export default function HubComposer({ onClose }) {
   const { data: completedGoals = [] } = useQuery({
     queryKey: ['composer.goals', user?.email],
     queryFn: async () => {
-      const all = await goals.list(user.email);
+      const all = await goals.list(user.id);
       return all.filter(g => g.status === 'completed').slice(0, 10);
     },
     enabled: !!user?.email,
@@ -484,7 +484,7 @@ export default function HubComposer({ onClose }) {
   });
   const { data: myRegimens = [] } = useQuery({
     queryKey: ['composer.regimens', user?.email],
-    queryFn: () => regimens.list(user.email),
+    queryFn: () => regimens.list(user.id),
     enabled: !!user?.email,
   });
 

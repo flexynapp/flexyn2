@@ -41,7 +41,7 @@ export default function RegimensSection({ onStartRegimen }) {
 
   const { data: regimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }, '-created_date'),
+    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }, '-created_date'),
     enabled: !!user?.email,
   });
 

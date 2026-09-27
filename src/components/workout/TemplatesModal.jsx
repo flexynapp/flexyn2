@@ -431,7 +431,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
   // Personal templates
   const { data: myTemplates = [], isLoading: myLoading } = useQuery({
     queryKey: ['workoutTemplates', user?.email],
-    queryFn: () => templates.list(user.email),
+    queryFn: () => templates.list(user.id),
     enabled: !!user?.email && view === 'load',
   });
 

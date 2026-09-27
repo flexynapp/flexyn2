@@ -62,13 +62,13 @@ export default function FoodSearchSheet({ open, onClose, onPick }) {
     // Shares the key the Log Meal form's History tab already uses, so opening
     // one warms the other rather than refetching 300 rows twice.
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 300),
+    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
     enabled,
     staleTime: 60_000,
   });
   const { data: scans = [], isLoading: scansLoading } = useQuery({
     queryKey: ['foodItemsMine', user?.email],
-    queryFn: () => listMineForSearch(user.email),
+    queryFn: () => listMineForSearch(user.id),
     enabled,
     staleTime: 60_000,
   });

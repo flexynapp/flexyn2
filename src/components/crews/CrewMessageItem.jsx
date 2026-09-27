@@ -658,7 +658,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
     setState('checking');
     try {
       // Feature 19: block if the user already cloned this regimen template
-      const alreadyHave = await crewsData.hasClonedRegimen(msg.regimen_id, user?.email);
+      const alreadyHave = await crewsData.hasClonedRegimen(msg.regimen_id, user?.id);
       if (alreadyHave) {
         setState('duplicate');
         return;

@@ -157,12 +157,12 @@ function _withMeta(map, meta) {
   return map;
 }
 
-async function _historyByExercise(userEmail, days = 60) {
-  if (!userEmail) return _withMeta({}, { logsRead: 0, windowDays: days, latestDate: null });
+async function _historyByExercise(userId, days = 60) {
+  if (!userId) return _withMeta({}, { logsRead: 0, windowDays: days, latestDate: null });
   const since = subDays(new Date(), days);
   let logs = [];
   try {
-    logs = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 100);
+    logs = await db.entities.WorkoutLog.filter({ user_id: userId }, '-date', 100);
   } catch {
     return _withMeta({}, { logsRead: 0, windowDays: days, latestDate: null });
   }
@@ -330,7 +330,7 @@ function _defaultStartingWeight(exerciseName, bodyweightLbs, skillLevel, group, 
  * Signature kept compatible with startFromGeneratedWorkout() in Workout.jsx.
  */
 export async function generateComebackWorkout({ user, bodyweightLbs = 165 }) {
-  const history = await _historyByExercise(user?.email, 60);
+  const history = await _historyByExercise(user?.id, 60);
   if (Object.keys(history).length === 0) return null;
 
   const SCALE = 0.65;
@@ -385,7 +385,7 @@ export async function generateWorkout({
   const maxSkill = SKILL_TO_LEVEL[skillLevel] || 2;
 
   // Pull recent top-set weights for personalization
-  const history = await _historyByExercise(user?.email, 60);
+  const history = await _historyByExercise(user?.id, 60);
 
   // Filter catalog by equipment + skill + injury exclusions.
   //

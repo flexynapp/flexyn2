@@ -117,7 +117,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
   // it doesn't write back to history here.
   const { data: historyRaw = [], isLoading: historyLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 300),
+    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
     enabled: !!user?.email && open && activeTab === 'history',
     staleTime: 60_000,
   });

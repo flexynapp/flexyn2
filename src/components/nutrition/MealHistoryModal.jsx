@@ -302,7 +302,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
     queryKey: ['nutritionHistory', user?.email],
     // Newest-logged first (created_at, not just date) so today's latest meal
     // is at the top and the user doesn't have to scroll to their latest entry.
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', FETCH_LIMIT),
+    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', FETCH_LIMIT),
     enabled: !!user?.email && open,
   });
 

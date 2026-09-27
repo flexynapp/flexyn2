@@ -126,7 +126,7 @@ export default function RecipesHubModal({
   // the one screen that offers the route, is on screen.
   const history = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn:  () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 300),
+    queryFn:  () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
     enabled:  !!user?.email && open && tab === 'mine' && (mine.data?.length === 0),
     staleTime: 60_000,
   });
