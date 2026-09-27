@@ -7,7 +7,7 @@
 // save or edit to observe either one, and neither breaks visibly when it
 // regresses.
 //
-//   1. Every WorkoutLog.update() writes total_volume.
+//   1. Every workouts.update() writes total_volume.
 //
 //      EditWorkoutModal's onSave payload carries only the fields it edits
 //      — { exercises, date, duration_minutes, notes, regimen_name, tags }.
@@ -46,10 +46,10 @@ const SOURCE = readFileSync(
 );
 
 describe('workout_logs.total_volume — what Workout.jsx stores', () => {
-  it('writes total_volume on every WorkoutLog.update', () => {
+  it('writes total_volume on every workouts.update', () => {
     const calls = SOURCE.split('\n')
       .map((line, i) => ({ line, n: i + 1 }))
-      .filter(({ line }) => line.includes('WorkoutLog.update('));
+      .filter(({ line }) => line.includes('workouts.update('));
 
     // If this drops to zero the check has been silently disarmed by a
     // rename — fail rather than vacuously pass.
@@ -58,7 +58,7 @@ describe('workout_logs.total_volume — what Workout.jsx stores', () => {
     const missing = calls.filter(({ line }) => !line.includes('total_volume'));
     expect(
       missing.map(({ n, line }) => `${n}: ${line.trim()}`),
-      'a WorkoutLog.update() that does not write total_volume leaves the ' +
+      'a workouts.update() that does not write total_volume leaves the ' +
         'gym leaderboard ranking on the pre-edit number',
     ).toEqual([]);
   });

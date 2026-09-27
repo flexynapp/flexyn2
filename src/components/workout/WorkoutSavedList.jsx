@@ -22,6 +22,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { TagPillRow } from './WorkoutTags';
 import { workoutTitle } from '@/lib/workoutTitle';
+import * as workouts from '@/lib/data/workouts';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -51,9 +52,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
 
   const { data: allLogs = [], isLoading } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'savedList'),
-    queryFn: () => db.entities.WorkoutLog.filter(
-      { user_id: user.id }, '-date', 500
-    ),
+    queryFn: () => workouts.list(user.id, 500),
     enabled: !!user?.email,
   });
 

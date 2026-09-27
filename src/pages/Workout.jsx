@@ -96,6 +96,7 @@ import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import TransText from '@/components/TransText';
 import { formatDate } from '@/lib/intlFormat';
+import * as workouts from '@/lib/data/workouts';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -704,7 +705,7 @@ export default function Workout() {
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'workout'),
-    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
+    queryFn: () => workouts.list(user.id, 50),
     enabled: !!user?.email,
   });
 
@@ -950,7 +951,7 @@ export default function Workout() {
       // the stored number matches the sets that actually persist.
       data = { ...data, total_volume: calculateTotalVolume(data.exercises) };
 
-      const workoutLog = await db.entities.WorkoutLog.create(data);
+      const workoutLog = await workouts.create(data);
       // Audit C-2 — duplicate detection. The db.js shim returns
       // __duplicate=true when a prior attempt with the same
       // idempotency key already landed. Skip ALL credits in that case
@@ -3051,7 +3052,7 @@ export default function Workout() {
               // get_gym_community_progress sums into the gym's "lbs moved".
               // Same number as the delta above, so the row and the profile
               // can't disagree about the same edit.
-              await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
+              await workouts.update(id, { ...data, total_volume: newVolume });
               if (delta !== 0) {
                 try {
                   // supabase-js returns { error } rather than throwing, so the catch
@@ -3068,7 +3069,7 @@ export default function Workout() {
               // Same volume accumulator concern on delete — subtract the
               // deleted log's contribution so leaderboards reflect reality.
               const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
-              await db.entities.WorkoutLog.delete(id);
+              await workouts.remove(id);
               if (deletedVolume > 0) {
                 try {
                   // supabase-js returns { error } rather than throwing, so the catch
@@ -3651,7 +3652,7 @@ export default function Workout() {
             const newVolume = calculateTotalVolume(data?.exercises || []);
             const delta = newVolume - oldVolume;
             // Writes total_volume for the same reason the idle-view copy does.
-            await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
+            await workouts.update(id, { ...data, total_volume: newVolume });
             if (delta !== 0) {
               try {
                 // supabase-js returns { error } rather than throwing, so the catch
@@ -3666,7 +3667,7 @@ export default function Workout() {
           }}
           onDelete={async (id) => {
             const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
-            await db.entities.WorkoutLog.delete(id);
+            await workouts.remove(id);
             if (deletedVolume > 0) {
               try {
                 // supabase-js returns { error } rather than throwing, so the catch

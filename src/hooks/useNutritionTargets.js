@@ -27,6 +27,7 @@ import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { observedSessionsPerWeek } from '@/lib/tdee';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
+import * as workouts from '@/lib/data/workouts';
 
 /**
  * Observed sessions per week over the trailing TDEE window, or undefined
@@ -50,7 +51,7 @@ export function useObservedActivity() {
 
   const { data: logs, isPending: logsPending } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'nutritionTargets'),
-    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => workouts.list(user.id, LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   const { data: cardioLogs, isPending: cardioPending } = useQuery({

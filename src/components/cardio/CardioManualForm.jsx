@@ -31,6 +31,7 @@ import { bestVO2max } from '@/lib/cardioVO2max';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import TransText from '@/components/TransText';
 import { track, EVENTS } from '@/lib/analytics';
+import * as workouts from '@/lib/data/workouts';
 
 function deriveType(mode, env) {
   return `${mode}_${env}`;
@@ -53,9 +54,7 @@ export default function CardioManualForm({
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const { data: todayWorkoutLogs = [] } = useQuery({
     queryKey: ['workoutLogs.today', user?.email, todayStr],
-    queryFn: () => db.entities.WorkoutLog.filter(
-      { user_id: user.id, date: todayStr }, '-date', 50
-    ).catch(() => []),
+    queryFn: () => workouts.listForDate(user.id, todayStr).catch(() => []),
     enabled: !!user?.email,
     staleTime: 60_000,
   });
