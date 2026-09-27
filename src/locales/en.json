@@ -1759,6 +1759,7 @@
   "duels.subtitle": "Head-to-head workout battles",
   "duels.timeLeft": "{time} left",
   "duels.title": "Duels",
+  "duels.tookOnYourSession": "{name} took on your last workout",
   "duels.total": "Total",
   "duels.wins": "Wins",
   "duels.youChallenged": "You challenged",

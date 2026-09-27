@@ -95,7 +95,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-heading">
-            <LinkIcon className="w-5 h-5 text-rose-500" />
+            <LinkIcon className="w-5 h-5 text-primary" />
             {tFallback("createInviteLinkModal.challengeByLink", "Challenge by link")}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
@@ -126,13 +126,13 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         onClick={() => setDuelType(opt.id)}
                         className={`w-full text-start p-3 rounded-xl border-2 transition-colors ${
                           active
-                            ? 'border-rose-500 bg-rose-500/10'
+                            ? 'border-primary bg-primary/10'
                             : 'border-border hover:border-border/80'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold text-sm">{tFallback(`duel.type.${opt.id}.chip`, opt.label)}</span>
-                          {active && <Check className="w-4 h-4 text-rose-500" />}
+                          {active && <Check className="w-4 h-4 text-primary" />}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">{tFallback(`duel.type.${opt.id}.rulesShort`, opt.desc)}</p>
                       </button>
@@ -156,7 +156,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         onClick={() => setWindowHours(h)}
                         className={`flex-1 py-2 rounded-lg text-sm font-bold border ${
                           active
-                            ? 'bg-rose-500 text-white border-transparent'
+                            ? 'bg-primary text-primary-foreground border-transparent'
                             : 'bg-secondary text-muted-foreground border-border hover:text-foreground active:text-foreground'
                         }`}
                       >
@@ -170,7 +170,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors shadow-md"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors shadow-md"
               >
                 {creating
                   ? <Loader2 className="w-4 h-4 animate-spin" />
