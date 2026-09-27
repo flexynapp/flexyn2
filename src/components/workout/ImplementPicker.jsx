@@ -75,9 +75,18 @@ function fromSeed(seed, implementType) {
   };
 }
 
-export default function ImplementPicker({ exerciseName, value, onChange, userId }) {
+// `open` / `onOpenChange` / `hideTrigger` let a caller own the trigger: the
+// exercise card opens this from a row in its Setup sheet rather than from a
+// chip of its own. Left out, the picker keeps its chip and its own state.
+export default function ImplementPicker({ exerciseName, value, onChange, userId, open: openProp, onOpenChange, hideTrigger = false }) {
   const { tFallback } = useLanguage();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? !!openProp : openState;
+  const setOpen = (next) => {
+    if (!controlled) setOpenState(next);
+    onOpenChange?.(next);
+  };
   const [query, setQuery] = useState('');
   const [customBrand, setCustomBrand] = useState('');
   const [showCustom, setShowCustom] = useState(false);
@@ -259,6 +268,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
       {/* Trigger chip. Sits inline next to the exercise title, styled to
           match the existing bar-weight select in the same header so the
           two controls read as siblings. */}
+      {!hideTrigger && (
       <button
         type="button"
         onClick={() => { triggerHaptic('light'); setOpen(true); }}
@@ -280,6 +290,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
         </span>
         <ChevronDown className="w-3 h-3 shrink-0 opacity-60" aria-hidden="true" />
       </button>
+      )}
 
       <BottomSheet
         open={open}

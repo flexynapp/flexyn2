@@ -1,4 +1,5 @@
-// Deleting a set: the labelled Delete in the set's ⋯ drawer and the swipe
+// Deleting a set: the labelled Delete in the set options sheet (opened by
+// tapping the set number, which replaced the per-row ⋯) and the swipe
 // both go through ExerciseLogger's removeSet, which must offer Undo and put
 // the set back where it was, without undoing anything typed since.
 
@@ -55,16 +56,18 @@ const three = { name: 'Curl', sets: [
   { _key: 'c', weight: 30, reps: 7 },
 ] };
 
+const setButtons = () => screen.findAllByRole('button', { name: /^set \d+ options$/i });
+
 async function deleteSet(n) {
-  const more = await screen.findAllByRole('button', { name: /more set options/i });
+  const more = await setButtons();
   fireEvent.click(more[n]);
   fireEvent.click(await screen.findByRole('button', { name: /delete set/i }));
 }
 
 describe('deleting a set', () => {
-  it('shows a labelled Delete set, not a bare icon, in the ⋯ drawer', async () => {
+  it('shows a labelled Delete set, not a bare icon, in the set options sheet', async () => {
     render(<Host initial={three} />);
-    const more = await screen.findAllByRole('button', { name: /more set options/i });
+    const more = await setButtons();
     fireEvent.click(more[0]);
     const del = await screen.findByRole('button', { name: /delete set/i });
     expect(del.textContent).toMatch(/delete set/i);
@@ -98,33 +101,63 @@ describe('deleting a set', () => {
     expect(now[1].completed).toBe(true);
   });
 
-  it('drawer: four labelled neutral toggles and a red Delete, all 44px tall', async () => {
+  it('the set number is the door: 44px, and no ⋯ beside ✓ any more', async () => {
     render(<Host initial={three} />);
-    const more = await screen.findAllByRole('button', { name: /more set options/i });
-    // The ⋯ trigger keeps a 36px look with a 44px hit area.
-    expect(more[0].className).toMatch(/after:-inset-x-1/);
-    expect(more[0].className).toMatch(/\bw-9\b/);
-    fireEvent.click(more[0]);
+    const nums = await setButtons();
+    expect(nums).toHaveLength(3);
+    expect(nums[0].textContent).toBe('1');
+    expect(nums[0].className.split(/\s+/)).toEqual(expect.arrayContaining(['h-11', 'w-11']));
+    expect(screen.queryByRole('button', { name: /more set options/i })).toBeNull();
+  });
+
+  it('sheet: Working / Warmup / Failed segmented, How hard, and a red Delete, all 44px tall', async () => {
+    render(<Host initial={three} />);
+    fireEvent.click((await setButtons())[0]);
 
     const del = await screen.findByRole('button', { name: /delete set/i });
-    const toggles = ['Warmup', 'Failed', 'Feel', 'RPE'].map(n => screen.getByRole('button', { name: n }));
-    for (const b of [...toggles, del]) {
+    const kinds = ['Working', 'Warmup', 'Failed'].map(n => screen.getByRole('radio', { name: n }));
+    const rpe = screen.getByRole('button', { name: 'RPE 8' });
+    for (const b of [...kinds, rpe, del]) {
       expect(b.className).toMatch(/\bmin-h-11\b/);
       expect(b.className).not.toMatch(/\b(?:h-8|bg-primary|text-primary)\b/);
     }
     expect(del.className).toMatch(/\btext-destructive\b/);
-    // Toggles are neutral at rest and use the secondary surface when pressed.
-    const warm = toggles[0];
-    expect(warm).toHaveAttribute('aria-pressed', 'false');
-    expect(warm.className.split(/\s+/)).not.toContain('bg-secondary');
-    fireEvent.click(warm);
+    expect(screen.getByText('How hard')).toBeInTheDocument();
+
+    // Working is chosen at rest; picking Warmup is exclusive and neutral.
+    expect(kinds[0]).toHaveAttribute('aria-checked', 'true');
+    expect(kinds[1]).toHaveAttribute('aria-checked', 'false');
+    expect(kinds[1].className.split(/\s+/)).not.toContain('bg-secondary');
+    fireEvent.click(kinds[1]);
     expect(sets()[0].is_warmup).toBe(true);
-    const warmAfter = screen.getByRole('button', { name: 'Warmup' });
-    expect(warmAfter).toHaveAttribute('aria-pressed', 'true');
+    expect(sets()[0].is_failed).toBe(false);
+    const warmAfter = screen.getByRole('radio', { name: 'Warmup' });
+    expect(warmAfter).toHaveAttribute('aria-checked', 'true');
     expect(warmAfter.className.split(/\s+/)).toContain('bg-secondary');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Failed' }));
+    expect(sets()[0].is_failed).toBe(true);
+    expect(sets()[0].is_warmup).toBe(false);
+
+    fireEvent.click(rpe);
+    expect(sets()[0].rpe).toBe(8);
+    fireEvent.click(screen.getByRole('button', { name: 'RPE 8' }));
+    expect(sets()[0].rpe).toBe(null);
+    fireEvent.click(screen.getByRole('button', { name: 'RIR 2' }));
+    expect(sets()[0].rir).toBe(2);
   });
 
-  it('Delete set in the drawer removes exactly that set', async () => {
+  it('shows W for a warm-up and F for a failed set in the number slot', async () => {
+    render(<Host initial={{ name: 'Curl', sets: [
+      { _key: 'a', weight: 20, reps: 5, is_warmup: true },
+      { _key: 'b', weight: 25, reps: 6, is_failed: true },
+      { _key: 'c', weight: 30, reps: 7 },
+    ] }} />);
+    const nums = await setButtons();
+    expect(nums.map(b => b.textContent)).toEqual(['W', 'F', '3']);
+  });
+
+  it('Delete set in the sheet removes exactly that set', async () => {
     render(<Host initial={three} />);
     await deleteSet(2);
     expect(sets().map(s => s._key)).toEqual(['a', 'b']);

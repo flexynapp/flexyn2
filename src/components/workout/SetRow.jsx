@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Flame, Gauge, MessageCircle, Trash2, MoreHorizontal, X } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
+import { Trash2 } from 'lucide-react';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
@@ -37,6 +38,9 @@ const RIR_OPTIONS = [
   { v: 5, label: '5+' },
 ];
 
+// RPE chips: the working range. Below 6 is a warm-up in all but name.
+const RPE_OPTIONS = [6, 7, 8, 9, 10];
+
 // How far a set row must travel before letting go deletes it. Past a
 // thumb's casual drift, short of the whole row: a deliberate swipe.
 const SWIPE_DELETE_PX = 88;
@@ -44,6 +48,10 @@ const SWIPE_DELETE_PX = 88;
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '', previous = null, isNext = false, isCurrent = false }) {
   const { weightUnit } = useWeightUnit();
   const { t, tFallback } = useLanguage();
+  // Every tap presses to 97% and the check pops with a spring, unless the
+  // phone asks for reduced motion, in which case nothing moves.
+  const reduceMotion = useReducedMotion();
+  const tap = reduceMotion ? undefined : { scale: 0.97 };
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
   const maxReps = getMaxRealisticReps(exerciseName, set.weight || 0, userProfile);
 
@@ -93,30 +101,18 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     onChange({ ...set, weight: clamped });
   };
 
-  // Effort-tracking fields (RPE / RIR) are stored on the set object
-  // alongside weight + reps. Hidden by default behind a small chevron
-  // so the row stays compact for users who don't track effort. The
-  // expand-state persists across sets via a session-only flag that
-  // lights up when ANY of the fields has a value.
-  const hasEffortData = (set.rpe != null && set.rpe !== '') || (set.rir != null && set.rir !== '');
-  const [effortOpen, setEffortOpen] = useState(hasEffortData);
-
-  // Per-set "feel" — short emoji + freeform note. Stored on the set
-  // object alongside RPE/RIR. Hidden behind a toggle to keep the
-  // collapsed row scannable.
-  const hasFeelData = !!(set.feel_emoji || set.feel_note);
-  // Auto-open the feel row (and surface the previous set's note as
-  // placeholder) when an earlier set carried a cue — so an execution
-  // note like "watch elbow flare" stays in front of the lifter for the
-  // rest of the exercise without retyping.
-  const [feelOpen, setFeelOpen] = useState(hasFeelData || !!prevFeelNote);
+  // Effort and feel live in the set options sheet now (tap the set
+  // number). They are still stored on the set object: rpe / rir for
+  // effort, feel_emoji / feel_note for the subjective read.
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const openOptions = () => { triggerHaptic?.('light'); setOptionsOpen(true); };
 
   // Swipe toward the row's end edge to delete: left in LTR, right in RTL.
-  // It is the gesture every lifting app has taught people, and the only
-  // other door is the trash button inside the ⋯ drawer, which nobody found.
-  // ExerciseLogger's removeSet puts up an Undo, so a swipe that goes too
-  // far costs one tap. The motion value drives the red strip behind the row
-  // so it is exactly as wide as the gap the row has moved out of.
+  // It is the gesture every lifting app has taught people; the labelled
+  // Delete set in the options sheet is the other door. ExerciseLogger's
+  // removeSet puts up an Undo, so a swipe that goes too far costs one tap.
+  // The motion value drives the red strip behind the row so it is exactly
+  // as wide as the gap the row has moved out of.
   const isRtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
   const swipeSign = isRtl ? 1 : -1;
   const dragX = useMotionValue(0);
@@ -134,12 +130,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       onRemove?.();
       return;
     }
-    animate(dragX, 0, { type: 'spring', stiffness: 600, damping: 40 });
+    animate(dragX, 0, reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 600, damping: 40 });
   };
-
-  // Secondary tags (warmup / failed / feel / RPE / delete) live behind a single
-  // "⋯" disclosure so the row shows one clear action instead of a wall of icons.
-  const [moreOpen, setMoreOpen] = useState(false);
 
   // Completion — the lifter taps ✓ Done when a set is actually finished. This
   // is the primary per-set action; it drives the exercise-completion gate.
@@ -154,12 +146,14 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     const id = setTimeout(() => setJustDone(0), 1100);
     return () => clearTimeout(id);
   }, [justDone]);
+  // One short 10ms tick on the check, the app's 'primary' pattern, through
+  // the haptics helper so the per-device off switch and reduced motion are
+  // respected. Unticking is lighter still.
   const toggleComplete = () => {
-    triggerHaptic?.(completed ? 'light' : 'success');
+    triggerHaptic?.(completed ? 'light' : 'primary');
     onChange({ ...set, completed: !completed });
     if (completed) { setJustDone(0); return; }
     setJustDone(Date.now());
-    setMoreOpen(false); // collapse the tag drawer once a set is locked in
   };
   const setVolumeLbs = (Number(set.weight) || 0) * (Number(set.reps) || 0);
   const gainLabel = setVolumeLbs > 0
@@ -224,26 +218,43 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     return undefined;
   }, [isPRSet]);
 
-  const doneInput = completed ? 'bg-transparent border-transparent text-success font-semibold' : '';
+  // A logged set reads as settled text rather than as a form: no box, bold.
+  const doneInput = completed ? 'bg-transparent border-transparent text-foreground font-bold' : '';
+
+  // The number slot says what kind of set this is: W for a warm-up, F for
+  // a failed set, otherwise its position. It is also the door to the set
+  // options sheet, which replaced the ⋯ that sat beside ✓ and looked just
+  // like it.
+  const setKind = set.is_failed ? 'failed' : (set.is_warmup ? 'warmup' : 'working');
+  const slotLabel = setKind === 'failed'
+    ? tFallback('setRow.failedShort', 'F')
+    : setKind === 'warmup' ? tFallback('setRow.warmupShort', 'W') : String(index + 1);
+  const chooseKind = (kind) => {
+    triggerHaptic?.('light');
+    onChange({ ...set, is_warmup: kind === 'warmup', is_failed: kind === 'failed' });
+  };
 
   return (
-    <div className={[
-      'relative rounded-lg transition-colors duration-300',
-      completed ? 'bg-success/[0.12]' : '',
-      // The set you are on, once the exercise is under way. Orange is for
-      // the thing being acted on.
-      isCurrent && !completed ? 'ring-1 ring-inset ring-primary/50' : '',
-    ].join(' ')}>
+    <div
+      data-next-outline={isCurrent && !completed ? 'true' : undefined}
+      className={[
+        'relative rounded-lg transition-colors duration-300',
+        completed ? 'bg-success/10' : '',
+        // The set you are on, once the exercise is under way. A neutral
+        // outline: orange belongs to this row's ✓, the one thing to press.
+        isCurrent && !completed ? 'ring-1 ring-inset ring-foreground/50' : '',
+      ].join(' ')}
+    >
     {/* The sweep: a green fill that runs across the row once, then fades,
         leaving the settled tint behind it. */}
     <AnimatePresence>
-      {justDone > 0 && (
+      {justDone > 0 && !reduceMotion && (
         <motion.span
           key={justDone}
           aria-hidden="true"
           className="absolute inset-0 rounded-lg bg-success pointer-events-none origin-left rtl:origin-right"
-          initial={{ scaleX: 0, opacity: 0.5 }}
-          animate={{ scaleX: 1, opacity: [0.5, 0.5, 0] }}
+          initial={{ scaleX: 0, opacity: 0.4 }}
+          animate={{ scaleX: 1, opacity: [0.4, 0.4, 0] }}
           exit={{ opacity: 0 }}
           transition={{ scaleX: { duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }, opacity: { duration: 0.75, times: [0, 0.6, 1] } }}
         />
@@ -272,20 +283,38 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       onDragStart={() => { swipedRef.current = true; }}
       onDragEnd={onSwipeEnd}
       onClickCapture={(e) => {
-        // A swipe that ends over ⋯ or ✓ must not also press it.
+        // A swipe that ends over the set number or ✓ must not also press it.
         if (swipedRef.current) { e.stopPropagation(); e.preventDefault(); swipedRef.current = false; }
       }}
     >
-      <span className={['text-xs w-5 shrink-0 text-center font-bold tabular-nums transition-colors', completed ? 'text-success' : 'text-muted-foreground'].join(' ')}>{index + 1}</span>
-      <button
+      <motion.button
         type="button"
-        onClick={usePrevious}
-        disabled={!previousLabel || completed}
-        aria-label={previousLabel ? `${tFallback('setRow.usePrevious', 'Use last time')}: ${previousLabel}` : undefined}
-        className="flex-1 min-w-0 h-11 text-start text-xs tabular-nums text-muted-foreground truncate rounded-md px-1 enabled:hover:text-foreground enabled:active:text-foreground transition-colors"
+        whileTap={tap}
+        onClick={openOptions}
+        aria-haspopup="dialog"
+        aria-expanded={optionsOpen}
+        aria-label={tFallback('setRow.setOptions', 'Set {n} options', { n: index + 1 })}
+        className={[
+          'h-11 w-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-extrabold tabular-nums transition-colors hover:bg-secondary active:bg-secondary',
+          completed ? 'text-success' : (setKind === 'working' ? 'text-foreground' : 'text-muted-foreground'),
+        ].join(' ')}
       >
-        {previousLabel || '·'}
-      </button>
+        {slotLabel}
+      </motion.button>
+      {previousLabel ? (
+        <motion.button
+          type="button"
+          whileTap={completed ? undefined : tap}
+          onClick={usePrevious}
+          disabled={completed}
+          aria-label={`${tFallback('setRow.usePrevious', 'Use last time')}: ${previousLabel}`}
+          className="flex-1 min-w-0 h-11 text-start text-xs tabular-nums text-muted-foreground truncate px-1 enabled:underline enabled:decoration-dotted enabled:decoration-border enabled:underline-offset-4 enabled:hover:text-foreground enabled:active:text-foreground transition-colors"
+        >
+          {previousLabel}
+        </motion.button>
+      ) : (
+        <span className="flex-1 min-w-0" aria-hidden="true" />
+      )}
       <div className="relative w-16 shrink-0">
         <Input
           ref={weightInputRef}
@@ -401,10 +430,10 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           takes a column; springs in on the edge, then stays. */}
       {isPRSet && (
         <motion.span
-          initial={prFresh ? { scale: 2.2, rotate: -14, opacity: 0 } : false}
+          initial={prFresh && !reduceMotion ? { scale: 2.2, rotate: -14, opacity: 0 } : false}
           animate={{ scale: 1, rotate: -6, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 520, damping: 18 }}
-          className="absolute top-0 end-[11rem] z-10 px-1.5 py-px rounded-md bg-success text-success-foreground text-micro font-extrabold tracking-wide pointer-events-none"
+          className="absolute top-0 end-[8.5rem] z-10 px-1.5 py-px rounded-sm bg-success text-success-foreground text-micro font-extrabold tracking-wide pointer-events-none"
           aria-label={tFallback('setRow.newPr', 'New personal record')}
           role="status"
         >
@@ -415,7 +444,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           It rises only a little: the row sits in an overflow-hidden
           wrapper (for its height animation), so a longer flight clips. */}
       <AnimatePresence>
-        {justDone > 0 && gainLabel && (
+        {justDone > 0 && gainLabel && !reduceMotion && (
           <motion.span
             key={justDone}
             aria-hidden="true"
@@ -428,42 +457,22 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           </motion.span>
         )}
       </AnimatePresence>
-      {/* Active-tag chips — keep set state readable at a glance while the
-          warmup/failed/feel/RPE controls live behind the ⋯ drawer. */}
-      {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
-        <div className="flex items-center gap-1 shrink-0">
-          {set.is_warmup && <TagDot className="bg-secondary text-foreground"><Flame className="w-3 h-3" /></TagDot>}
-          {set.is_failed && <TagDot className="bg-destructive/15 text-destructive text-micro font-extrabold">✗</TagDot>}
-          {hasFeelData && <TagDot className="bg-secondary text-foreground text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
-          {hasEffortData && <TagDot className="bg-info/15 text-info text-micro font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
-        </div>
-      )}
-      {/* ⋯ — secondary options drawer (warmup / failed / feel / RPE / delete) */}
-      <button
+      {/* ✓ Done: the only filled control on the card. Idle it is an
+          outline, orange on the set to lift next and muted on the rest;
+          done it fills green and the check pops in on a spring. */}
+      <motion.button
         type="button"
-        onClick={() => setMoreOpen(o => !o)}
-        aria-label={tFallback("setRow.moreSetOptions", "More set options")}
-        aria-expanded={moreOpen}
-        className={[
-          // 36px to look at, 44px to hit: the ::after reaches 4px either
-          // side, exactly the row's gap-1, so it never covers ✓ or reps.
-          "relative h-11 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors after:absolute after:inset-y-0 after:-inset-x-1 after:content-['']",
-          moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
-        ].join(' ')}
-      >
-        <MoreHorizontal className="w-4 h-4" />
-      </button>
-      {/* ✓ Done — the primary per-set action. Fills green with a spring pop. */}
-      <button
-        type="button"
+        whileTap={tap}
         onClick={toggleComplete}
         aria-label={completed ? 'Mark set not done' : 'Complete set'}
         aria-pressed={completed}
         className={[
-          'h-11 w-11 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          'h-11 w-11 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200',
           completed
-            ? 'bg-success text-success-foreground'
-            : 'bg-secondary text-muted-foreground hover:text-success active:text-success',
+            ? 'bg-success text-success-foreground border border-success'
+            : isNext
+              ? 'border-2 border-primary text-primary'
+              : 'border border-border text-muted-foreground hover:text-foreground active:text-foreground',
         ].join(' ')}
       >
         <motion.svg
@@ -476,149 +485,21 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          initial={completed ? { scale: 0.7 } : false}
+          initial={completed && !reduceMotion ? { scale: 0.4 } : false}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 520, damping: 16 }}
+          transition={{ type: 'spring', stiffness: 600, damping: 12 }}
         >
           <motion.path
             d="M5 12l5 5L20 7"
-            initial={completed ? { pathLength: 0 } : false}
+            initial={completed && !reduceMotion ? { pathLength: 0 } : false}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.28, delay: 0.05, ease: 'easeOut' }}
           />
         </motion.svg>
-      </button>
+      </motion.button>
     </motion.div>
     </div>
 
-    {/* Secondary tag drawer: warmup / failed / feel / RPE toggles and Delete. */}
-    <AnimatePresence initial={false}>
-      {moreOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.18 }}
-          style={{ overflow: 'hidden' }}
-        >
-          {/* Two columns of labelled toggles, then Delete on its own row.
-              A single row of five did not fit a phone: at 375px RPE was
-              clipped and the delete sat off screen. Every control is 44px
-              tall, icons are one muted 16px column, and only Delete takes
-              a colour, the destructive one, as in ExerciseActionsMenu. */}
-          <div className="mt-1 px-1 pb-1">
-            <div className="grid grid-cols-2 gap-1">
-              <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} icon={<Flame />} label={tFallback('setRow.warmup', 'Warmup')} />
-              <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} icon={<X />} label={tFallback('setRow.failed', 'Failed')} />
-              <TagButton active={feelOpen || hasFeelData} onClick={() => setFeelOpen(o => !o)} icon={set.feel_emoji ? <span className="text-base leading-none">{set.feel_emoji}</span> : <MessageCircle />} label={tFallback('setRow.feel', 'Feel')} />
-              <TagButton active={effortOpen || hasEffortData} onClick={() => setEffortOpen(o => !o)} icon={<Gauge />} label="RPE" />
-            </div>
-            <div className="mt-1 pt-1 border-t border-border">
-              <button
-                type="button"
-                onClick={onRemove}
-                className="w-full min-h-11 gap-3 px-3 rounded-lg flex items-center text-sm font-medium text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors [&>svg]:size-4 [&>svg]:shrink-0"
-              >
-                <Trash2 aria-hidden="true" />
-                {tFallback('setRow.deleteSet', 'Delete set')}
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-    {/* RPE / RIR inline row — optional per-set effort data. RPE is the
-        canonical "1-10 how hard was that?" scale; RIR is its mirror
-        ("how many more reps could you have done"). Standard in
-        evidence-based programming (Renaissance Periodization, etc.). */}
-    {effortOpen && (
-      <div className="mt-1.5 ps-8 pe-2 space-y-1.5">
-        {/* RIR — one-tap chips (reps in reserve). Tap to tag, tap the
-            active chip again to clear. Feeds intensity into the Nemesis
-            / auto-pilot engines, not just raw volume. */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RIR</span>
-          <div className="flex gap-1 flex-1">
-            {RIR_OPTIONS.map(({ v, label }) => {
-              const active = set.rir != null && Number(set.rir) === v;
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => { triggerHaptic?.('light'); onChange({ ...set, rir: active ? null : v }); }}
-                  aria-pressed={active}
-                  aria-label={`RIR ${label}`}
-                  className={[
-                    'flex-1 h-7 rounded-md text-xs font-bold transition-colors',
-                    active
-                      ? 'bg-info text-white'
-                      : 'bg-secondary/60 text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {/* RPE — precise optional input (1–10, half-steps) for lifters who
-            prefer the perceived-exertion scale. */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RPE</span>
-          <Input
-            type="number"
-            min="1"
-            max="10"
-            step="0.5"
-            inputMode="decimal"
-            value={set.rpe ?? ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === '') return onChange({ ...set, rpe: null });
-              const num = parseFloat(v);
-              if (Number.isNaN(num)) return;
-              onChange({ ...set, rpe: Math.max(1, Math.min(10, num)) });
-            }}
-            placeholder={tFallback("setRow.110Optional", "1–10 (optional)")}
-            className="h-7 text-center text-xs flex-1"
-          />
-        </div>
-      </div>
-    )}
-    {/* Per-set feel — quick emoji palette + freeform note. Stored as
-        set.feel_emoji + set.feel_note so each set carries its own
-        signal (RPE captures effort; this captures the more-subjective
-        "how did that go" the user can scan back through later). */}
-    {feelOpen && (
-      <div className="flex items-center gap-2 mt-1.5 ps-8 pe-2">
-        <div className="flex items-center gap-0.5 shrink-0">
-          {FEEL_EMOJI_SET.map(em => (
-            <button
-              key={em}
-              type="button"
-              onClick={() =>
-                onChange({ ...set, feel_emoji: set.feel_emoji === em ? null : em })
-              }
-              className={`text-base px-1 py-0.5 rounded transition-colors ${
-                set.feel_emoji === em ? 'bg-secondary' : 'opacity-60 hover:opacity-100'
-              }`}
-              aria-label={`Feel ${em}`}
-              aria-pressed={set.feel_emoji === em}
-            >
-              {em}
-            </button>
-          ))}
-        </div>
-        <Input
-          type="text"
-          value={set.feel_note ?? ''}
-          onChange={(e) => onChange({ ...set, feel_note: e.target.value.slice(0, 80) || null })}
-          placeholder={prevFeelNote || 'Note (optional)'}
-          maxLength={80}
-          className="h-7 text-xs flex-1"
-        />
-      </div>
-    )}
     {/* PR proximity bar — visible at >=70% of PR. Renders nothing
         below that threshold so warmup sets stay quiet. */}
     <div ref={proximityRef}>
@@ -652,38 +533,137 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     {showPlates && (
       <PlateDiagram plates={plates} barLbs={getActiveBarLbs()} />
     )}
+
+    {/* Set options: what kind of set this was, how hard it felt, and
+        Delete. One sheet behind the set number instead of a ⋯ drawer and
+        two inline rows under the set. */}
+    <BottomSheet
+      open={optionsOpen}
+      onClose={() => setOptionsOpen(false)}
+      title={tFallback('setRow.setTitle', 'Set {n}', { n: index + 1 })}
+    >
+      <div className="px-4 pb-6 flex flex-col gap-6">
+        {previousLabel && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {tFallback('setRow.lastTime', '{value} last time', { value: previousLabel })}
+          </p>
+        )}
+        <div role="radiogroup" aria-label={tFallback('setRow.setType', 'Set type')} className="grid grid-cols-3 gap-2">
+          {[
+            ['working', tFallback('setRow.working', 'Working')],
+            ['warmup', tFallback('setRow.warmup', 'Warmup')],
+            ['failed', tFallback('setRow.failed', 'Failed')],
+          ].map(([kind, label]) => (
+            <OptionChip key={kind} role="radio" active={setKind === kind} onClick={() => chooseKind(kind)} tap={tap}>
+              {label}
+            </OptionChip>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+            {tFallback('setRow.howHard', 'How hard')}
+          </p>
+          {/* RPE, the 1 to 10 "how hard was that" scale. Tap the active
+              value again to clear it. */}
+          <div className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-semibold text-muted-foreground">RPE</span>
+            <div className="flex gap-1 flex-1">
+              {RPE_OPTIONS.map(v => {
+                const active = set.rpe != null && Number(set.rpe) === v;
+                return (
+                  <OptionChip key={v} active={active} tap={tap} ariaLabel={`RPE ${v}`}
+                    onClick={() => { triggerHaptic?.('light'); onChange({ ...set, rpe: active ? null : v }); }}>
+                    {v}
+                  </OptionChip>
+                );
+              })}
+            </div>
+          </div>
+          {/* RIR, its mirror: how many more reps were left. Feeds intensity
+              into the Nemesis and auto pilot engines, not just volume. */}
+          <div className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs font-semibold text-muted-foreground leading-tight">
+              {tFallback('setRow.repsLeft', 'Reps left')}
+            </span>
+            <div className="flex gap-1 flex-1">
+              {RIR_OPTIONS.map(({ v, label }) => {
+                const active = set.rir != null && Number(set.rir) === v;
+                return (
+                  <OptionChip key={v} active={active} tap={tap} ariaLabel={`RIR ${label}`}
+                    onClick={() => { triggerHaptic?.('light'); onChange({ ...set, rir: active ? null : v }); }}>
+                    {label}
+                  </OptionChip>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Feel: an emoji and a short note. The previous set's note shows
+            as the placeholder, so a cue like "watch elbow flare" follows
+            the lifter through the exercise without retyping. */}
+        <div className="flex flex-col gap-2">
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+            {tFallback('setRow.feel', 'Feel')}
+          </p>
+          <div className="flex items-center gap-1">
+            {FEEL_EMOJI_SET.map(em => (
+              <OptionChip key={em} active={set.feel_emoji === em} tap={tap} ariaLabel={`Feel ${em}`}
+                onClick={() => onChange({ ...set, feel_emoji: set.feel_emoji === em ? null : em })}>
+                <span className="text-base leading-none">{em}</span>
+              </OptionChip>
+            ))}
+          </div>
+          <Input
+            type="text"
+            value={set.feel_note ?? ''}
+            onChange={(e) => onChange({ ...set, feel_note: e.target.value.slice(0, 80) || null })}
+            placeholder={prevFeelNote || tFallback('setRow.notePlaceholder', 'Note (optional)')}
+            aria-label={tFallback('setRow.note', 'Note')}
+            maxLength={80}
+            className="h-11 text-sm"
+          />
+        </div>
+
+        <div className="pt-2 border-t border-border">
+          <motion.button
+            type="button"
+            whileTap={tap}
+            onClick={() => { setOptionsOpen(false); onRemove?.(); }}
+            className="w-full min-h-11 gap-3 px-3 rounded-lg flex items-center text-sm font-semibold text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors [&>svg]:size-4 [&>svg]:shrink-0"
+          >
+            <Trash2 aria-hidden="true" />
+            {tFallback('setRow.deleteSet', 'Delete set')}
+          </motion.button>
+        </div>
+      </div>
+    </BottomSheet>
     </div>
   );
 }
 
-// Tiny at-a-glance tag indicator shown on the collapsed row.
-function TagDot({ className = '', children }) {
-  return (
-    <span className={`h-5 min-w-[20px] px-1 rounded-md flex items-center justify-center leading-none ${className}`}>
-      {children}
-    </span>
-  );
-}
 
-// Labelled toggle inside the ⋯ drawer. Neutral at rest (hairline, label in
-// the foreground, icon muted); pressed fills with the secondary surface and
-// lifts the icon to the foreground. No hue: orange belongs to the one acting
-// button on the screen, and a tag is not that.
-function TagButton({ active, onClick, icon, label }) {
+// One neutral chip for every choice in the options sheet. Hairline at rest,
+// the secondary surface when chosen. No hue: orange belongs to the one
+// acting control on screen, and a tag is not that.
+function OptionChip({ active, onClick, children, role, ariaLabel, tap }) {
   return (
-    <button
+    <motion.button
       type="button"
+      whileTap={tap}
       onClick={onClick}
-      aria-pressed={active}
+      role={role}
+      {...(role === 'radio' ? { 'aria-checked': active } : { 'aria-pressed': active })}
+      aria-label={ariaLabel}
       className={[
-        'min-h-11 min-w-0 gap-3 px-3 rounded-lg border flex items-center text-start text-sm leading-tight transition-colors',
+        'flex-1 min-w-0 min-h-11 px-1 rounded-lg border flex items-center justify-center text-sm transition-colors',
         active
-          ? 'bg-secondary border-foreground/25 text-foreground font-semibold [&_svg]:text-foreground'
-          : 'border-border text-foreground font-medium hover:bg-secondary active:bg-secondary [&_svg]:text-muted-foreground',
+          ? 'bg-secondary border-foreground/25 text-foreground font-semibold'
+          : 'border-border text-foreground font-medium hover:bg-secondary active:bg-secondary',
       ].join(' ')}
     >
-      <span aria-hidden="true" className="flex items-center justify-center size-4 shrink-0 [&_svg]:size-4">{icon}</span>
-      <span className="min-w-0 break-words">{label}</span>
-    </button>
+      {children}
+    </motion.button>
   );
 }

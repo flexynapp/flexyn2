@@ -1,6 +1,7 @@
-// The exercise card's setup above the first set. "How to do it" moved into
-// the ⋯ menu and the guide opens in place from there; bar weight and the
-// volume readout share one line, and neither leaves an empty row behind.
+// The exercise card's header and setup above the first set. "How to do it"
+// lives in the ⋯ menu and the guide opens in place from there. The ⋯ sits in
+// the header row beside the name; bar, machine, tempo and notes sit behind
+// one Setup pill, which shares a line with the volume readout.
 
 import React, { useState } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -35,8 +36,8 @@ beforeEach(() => {
   }
 });
 
-// Wired the way Workout.jsx wires them: the menu beside the card, the open
-// state held by the page.
+// Wired the way Workout.jsx wires them: the menu handed in as a prop, the
+// open state held by the page.
 function Host({ initial, withMenu = true }) {
   const [ex, setEx] = useState(initial);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -47,11 +48,12 @@ function Host({ initial, withMenu = true }) {
         onChange={setEx}
         workoutLogs={[]}
         userProfile={{ id: 'u1' }}
-        {...(withMenu ? { guideOpen, onGuideOpenChange: setGuideOpen } : {})}
+        {...(withMenu ? {
+          guideOpen,
+          onGuideOpenChange: setGuideOpen,
+          menu: <ExerciseActionsMenu name={ex.name} onHowTo={() => setGuideOpen(true)} onRemove={() => {}} />,
+        } : {})}
       />
-      {withMenu && (
-        <ExerciseActionsMenu name={ex.name} onHowTo={() => setGuideOpen(true)} onRemove={() => {}} />
-      )}
     </RestTimerProvider></WeightUnitProvider></LanguageProvider>
   );
 }
@@ -89,51 +91,86 @@ describe('How to do it', () => {
   });
 });
 
-describe('bar and volume', () => {
+describe('setup pill and volume', () => {
   it('share one line, volume last', async () => {
     render(<Host initial={bench} />);
-    const select = await screen.findByRole('combobox', { name: /barbell weight/i });
+    const pill = await screen.findByRole('button', { name: /^Setup:/ });
     const vol = screen.getByText(/vol$/);
-    const row = select.closest('div').parentElement;
-    expect(row.contains(vol)).toBe(true);
+    expect(pill.parentElement.contains(vol)).toBe(true);
     expect(vol.className).toMatch(/\bms-auto\b/);
     expect(vol.className).toMatch(/text-muted-foreground/);
   });
 
-  it('shows volume alone when there is no bar', async () => {
+  it('names the bar on a barbell lift, and the bar select is off the card face', async () => {
+    render(<Host initial={bench} />);
+    const pill = await screen.findByRole('button', { name: /^Setup:/ });
+    expect(pill.textContent).toMatch(/Olympic.*45 lb/);
+    expect(screen.queryByRole('combobox', { name: /barbell weight/i })).toBeNull();
+    fireEvent.click(pill);
+    expect(await screen.findByRole('combobox', { name: /barbell weight/i })).toBeInTheDocument();
+  });
+
+  it('is one quiet pill: rounded, filled, borderless, 32px to look at and 44px to hit', async () => {
+    render(<Host initial={bench} />);
+    const pill = await screen.findByRole('button', { name: /^Setup:/ });
+    for (const c of ['rounded-full', 'bg-secondary', 'h-8', 'text-xs', 'font-semibold', 'after:-inset-y-1.5']) {
+      expect(pill.className.split(/\s+/)).toContain(c);
+    }
+    expect(pill.className).not.toMatch(/\bborder\b/);
+  });
+
+  it('reads Setup when there is no bar and no machine, and still shows volume', async () => {
     render(<Host initial={{ name: 'Lat Pulldown', muscle_groups: ['Back'], sets: [{ _key: 'a', weight: 100, reps: 10 }] }} />);
     await screen.findByRole('button', { name: 'Options for Lat Pulldown' });
-    expect(screen.queryByRole('combobox', { name: /barbell weight/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Setup: Setup' })).toBeInTheDocument();
     expect(screen.getByText(/vol$/)).toBeInTheDocument();
   });
 
-  it('draws no row when there is neither', async () => {
-    const { container } = render(<Host initial={{ name: 'Lat Pulldown', muscle_groups: ['Back'], sets: [{ _key: 'a' }] }} />);
+  it('draws no volume when nothing is lifted yet', async () => {
+    render(<Host initial={{ name: 'Lat Pulldown', muscle_groups: ['Back'], sets: [{ _key: 'a' }] }} />);
     await screen.findByRole('button', { name: 'Options for Lat Pulldown' });
     expect(screen.queryByText(/vol$/)).toBeNull();
-    expect(container.querySelector('.-me-8, .mt-1\\.5.flex.gap-2')).toBeNull();
+  });
+
+  it('shows a tempo or note as one muted truncated line beside the pill', async () => {
+    render(<Host initial={{ ...bench, tempo: '3-1-2', notes: 'Elbows tucked' }} />);
+    const line = await screen.findByText('3-1-2 · Elbows tucked');
+    expect(line.className).toMatch(/\btruncate\b/);
+    expect(line.className).toMatch(/text-muted-foreground/);
+    expect(screen.queryByText(/tempo · notes/i)).toBeNull();
+  });
+
+  it('edits tempo and notes in the Setup sheet', async () => {
+    render(<Host initial={bench} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Setup:/ }));
+    fireEvent.change(await screen.findByPlaceholderText('3-1-2'), { target: { value: '4-0-1' } });
+    fireEvent.change(screen.getByPlaceholderText(/felt weak today/i), { target: { value: 'Feet flat' } });
+    expect(await screen.findByText('4-0-1 · Feet flat')).toBeInTheDocument();
   });
 });
 
-// The ⋯ button is absolute at the card's top right. Only the title row sits
-// level with it, so only that row keeps the right-hand reserve; the bar and
-// volume line below runs to the card's content edge, with or without a
-// muscles line (freestyle Bench Press has none).
-describe('right-hand reserve for the ⋯ button', () => {
-  for (const [label, ex] of [
-    ['with a muscles line', bench],
-    ['without a muscles line', { name: 'Bench Press', sets: bench.sets }],
-  ]) {
-    it(`sits on the title row only, ${label}`, async () => {
-      render(<Host initial={ex} />);
-      const title = await screen.findByRole('heading', { name: 'Bench Press' });
-      expect(title.parentElement.className).toMatch(/\bpe-8\b/);
-      const vol = screen.getByText(/vol$/);
-      const line = vol.parentElement;
-      expect(line.className).not.toMatch(/-me-8|\bpe-8\b/);
-      for (let el = line.parentElement; el && !/\bp-4\b/.test(el.className); el = el.parentElement) {
-        expect(el.className).not.toMatch(/\bpe-8\b/);
-      }
-    });
-  }
+describe('header', () => {
+  it('puts one 44px ghost ⋯ in the header row beside the name', async () => {
+    render(<Host initial={bench} />);
+    const title = await screen.findByRole('heading', { name: 'Bench Press' });
+    const trigger = screen.getByRole('button', { name: 'Options for Bench Press' });
+    const row = title.parentElement.parentElement;
+    expect(row.contains(trigger)).toBe(true);
+    expect(trigger.className.split(/\s+/)).toEqual(expect.arrayContaining(['w-11', 'h-11']));
+    expect(trigger.className).not.toMatch(/\bborder\b/);
+  });
+
+  it('says muscles and "N of M sets" on one muted line, in place of the ring', async () => {
+    render(<Host initial={{ ...bench, sets: [{ ...bench.sets[0], completed: true }, bench.sets[1]] }} />);
+    const meta = await screen.findByText('1 of 2 sets');
+    expect(meta.parentElement.textContent).toMatch(/^Chest · 1 of 2 sets$/);
+    expect(meta.parentElement.className).toMatch(/text-muted-foreground/);
+  });
+
+  it('has no drag grip and no Add equipment chip on the card face', async () => {
+    render(<Host initial={bench} />);
+    await screen.findByRole('heading', { name: 'Bench Press' });
+    expect(screen.queryByRole('button', { name: /drag to reorder/i })).toBeNull();
+    expect(screen.queryByText(/add equipment/i)).toBeNull();
+  });
 });
