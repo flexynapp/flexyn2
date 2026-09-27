@@ -87,7 +87,7 @@ describe('goals writes', () => {
     expect(calls.filter((c) => c[1] === 'insert')).toEqual([
       [T, 'insert', { exercise_name: 'Bench', target_value: 225, goal_type: 'strength', user_id: 'u1', created_by: 'a@b.co' }],
     ]);
-    expect(track).toHaveBeenCalledWith('goal_created', { type: 'strength' });
+    expect(track.mock.calls).toEqual([['goal_created', { type: 'strength' }]]);
   });
 
   it('create refuses flagged language and sends nothing', () => {

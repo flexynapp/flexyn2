@@ -29,3 +29,22 @@ describe('analytics events', () => {
     expect(code.includes(`EVENTS.${key}`)).toBe(true);
   });
 });
+
+// Each logged thing is counted once, by the screen that knows its details.
+// The old data client also sent a bare copy of workout_logged,
+// cardio_logged, meal_logged, water_logged, goal_created and post_created
+// from inside every insert, so each of those events counted double in
+// PostHog from 2026-09-26 until this was removed.
+describe('analytics are not sent from the database client', () => {
+  it('src/api/db.js does not import analytics', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '../../api/db.js'), 'utf8');
+    expect(src).not.toMatch(/@\/lib\/analytics/);
+  });
+
+  it('a live session saved as a workout is still counted', () => {
+    // The one workout save with no tracking of its own; it relied on the
+    // copy the client sent.
+    const src = fs.readFileSync(path.resolve(__dirname, '../../components/hub/LiveSessionBroadcaster.jsx'), 'utf8');
+    expect(src).toMatch(/track\(EVENTS\.WORKOUT_LOGGED/);
+  });
+});

@@ -93,14 +93,16 @@ describe('cardio writes', () => {
     gps_track: [{ lat: 1, lng: 2, t: 0 }],
   };
 
-  it('create inserts once with the caller\'s identity injected and tracks it', async () => {
+  it('create inserts once with the caller\'s identity injected and sends no analytics', async () => {
     results = [{ data: { id: 'c1' }, error: null }];
     const row = await cardio.create({ ...payload, user_id: 'someone-else', created_by: 'x@y.z' });
     expect(row).toEqual({ id: 'c1' });
     expect(calls.filter((c) => c[1] === 'insert')).toEqual([
       ['cardio_logs', 'insert', { ...payload, user_id: 'u1', created_by: 'a@b.co' }],
     ]);
-    expect(track).toHaveBeenCalledWith('cardio_logged');
+    // Each tracker sends cardio_logged with its { mode }; a second copy
+    // from here counted every session twice.
+    expect(track).not.toHaveBeenCalled();
   });
 
   it('create throws any other error, including a missing column', async () => {
