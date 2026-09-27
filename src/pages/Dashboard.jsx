@@ -31,7 +31,9 @@ import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
-import HeroSlideshow from '@/components/dashboard/HeroSlideshow';
+import WeekFocal from '@/components/glance/WeekFocal';
+import TodayStreakLine, { STREAK_MIN_SHOWN } from '@/components/dashboard/TodayStreakLine';
+import { weekSummary } from '@/lib/focalGoal';
 import DailyChestCard from '@/components/dashboard/DailyChestCard';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuote from '@/components/dashboard/DailyQuote';
@@ -40,7 +42,6 @@ import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
 import JournalWidget from '@/components/dashboard/JournalWidget';
-import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import TonightRow from '@/components/dashboard/TonightRow';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
@@ -74,7 +75,6 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter, formatDate } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { heroTintGradient, HERO_FADE_GRADIENT } from '@/lib/heroChrome';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 
@@ -84,37 +84,41 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
  *  co-located makes the page easier to read end-to-end.
  * ────────────────────────────────────────────────────────────────── */
 
-/* The hero band's tint + fade gradients, the smoothstep maths behind them
- * and the reasoning for both now live in src/lib/heroChrome.js — imported
- * at the top of this file. They moved because the Progress and Nutrition
- * carousels paint the same band and had their own, older treatment (two
- * blurred radial blobs, one animating on a 9s loop).
+/* Today's hero, option D (kegan, 2026-09-27): the training week as ONE focal
+ * goal, the one training streak, and today's one action.
+ *
+ * It replaces HeroSlideshow, a band of nine or more rotating slides on an 8s
+ * timer (Feature of the Day adverts, "This week 0/3", achievements, a
+ * readiness number, suggestions) under a tinted gradient. The page had no
+ * focal point because the focal point moved, and the one relevant slide was
+ * on screen a ninth of the time.
+ *
+ * The ring, the sentence and the dots are WeekFocal, the same component
+ * Progress renders, so the two tabs cannot tell a user two different things
+ * about the same week. Numbers come from the logs this page already fetched;
+ * nothing here makes a request.
+ *
+ * No band, no tint, no bleed: FocalHero earns dominance by being the only
+ * large thing on the screen, not by being boxed. Orange is spent twice, on
+ * the ring and on the one button.
+ *
+ * The one streak on Today is the TRAINING streak, derived from the logs,
+ * under the sentence (TodayStreakLine says why it is never the profile
+ * column). Readiness is not in the hero; it has its own row below.
  */
-
-/* Dither grain lived here and is gone — see the note at its old render
- * site below for why. Kept as a pointer rather than a deleted block so the
- * next person to see banding on a desktop monitor finds the history instead
- * of re-deriving it: the tile was a stitched 160px feTurbulence, desaturated,
- * alpha-flattened, stretched slope 3 / intercept −1.28, composited at 0.11
- * under `mix-blend-mode: overlay`, and measured at sd 1.80 against the real
- * band colour. It worked. It is removed because it is a desktop fix on a
- * mobile-only product, and it is the prime suspect for an iOS artefact.
- */
-
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
-  logs, cardioLogs, goals, userProfile, user,
-  onPrimary, onReadinessInfo, onPlanWeek, navigate,
-  t, tFallback, plan = null,
+  logs, userProfile, now,
+  onPrimary, t, tFallback, plan = null,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
-  // HeroSlideshow handles the LEFT-column content (achievement
-  // carousel / new-user calculated path / streak fallback) and uses
-  // these same booleans to pick its mode.
-  const isFresh = streak === 0 && daysSinceLast == null;
-  const isOnStreak = streak > 0;
-  const isLapsed = !isOnStreak && !isFresh && daysSinceLast >= 2;
-
+  //
+  // "Keep the streak going" only when the hero is SHOWING a streak
+  // (STREAK_MIN_SHOWN, two days). At one day the line above is empty, and a
+  // button about a streak nobody can see reads as a bug. A session yesterday
+  // and none today is the ordinary case for anyone training four days a
+  // week, so it gets plain wording rather than "your first workout".
+  //
   // `plan` is the regimen due today, when the user trains to a rotation.
   // It is the most specific next action the app knows, so it wins the one
   // button over the generic streak wording (navigation redesign, phase 3).
@@ -123,329 +127,57 @@ function HeroCard({
     cta = tFallback('dashboard.hero.cta.startPlan', 'Start {name}', { name: plan.name });
   } else if (hasWorkedOutToday) {
     cta = t('dashboard.hero.cta.logAnother');
-  } else if (isOnStreak) {
+  } else if (streak >= STREAK_MIN_SHOWN) {
     cta = t('dashboard.hero.cta.continueStreak');
-  } else if (isLapsed) {
+  } else if (daysSinceLast == null) {
+    cta = t('dashboard.hero.cta.startFirst');
+  } else if (daysSinceLast >= 2) {
     cta = t('dashboard.hero.cta.getBack');
   } else {
-    cta = t('dashboard.hero.cta.startFirst');
+    cta = tFallback('dashboard.hero.cta.startToday', "Start today's session");
   }
 
-  // Drag-to-swipe lives on the band so the WHOLE hero is swipeable, not
-  // just the slideshow content area.
-  const slideshowRef = useRef(null);
-  const [slideCount, setSlideCount] = useState(0);
-  // Per-slide accent. Each slide reports its own HSL colour up via
-  // onSlideColorChange (orange for streak, purple for duels, pink for
-  // stories, cyan for cardio…). It drives three things below: the 2px
-  // identity rule, the tint that falls off under it, and the pagination
-  // dots inside the slideshow.
-  //
-  // History, because this has moved twice. It began as an ANIMATED radial
-  // gradient mesh across the band and was cut to a bare 2px rule — the
-  // animation and the mesh are the generated-UI tells CLAUDE.md names, and
-  // that was most of why the hero read as one more card. The tint below is
-  // not that mesh coming back: it is static, it is one linear falloff, and
-  // it is on the band precisely so it has no edge to be sloppy about. The
-  // thing being avoided is decoration with a visible seam, not colour.
-  const [slideColor, setSlideColor] = useState(null);
+  const week = useMemo(() => weekSummary({ logs, profile: userProfile, now }), [logs, userProfile, now]);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-      className="relative"
+      className="flex flex-col"
+      style={{ gap: 'var(--fluid-section)' }}
     >
-      {/* The hero is the page's ONE dominant element, so it is the only
-          thing allowed to break the page's px-4/px-6 inset (CLAUDE.md).
-          -mx-4/-mx-6 cancels that padding, the band runs edge to edge, and
-          only the bottom corners round — the top edge is a seam with the
-          content above, not a card corner.
+      <ErrorBoundary label="WeekFocal">
+        <WeekFocal week={week} aside={<TodayStreakLine streak={streak} trainedToday={hasWorkedOutToday} />} />
+      </ErrorBoundary>
 
-          bg-muted on light / bg-card on dark: a white band on the off-white
-          light background did not read as dominant, which defeats the whole
-          point of letting it bleed. On dark, --card is already lighter than
-          --background so it separates on its own. */}
-      {/* The band no longer drags. The gesture moved INTO HeroSlideshow,
-          onto the paged track, because in a paged carousel the pages travel
-          and the chrome does not — dragging the band moved the tint, the
-          fade, the grain and the rule along with the content, which is why
-          the old gesture read as nudging a card rather than turning a page.
-          `touch-pan-y` stays on the class list below: the track needs the
-          browser to leave horizontal gestures alone just as much. */}
-      <motion.div
-        // `isolate` went with the grain. It existed only to confine that
-        // layer's mix-blend-mode to the band; with no blended layer left it
-        // was a stacking context created for nothing, and stacking contexts
-        // are not free — they change how descendants composite.
-        className="relative overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
+      {/* Today's one action. Flat --primary, shadow-md because it is the
+          one raised, interactive surface here. "Up next" is what tells a
+          planned session from a freestyle one. On a short phone it drops
+          one type step so it clears the bottom nav on an iPhone SE. */}
+      <motion.button
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        // The page's one primary action gets the one medium tick.
+        onClick={() => { haptic('medium'); onPrimary(); }}
+        className="group relative w-full min-h-[44px] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-1.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-2 text-start select-none-ui transition-all"
       >
-        {/* Accent tint. This lives on the BAND, and that placement is the
-            whole reason it has no edges — it is not a softer version of
-            the box that used to sit on the feature slide.
-
-            A gradient shows an edge wherever its alpha is still non-zero
-            at the element's boundary. The old overlay was a floating
-            `-inset-3` box inside the slide, so three of its four sides
-            were boundaries in the middle of the band and it read as an
-            orange rectangle. The band has no such sides:
-
-              · left / right — `-mx-4` bleeds past the page inset to the
-                viewport edges, and `overflow-hidden` clips there. Paint
-                runs off the screen instead of stopping at a line.
-              · top — meets the 2px identity rule below, which is
-                deliberate chrome. The rule renders AFTER this div so it
-                stays crisp rather than being washed by the tint.
-              · bottom — the falloff ends exactly ON the band's own
-                boundary rather than somewhere inside it, so the curve
-                never terminates in open space. Alpha is ~0.004 by 90%,
-                so the rounded corners are visually untinted regardless.
-
-            Percentages, not fixed heights: the band is min-h-[330px] but
-            grows for a taller slide, and a px falloff would drift up the
-            card when it does.
-
-            The curve is smoothstep — see heroTintGradient above. A plain
-            two-stop ramp still showed a faint line where it ended, because
-            its SLOPE stops abruptly there even though its colour does not,
-            and Mach banding makes the eye amplify exactly that.
-
-            Every stop is `hsl(C / a)` — the same hue at falling alpha —
-            never the `transparent` keyword. `transparent` is rgba(0,0,0,0),
-            so the ramp would interpolate toward transparent BLACK and pick
-            up the muddy darkening that made the old overlay look dirty.
-
-            Uses the slide's own accent rather than a hardcoded --primary,
-            so it agrees with the rule and the dots instead of staying
-            orange on a purple slide. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: heroTintGradient(slideColor || 'var(--primary)') }}
-        />
-
-        {/* Band-to-page fade — see HERO_FADE_GRADIENT above. Occupies the
-            bottom 40% so the dissolve is spread over ~170px at the measured
-            429px band height: the surface step is 7.65 luminance, which over
-            that distance is one level per ~22px rather than all of it in a
-            single row.
-
-            AFTER the tint so it also absorbs the tint's own remainder, and
-            BEFORE the content so the CTA row and dots — which sit inside this
-            zone — render at full strength over it rather than being dimmed. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-[40%] pointer-events-none"
-          style={{ background: HERO_FADE_GRADIENT }}
-        />
-
-        {/* The dither grain that used to sit here is REMOVED. It was added to
-            defeat 8-bit banding on a 6-bit + FRC desktop MONITOR, and this app
-            ships to iOS and Android only — so it was solving a problem the
-            target device does not have, using `mix-blend-mode: overlay` plus
-            `isolation`, which is one of the better-known places iOS Safari
-            diverges from desktop Chrome.
-
-            It became the prime suspect for a warm cast with a hard horizontal
-            boundary reported from an iPhone: the boundary sat at ~60% of the
-            band's height, which is exactly where the grain's mask had its knee
-            (`#000 to 60%`, then a fade). Measured on desktop, the tint on that
-            same slide is blue and spans the whole band — so whatever was
-            drawing a warm bounded box was not the gradient.
-
-            That is a hypothesis matched to geometry rather than a measurement,
-            because the artefact does not reproduce here. But the trade decides
-            it either way: a real artefact on the only platform we ship to is
-            not worth a fix for a monitor that no user has. Restoring it is one
-            revert if the banding matters more. */}
-
-        {/* Slide identity — a 2px solid rule. Renders after the tint so
-            the tint cannot wash it out.
-
-            NO `transition-colors` on either of these, and that is load
-            bearing rather than an omission. Transitioning a
-            background-color whose value is `hsl(var(--x))` does not
-            work: the inline style updates on every slide, the computed
-            colour never leaves whatever it first painted, and the rule
-            sits frozen on slide one's accent forever. Measured across a
-            rotation — inline went --info → --success → --primary while
-            the computed value stayed rgb(82,165,224) the whole way;
-            dropping the class made it track exactly. The tint escaped it
-            only by accident, because it paints a gradient and
-            transition-colors does not cover background-image. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
-          style={{ background: `hsl(${slideColor || 'var(--primary)'})` }}
-        />
-
-        {/* Carousel chevron — inside the band now that the band itself
-            reaches the viewport edge. */}
-        {slideCount > 1 && (
-          <button
-            type="button"
-            onClick={() => slideshowRef.current?.next?.()}
-            aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
-            className="absolute end-3 top-[38%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
-          >
-            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-          </button>
-        )}
-
-        {/* min-h locks the hero card's vertical size so different slides
-            (Step 2 has a long sub-line + progress bar, Step 3 has just a
-            number + one line) don't make the card visibly grow/shrink
-            between auto-rotations. The min-height matches the tallest
-            template slide's natural height — slides shorter than this
-            now sit at the top with empty space underneath rather than
-            collapsing the card. (Screenshot feedback, 2026-06.)
-            NOTE: bottom padding is intentionally small (pb-2) — the streak
-            pill below flows right after this box, and the previous pb-12 +
-            negative-margin tuck clipped the pill / its expanded calendar on
-            taller slides (progress bar + CTA). Now the pill sits cleanly
-            below the dots and the card grows to fit whatever's open. */}
-        {/* pe-12 when the carousel has more than one slide: the next-slide
-            button is absolutely positioned over this box, and slide content
-            ran underneath it — "Sun · 3 target" sat behind the chevron on the
-            routine slide. Reserving the gutter fixes it for EVERY slide
-            rather than per-slide, which is what a shared overlay needs; with
-            a single slide there is no button, so no gutter is taken. */}
-        {/* 330px, measured rather than guessed. The floor was 264/284, and
-            the slides actually run 264→306px at 375pt (Step 2 is the tall
-            one: progress bar plus a longer sub-line), so the box grew 42px on
-            every rotation — the collapse/expand. 330 clears the tallest
-            measured slide with ~24px of headroom, so shorter slides sit at
-            the top against empty card and nothing moves.
-
-            Deliberately min-height and not a hard height: a slide type this
-            account never rotates through, or a longer locale, would be
-            CLIPPED by a fixed height. This way the worst case is that one
-            unusually tall slide grows the box — visible, not destructive —
-            while every slide in normal rotation is pinned. Re-measure with
-            the loop in the browser console before changing it. */}
-        {/* The chevron gutter used to live HERE, as `pe-12` on this container.
-            It moved into each slide's own root (see HERO_SLIDE_GUTTER in
-            HeroSlideshow) for one reason: this container is the ancestor of
-            the pager's `overflow-hidden` track, so padding here narrows the
-            PAGE, and anything a slide positions at its right edge — the
-            watermark — gets clipped 48px short of the band. That is why the
-            watermark sat 48px from the right while sitting 16px from the top.
-
-            Padding on the slide root instead insets the text without moving
-            the watermark, because an absolutely positioned child resolves
-            `right: 0` against its containing block's PADDING box. Same
-            clearance for the chevron, symmetric corner for the icon. */}
-        {/* md:min-h-[260px] (2026-09-26, owner screenshot of the Duels
-            slide). The 330px floor above was measured at 375pt, where text
-            wraps into its tallest shape. From md up the column is roughly
-            twice as wide, every slide is shorter, and a 330px floor left the
-            short feature slides (Duels) floating over an empty lower half.
-            Still a min-height, for the same reason as above: a genuinely
-            tall slide grows the box instead of being clipped. NOT measured
-            in a browser at the time of writing; re-run the measuring loop
-            at 768 and 1280 before tightening it further. */}
-        {/* Short phones (max-height 700px, the 375x667 iPhone SE class).
-            At 330px the hero's own CTA row landed at y=656 on a 667pt
-            screen, under the bottom nav that starts at 600, so the page's
-            one acting button was below the fold on first paint. On a short
-            viewport the floor drops to 244px and the top padding, dot row
-            and slide gaps each tighten by one step. A tall slide still
-            grows the box (min-height, not height), and nothing changes on
-            a Pro Max or anything taller than 700pt. Not measured in a
-            browser at the time of writing; re-run the measuring loop at
-            375x667 before tightening further.
-
-            Measured 2026-09-26 on a fresh guest at 375x667: the 244px floor
-            never bit, because the slide track is as tall as its TALLEST
-            slide (266px, the weekly-target slide: metric, progress bar and a
-            three-line sub-line). The CTA sat at 614 to 697 against a nav at
-            600. So the slides themselves now tighten on a short screen (see
-            SHORT_* in HeroSlideshow), the floor drops to 200px so it stays a
-            floor rather than a height, and the CTA row, greeting and story
-            strip each give back a step. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[200px] [@media(max-height:700px)]:pt-2 [@media(max-height:700px)]:pb-1 md:min-h-[260px]">
-          <HeroSlideshow
-            ref={slideshowRef}
-            logs={logs}
-            cardioLogs={cardioLogs}
-            goals={goals}
-            profile={userProfile}
-            user={user}
-            streak={streak}
-            hasWorkedOutToday={hasWorkedOutToday}
-            daysSinceLast={daysSinceLast}
-            onPrimary={onPrimary}
-            onSlideCta={(to) => navigate(to)}
-            onPlanWeek={onPlanWeek}
-            onSlidesCountChange={setSlideCount}
-            onSlideColorChange={setSlideColor}
-            t={t}
-          />
-        </div>
-
-        {/* The login streak used to sit here, between the carousel dots and
-            the CTA. Four things stacked inside one band — slide, dots,
-            streak, CTA+readiness — read as crowded, so the streak moved out
-            to its own section ('streak' in widgetOrder), where it is also
-            reorderable and hideable like everything else. That also retired
-            the pointerdown-stopPropagation wrapper it needed to keep the
-            hero's drag gesture from eating taps on its chevron. */}
-
-        {/* The "today" row — primary CTA (2/3) + Readiness (1/3) — now sits
-            INSIDE the band. It used to be a sibling below it, which made
-            today's moment read as three stacked objects (slide, streak,
-            action) instead of one.
-
-            Flat --primary, no baked-in orange gradient, no shine sweep, no
-            coloured bloom. The old version hard-coded #ffd27a→#c2410c, so it
-            did NOT actually follow the user's theme despite the comment
-            claiming it did, and it carried three of the four generated-UI
-            tells CLAUDE.md lists. Depth is shadow-md; the arrow chip is
-            --primary-foreground. Recolours with every theme for free.
-
-            No whileHover lift: this ships to iOS and Android where there is
-            no hover, and the tap scale is the feedback that matters.
-
-            On a short phone (max-height 700px) the button drops one type step
-            and its padding tightens: at 83px tall it was the single largest
-            item under the fold on an iPhone SE. The label stays, because
-            "Up next" is what tells a planned session from a freestyle one. */}
-        <div className="relative z-10 px-4 md:px-6 pb-4 md:pb-5 flex items-stretch gap-2">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            // The page's one primary action gets the one medium tick.
-            onClick={() => { haptic('medium'); onPrimary(); }}
-            className="group relative flex-[2] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-1.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
-          >
-            <span className="min-w-0">
-              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
-                {hasWorkedOutToday
-                  ? t('dashboard.hero.label.again')
-                  : plan
-                    ? tFallback('dashboard.hero.label.upNext', 'Up next')
-                    : t('dashboard.hero.label.today')}
-              </span>
-              <span className="block font-heading font-bold text-lg [@media(max-height:700px)]:text-base [@media(max-height:700px)]:leading-tight md:text-xl leading-tight break-anywhere">
-                {cta}
-              </span>
-            </span>
-            <span className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-foreground text-primary flex items-center justify-center">
-              <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
-            </span>
-          </motion.button>
-          {/* Readiness — 1/3 beside the CTA, and the entry point to the
-              Readiness sheet where sleep / mood / steps are logged.
-              renderDashboardSection('readiness') returns null so it isn't
-              rendered twice. items-stretch matches the CTA's height. */}
-          <div className="flex-1 min-w-[92px]">
-            <ErrorBoundary label="ReadinessCard">
-              <ReadinessCard logs={logs} compact onClick={onReadinessInfo} />
-            </ErrorBoundary>
-          </div>
-        </div>
-      </motion.div>
+        <span className="min-w-0">
+          <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
+            {hasWorkedOutToday
+              ? t('dashboard.hero.label.again')
+              : plan
+                ? tFallback('dashboard.hero.label.upNext', 'Up next')
+                : t('dashboard.hero.label.today')}
+          </span>
+          <span className="block font-heading font-bold text-lg [@media(max-height:700px)]:text-base [@media(max-height:700px)]:leading-tight md:text-xl leading-tight break-anywhere">
+            {cta}
+          </span>
+        </span>
+        <span className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-foreground text-primary flex items-center justify-center">
+          <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
+        </span>
+      </motion.button>
     </motion.div>
   );
 }
@@ -1554,7 +1286,7 @@ export default function Dashboard() {
       //
       // Gone from here: MacroRingWidget, CalorieProgressWidget and
       // HydrationRing. All three duplicated the Nutrition tab, which owns
-      // MacroNutrientBox, CalorieTopBar and WaterTracker — no feature lost.
+      // MacroNutrientBox, NutritionFocal and WaterTracker — no feature lost.
       // Sleep / mood / steps are NOT duplicated anywhere, which is why they
       // stayed on the page rather than going with them.
       case 'recovery': return (
@@ -1992,16 +1724,14 @@ export default function Dashboard() {
       {/* mt-5 gives the hero breathing room below the greeting when no
           Resume banner sits between them; when the banner IS present its
           own margin collapses with this one, so the gap stays consistent. */}
-      <div className="mt-5 [@media(max-height:700px)]:mt-2 mb-2">
+      <div className="mt-5 [@media(max-height:700px)]:mt-2 mb-6">
         <HeroCard
           streak={streak}
           hasWorkedOutToday={hasWorkedOutToday}
           daysSinceLast={daysSinceLast}
           logs={logs}
-          cardioLogs={cardioLogs}
-          goals={goals}
           userProfile={userProfile}
-          user={user}
+          now={today}
           // The hero's own button ("Start your first workout" / "Continue
           // the streak" / "Log another") opens a freestyle session directly.
           // ?freestyle=1 is handled in Workout.jsx — landing on that page's
@@ -2012,9 +1742,6 @@ export default function Dashboard() {
           onPrimary={() => (heroPlan
             ? navigate('/workout', { state: { startRegimen: heroPlan } })
             : navigate('/workout?freestyle=1'))}
-          onReadinessInfo={() => openReadiness()}
-          onPlanWeek={() => setWeekModalOpen(true)}
-          navigate={navigate}
           t={t}
           tFallback={tFallback}
         />

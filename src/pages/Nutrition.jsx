@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useUrlState } from '@/hooks/useUrlState';
 import { filterAfterReset } from '@/lib/accountReset';
@@ -19,7 +19,7 @@ import { track, EVENTS } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater, Camera, UtensilsCrossed } from 'lucide-react';
+import { Trash2, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChefHat, Calendar, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater, Camera, UtensilsCrossed } from 'lucide-react';
 import { WaterBottleIcon } from '@/components/nutrition/NutrientIcon';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
@@ -41,7 +41,7 @@ import {
   clearNutritionOnboardingDismissed,
 } from '@/lib/nutritionOnboardingGate';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
-import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
+import NutritionFocal from '@/components/nutrition/NutritionFocal';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
 import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
 import FoodPhotoCaptureModal from '@/components/nutrition/FoodPhotoCaptureModal';
@@ -50,8 +50,6 @@ import { getPhotoAiUsedToday, PHOTO_AI_DAILY_CAP } from '@/lib/data/photoAiQuota
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
@@ -65,7 +63,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // the barcode scanner — so we dynamic-import it inside the scan
 // handler instead of pulling it into the entry chunk.
 import { useLanguage } from '@/lib/LanguageContext';
-import { enT } from '@/lib/translatorArg';
 import { useSettings } from '@/lib/SettingsContext';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
@@ -76,192 +73,6 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { isWaterEntry, waterEntryOz, waterFoodName } from '@/lib/waterEntries';
 import { makeDuplicateFilter } from '@/lib/submitDedupe';
 
-
-/* ──────────────────────────────────────────────────────────────────
- *  NutritionShortcutsCarousel — mirrors the Progress carousel pattern.
- *  5 slides, each one a feature shortcut:
- *    1. Scan Food (barcode)  ← surfaced first per user request
- *    2. Recipes
- *    3. Meal History
- *    4. Nutrition Plans
- *    5. Weekly Planner
- *  Each slide has a big translucent emoji on the right, a tinted
- *  gradient mesh matching its color, and a CTA button.
- * ────────────────────────────────────────────────────────────────── */
-
-function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onPlanner }) {
-  const { tFallback } = useLanguage();
-  const slides = [
-    {
-      id: 'scan',
-      icon: ScanLine,
-      emoji: '📷',
-      // One hue per slide again, and `color` now drives the whole band —
-      // the falloff tint, the 2px identity rule, the icon chip and the
-      // dots — exactly as it does on the Dashboard hero.
-      //
-      // It was a private five-hue rotation (orange, emerald, blue,
-      // purple, pink), then flattened to all-orange to stop the sprawl.
-      // The rotation is back but drawn only from the four budget tokens
-      // in CLAUDE.md, so nothing here invents a colour: primary,
-      // success, info, destructive, then back to primary for the fifth.
-      color: 'var(--primary)',
-      kicker: 'Scan a barcode',
-      title: tFallback('nutrition.hero.scan.title', 'Scan Food'),
-      tip: 'Snap any package and we autofill macros, calories, and serving size. Fastest way to log.',
-      ctaLabel: 'Open scanner',
-      onCta: onScan,
-    },
-    {
-      id: 'recipes',
-      icon: ChefHat,
-      emoji: '🥘',
-      color: 'var(--success)',
-      kicker: 'Recipes',
-      title: 'Recipes',
-      tip: 'Build a recipe once, log it in one tap forever. Macros computed from your ingredient list.',
-      ctaLabel: 'Open recipes',
-      onCta: onRecipes,
-    },
-    {
-      id: 'history',
-      icon: History,
-      emoji: '📖',
-      color: 'var(--info)',
-      kicker: 'Meal History',
-      title: 'Meal History',
-      tip: 'Every meal you\'ve logged. Search it, filter it, and log a past meal again in two taps.',
-      ctaLabel: 'Browse history',
-      onCta: onHistory,
-    },
-    {
-      id: 'plans',
-      icon: ListChecks,
-      emoji: '📋',
-      color: 'var(--destructive)',
-      kicker: 'Nutrition Plans',
-      title: 'Nutrition Plans',
-      tip: 'Macro splits for cut, bulk, recomp, keto and maintenance. Apply one and its meals land on your day.',
-      ctaLabel: 'See plans',
-      onCta: onPlans,
-    },
-    {
-      id: 'planner',
-      icon: Calendar,
-      emoji: '📅',
-      color: 'var(--primary)',
-      kicker: 'Weekly Planner',
-      title: 'Weekly Planner',
-      tip: 'Plan a day at a time and watch it add up. Every meal you drop in counts toward that day\'s target.',
-      // Not "Plan the week" — that label now belongs to the Dashboard hero
-      // CTA that opens the My Week routine calendar, and two buttons with
-      // the same words opening different planners is a coin flip for the
-      // user. This one plans meals; the sibling labels ("Open scanner",
-      // "Browse history", "See plans") are verb + noun for the same reason.
-      ctaLabel: 'Plan meals',
-      onCta: onPlanner,
-    },
-  ];
-
-  const pagerRef = useRef(null);
-  // The band paints the LIVE slide's accent, exactly as the Dashboard hero
-  // does. Seeded from slide 0 so the first paint is already correct.
-  const [accent, setAccent] = useState(() => heroSlideAccent(slides[0]));
-  const handleIndexChange = useCallback((_i, slide) => {
-    setAccent(heroSlideAccent(slide));
-  }, []);
-
-  const multi = slides.length > 1;
-
-  return (
-    <div className="relative mb-3">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-muted dark:bg-card text-foreground touch-pan-y">
-        {/* Accent tint + 2px identity rule — the Dashboard band's chrome.
-            Replaces the two blurred radial blobs (one of which animated on
-            a 9s loop forever); see the note on ProgressCarousel and
-            CLAUDE.md's "no gradient as decoration". */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: heroTintGradient(accent) }}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
-          style={{ background: `hsl(${accent})` }}
-        />
-
-        {/* No floating next-slide arrow — see the note in Progress.jsx.
-            It was the one control that could collide with the watermark,
-            on a surface whose interaction is a swipe. */}
-
-        <div className={`relative p-4 md:p-5 ${HERO_SLIDE_MIN_H}`}>
-          <HeroPager
-            ref={pagerRef}
-            slides={slides}
-            renderSlide={(slide, opts) => renderShortcutSlide(slide, opts, tFallback)}
-            onIndexChange={handleIndexChange}
-            dotsClassName="mt-4"
-            dotLabel={(i) => `Slide ${i + 1}`}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* One shortcut slide, in the hero's shared layout: corner watermark, icon
-   chip + kicker, title, the line of context, then the CTA pill. The pill
-   sits inside the pager's track and that is safe — Framer only claims a
-   gesture past its drag threshold, so a tap still reaches the button. */
-function renderShortcutSlide(slide, { count = 1 } = {}, tFallback = enT) {
-  const Icon = slide.icon;
-  return (
-    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
-      {Icon && (
-        <Icon aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={heroWatermarkStyle()} />
-      )}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center" style={{ background: `hsl(${heroSlideAccent(slide)} / 0.2)` }}>
-          <Icon className="w-4 h-4 text-foreground" />
-        </div>
-        <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
-          {tFallback(`nutrition.hero.${slide.id}.kicker`, slide.kicker)}
-        </span>
-      </div>
-      {/* No AnimatePresence — the track is the transition. See the note in
-          renderProgressSlide (src/pages/Progress.jsx). */}
-      <div className="min-w-0">
-        <h3
-          className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
-          style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}
-        >
-          {tFallback(`nutrition.hero.${slide.id}.title`, slide.title)}
-        </h3>
-        <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
-          {tFallback(`nutrition.hero.${slide.id}.tip`, slide.tip)}
-        </p>
-        {/* The pill takes the SLIDE's accent, not `bg-primary/10` like the
-            Dashboard's. The dashboard hero can hold primary because its
-            band is usually orange anyway; here the accent turns over on
-            every slide, and an orange pill on the green Recipes card or
-            the red Plans card is the one element that doesn't belong to
-            the card it sits on. Text stays --foreground rather than the
-            accent so contrast doesn't move with the hue. */}
-        <button
-          type="button"
-          onClick={slide.onCta}
-          style={{ background: `hsl(${heroSlideAccent(slide)} / 0.18)` }}
-          className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-caption font-semibold text-foreground transition-opacity hover:opacity-80 active:opacity-80"
-        >
-          {tFallback(`nutrition.hero.${slide.id}.cta`, slide.ctaLabel)}
-          <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // Stable empty defaults. React Query returns `data: undefined` while a
 // query is disabled or loading; a `= []` / `= {}` literal default would
@@ -339,9 +150,8 @@ export default function Nutrition() {
   // Reorderable sections — same mechanism as Dashboard customize.
   // Defaults to the order shown when the user opens a fresh Nutrition
   // page; can be dragged in edit mode and persists to localStorage
-  // per-user. CalorieTopBar is intentionally NOT in this list — it
-  // stays pinned at the top as the headline.
-  // 'shortcuts' carousel is pinned above CalorieTopBar (not reorderable)
+  // per-user. NutritionFocal (the calorie ring) is intentionally NOT in
+  // this list: it stays pinned at the top as the page's headline.
   // 'portionGuide' is its own reorderable section
   const DEFAULT_NUTRITION_ORDER = ['logForm', 'tabs', 'water', 'fasting', 'meals'];
   const [editMode, setEditMode] = useState(false);
@@ -1759,16 +1569,28 @@ export default function Nutrition() {
         </ErrorBoundary>
       )}
 
-      {/* Shortcuts carousel — pinned at top */}
-      <NutritionShortcutsCarousel
-        onScan={startScanner}
-        onRecipes={() => setShowRecipes(true)}
-        onHistory={() => setShowMealHistory(true)}
-        onPlans={() => setShowNutritionPlans(true)}
-        onPlanner={() => setShowWeeklyPlanner(true)}
-      />
+      {/* ── Focal goal: the page's ONE dominant element (hero option D,
+            kegan 2026-09-27). Today's calories against the day's target,
+            the sentence that says what that means now, protein and water
+            beside it. It replaced the five-slide shortcut carousel (every
+            door it advertised is in the quick-access row below) and
+            CalorieTopBar, which drew the same number a second way. ─── */}
+      {!isLoading && (
+        <div className="mb-6">
+          <ErrorBoundary label="NutritionFocal">
+            <NutritionFocal
+              entries={entries}
+              userProfile={userProfile}
+              waterUnit={waterUnit}
+              ozToDisplay={ozToDisplay}
+              onLogMeal={() => setShowFoodSearch(true)}
+            />
+          </ErrorBoundary>
+        </div>
+      )}
 
-      {/* Quick-access row — icon shortcuts for users who miss the carousel.
+      {/* Quick-access row. The shortcut carousel that used to sit above it
+          is gone, so this row is now the only door to those features.
           Plans was removed — it now lives as a tab inside the Planner.
           Scan and Photo-AI used to wear gradients (a four-stop hardcoded
           flame ramp and a primary ramp), which is decoration the UI rules
@@ -1815,8 +1637,6 @@ export default function Nutrition() {
         </button>
       </div>
 
-      {/* Calorie counter — just below the shortcut row */}
-      <CalorieTopBar entries={entries} userProfile={userProfile} />
 
       {/* Calorie cycling — set training-vs-rest-day targets. Hidden unless the
           user opts into the feature in Settings (off by default). A small,
@@ -1941,8 +1761,6 @@ export default function Nutrition() {
       </motion.div>
 
       )}
-
-{/* shortcuts is pinned above CalorieTopBar — not rendered here */}
 
       {/* Portion guide removed — unnecessary and took up space. */}
 

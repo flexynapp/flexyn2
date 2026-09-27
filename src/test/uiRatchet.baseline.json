@@ -3,8 +3,8 @@
   "$totals": {
     "purple": 67,
     "gradient": 30,
-    "backdropBlur": 79,
-    "sparkles": 76,
+    "backdropBlur": 75,
+    "sparkles": 72,
     "heavyShadow": 57,
     "colouredShadow": 25,
     "offScaleRadius": 28,
@@ -109,15 +109,12 @@
       "src/pages/Gauntlet.jsx": 3,
       "src/pages/GymMap.jsx": 2,
       "src/pages/Legal.jsx": 1,
-      "src/pages/Nutrition.jsx": 2,
-      "src/pages/Progress.jsx": 2,
       "src/pages/PublicGymLanding.jsx": 1,
       "src/pages/PublicProfile.jsx": 1
     },
     "sparkles": {
       "src/components/dashboard/CustomQuotesModal.jsx": 2,
       "src/components/dashboard/DiscoveryCards.jsx": 2,
-      "src/components/dashboard/HeroSlideshow.jsx": 4,
       "src/components/dashboard/questVisuals.jsx": 2,
       "src/components/gyms/GymFeedTab.jsx": 3,
       "src/components/Header.jsx": 2,

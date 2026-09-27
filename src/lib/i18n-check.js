@@ -169,6 +169,9 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'pastYou.levelOne',
     // "vol" is the short form of volumen, spelled the same.
     'liveVolumePill.vol',
+    // The gym word Spanish copy already uses for reps
+    // (pbSheet.heroReps_other says the same).
+    'progress.next.pr.reps',
     // "Zinc" is the same word in Spanish.
     'nutrient.zinc',
     // "Social." is the same word in Spanish.
@@ -555,7 +558,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'progress.frameShort.month',
     'progress.review.pr',
     'progress.review.sessions',
-    'progress.slide.level.kicker',
     'progress.stat.level',
     'progress.stat.levelValue',
     'progress.tab.trends',
