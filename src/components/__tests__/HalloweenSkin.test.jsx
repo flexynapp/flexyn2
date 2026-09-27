@@ -89,7 +89,17 @@ describe('Halloween parts', () => {
     expect(Object.keys(lid).sort()).toEqual(Object.keys(eye).sort());
     for (const k of Object.keys(lid)) expect(lid[k] + eye[k]).toBe(1);
     const rule = (cls) => css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`))[1];
-    for (const cls of ['hw-lid', 'hw-eye']) expect(rule(cls)).toMatch(/animation: hw-\w+ 6s linear infinite/);
+    const clock = (cls) => rule(cls).match(/animation: hw-\w+ ([\d.]+s) linear infinite/)[1];
+    expect(clock('hw-lid')).toBe(clock('hw-eye'));
+  });
+
+  it('the scarecrow blinks at uneven moments, not on a beat', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../skins/halloween/halloween.css'), 'utf8');
+    const body = css.match(/@keyframes hw-lid \{([\s\S]*?)\n\}/)[1];
+    const shut = body.match(/([\d%,\s]+)\{\s*transform:\s*scaleY\(1\)/)[1].split(',').map((p) => parseFloat(p));
+    expect(shut.length).toBeGreaterThanOrEqual(3);
+    const gaps = shut.slice(1).map((p, i) => p - shut[i]).concat(100 - shut.at(-1) + shut[0]);
+    expect(new Set(gaps).size).toBe(gaps.length);
   });
 
   it('flyover movers use a physical inset, since the lane itself mirrors in RTL', () => {
