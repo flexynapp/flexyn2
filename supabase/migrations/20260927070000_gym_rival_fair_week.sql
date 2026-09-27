@@ -368,20 +368,26 @@ CREATE TRIGGER gym_rival_on_cardio_log
   FOR EACH ROW EXECUTE FUNCTION public.gym_rival_on_log();
 
 -- ── Attempt it ───────────────────────────────────────────────────────────
--- Seeded on throwaway ids and rolled back by the closing RAISE. No real
--- user is touched, and nobody seeded has an auth.users row, so no
--- notification is written.
+-- Seeded on throwaway accounts and rolled back by the closing RAISE, so
+-- nothing here survives the migration. The accounts are real auth.users
+-- rows because gym_rival_assignments and workout_logs both carry foreign
+-- keys to it.
 
 DO $$
 DECLARE
   a UUID := gen_random_uuid();
   b UUID := gen_random_uuid();
-  m UUID;
+  c UUID := gen_random_uuid();
+  m UUID; m2 UUID;
   v_acc TIMESTAMPTZ := now() - interval '3 days';
   v_status TEXT;
   set10 JSONB := '[{"name":"Bench Press","sets":[{"weight":"100","reps":"10"}]}]';
 BEGIN
   BEGIN
+    INSERT INTO auth.users (id, email, aud, role)
+    SELECT u, 'rival-probe-' || u || '@example.invalid', 'authenticated', 'authenticated'
+      FROM unnest(ARRAY[a, b, c]) AS u;
+
     INSERT INTO public.gym_rival_assignments
       (user_id, rival_id, status, rival_type, initiator_confirmed, rival_confirmed, accepted_at)
     VALUES (a, b, 'active', 'gym', TRUE, TRUE, v_acc)
@@ -405,17 +411,21 @@ BEGIN
       RAISE EXCEPTION 'probe: lead change was not recorded';
     END IF;
 
-    -- 48h passed and only one side logged: the match must stay live.
+    -- A match where nobody logged, for the void check below.
+    INSERT INTO public.gym_rival_assignments
+      (user_id, rival_id, status, rival_type, initiator_confirmed, rival_confirmed, accepted_at)
+    VALUES (c, b, 'active', 'gym', TRUE, TRUE, v_acc)
+    RETURNING id INTO m2;
+
     PERFORM public.gym_rival_void_stale_all();
+
+    -- 48h passed and only one side logged: the match must stay live.
     SELECT status INTO v_status FROM public.gym_rival_assignments WHERE id = m;
     IF v_status <> 'active' THEN
       RAISE EXCEPTION 'probe: a one-sided match was voided (%)', v_status;
     END IF;
-
     -- Nobody logged: that one does void.
-    UPDATE public.gym_rival_assignments SET user_id = gen_random_uuid() WHERE id = m;
-    PERFORM public.gym_rival_void_stale_all();
-    SELECT status INTO v_status FROM public.gym_rival_assignments WHERE id = m;
+    SELECT status INTO v_status FROM public.gym_rival_assignments WHERE id = m2;
     IF v_status <> 'void' THEN
       RAISE EXCEPTION 'probe: a match nobody trained in was not voided (%)', v_status;
     END IF;
