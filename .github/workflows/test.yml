@@ -34,3 +34,9 @@ jobs:
 
       - run: npm run lint
         if: '!cancelled()'
+
+      # The vite.config.js build guard turns MISSING_EXPORT and
+      # UNRESOLVED_IMPORT into failures, but until this step it only ran when
+      # Netlify deployed main, i.e. after the merge it exists to stop.
+      - run: npm run build
+        if: '!cancelled()'

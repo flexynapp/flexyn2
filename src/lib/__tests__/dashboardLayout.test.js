@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const updateMe = vi.fn(() => Promise.resolve());
 vi.mock('@/api/db', () => ({ db: { auth: { updateMe: (...a) => updateMe(...a) } } }));
 
+const { setProfile, clearProfile } = await import('@/api/profileCache');
+
 const {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder,
@@ -309,13 +311,28 @@ describe('queueLayoutSync', () => {
     expect(updateMe).not.toHaveBeenCalled();
   });
 
-  // The timer is module-level, so a pending write must not land after an
-  // account switch and store the previous user's layout on the new session.
-  it('flush cancels a pending write', () => {
+  // Leaving Dashboard inside the debounce used to CANCEL the write, so the
+  // last reorder never reached the account.
+  it('flush sends a pending write immediately, once', () => {
     queueLayoutSync('u1', packLayout({ hiddenSections: ['a'] }));
     flushLayoutSync();
+    expect(updateMe).toHaveBeenCalledTimes(1);
+    expect(updateMe.mock.calls[0][0].dashboard_layout.hiddenSections).toEqual(['a']);
     vi.advanceTimersByTime(700);
+    flushLayoutSync();
+    expect(updateMe).toHaveBeenCalledTimes(1);
+  });
+
+  // The timer is module-level, so a pending write must not land after an
+  // account switch and store the previous user's layout on the new session.
+  it('drops a pending write when another account is signed in', () => {
+    queueLayoutSync('u1', packLayout({ hiddenSections: ['a'] }));
+    setProfile({ id: 'u2' });
+    vi.advanceTimersByTime(700);
+    queueLayoutSync('u1', packLayout({ hiddenSections: ['b'] }));
+    flushLayoutSync();
     expect(updateMe).not.toHaveBeenCalled();
+    clearProfile();
   });
 
   it('survives an updateMe rejection without escaping', async () => {

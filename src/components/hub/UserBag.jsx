@@ -681,21 +681,27 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   const flexCoins = Number(user?.flex_coins ?? 0);
 
   // ── Sell a duplicate ────────────────────────────────────────────────────────
-  const handleSell = useCallback(async (inventoryRow, price) => {
+  const handleSell = useCallback(async (inventoryRow) => {
     if (!user?.id) { toast.error(tFallback("userBag.notSigned", "Not signed in")); return; }
     setSelling(true);
     try {
-      const newTotal = await inventory.sellItem(inventoryRow.id, user.id, price);
+      // The server prices the sale and reports what it actually credited,
+      // so the toast shows that number rather than the one on the card.
+      const { coins } = await inventory.sellItem(inventoryRow.id);
       qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
-      toast.success(`🪙 +${price} Flex Coins! Sold ${inventoryRow.item_emoji} ${inventoryRow.item_name}.`);
+      toast.success(`🪙 +${coins} Flex Coins! Sold ${inventoryRow.item_emoji} ${inventoryRow.item_name}.`);
     } catch (err) {
-      console.error('[UserBag] sell failed:', err);
-      toast.error(tFallback('userBag.sellFailed', 'Could not sell item. Try again.'));
+      if (err?.code === 'COIN_CAP') {
+        toast.error(tFallback('userBag.sellCapped', "You've hit today's coin limit. Your item is still in your bag."));
+      } else {
+        console.error('[UserBag] sell failed:', err);
+        toast.error(tFallback('userBag.sellFailed', 'Could not sell item. Try again.'));
+      }
     } finally {
       setSelling(false);
     }
-  }, [user?.id, user?.email, qc]);
+  }, [user?.id, user?.email, qc, tFallback]);
 
   // ── Sell every duplicate at once ────────────────────────────────────────────
   // The per-card flow is arm-then-confirm, two taps per copy. A user
@@ -730,15 +736,17 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     setSelling(true);
     let sold = 0;
     let earned = 0;
-    // Sequential on purpose: sellItem credits coins per call, and firing
-    // 40 concurrent balance writes is exactly the shape that produced the
-    // read-modify-write races these RPCs were introduced to kill.
-    for (const { row, price } of duplicateSales) {
+    let capped = false;
+    // Sequential on purpose: each sale credits coins, and the daily mint cap
+    // is checked per sale. Stop at the cap instead of burning through the
+    // rest, every one of which the server would refuse anyway.
+    for (const { row } of duplicateSales) {
       try {
-        await inventory.sellItem(row.id, user.id, price);
+        const { coins } = await inventory.sellItem(row.id);
         sold += 1;
-        earned += price;
+        earned += coins;
       } catch (err) {
+        if (err?.code === 'COIN_CAP') { capped = true; break; }
         console.warn('[UserBag] bulk sell failed for', row.id, err?.message);
       }
     }
@@ -746,10 +754,12 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
     setSelling(false);
     if (sold > 0) toast.success(`Sold ${sold} duplicate${sold === 1 ? '' : 's'} · ${COIN} +${earned}`);
-    if (sold < duplicateSales.length) {
-      toast.error(`${duplicateSales.length - sold} could not be sold — try again.`);
+    if (capped) {
+      toast.error(tFallback('userBag.sellCapped', "You've hit today's coin limit. Your item is still in your bag."));
+    } else if (sold < duplicateSales.length) {
+      toast.error(`${duplicateSales.length - sold} could not be sold. Try again.`);
     }
-  }, [user?.id, user?.email, duplicateSales, qc]);
+  }, [user?.id, user?.email, duplicateSales, qc, tFallback]);
 
   // ── Capsules grouped by type, for the batch-open bars ───────────────────────
   const capsulesByType = fCapsules.reduce((acc, row) => {

@@ -31,7 +31,7 @@ describe('inventory data layer — exported surface', () => {
       'countByType',   // SELECT
       'listItems',     // SELECT
       'removeItem',    // DELETE
-      'sellItem',      // DELETE + increment_flex_coins RPC
+      'sellItem',      // sell_inventory_item RPC (server prices and credits)
     ]);
   });
 

@@ -77,7 +77,7 @@ describe('recordLogin — advance_login_streak RPC path', () => {
       data: { is_new_day: true, streak: 7, longest: 9, freeze_used: false, freezes_remaining: 2 },
       error: null,
     };
-    _state.rpcResults.increment_flex_coins = { data: null, error: null };
+    _state.rpcResults.credit_flex_coins = { data: coinsForStreakDay(7), error: null };
 
     const result = await recordLogin(user);
 
@@ -87,6 +87,21 @@ describe('recordLogin — advance_login_streak RPC path', () => {
     expect(_state.lastUpdate).toBeNull();                // no direct user_profiles write
     const advance = _state.rpcCalls.find(c => c.name === 'advance_login_streak');
     expect(advance.params).toEqual({ p_today: today() });
+  });
+
+  // The mint caps can pay less than the streak day is worth. The toast reads
+  // coinsAwarded, so it must be what the server actually credited.
+  it('reports the coins the server credited, not the streak table value', async () => {
+    _state.rpcResults.advance_login_streak = {
+      data: { is_new_day: true, streak: 7, longest: 9, freeze_used: false, freezes_remaining: 2 },
+      error: null,
+    };
+    _state.rpcResults.credit_flex_coins = { data: 0, error: null };
+
+    const result = await recordLogin(user);
+
+    expect(result.isNewDay).toBe(true);
+    expect(result.coinsAwarded).toBe(0);
   });
 
   it('no-ops when the server says today was already recorded', async () => {
@@ -101,7 +116,7 @@ describe('recordLogin — advance_login_streak RPC path', () => {
     expect(result.streak).toBe(5);
     expect(result.coinsAwarded).toBe(0);
     expect(_state.lastUpdate).toBeNull();
-    expect(rpcNames()).not.toContain('increment_flex_coins');
+    expect(rpcNames()).not.toContain('credit_flex_coins');
   });
 
   it('falls back to the legacy direct UPDATE when the RPC is confirmed-missing (pre-173 host)', async () => {
@@ -109,7 +124,7 @@ describe('recordLogin — advance_login_streak RPC path', () => {
       data: null,
       error: { code: '42883', message: 'function advance_login_streak does not exist' },
     };
-    _state.rpcResults.increment_flex_coins = { data: null, error: null };
+    _state.rpcResults.credit_flex_coins = { data: 0, error: null };
 
     const result = await recordLogin(user);
 
@@ -131,7 +146,7 @@ describe('recordLogin — advance_login_streak RPC path', () => {
     expect(result.isNewDay).toBe(false);
     expect(result.streak).toBe(3);                       // unchanged current streak
     expect(_state.lastUpdate).toBeNull();
-    expect(rpcNames()).not.toContain('increment_flex_coins');
+    expect(rpcNames()).not.toContain('credit_flex_coins');
   });
 });
 
