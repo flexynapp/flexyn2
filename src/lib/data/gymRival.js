@@ -94,50 +94,6 @@ export async function getGymRivalRecord(userId) {
   return { wins: row?.wins ?? 0, losses: row?.losses ?? 0 };
 }
 
-/**
- * Get this week's comparison stats for user vs their rival.
- * Returns { user, rival } each with { volume, sessions }.
- */
-export async function getWeeklyComparison(userId, rivalId) {
-  if (!userId || !rivalId) return null;
-
-  // ISO week (Monday start) — matches the league system's
-  // startOfWeek(..., { weekStartsOn: 1 }) anchor in leagues.js.
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun..6=Sat
-  const diffToMonday = (day === 0 ? -6 : 1 - day);
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() + diffToMonday);
-  weekStart.setHours(0, 0, 0, 0);
-  const since = weekStart.toISOString();
-
-  const fetchStats = async (uid) => {
-    const { data: logs } = await supabase
-      .from('workout_logs')
-      .select('exercises, created_at')
-      .eq('user_id', uid)
-      .gte('created_at', since);
-
-    const sessions = (logs ?? []).length;
-    let volume = 0;
-    for (const log of logs ?? []) {
-      for (const ex of log.exercises || []) {
-        for (const s of ex.sets || []) {
-          volume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
-        }
-      }
-    }
-    return { sessions, volume };
-  };
-
-  const [userStats, rivalStats] = await Promise.all([
-    fetchStats(userId),
-    fetchStats(rivalId),
-  ]);
-
-  return { user: userStats, rival: rivalStats };
-}
-
 // ── Net rating (weekly competition score) ──────────────────────────────────────
 //
 // Net rating is type-specific — one metric decides the match:

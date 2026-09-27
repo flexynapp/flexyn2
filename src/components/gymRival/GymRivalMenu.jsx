@@ -495,7 +495,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     {tFallback('gymRivalCard.challengeVoided', 'Challenge voided')}
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {tFallback('gymRivalMenu.voidDesc', "A session wasn't logged within 48 hours of accepting, so the week was cancelled. No rewards for either side.")}
+                    {tFallback('gymRivalMenu.voidDesc', 'Neither of you logged a session within 48 hours of accepting, so the match was cancelled. No rewards for either side.')}
                   </p>
                 </div>
                 {week && (
@@ -573,7 +573,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mb-6">
-                  {tFallback('gymRivalMenu.lifetimeNote', 'Lifetime figures. This week starts level.')}
+                  {tFallback('gymRivalMenu.lifetimeNote', 'Lifetime figures. The match starts level when you both accept.')}
                 </p>
 
                 {/* Say how close the matchup is rather than asserting it is
@@ -599,7 +599,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   {tFallback('gymRivalMenu.howItStarts', 'How it starts')}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1 mb-6">
-                  {tFallback('gymRivalMenu.howItStartsDesc', 'Both of you accept, then you each have 48 hours to log a session. Miss it and the match voids with no rewards for either side.')}
+                  {tFallback('gymRivalMenu.howItStartsDesc', 'Both of you accept, then the match runs seven days from that moment. If neither of you logs a session in the first 48 hours it voids. If only one does, the match goes on.')}
                 </p>
 
                 {!iConfirmed ? (

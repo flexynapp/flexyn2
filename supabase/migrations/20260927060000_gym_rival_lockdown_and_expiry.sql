@@ -182,7 +182,7 @@ BEGIN
   INSERT INTO public.notifications (user_id, user_email, type, title, body, icon, link_url, metadata)
   SELECT v_rival, email, 'nemesis_assigned',
     '🎯 @' || COALESCE(v_name, 'someone') || ' wants to be your ' || v_label,
-    'Accept within 48 hours to start this week''s challenge.',
+    'Accept within 48 hours. The match runs seven days and the bigger week wins.',
     '🎯', '/workout',
     jsonb_build_object('assignment_id', v_new_id, 'initiator_id', v_uid, 'rival_type', v_type)
   FROM auth.users WHERE id = v_rival AND email IS NOT NULL;

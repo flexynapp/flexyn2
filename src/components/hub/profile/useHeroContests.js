@@ -17,7 +17,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getMyLeague } from '@/lib/data/leagues';
-import { getMyGymRival, getWeeklyComparison, computeNetRating } from '@/lib/data/gymRival';
+import { getMyGymRival, getGymRivalWeekState, computeNetRating } from '@/lib/data/gymRival';
 import { getMyCrews } from '@/lib/data/crews';
 import { getActiveWarForCrew } from '@/lib/data/crewWars';
 
@@ -52,21 +52,22 @@ export function useHeroContests({ user, isSelf }) {
         const assignment = await getMyGymRival();
         // Only an ACTIVE pairing is a live contest. pending/void/completed
         // rows are history and would show a frozen score forever.
-        if (!assignment || assignment.status !== 'active') return null;
+        // An active row that was never accepted can never settle, so it is
+        // not a contest either.
+        if (!assignment || assignment.status !== 'active' || !assignment.accepted_at) return null;
 
-        // The row is stored one way round; either party may be viewing it.
-        const opponentId = assignment.user_id === user.id
-          ? assignment.rival_id
-          : assignment.user_id;
-        if (!opponentId) return null;
+        // The server's own window and scoring, the numbers the payout uses.
+        // This used to read the rival's workout_logs from the client, which
+        // RLS returns empty for another user, so the rival always read 0,
+        // and it scored a cardio match as volume (`type` is not a column;
+        // `rival_type` is).
+        const week = await getGymRivalWeekState(assignment.id);
+        if (!week) return null;
 
-        const cmp = await getWeeklyComparison(user.id, opponentId);
-        if (!cmp) return null;
-
-        const type = assignment.type || 'gym';
+        const type = assignment.rival_type === 'cardio' ? 'cardio' : 'gym';
         return {
-          mine:   computeNetRating(cmp.user, type),
-          theirs: computeNetRating(cmp.rival, type),
+          mine:   computeNetRating({ volume: week.youVolume,  distanceMeters: week.youDistance },  type),
+          theirs: computeNetRating({ volume: week.themVolume, distanceMeters: week.themDistance }, type),
         };
       } catch { return null; }
     },

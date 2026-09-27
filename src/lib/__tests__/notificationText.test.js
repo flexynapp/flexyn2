@@ -169,6 +169,11 @@ describe('the live-row specs match what production actually stores', () => {
     const declined = notificationText({ type: 'nemesis_assigned', metadata: { ...name, result: 'declined' } }, t);
     expect(declined.title).toContain('nemesis_assigned.title_declined');
     expect(declined.body).toContain('body_declined');
+    // An unanswered invite is not an invite: without its own branch it
+    // rendered as "@name wants to be your Gym Rival" to the person who sent it.
+    const expired = notificationText({ type: 'nemesis_assigned', metadata: { ...name, result: 'expired' } }, t);
+    expect(expired.title).toContain('nemesis_assigned.title_expired');
+    expect(expired.body).toContain('body_expired');
   });
 });
 
