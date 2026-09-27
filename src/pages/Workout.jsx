@@ -3289,9 +3289,13 @@ export default function Workout() {
                 setNewExMuscles(exercise.muscles || []);
               }}
               placeholder={exercises.length > 0 ? tFallback('workout.addAnother', 'Add another exercise') : t('workout.searchExercise')}
+              // The panel runs under the + button too (48px wide plus the
+              // 8px gap), so the Cardio row and Finish don't peek out
+              // beside it.
+              panelEndClassName="-end-14"
             />
           </div>
-          <Button type="button" onClick={addExercise} disabled={!newExName.trim()} aria-label={t('workout.addExercise')}>
+          <Button type="button" className="w-12 shrink-0 px-0" onClick={addExercise} disabled={!newExName.trim()} aria-label={t('workout.addExercise')}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
