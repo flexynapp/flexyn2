@@ -78,11 +78,10 @@ import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/
 import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
-import { calculateWorkoutXp, calculateLevelFromXp } from '@/lib/xpSystem';
+import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { holdLevelUps, releaseLevelUps } from '@/lib/levelUpHold';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
 import { TITLE_COLUMN } from '@/lib/workoutTitle';
-import { hasCheckedInToday, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
@@ -960,20 +959,11 @@ export default function Workout() {
       // idempotency key already landed. Skip ALL credits in that case
       // so XP/volume/streak/leagues aren't double-counted on a retry.
       const isDuplicateSave = workoutLog?.__duplicate === true;
-      let xpGained = isDuplicateSave ? 0 : calculateWorkoutXp(data);
-      // Gym check-in 1.2x XP multiplier — sessions logged on a day the user
-      // checked into a gym via the signage QR earn boosted XP. Best-effort:
-      // the multiplier is a bonus, never a blocker, so a failed lookup just
-      // skips it without affecting the save.
+      // XP is scored by the server from the saved row, including the gym
+      // check-in bonus and the comeback bonus; these hold what it credited.
+      let xpGained = 0;
       let checkInBonus = false;
-      if (xpGained > 0) {
-        try {
-          if (await hasCheckedInToday()) {
-            xpGained = Math.round(xpGained * GYM_CHECKIN_XP_MULTIPLIER);
-            checkInBonus = true;
-          }
-        } catch { /* skip the bonus on lookup failure */ }
-      }
+      let comebackXp = 0;
       const sessionVolume = isDuplicateSave ? 0 : calculateTotalVolume(data.exercises);
 
       if (!isDuplicateSave) {
@@ -983,11 +973,14 @@ export default function Workout() {
         // failure never kills the mutation or prevents the success
         // toast / workout reset from running.
         try {
-          await db.functions.invoke('updateUserXpAndAchievements', {
-            xp_gained: xpGained,
+          const credited = await db.functions.invoke('updateUserXpAndAchievements', {
             action_type: 'workout_completed',
+            log_id: workoutLog?.id,
             action_data: { totalVolume: sessionVolume, workout_date: data.date }
           });
+          xpGained = credited?.xp_awarded ?? 0;
+          checkInBonus = !!credited?.check_in_bonus;
+          comebackXp = credited?.comeback_xp ?? 0;
         } catch (xpErr) {
           reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
         }
@@ -1079,7 +1072,7 @@ export default function Workout() {
       // Previously onSuccess re-called calculateWorkoutXp on the original
       // unclamped data, which could overstate the XP by up to ~30% when
       // sets had been trimmed by the per-group cap.
-      return { workoutLog, clampedData: data, xpGained, sessionVolume, isDuplicate: isDuplicateSave, checkInBonus };
+      return { workoutLog, clampedData: data, xpGained, sessionVolume, isDuplicate: isDuplicateSave, checkInBonus, comebackXp };
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -1165,7 +1158,7 @@ export default function Workout() {
       // the per-group cap clamping inside mutationFn and could overstate the
       // XP by ~30% on workouts that had sets trimmed.
       const clampedData = result?.clampedData || _origData;
-      const xpGained = result?.xpGained ?? calculateWorkoutXp(clampedData);
+      const xpGained = result?.xpGained ?? 0;
       const checkInBonus = !!result?.checkInBonus;
       // Record exercise usage for autocomplete-ranking. Recently-
       // used exercises rise to the top of the autocomplete next
@@ -1310,21 +1303,13 @@ export default function Workout() {
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
 
-      // Comeback session bonus — +200 XP if any exercise has the comeback flag
-      if ((clampedData?.exercises || []).some(ex => ex.comeback)) {
-        db.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: 200,
-          action_type: 'comeback_bonus',
-          action_data: {},
-        })
-          .then(() => {
-            toast.success(
-              tFallback('workout.comebackBonus', 'Comeback bonus earned. Good to have you back.'),
-              { description: tFallback('workout.comebackBonusXp', '+{n} XP', { n: 200 }) },
-            );
-            queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-          })
-          .catch(() => {});
+      // Comeback bonus — paid by grant_workout_xp when the server agrees the
+      // gap was real, so the toast shows only what was actually credited.
+      if ((result?.comebackXp ?? 0) > 0) {
+        toast.success(
+          tFallback('workout.comebackBonus', 'Comeback bonus earned. Good to have you back.'),
+          { description: tFallback('workout.comebackBonusXp', '+{n} XP', { n: result.comebackXp }) },
+        );
       }
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
