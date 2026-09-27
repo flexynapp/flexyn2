@@ -96,16 +96,24 @@ export default function HalloweenBackdrop() {
         <path d="M62 6A46 46 0 1 0 62 94A38 44 0 1 1 62 6Z" fill="hsl(var(--primary))" opacity={MOON} />
       </svg>
 
-      {/* Graveyard, cropped at the sides on wide screens rather than scaled
-          up. Its foot meets the nav's top, so the ground runs behind the
-          pumpkin row and the patch grows out of it. --nav-h already
+      {/* Graveyard. Its foot meets the nav's top, so the ground runs behind
+          the pumpkin row and the patch grows out of it. --nav-h already
           includes --skin-nav-edge; adding it again floated the whole
           graveyard up into the page's last lines. Every figure is planted
-          from the ground curve in graveyard.js, never hand-placed. */}
+          from the ground curve in graveyard.js, never hand-placed.
+
+          Sized so the scene always shows whole. On a phone the height is
+          33vw, exactly the viewBox's shape, so it fills the width. Past
+          ~600px the height stops at 200px and `meet` centres the scene at
+          that size, with the ground running on flat to both edges. It used
+          `slice` with a 150px cap, which on anything wider than a phone
+          zoomed in until the scarecrow and headstones were cut off at the
+          top. The viewBox starts at y=28 because nothing is drawn above. */}
       <svg
-        className="absolute inset-x-0 bottom-[calc(var(--nav-h)-var(--skin-nav-edge,0px))] lg:bottom-0 w-full h-[clamp(96px,32vw,150px)]"
-        viewBox="0 0 400 160"
-        preserveAspectRatio="xMidYMax slice"
+        className="absolute inset-x-0 bottom-[calc(var(--nav-h)-var(--skin-nav-edge,0px))] lg:bottom-0 w-full h-[clamp(96px,33vw,200px)] overflow-visible"
+        viewBox="0 28 400 132"
+        preserveAspectRatio="xMidYMax meet"
+        data-testid="halloween-graveyard"
       >
         <g fill="currentColor" stroke="currentColor" strokeLinecap="round" style={{ opacity: FG }}>
           <path strokeWidth="0" d={GROUND_PATH} />

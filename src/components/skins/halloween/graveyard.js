@@ -34,12 +34,16 @@ const SURFACE = `${START.join(' ')}${SEGMENTS
   .map((s) => `Q${s.ctrl.join(' ')} ${s.end.join(' ')}`)
   .join('')}`;
 
-export const GROUND_PATH = `M0 160L${SURFACE}L400 160Z`;
+// The hill runs 0..400 and then carries on flat past both edges, so a wide
+// screen shows the whole scene at a sensible size with level ground to either
+// side, instead of zooming in until the figures are cut off at the top.
+const REACH = 4000;
+export const GROUND_PATH = `M${-REACH} 160V${START[1]}H${START[0]}L${SURFACE}H${400 + REACH}V160Z`;
 
 // Everything above the ground. Jack o lanterns are clipped to it, so the part
 // of a pumpkin buried in the hill is hidden rather than painted over the
 // ground, and the two inks never stack.
-export const SKY_PATH = `M0 0L${SURFACE}L400 0Z`;
+export const SKY_PATH = `M${-REACH} 0V${START[1]}H${START[0]}L${SURFACE}H${400 + REACH}V0Z`;
 
 const quad = (a, b, c, t) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
 
