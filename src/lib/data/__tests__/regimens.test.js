@@ -1,7 +1,7 @@
 // Every read and write of regimens now goes through src/lib/data/regimens.js.
-// These tests pin the exact statements it sends, through the real db.js
-// underneath, so the next step (replacing db.entities inside this module) has
-// to reproduce them exactly.
+// These tests pin the exact statements it sends. They were written against
+// the old db.js client and pass unchanged on ownedRows, which is the proof
+// the swap matched.
 //
 // The list shape matters beyond style: Dashboard, Workout, Nutrition,
 // RegimensSection and the Hub share card all read the ['regimens', email]
@@ -19,7 +19,7 @@ let results = [];
 function chain(table) {
   const q = {};
   const rec = (name) => (...args) => { calls.push([table, name, ...args]); return q; };
-  for (const m of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'delete', 'single', 'maybeSingle']) {
+  for (const m of ['select', 'eq', 'in', 'or', 'order', 'limit', 'insert', 'update', 'delete', 'single', 'maybeSingle']) {
     q[m] = rec(m);
   }
   q.then = (resolve, reject) => Promise.resolve(results.shift() ?? { data: null, error: null }).then(resolve, reject);
@@ -107,7 +107,7 @@ describe('regimens writes', () => {
 });
 
 describe('one door to regimens', () => {
-  it('no other source file touches db.entities.Regimen', () => {
+  it('no source file touches db.entities.Regimen', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -116,7 +116,6 @@ describe('one door to regimens', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'regimens.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*Regimen\b/.test(code)) offenders.push(rel);
       }
@@ -131,5 +130,39 @@ describe('regimens get', () => {
     calls = []; results = [{ data: { id: 'x1' }, error: null }];
     expect(await regimens.get('x1')).toEqual({ id: 'x1' });
     expect(calls).toEqual([['regimens', 'from'], ['regimens', 'select', '*'], ['regimens', 'eq', 'id', 'x1'], ['regimens', 'maybeSingle']]);
+  });
+});
+
+describe('public templates', () => {
+  it('listPublic falls back to is_public alone when is_public_free is missing', async () => {
+    results = [
+      { data: null, error: { code: '42703' } },
+      { data: [{ id: 'p1' }], error: null },
+    ];
+    expect(await regimens.listPublic(20)).toEqual([{ id: 'p1' }]);
+    expect(calls.slice(-5)).toEqual([
+      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'is_public', true],
+      [T, 'order', 'copy_count', { ascending: false }], [T, 'limit', 20],
+    ]);
+  });
+
+  it('listPublic reads nothing rather than throwing when the fallback fails', async () => {
+    results = [{ data: null, error: { code: '42703' } }, { data: null, error: { code: '42501' } }];
+    expect(await regimens.listPublic(20)).toEqual([]);
+  });
+
+  it('copyTemplate inserts a private copy owned by the caller', async () => {
+    results = [{ data: { id: 'c1' }, error: null }];
+    const { supabase } = await import('@/api/supabaseClient');
+    supabase.rpc.mockReturnValue(Promise.resolve({ error: null }));
+    await regimens.copyTemplate(
+      { id: 'o1', name: 'PPL', description: 'd', exercises: [{ name: 'Row' }], author_username: 'sam' },
+      { email: 'a@b.co' },
+    );
+    expect(calls.filter((c) => c[1] === 'insert')).toEqual([[T, 'insert', {
+      created_by: 'a@b.co', user_id: 'u1', name: 'PPL', description: 'd', exercises: [{ name: 'Row' }],
+      is_public: false, copy_count: 0, original_template_id: 'o1', original_author_username: 'sam',
+    }]]);
+    expect(supabase.rpc).toHaveBeenCalledWith('increment_copy_count', { p_table: 'regimens', p_id: 'o1' });
   });
 });
