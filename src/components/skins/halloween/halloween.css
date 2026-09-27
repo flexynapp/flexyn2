@@ -112,3 +112,36 @@ html.dark[data-skin="halloween"] {
 @media (prefers-reduced-motion: reduce) {
   .hw-twinkle { animation: none; }
 }
+
+/* The graveyard's lights (HalloweenBackdrop.jsx). Lantern faces flicker as
+   an opacity multiplier under the glow ink, so they can only dim. The
+   scarecrow blinks both eyes together at uneven moments across a 17s
+   cycle (a double blink, then long and short gaps), so it never settles
+   into a beat anyone can predict. The eyelid grows down
+   from the top of each eye hole while the lit eye shrinks toward the
+   bottom, linearly and on one clock, so together they always fill the hole
+   exactly and the two inks never overlap. */
+@keyframes hw-flicker {
+  0%, 100% { opacity: 1; }
+  18%      { opacity: 0.78; }
+  21%      { opacity: 0.95; }
+  47%      { opacity: 0.7; }
+  52%      { opacity: 1; }
+  76%      { opacity: 0.85; }
+  79%      { opacity: 0.97; }
+}
+@keyframes hw-lid {
+  0%, 8%, 10%, 11%, 13%, 40%, 42%, 67%, 69%, 87%, 89%, 100% { transform: scaleY(0); }
+  9%, 12%, 41%, 68%, 88% { transform: scaleY(1); }
+}
+@keyframes hw-eye {
+  0%, 8%, 10%, 11%, 13%, 40%, 42%, 67%, 69%, 87%, 89%, 100% { transform: scaleY(1); }
+  9%, 12%, 41%, 68%, 88% { transform: scaleY(0); }
+}
+.hw-flicker   { animation: hw-flicker 2.8s linear infinite; }
+.hw-flicker-b { animation-duration: 3.4s; animation-delay: -1.1s; }
+.hw-lid { transform-box: fill-box; transform-origin: top;    transform: scaleY(0); animation: hw-lid 17s linear infinite; }
+.hw-eye { transform-box: fill-box; transform-origin: bottom; animation: hw-eye 17s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hw-flicker, .hw-lid, .hw-eye { animation: none; }
+}

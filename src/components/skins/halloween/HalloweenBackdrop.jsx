@@ -34,6 +34,10 @@ const LANTERNS = PLANTED.filter((f) => f.lantern);
 const { ink } = SKINS.find((s) => s.id === 'halloween');
 const FG = ink.foreground;
 const MOON = ink.primary;
+const GLOW = ink.glow;
+// A jack o lantern's body sits below the moon's strength so its lit face,
+// at the glow ink, reads as the brightest thing on the hill.
+const EMBER = Math.round(ink.primary * 0.65 * 100) / 100;
 
 // Deterministic star field, in viewBox units of a 100x60 sky.
 const STARS = [
@@ -92,16 +96,24 @@ export default function HalloweenBackdrop() {
         <path d="M62 6A46 46 0 1 0 62 94A38 44 0 1 1 62 6Z" fill="hsl(var(--primary))" opacity={MOON} />
       </svg>
 
-      {/* Graveyard, cropped at the sides on wide screens rather than scaled
-          up. Its foot meets the nav's top, so the ground runs behind the
-          pumpkin row and the patch grows out of it. --nav-h already
+      {/* Graveyard. Its foot meets the nav's top, so the ground runs behind
+          the pumpkin row and the patch grows out of it. --nav-h already
           includes --skin-nav-edge; adding it again floated the whole
           graveyard up into the page's last lines. Every figure is planted
-          from the ground curve in graveyard.js, never hand-placed. */}
+          from the ground curve in graveyard.js, never hand-placed.
+
+          Sized so the scene always shows whole. On a phone the height is
+          33vw, exactly the viewBox's shape, so it fills the width. Past
+          ~600px the height stops at 200px and `meet` centres the scene at
+          that size, with the ground running on flat to both edges. It used
+          `slice` with a 150px cap, which on anything wider than a phone
+          zoomed in until the scarecrow and headstones were cut off at the
+          top. The viewBox starts at y=28 because nothing is drawn above. */}
       <svg
-        className="absolute inset-x-0 bottom-[calc(var(--nav-h)-var(--skin-nav-edge,0px))] lg:bottom-0 w-full h-[clamp(96px,32vw,150px)]"
-        viewBox="0 0 400 160"
-        preserveAspectRatio="xMidYMax slice"
+        className="absolute inset-x-0 bottom-[calc(var(--nav-h)-var(--skin-nav-edge,0px))] lg:bottom-0 w-full h-[clamp(96px,33vw,200px)] overflow-visible"
+        viewBox="0 28 400 132"
+        preserveAspectRatio="xMidYMax meet"
+        data-testid="halloween-graveyard"
       >
         <g fill="currentColor" stroke="currentColor" strokeLinecap="round" style={{ opacity: FG }}>
           <path strokeWidth="0" d={GROUND_PATH} />
@@ -109,25 +121,45 @@ export default function HalloweenBackdrop() {
             <path key={`${f.kind}-${f.x0}`} strokeWidth="0" d={f.d} transform={f.transform} />
           ))}
           {STANDING.flatMap((f) => (f.parts || []).map((d) => <path key={d} strokeWidth="0" d={d} />))}
+          {STANDING.filter((f) => f.head).map((f) => (
+            <path key={`head-${f.x0}`} strokeWidth="0" fillRule="evenodd" d={f.head} />
+          ))}
+          {/* Eyelids: they close downward over each eye hole in the same ink
+              as the head, while the lit eye below shrinks by the same
+              amount, so the hole is always exactly covered once. */}
+          {STANDING.flatMap((f) => (f.eyes || []).map((e) => (
+            <rect key={`lid-${e.x}`} className="hw-lid" strokeWidth="0" x={e.x} y={e.y} width={e.w} height={e.h} />
+          )))}
           {RAILS.map((r) => <path key={`rail-${r.d}`} strokeWidth="0" d={r.d} />)}
           {PLANTED.filter((f) => f.branches).map((f) => (
             <path key={`branches-${f.x0}`} fill="none" strokeWidth="3" d={f.branches} />
           ))}
         </g>
-        {/* Jack o lanterns in the moon's orange at the moon's strength, their
-            faces cut through to the page. Clipped to the sky so the part
-            buried in the hill is hidden instead of stacking on the ground's
-            ink, which would paint darker than the skin declares. */}
+        {/* Jack o lanterns in the brand orange, dimmer than the moon, with
+            their faces cut through and filled with the glow ink, so each
+            face is lit from inside. Clipped to the sky so the part buried in
+            the hill is hidden instead of stacking on the ground's ink, which
+            would paint stronger than the skin declares. */}
         <defs>
           <clipPath id={sky}><path d={SKY_PATH} /></clipPath>
         </defs>
-        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: MOON }} data-testid="halloween-lanterns">
+        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: EMBER }} data-testid="halloween-lanterns">
           {LANTERNS.map((f) => (
             <g key={`${f.kind}-${f.x0}`}>
               <path fillRule="evenodd" d={f.d} />
               <path d={f.stem} />
             </g>
           ))}
+        </g>
+        {/* Everything lit: the lantern faces flicker, the scarecrow's eyes
+            blink. A flicker only ever dims below the glow ink. */}
+        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: GLOW }} data-testid="halloween-glow">
+          {LANTERNS.map((f, i) => (
+            <path key={`face-${f.x0}`} className={`hw-flicker${i % 2 ? ' hw-flicker-b' : ''}`} d={f.face} />
+          ))}
+          {STANDING.flatMap((f) => (f.eyes || []).map((e) => (
+            <rect key={`eye-${e.x}`} className="hw-eye" x={e.x} y={e.y} width={e.w} height={e.h} />
+          )))}
         </g>
       </svg>
     </div>
