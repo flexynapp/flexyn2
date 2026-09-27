@@ -15,6 +15,7 @@
 // different ways is what caused this in the first place.
 
 import { db } from '@/api/db';
+import { getProfile } from '@/api/profileCache';
 
 export const HIDDEN_KEY  = (uid) => `flexyn.dashHiddenSections.${uid || 'anon'}`;
 export const ORDER_KEY   = (uid) => `flexyn.dashWidgetOrder.${uid || 'anon'}`;
@@ -315,6 +316,17 @@ export function clearLayoutLocal(uid) {
 // every hover-cross, and hiding three sections is three state updates — so
 // collapse them into one round trip rather than one per keystroke-equivalent.
 let syncTimer = null;
+let pendingSync = null; // { uid, layout }
+
+// The timer and the pending write are module-level, so a write queued by one
+// account must never land on another. updateMe writes whoever is signed in
+// NOW, so the write is dropped when the cached profile belongs to someone
+// else (an account switch inside the delay).
+function sendLayout({ uid, layout }) {
+  const current = getProfile()?.id;
+  if (current && current !== uid) return;
+  db.auth.updateMe({ dashboard_layout: layout }).catch(() => { /* best-effort */ });
+}
 
 /**
  * Persist a layout to user_profiles.dashboard_layout.
@@ -331,13 +343,26 @@ let syncTimer = null;
 export function queueLayoutSync(uid, layout, delay = 600) {
   if (!uid) return;
   if (syncTimer) clearTimeout(syncTimer);
+  pendingSync = { uid, layout };
   syncTimer = setTimeout(() => {
     syncTimer = null;
-    db.auth.updateMe({ dashboard_layout: layout }).catch(() => { /* best-effort */ });
+    const p = pendingSync;
+    pendingSync = null;
+    if (p) sendLayout(p);
   }, delay);
 }
 
-/** Flush any pending sync immediately — call on unmount. */
+/**
+ * Send any pending sync immediately — call on unmount.
+ *
+ * This used to CANCEL the pending write, so a reorder or hide followed by
+ * leaving Dashboard within the 600ms debounce was never saved to the
+ * account: it survived in localStorage on that device and was missing on
+ * every other one (2026-09-27 audit, item 19).
+ */
 export function flushLayoutSync() {
   if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+  const p = pendingSync;
+  pendingSync = null;
+  if (p) sendLayout(p);
 }
