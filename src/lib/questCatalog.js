@@ -847,7 +847,7 @@ const ROUTE_BY_ACTION = {
   [ACTION_TYPES.GOAL_COMPLETED]:     '/workout?openGoals=1',
   // Sleep, mood and steps are all logged from the Readiness sheet, which
   // Dashboard opens on ?openReadiness=<signal>. The signal scrolls the sheet
-  // to that logger — same parameter TonightRow passes when you tap a column.
+  // to that logger — same parameter the Log today rows pass when you tap one.
   [ACTION_TYPES.SLEEP_LOGGED]:       '/dashboard?openReadiness=sleep',
   [ACTION_TYPES.MOOD_LOGGED]:        '/dashboard?openReadiness=mood',
   [ACTION_TYPES.STEPS_LOGGED]:       '/dashboard?openReadiness=steps',

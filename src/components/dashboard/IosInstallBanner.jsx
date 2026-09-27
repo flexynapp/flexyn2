@@ -15,7 +15,7 @@
 //      standalone') flips true. We respect both.
 //   3. Not dismissed before (per-user localStorage flag).
 //
-// We don't gate on "is engaged" the way PushOptInBanner does — the
+// We don't gate on "is engaged" the way the old Today push banner did — the
 // install moment is upstream of engagement. A user who likes Flexyn
 // enough to scroll the dashboard once is a candidate for installing.
 

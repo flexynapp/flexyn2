@@ -48,7 +48,7 @@ const WRITERS = [
 ];
 const READERS = [
   'hooks/useReadiness.js',
-  'components/dashboard/TonightRow.jsx',
+  'components/dashboard/TodayLogCard.jsx',
 ];
 
 const KEY_RE = /\[\s*'((?:mood|sleep|step)LogToday)'([^\]]*)\]/g;

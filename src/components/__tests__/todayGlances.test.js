@@ -1,7 +1,7 @@
 // The two glances the Today screen added. Both reduce data to a line of
 // text, and both have a case that is easy to get backwards.
 import { describe, it, expect } from 'vitest';
-import { summariseFuel } from '@/components/dashboard/TodayFuelCard';
+import { summariseFuel } from '@/hooks/useTodayFuel';
 import { warLine } from '@/components/dashboard/CrewWarGlance';
 
 const tFallback = (_key, en, vars = {}) => en.replace(/\{(\w+)\}/g, (_, k) => vars[k]);

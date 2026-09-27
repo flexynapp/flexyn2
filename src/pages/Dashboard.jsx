@@ -9,7 +9,7 @@ import {
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder, applyLayoutMigrations,
   readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY, HIDDEN_KEY, TODAY_RETIRED_SECTIONS,
 } from '@/lib/dashboardLayout';
-import TodayFuelCard from '@/components/dashboard/TodayFuelCard';
+import TodayLogCard from '@/components/dashboard/TodayLogCard';
 import { findDueRegimen } from '@/lib/todaysPlan';
 import CrewWarGlance from '@/components/dashboard/CrewWarGlance';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -33,7 +33,6 @@ import TodayStreakLine, { STREAK_MIN_SHOWN } from '@/components/dashboard/TodayS
 import { weekSummary } from '@/lib/focalGoal';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
-import TonightRow from '@/components/dashboard/TonightRow';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
@@ -63,7 +62,6 @@ const GoalsProgressStrip = React.lazy(() => import('@/components/dashboard/Goals
 const ReadinessSheet = React.lazy(() => import('@/components/dashboard/ReadinessSheet'));
 import { useReadiness } from '@/hooks/useReadiness';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
-import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 // The ceremony is a once-per-season sheet, so it must not sit in the eager
@@ -294,17 +292,24 @@ function ActionTile({ to, icon: Icon, label, onClick, delay = 0, accent = false 
 const TROPHY_RECHECK_MS = 30 * 60_000;
 const lastTrophyCheck = new Map(); // userId -> { sig, at }
 
+// Section ids that still exist in saved layouts but render inside another
+// section now, so they never get a row of their own and never show up in the
+// restore shelf. 'readiness' went into Recovery; 'recovery' and 'goals' went
+// into "Log today" and "To do" (27 Sep). The ids are kept, not migrated away,
+// so every saved order and hidden list stays valid.
+export const MERGED_SECTIONS = new Set(['readiness', 'recovery', 'goals']);
+
 const SECTION_LABELS = {
   readiness:    (tF) => tF('dashboard.section.readiness',    'Readiness'),
   // Was 'Nutrition & Recovery' — the macro / calorie / hydration widgets
   // moved off the dashboard (Nutrition owns them) and what's left is the
   // three signals you log at the end of the day.
-  fuel:         (tF) => tF('today.fuel.title',               'Food and water'),
+  fuel:         (tF) => tF('today.log.title',                'Log today'),
   crewwar:      (tF) => tF('crewWars.title',                 'Crew Wars'),
   recovery:     (tF) => tF('today.recovery.title',           'Recovery'),
   stats:        (tF) => tF('dashboard.section.stats',        'This week'),
   streak:       (tF) => tF('dashboard.section.streak',       'Login streak'),
-  challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
+  challenges:   (tF) => tF('today.todo.title',               'To do'),
   goals:        (tF) => tF('today.goal.section',             'Goals'),
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
@@ -707,10 +712,11 @@ export default function Dashboard() {
   // hotdog/hamburger pairing logic sees them as if they were never
   // in the order. Otherwise a hidden half-width section between two
   // visible halves would split the pair across rows.
-  // 'readiness' is excluded entirely — it now renders inside the hero
-  // (beside the CTA), so it must not occupy a section row (which would
-  // leave an empty gap for any saved widgetOrder that still lists it).
-  const isRowSection = (id) => !hiddenSections.has(id) && id !== 'readiness';
+  // Merged sections are excluded entirely — each renders inside another
+  // section now, so it must not occupy a row (which would leave an empty gap
+  // for any saved widgetOrder that still lists it). See MERGED_SECTIONS.
+  const restorableHidden = Array.from(hiddenSections).filter((id) => !MERGED_SECTIONS.has(id));
+  const isRowSection = (id) => !hiddenSections.has(id) && !MERGED_SECTIONS.has(id);
   const dashboardRows = useMemo(
     () => buildDashboardRows(widgetOrder.filter(isRowSection), sectionLayouts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -786,7 +792,7 @@ export default function Dashboard() {
   // pointer immediately — only the persistence is throttled.
   const reorderWriteTimerRef = useRef(null);
   const commitRowOrder = (nextRows) => {
-    // Sections this row list never represented — hidden ones and 'readiness'.
+    // Sections this row list never represented — hidden ones and merged ones.
     // They used to be dropped here, so hiding a section and then dragging
     // anything erased its saved slot until the next load put it back from the
     // defaults. Carrying them keeps the saved order whole.
@@ -1304,55 +1310,19 @@ export default function Dashboard() {
   const renderDashboardSection = (id, paired = false) => {
     switch (id) {
       case 'readiness':
-        // Readiness now heads the Recovery card (TonightRow). Return null here
-        // so a saved widgetOrder that still lists 'readiness' can't render it
-        // a second time as a section.
+        // Merged (see MERGED_SECTIONS): readiness shows on the sleep row of
+        // "Log today". Null so a saved widgetOrder that still lists it can't
+        // render it a second time.
         return null;
-      // "Tonight" — sleep · mood · steps as one three-column row. Keeps the
-      // section id `recovery` deliberately: every saved widgetOrder,
-      // sectionLayouts and hiddenSections entry out there already refers to
-      // it, so renaming the id would silently discard those users' choices
-      // and reappear as a section they had hidden. Only the label changed.
-      //
-      // Gone from here: MacroRingWidget, CalorieProgressWidget and
-      // HydrationRing. All three duplicated the Nutrition tab, which owns
-      // MacroNutrientBox, NutritionFocal and WaterTracker — no feature lost.
-      // Sleep / mood / steps are NOT duplicated anywhere, which is why they
-      // stayed on the page rather than going with them.
-      case 'recovery': return (
-        <React.Fragment key="recovery">
-          <section aria-labelledby="dash-tonight-heading">
-            <div className="flex items-baseline justify-between gap-2 mb-2 px-1">
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
-                <h2 id="dash-tonight-heading" className="font-heading font-bold text-sm tracking-tight truncate">
-                  {tFallback('today.recovery.title', 'Recovery')}
-                </h2>
-              </span>
-              {/* The note follows the clock: mornings are when last night's
-                  sleep gets logged, evenings are when mood and steps are
-                  complete. The middle of the day just says why it matters. */}
-              <span className="text-micro font-semibold text-muted-foreground/70 shrink-0 cq-hide">
-                {new Date().getHours() < 12
-                  ? tFallback('today.recovery.noteMorning', 'Log last night')
-                  : new Date().getHours() >= 18
-                    ? tFallback('today.recovery.noteEvening', 'Log tonight')
-                    : tFallback('dashboard.tonight.note', 'feeds your readiness')}
-              </span>
-            </div>
-            <ErrorBoundary label="TonightRow">
-              <TonightRow readiness={readiness} onOpen={openReadiness} />
-            </ErrorBoundary>
-          </section>
-        </React.Fragment>
-      );
-      // Moved out of the hero (see HeroCard) — the pill carries its own
-      // "3 days streak" text and expands its calendar inline, so it needs no
-      // section label above it.
+      // "Log today" (27 Sep): meals, water, sleep, mood and steps as one block.
+      // It keeps the id `fuel` so saved layouts keep their slot; `recovery`
+      // (sleep, mood, steps) merged into it and renders nothing on its own.
+      case 'recovery':
+        return null;
       case 'fuel': return (
         <React.Fragment key="fuel">
-          <ErrorBoundary label="TodayFuelCard">
-            <TodayFuelCard userProfile={userProfile} />
+          <ErrorBoundary label="TodayLogCard">
+            <TodayLogCard userProfile={userProfile} readiness={readiness} onOpenReadiness={openReadiness} />
           </ErrorBoundary>
         </React.Fragment>
       );
@@ -1405,38 +1375,34 @@ export default function Dashboard() {
           </div>
         </React.Fragment>
       );
+      // "To do" (27 Sep): the closest goal on top of the day's quests, so a
+      // goal and the quests read as one list to finish. The goal row waits for
+      // the goals query so a person who has goals never sees "Set a goal"
+      // flash first. Keeps the id `challenges`; `goals` merged into it.
       case 'challenges': return (
         <React.Fragment key="challenges">
           <div>
-            <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
+            <ErrorBoundary label="DailyQuestsCard">
+              <DailyQuestsCard
+                title={tFallback('today.todo.title', 'To do')}
+                goalSlot={goalsLoading ? null : (
+                  <ErrorBoundary label="TodayGoalCard">
+                    <TodayGoalCard
+                      goals={goals}
+                      logs={logs}
+                      cardioLogs={cardioLogs}
+                      onOpen={() => openGoals()}
+                      onCreate={() => openGoals(true)}
+                    />
+                  </ErrorBoundary>
+                )}
+              />
+            </ErrorBoundary>
           </div>
         </React.Fragment>
       );
-      // Goals on Today. A goal at 75%+ gets GoalsAlmostComplete, which carries
-      // the Complete button; below that TodayGoalCard names the closest goal,
-      // and with none it asks for one. Waits for the goals query so a person
-      // who has goals never sees "Set a goal" flash first.
-      case 'goals': {
-        if (goalsLoading) return null;
-        return (
-          <React.Fragment key="goals">
-            <div className="space-y-2">
-              <ErrorBoundary label="GoalsAlmostComplete">
-                <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => openGoals()} />
-              </ErrorBoundary>
-              <ErrorBoundary label="TodayGoalCard">
-                <TodayGoalCard
-                  goals={goals}
-                  logs={logs}
-                  cardioLogs={cardioLogs}
-                  onOpen={() => openGoals()}
-                  onCreate={() => openGoals(true)}
-                />
-              </ErrorBoundary>
-            </div>
-          </React.Fragment>
-        );
-      }
+      case 'goals':
+        return null;
       // Streak rescue is its own row, below the friend leaderboard, per board
       // 01. It used to render inside 'challenges', glued 8px under Daily
       // Quests — which read as a third quest rather than the "you are about to
@@ -1623,9 +1589,6 @@ export default function Dashboard() {
             {/* OnboardingNudgeCard removed — its suggestions (log a workout,
                 follow a friend, try a regimen, share your week, invite,
                 notifications) now rotate as slides in the hero carousel. */}
-            <ErrorBoundary label="PushOptInBanner">
-              <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
-            </ErrorBoundary>
             <ErrorBoundary label="IosInstallBanner">
               <IosInstallBanner />
             </ErrorBoundary>
@@ -1822,13 +1785,13 @@ export default function Dashboard() {
 
           Solid border, per board 03. Dashed reads as a drop target — this
           rail is a shelf you take things off, not one you drag onto. */}
-      {editMode && hiddenSections.size > 0 && (
+      {editMode && restorableHidden.length > 0 && (
         <div className="mt-4 mb-3 p-3 rounded-lg border border-border bg-secondary/30">
           <p className="font-mono text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden. Tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {Array.from(hiddenSections).map((id) => (
+            {restorableHidden.map((id) => (
               <button
                 key={id}
                 type="button"

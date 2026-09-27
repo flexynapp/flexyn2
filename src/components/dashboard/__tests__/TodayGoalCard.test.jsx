@@ -1,5 +1,5 @@
-// Today's goal slot: ask for a goal when there is none, name the closest
-// one otherwise, and step aside for GoalsAlmostComplete at 75%+.
+// Today's goal row, at the top of the "To do" block: ask for a goal when there
+// is none, name the closest one otherwise, and offer Complete once it is hit.
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -29,10 +29,11 @@ describe('TodayGoalCard', () => {
     expect(onCreate).toHaveBeenCalled();
   });
 
-  it('names the closest goal and counts the rest', () => {
+  it('names the closest goal and counts the rest', async () => {
     render(<TodayGoalCard goals={[goal('Bench', 20), goal('Deadlift', 60), goal('Row', 5)]} />);
     expect(screen.getByText('Deadlift')).toBeTruthy();
-    expect(screen.getByText('60%')).toBeTruthy();
+    // The percentage counts up to its value, so wait for it to land.
+    expect(await screen.findByText('60%')).toBeTruthy();
     expect(screen.getByText('2 more goals')).toBeTruthy();
   });
 
@@ -42,8 +43,16 @@ describe('TodayGoalCard', () => {
     expect(screen.queryByText('0%')).toBeNull();
   });
 
-  it('renders nothing once a goal is 75% there, where the Complete card takes over', () => {
-    const { container } = render(<TodayGoalCard goals={[goal('Bench', 80), goal('Row', 10)]} />);
-    expect(container.textContent).toBe('');
+  it('keeps showing a goal past 75%, with no Complete until it is hit', () => {
+    render(<TodayGoalCard goals={[goal('Bench', 80), goal('Row', 10)]} />);
+    expect(screen.getByText('Bench')).toBeTruthy();
+    expect(screen.queryByText('Complete')).toBeNull();
+  });
+
+  it('offers Complete at 100%, which opens goals', () => {
+    const onOpen = vi.fn();
+    render(<TodayGoalCard goals={[goal('Bench', 100)]} onOpen={onOpen} />);
+    fireEvent.click(screen.getByText('Complete'));
+    expect(onOpen).toHaveBeenCalled();
   });
 });
