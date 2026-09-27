@@ -1,8 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Pencil, Trash2, Target, Trophy, Activity, Footprints, PersonStanding, Bike, MoreVertical, CalendarClock, Archive, ArchiveRestore } from 'lucide-react';
+import { Trash2, Target, Dumbbell, Activity, Footprints, PersonStanding, Bike, MoreVertical, Pencil, Archive, ArchiveRestore, Check } from 'lucide-react';
 import { differenceInDays, startOfToday } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
@@ -16,8 +14,17 @@ import { triggerHaptic } from '@/lib/haptic';
 import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
-import { formatWeight } from '@/lib/weightUnit';
+import { formatWeight, formatWeightNumber } from '@/lib/weightUnit';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
+
+// ── Goal rows, restyled 2026-09-27 (Goals redesign, option B) ─────────────
+// Each goal used to be its own card with five stacked strips: name, an orange
+// bar, "NN% complete", a badge, then the date, notes and a green button. The
+// number that mattered was the smallest text on it. Rows now match Today's
+// "To do" block: hairline rows, the value leads, the bar is neutral and turns
+// green when the target is hit, and one quiet line says what is left.
+
+const ACTIVITY_ICON = { running: Footprints, biking: Bike, walking: PersonStanding };
 
 export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onComplete, onArchive, isViewingCompleted = false, isViewingArchived = false }) {
   // Track which goal IDs have an in-flight delete/complete action so the
@@ -27,17 +34,11 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
   const guardedAction = useCallback(async (kind, id, handler) => {
     setPendingIds(prev => {
       if (prev[kind].has(id)) return prev;
-      const next = { ...prev, [kind]: new Set([...prev[kind], id]) };
-      return next;
+      return { ...prev, [kind]: new Set([...prev[kind], id]) };
     });
-    // Primary action — completing a goal is a high-intent moment; the
-    // celebration helper fires its own distinct pattern after success.
-    // Delete fires a warning haptic; the optimistic-delete toast at
-    // the parent surfaces with Undo so this is forgiving rather than
-    // destructive.
-    // Archive is reversible and unremarkable — a 'warning' buzz would tell the
-    // hand this was destructive when it is the control that exists so the user
-    // does not have to be.
+    // Complete is the high-intent moment (the celebration fires its own
+    // pattern after success). Archive is reversible, so it buzzes quietly;
+    // a 'warning' there would tell the hand it was destructive.
     triggerHaptic(kind === 'complete' ? 'primary' : kind === 'archive' ? 'subtle' : 'warning');
     try {
       await handler(id);
@@ -52,246 +53,217 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
   const { allowDeleteCompletedGoals } = useSettings();
   const { t, tFallback } = useLanguage();
   const fmtDate = useDateFormatter();
+  const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
 
   /** Count-aware lookup — picks the `.one` / `.other` variant. */
   const tCount = useCallback((base, n, oneEn, otherEn) => (
     tFallback(`${base}.${n === 1 ? 'one' : 'other'}`, n === 1 ? oneEn : otherEn, { n })
   ), [tFallback]);
-  const { weightUnit } = useWeightUnit();
-  const { distanceUnit } = useDistanceUnit();
-  
-  const goalsWithProgress = useMemo(() => {
-    return goals.map(goal => {
-      let progress = 0;
-      let progressLabel = '';
-      let currentValue = 0;
-      let targetValue = 0;
-      let icon = null;
 
-      if (!goal.goal_type || goal.goal_type === 'strength') {
-        // Strength goal progress now comes from the shared helper at
-        // src/lib/goalProgress.js — same logic as GoalsAlmostComplete
-        // so the two views can't disagree on progress (the audit
-        // found they did, by quite a lot). Also fixes:
-        //   • bodyweight goals (push-ups, pull-ups, etc.) now count
-        //     reps when weight is null/0
-        //   • reps count at OR ABOVE target weight, not exactly equal
-        const r = computeStrengthGoalProgress(goal, logs);
-        progress     = r.progress;
-        currentValue = r.currentValue;
-      } else if (isCardioGoal(goal)) {
-        // All three cardio types share one calculator now — the three
-        // branches here were the same loop with a different accumulator,
-        // and a fourth copy of it lived in GoalsAlmostComplete and a
-        // fifth in CardioGoals. Only the LABEL differs per type.
-        const r = computeCardioGoalProgress(goal, cardioLogs);
-        progress     = r.progress;
-        currentValue = r.currentValue;
-        targetValue  = r.target;
-        progressLabel =
-          goal.goal_type === 'cardio_distance'
-            ? `${formatDistance(currentValue, distanceUnit, 1)} / ${formatDistance(targetValue, distanceUnit, 1)}`
-            : goal.goal_type === 'cardio_duration'
-              ? `${formatDuration(currentValue)} / ${formatDuration(targetValue)}`
-              : `${currentValue} / ${targetValue} ${t('goals.sessions')}`;
-        icon = goal.cardio_activity === 'running' ? Footprints :
-               goal.cardio_activity === 'biking'  ? Bike :
-               goal.cardio_activity === 'walking' ? PersonStanding : Activity;
+  const rows = useMemo(() => goals.map((goal) => {
+    const cardio = isCardioGoal(goal);
+    let progress = 0;
+    let value = null;      // the big number: where you are
+    let target = '';       // "225 lb × 5", the goal itself
+    let toGo = null;       // "10 lb to go"
+    let Icon = Target;
+    let title;
+
+    if (cardio) {
+      const r = computeCardioGoalProgress(goal, cardioLogs);
+      progress = r.progress;
+      const left = Math.max(0, r.target - r.currentValue);
+      if (goal.goal_type === 'cardio_distance') {
+        value = formatDistance(r.currentValue, distanceUnit, 1);
+        target = formatDistance(r.target, distanceUnit, 1);
+        toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatDistance(left, distanceUnit, 1) });
+      } else if (goal.goal_type === 'cardio_duration') {
+        value = formatDuration(r.currentValue);
+        target = formatDuration(r.target);
+        toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatDuration(left) });
+      } else {
+        value = String(r.currentValue);
+        target = tCount('goals.row.sessions', r.target, '{n} session', '{n} sessions');
+        toGo = tCount('goals.row.sessionsToGo', left, '{n} session to go', '{n} sessions to go');
       }
-
-      // For completed goals, always show 100% progress
-      if (goal.status === 'completed') {
-        progress = 100;
+      Icon = ACTIVITY_ICON[goal.cardio_activity] || Activity;
+      const activity = goal.cardio_activity ? t(`goals.activity.${goal.cardio_activity}`) : t(`goals.type.${goal.goal_type}`);
+      title = goal.period === 'week' || goal.period === 'month'
+        ? `${activity}, ${t(`goals.period.${goal.period}`).toLowerCase()}`
+        : activity;
+    } else {
+      const r = computeStrengthGoalProgress(goal, logs);
+      progress = r.progress;
+      const tw = Number(goal.target_weight) > 0 ? Number(goal.target_weight) : 0;
+      const tr = Number(goal.target_reps) > 0 ? Number(goal.target_reps) : 0;
+      Icon = Dumbbell;
+      title = goal.exercise_name || tFallback('goals.unknownLift', 'Unknown lift');
+      if (tw && tr) {
+        // One set: show the set closest to the target, "215 × 5".
+        value = r.bestSet
+          ? `${formatWeightNumber(r.bestSet.weight, weightUnit)} × ${r.bestSet.reps}`
+          : null;
+        target = `${formatWeight(tw, weightUnit)} × ${tr}`;
+        if (r.bestSet && r.bestSet.weight >= tw) {
+          toGo = tCount('goals.row.repsToGo', Math.max(0, tr - r.bestSet.reps), '{n} rep to go', '{n} reps to go');
+        } else if (r.bestSet) {
+          toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatWeight(tw - r.bestSet.weight, weightUnit) });
+        }
+      } else if (tw) {
+        value = r.maxWeight > 0 ? formatWeightNumber(r.maxWeight, weightUnit) : null;
+        target = formatWeight(tw, weightUnit);
+        if (r.maxWeight > 0) toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatWeight(Math.max(0, tw - r.maxWeight), weightUnit) });
+      } else if (tr) {
+        value = r.maxReps > 0 ? String(r.maxReps) : null;
+        target = tCount('goals.row.repsInSet', tr, '{n} rep in one set', '{n} reps in one set');
+        if (r.maxReps > 0) toGo = tCount('goals.row.repsToGo', Math.max(0, tr - r.maxReps), '{n} rep to go', '{n} reps to go');
       }
+    }
 
-      // Target date. `parseLocalDate` rather than `new Date(str)` — the
-      // latter reads 'YYYY-MM-DD' as UTC midnight, so west of Greenwich a
-      // deadline reads as one day earlier than the day the user picked, and
-      // a goal due today announces itself overdue. Same trap the Insights
-      // "training since" label was fixed for.
-      const deadlineDate = goal.deadline ? parseLocalDate(goal.deadline) : null;
-      const daysLeft = deadlineDate ? differenceInDays(deadlineDate, startOfToday()) : null;
+    const done = goal.status === 'completed';
+    if (done) progress = 100;
+    const hit = progress >= 100;
 
-      return {
-        ...goal,
-        progress: Math.min(Math.max(progress, 0), 100),
-        progressLabel,
-        currentValue,
-        targetValue,
-        deadlineDate,
-        daysLeft,
-        overdue: daysLeft != null && daysLeft < 0,
-        icon: icon || Target,
-      };
-    });
-  }, [goals, logs, cardioLogs, t, distanceUnit]);
+    // Target date. `parseLocalDate` rather than `new Date(str)` — the latter
+    // reads 'YYYY-MM-DD' as UTC midnight, so west of Greenwich a deadline
+    // reads a day early and a goal due today announces itself overdue.
+    const deadlineDate = goal.deadline ? parseLocalDate(goal.deadline) : null;
+    const daysLeft = deadlineDate ? differenceInDays(deadlineDate, startOfToday()) : null;
+    const completedDate = done && goal.completed_at ? new Date(goal.completed_at) : null;
 
-  if (goals.length === 0) {
-    return (
-      <Card className="p-8 text-center border-dashed">
-        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">{t('goals.noActive')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('goals.noActiveDesc')}</p>
-      </Card>
-    );
-  }
+    return {
+      goal, title, Icon, value, target, toGo, hit, done,
+      progress: Math.min(Math.max(progress, 0), 100),
+      deadlineDate, daysLeft, completedDate,
+      overdue: daysLeft != null && daysLeft < 0,
+    };
+  }), [goals, logs, cardioLogs, t, tFallback, tCount, distanceUnit, weightUnit]);
+
+  if (goals.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      {goalsWithProgress.map((goal) => {
-        const Icon = goal.icon;
-        const title = (!goal.goal_type || goal.goal_type === 'strength')
-          ? (goal.exercise_name || 'Unknown Exercise')
-          : goal.goal_type && goal.cardio_activity
-          ? `${t(`goals.type.${goal.goal_type}`)} (${t(`goals.activity.${goal.cardio_activity}`)})`
-          : 'Unknown Goal';
-        
+    <ul className="flex flex-col">
+      {rows.map((row) => {
+        const { goal, title, Icon } = row;
+        const showMenu = !isViewingCompleted || allowDeleteCompletedGoals;
+        const canComplete = !row.done && row.hit && goal.status === 'active' && onComplete;
+
+        // The line under the bar: what is left, then the date. A goal with no
+        // date grows no date text ("a section with no data must not render").
+        // The goal itself leads the line, so the title keeps the width it
+        // needs on a small phone instead of sharing it with the target.
+        let status = null;
+        let statusTone = 'text-muted-foreground';
+        let overdueText = null; // only the overdue clause takes the warning hue
+        if (row.done) {
+          status = [
+            row.completedDate
+              ? tFallback('goals.row.doneOn', 'Done {date}', { date: fmtDate(row.completedDate, { dateStyle: 'medium' }) })
+              : tFallback('goals.row.done', 'Done'),
+            row.target,
+          ].filter(Boolean).join(' · ');
+          statusTone = 'text-success';
+        } else if (row.hit) {
+          status = [tFallback('goals.row.hit', 'Target hit'), row.target].filter(Boolean).join(' · ');
+          statusTone = 'text-success';
+        } else {
+          const bits = [tFallback('goals.row.target', 'Target {target}', { target: row.target })];
+          if (row.toGo) bits.push(row.toGo);
+          else if (row.value == null) bits.push(tFallback('goals.row.notStarted', 'Log a set to start it'));
+          if (goal.deadline && goal.status === 'active') {
+            if (row.overdue) {
+              overdueText = tCount('goals.deadline.overdue', Math.abs(row.daysLeft), '{n} day past target', '{n} days past target');
+            } else if (row.daysLeft === 0) {
+              bits.push(tFallback('goals.deadline.today', 'Target date is today'));
+            } else {
+              bits.push(tCount('goals.deadline.left', row.daysLeft, '{n} day left', '{n} days left'));
+            }
+          }
+          status = bits.join(' · ') || null;
+        }
+
         return (
-          <Card key={goal.id} className="p-4 border-none shadow-sm">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1 flex items-start gap-3">
-                <div className="mt-0.5 w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-heading font-bold">{title}</h4>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {goal.progressLabel
-                      || (goal.target_weight != null && goal.target_weight > 0
-                          ? `${formatWeight(Math.min(goal.currentValue || 0, goal.target_weight), weightUnit)} / ${formatWeight(goal.target_weight, weightUnit)}`
-                          : goal.target_reps != null && goal.target_reps > 0
-                            ? `${Math.min(goal.currentValue || 0, goal.target_reps)} / ${goal.target_reps} ${t('goals.reps')}`
-                            : null)
-                    }
-                  </p>
-                </div>
+          <li key={goal.id} className="flex items-start gap-3 py-3 border-t border-border first:border-t-0">
+            <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${row.done || row.hit ? 'text-foreground' : 'text-muted-foreground'}`} aria-hidden="true" />
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <h4 className="font-semibold text-sm truncate">{title}</h4>
+                <span className="text-sm font-semibold tabular-nums whitespace-nowrap">
+                  {row.done ? null : row.value}
+                </span>
               </div>
-              {/* Single ⋮ menu replaces separate Edit / Delete buttons */}
-              {(!isViewingCompleted || (isViewingCompleted && allowDeleteCompletedGoals)) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {/* An icon-only button with no accessible name announces
-                        as "button" and nothing else, on the only control that
-                        reaches edit / archive / delete. Named per goal so a
-                        screen reader distinguishes the rows. */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={tFallback('goals.rowMenu', 'Options for {name}', { name: title })}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {!isViewingCompleted && onEdit && (
-                      <DropdownMenuItem onClick={() => onEdit(goal)}>
-                        <Pencil className="w-4 h-4 me-2" /> {t('common.edit')}
-                      </DropdownMenuItem>
-                    )}
-                    {/* ── Archive / Unarchive ──────────────────────────
-                        Sits ABOVE the delete separator because it is the
-                        non-destructive answer to the same want. Delete was
-                        the only way to clear a goal you had lost interest
-                        in, which meant the honest options were "keep it
-                        nagging you from the Dashboard strip" or "destroy
-                        the record". Archiving keeps the row, its notes and
-                        its date, and takes it out of every active surface. */}
-                    {onArchive && goal.status !== 'completed' && (
-                      <DropdownMenuItem
-                        disabled={pendingIds.archive.has(goal.id)}
-                        onClick={() => guardedAction('archive', goal.id, onArchive)}
-                      >
-                        {isViewingArchived
-                          ? <><ArchiveRestore className="w-4 h-4 me-2" /> {tFallback('goals.archive.undo', 'Unarchive')}</>
-                          : <><Archive className="w-4 h-4 me-2" /> {tFallback('goals.archive.action', 'Archive')}</>}
-                      </DropdownMenuItem>
-                    )}
-                    {onArchive && goal.status !== 'completed' && <DropdownMenuSeparator />}
-                    {/* No confirmation dialog — the optimistic-delete
-                        toast with Undo (parent) IS the safety net.
-                        Faster than a confirm, safer than a confirm. */}
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      disabled={pendingIds.delete.has(goal.id)}
-                      onClick={() => guardedAction('delete', goal.id, onDelete)}
-                    >
-                      <Trash2 className="w-4 h-4 me-2" /> {t('common.delete')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {!row.done && (
+                <GoalProgressBar progress={row.progress} animated complete={row.hit} label={title} />
+              )}
+              {(status || overdueText) && (
+                <p className={`text-xs ${statusTone}`}>
+                  {status}
+                  {overdueText && <span className="text-primary">{status ? ' · ' : ''}{overdueText}</span>}
+                </p>
+              )}
+              {canComplete && (
+                <Button
+                  size="sm"
+                  disabled={pendingIds.complete.has(goal.id)}
+                  className="self-start mt-0.5 h-8 bg-success text-white gap-1.5 hover:brightness-105 active:brightness-105"
+                  onClick={() => guardedAction('complete', goal.id, onComplete)}
+                >
+                  <Check className="w-4 h-4" aria-hidden="true" /> {tFallback('goals.row.markDone', 'Mark done')}
+                </Button>
               )}
             </div>
-
-            <GoalProgressBar
-              progress={goal.progress}
-              animated={true}
-              complete={goal.progress >= 100}
-              label={title}
-            />
-
-            <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-muted-foreground">{Math.round(goal.progress)}{t('goals.percentComplete')}</span>
-              {/* These three were raw English literals inside a 15-language
-                  app — "Completed ✓", "Ready to complete!", "Almost there!"
-                  rendered untranslated everywhere. The green was raw Tailwind
-                  too; `success` is the token the four-hue rule allows. */}
-              {goal.status === 'completed' ? (
-                <Badge className="bg-success/10 text-success">
-                  {tFallback('goals.badge.completed', 'Completed ✓')}
-                </Badge>
-              ) : goal.progress >= 100 ? (
-                <span className="text-xs font-medium text-accent">
-                  {tFallback('goals.badge.readyToComplete', 'Ready to complete!')}
-                </span>
-              ) : goal.progress >= 80 ? (
-                <Badge className="bg-accent/10 text-accent">
-                  {tFallback('goals.badge.almostThere', 'Almost there!')}
-                </Badge>
-              ) : null}
-            </div>
-
-            {/* ── Target date ──────────────────────────────────────────────
-                Rendered only when the goal carries one. A goal with no
-                deadline must not grow an empty row saying so — per the
-                "a section with no data must not render as zeros" rule. An
-                overdue goal is FLAGGED, never failed: the date was always
-                advisory, and turning a missed date into a red failure state
-                punishes the user for aiming at something. */}
-            {goal.deadline && goal.status === 'active' && (
-              <div className="flex items-center gap-1.5 mt-2">
-                <CalendarClock
-                  className={`w-3.5 h-3.5 shrink-0 ${goal.overdue ? 'text-primary' : 'text-muted-foreground'}`}
-                />
-                <span className={`text-xs ${goal.overdue ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-                  {goal.overdue
-                    ? tCount('goals.deadline.overdue', Math.abs(goal.daysLeft),
-                        '{n} day past target', '{n} days past target')
-                    : goal.daysLeft === 0
-                      ? tFallback('goals.deadline.today', 'Target date is today')
-                      : tCount('goals.deadline.left', goal.daysLeft,
-                          '{n} day left', '{n} days left')}
-                  <span className="text-muted-foreground/70"> · {fmtDate(goal.deadlineDate, { dateStyle: 'medium' })}</span>
-                </span>
-              </div>
+            {showMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  {/* Named per goal so a screen reader tells the rows apart;
+                      this is the only control that reaches edit / archive /
+                      delete. */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="-me-2 -mt-1.5 h-8 w-8 text-muted-foreground"
+                    aria-label={tFallback('goals.rowMenu', 'Options for {name}', { name: title })}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!isViewingCompleted && onEdit && (
+                    <DropdownMenuItem onClick={() => onEdit(goal)}>
+                      <Pencil className="w-4 h-4 me-2" /> {t('common.edit')}
+                    </DropdownMenuItem>
+                  )}
+                  {/* Archive sits above the delete separator: it is the
+                      non-destructive answer to the same want. A completed goal
+                      is not archivable, because that would hide the record of
+                      a reward already paid. */}
+                  {onArchive && goal.status !== 'completed' && (
+                    <DropdownMenuItem
+                      disabled={pendingIds.archive.has(goal.id)}
+                      onClick={() => guardedAction('archive', goal.id, onArchive)}
+                    >
+                      {isViewingArchived
+                        ? <><ArchiveRestore className="w-4 h-4 me-2" /> {tFallback('goals.archive.undo', 'Unarchive')}</>
+                        : <><Archive className="w-4 h-4 me-2" /> {tFallback('goals.archive.action', 'Archive')}</>}
+                    </DropdownMenuItem>
+                  )}
+                  {onArchive && goal.status !== 'completed' && <DropdownMenuSeparator />}
+                  {/* No confirm: the optimistic-delete toast with Undo is the
+                      safety net. */}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    disabled={pendingIds.delete.has(goal.id)}
+                    onClick={() => guardedAction('delete', goal.id, onDelete)}
+                  >
+                    <Trash2 className="w-4 h-4 me-2" /> {t('common.delete')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
-
-            {goal.status !== 'completed' && goal.progress >= 100 && onComplete && (
-              <Button
-                size="sm"
-                disabled={pendingIds.complete.has(goal.id)}
-                className="mt-3 w-full bg-success text-white gap-2 hover:brightness-105 active:brightness-105"
-                onClick={() => guardedAction('complete', goal.id, onComplete)}
-              >
-                <Trophy className="w-4 h-4" /> {t('goals.complete')}
-              </Button>
-            )}
-
-            {goal.notes && (
-              <p className="text-xs text-muted-foreground mt-2 italic">{goal.notes}</p>
-            )}
-          </Card>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

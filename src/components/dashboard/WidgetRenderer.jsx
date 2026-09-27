@@ -13,7 +13,7 @@ import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { formatWeight } from '@/lib/weightUnit';
-import { computeStrengthGoalProgress } from '@/lib/goalProgress';
+import { goalProgress } from '@/lib/goalProgress';
 import { workoutTitle } from '@/lib/workoutTitle';
 
 // Recharts-backed widgets live in their own lazy chunk so recharts
@@ -288,16 +288,17 @@ function TopExercisesWidget({ logs, isLoading }) {
 // Goals Progress Widget — active goals with live progress. (A dedicated
 // widget rather than reusing GoalsProgressStrip, which self-hides in most
 // states; a widget the user explicitly added should always render.)
-function GoalsProgressWidget({ goals, logs, isLoading }) {
+function GoalsProgressWidget({ goals, logs, cardioLogs, isLoading }) {
   const { tFallback } = useLanguage();
   const rows = useMemo(() => {
-    const active = Array.isArray(goals) ? goals.filter((g) => g.status !== 'completed') : [];
+    // `=== 'active'`: archived goals are parked, not in progress.
+    const active = Array.isArray(goals) ? goals.filter((g) => g.status === 'active') : [];
     return active.slice(0, 4).map((g) => {
       let progress = 0;
-      try { progress = Math.round(computeStrengthGoalProgress(g, logs).progress || 0); } catch { progress = 0; }
+      try { progress = Math.round(goalProgress(g, logs, cardioLogs) || 0); } catch { progress = 0; }
       return { goal: g, progress: Math.max(0, Math.min(100, progress)) };
     });
-  }, [goals, logs]);
+  }, [goals, logs, cardioLogs]);
 
   return (
     <Card className="p-4 col-span-1 md:col-span-2">
@@ -356,7 +357,7 @@ export const WIDGET_COMPONENTS = {
   'journal': JournalWidgetWrapper,
 };
 
-export default function WidgetRenderer({ widgetId, logs, goals, isLoading }) {
+export default function WidgetRenderer({ widgetId, logs, cardioLogs = [], goals, isLoading }) {
   const Component = WIDGET_COMPONENTS[widgetId];
 
   const { tFallback } = useLanguage();
@@ -375,7 +376,7 @@ export default function WidgetRenderer({ widgetId, logs, goals, isLoading }) {
   return (
     <ErrorBoundary label={`widget:${widgetId}`}>
       <Suspense fallback={<Card className="p-4"><Skeleton className="h-32" /></Card>}>
-        <Component logs={logs} goals={goals} isLoading={isLoading} />
+        <Component logs={logs} cardioLogs={cardioLogs} goals={goals} isLoading={isLoading} />
       </Suspense>
     </ErrorBoundary>
   );

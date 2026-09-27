@@ -73,9 +73,15 @@ export default function DuelInviteCard({ payload, isMine }) {
   const { challengerUsername, challengerAvatar, type = 'open', windowHours = 24 } = payload;
   const meta   = TYPE_META[type] || TYPE_META.open;
   const Icon   = meta.icon;
-  const liveEnded = live && live.status !== 'pending'
-    ? (live.status === 'active' || live.status === 'completed' ? 'accepted' : live.status)
-    : null;
+  // A pending duel past its deadline is expired even before the sweep marks
+  // it. Anything that is not pending is answered: withdrawn by the challenger
+  // is stored as declined, so every ended state lands in one of three words.
+  const lapsed = live?.status === 'pending' && live.expires_at && new Date(live.expires_at) <= new Date();
+  const liveEnded = !live ? null
+    : lapsed ? 'expired'
+    : live.status === 'active' || live.status === 'completed' ? 'accepted'
+    : live.status === 'pending' ? null
+    : live.status === 'expired' ? 'expired' : 'declined';
   const shown  = state === 'accepted' || state === 'declined' ? state : (liveEnded || state);
   const isDone = shown === 'accepted' || shown === 'declined' || shown === 'expired';
 
@@ -115,10 +121,10 @@ export default function DuelInviteCard({ payload, isMine }) {
     <div className="my-1 w-[260px]">
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
 
-        {/* Rose header band */}
-        <div className="px-4 py-2.5 flex items-center gap-2 bg-rose-500">
-          <Swords className="w-4 h-4 text-white shrink-0" />
-          <span className="text-white text-xs font-bold tracking-wide uppercase">{tFallback("duelInviteCard.duelChallenge", "Duel Challenge")}</span>
+        {/* Header band */}
+        <div className="px-4 py-2.5 flex items-center gap-2 bg-primary">
+          <Swords className="w-4 h-4 text-primary-foreground shrink-0" />
+          <span className="text-primary-foreground text-xs font-bold tracking-wide uppercase">{tFallback("duelInviteCard.duelChallenge", "Duel Challenge")}</span>
         </div>
 
         <div className="px-4 py-3 space-y-3">
@@ -127,8 +133,8 @@ export default function DuelInviteCard({ payload, isMine }) {
             {challengerAvatar ? (
               <img loading="lazy" src={challengerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt={challengerUsername} />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0">
-                <span className="text-sm font-black text-rose-500">
+              <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <span className="text-sm font-black text-primary">
                   {challengerUsername?.[0]?.toUpperCase()}
                 </span>
               </div>
@@ -191,7 +197,7 @@ export default function DuelInviteCard({ payload, isMine }) {
               <button
                 onClick={handleAccept}
                 disabled={state !== 'idle'}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {state === 'accepting'
                   ? <Loader2 className="w-3 h-3 animate-spin" />

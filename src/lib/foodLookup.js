@@ -23,8 +23,7 @@
 // Returns a normalised product object or null if all sources miss.
 // The caller is responsible for showing the "not found" UI when null is returned.
 
-import { findByBarcode } from '@/lib/data/foodItems';
-import { db } from '@/api/db';
+import { findByBarcode, listByBarcode } from '@/lib/data/foodItems';
 
 // ── Normalised product shape ─────────────────────────────────────────────────
 // {
@@ -147,7 +146,7 @@ async function lookupCommunity(barcode) {
   // first (Postgres DESC puts NULLs first by default).
   let records = [];
   try {
-    records = await db.entities.FoodItem.filter({ barcode }, '-created_date', 10);
+    records = await listByBarcode(barcode, 10);
   } catch {
     // Fall back to the single-row helper (it swallows its own errors).
     const one = await findByBarcode(barcode);

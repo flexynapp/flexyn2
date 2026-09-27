@@ -17,7 +17,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight, TrendingUp, Apple, ShoppingBag, Trophy, Dumbbell, Book,
-  CalendarCheck, ShieldAlert, Backpack, Settings, UserCircle, Building2, LogOut, Trash2,
+  CalendarCheck, ShieldAlert, Backpack, Settings, UserCircle, Building2, LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -141,7 +141,6 @@ export default function You() {
 
       <Group>
         <Row icon={LogOut} label={tFallback('profile.signOut', 'Sign out')} onClick={() => requestProfilePanel('signOut')} tone="danger" />
-        <Row icon={Trash2} label={tFallback('profile.deleteAccount', 'Delete account')} onClick={() => requestProfilePanel('deleteAccount')} tone="danger" />
       </Group>
     </div>
   );

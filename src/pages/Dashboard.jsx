@@ -1475,7 +1475,7 @@ export default function Dashboard() {
               <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => openGoals()} />
             </ErrorBoundary>
             <ErrorBoundary label="GoalsProgressStrip">
-              <Suspense fallback={null}><GoalsProgressStrip goals={goals} logs={logs} onOpen={() => openGoals()} /></Suspense>
+              <Suspense fallback={null}><GoalsProgressStrip goals={goals} logs={logs} cardioLogs={cardioLogs} onOpen={() => openGoals()} /></Suspense>
             </ErrorBoundary>
             <div data-recap-card>
               <ErrorBoundary label="WeeklyRecap"><Suspense fallback={null}><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></Suspense></ErrorBoundary>
@@ -1612,7 +1612,7 @@ export default function Dashboard() {
           <SectionLabel label={tFallback('dashboard.section.customize', 'Widget library')} />
           {/* id is the scroll target for the Widgets action tile. */}
           <div id="dash-widget-library">
-            <Suspense fallback={null}><DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} userProfile={userProfile} /></Suspense>
+            <Suspense fallback={null}><DashboardWidgets logs={logs} cardioLogs={cardioLogs} goals={goals} isLoading={isLoading} userProfile={userProfile} /></Suspense>
           </div>
         </React.Fragment>
       );
@@ -2048,6 +2048,7 @@ export default function Dashboard() {
             onClose={() => { setGoalsModalOpen(false); setGoalsStartWithForm(false); }}
             goals={goals}
             logs={logs}
+            cardioLogs={cardioLogs}
             userProfile={userProfile}
             startWithForm={goalsStartWithForm}
           />

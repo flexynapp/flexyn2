@@ -123,7 +123,7 @@ function OpponentRow({ profile, stats, index, onSelect, onQuickSend, sending }) 
         whileTap={reduceMotion ? undefined : { scale: 0.9 }}
         onClick={() => onQuickSend(profile)}
         disabled={sending}
-        className="w-11 h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/20 text-rose-500 transition-colors shrink-0 disabled:opacity-50"
+        className="w-11 h-11 flex items-center justify-center rounded-xl bg-primary/10 hover:bg-primary/20 active:bg-primary/20 text-primary transition-colors shrink-0 disabled:opacity-50"
         aria-label={tFallback('createDuelModal.quickChallenge', 'Quick challenge @{handle}', { handle: profile.username })}
       >
         {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizonal className="w-4 h-4 rtl:scale-x-[-1]" />}
@@ -293,8 +293,8 @@ export default function CreateDuelModal({
                 <ArrowLeft className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" />
               </motion.button>
             )}
-            <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
-              <Swords className="w-4 h-4 text-rose-500" />
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Swords className="w-4 h-4 text-primary" />
             </div>
             <p className="text-sm font-bold truncate">
               {step === 'pick'
@@ -340,7 +340,7 @@ export default function CreateDuelModal({
                     aria-label={tFallback('createDuelModal.searchUsername', 'Search @username…')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="w-full h-11 ps-9 pe-10 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40 [&::-webkit-search-cancel-button]:hidden"
+                    className="w-full h-11 ps-9 pe-10 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 [&::-webkit-search-cancel-button]:hidden"
                   />
                   <div className="absolute end-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center">
                     {typing ? (
@@ -478,7 +478,7 @@ export default function CreateDuelModal({
                 whileTap={sendingId ? undefined : tap}
                 onClick={handleCreate}
                 disabled={!!sendingId}
-                className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 active:bg-rose-600 disabled:opacity-60 transition-colors"
+                className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60 transition-colors"
               >
                 {sendingId
                   ? <Loader2 className="w-4 h-4 animate-spin" />

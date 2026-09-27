@@ -1,20 +1,22 @@
 // src/components/settings/AccountSection.jsx
 //
-// Two-factor enrollment, third-party connections, and the data export.
+// Two-factor enrollment, third-party connections, the data export, and
+// account deletion.
 //
-// These three were adjacent-but-unlabelled in the old panel: 2FA and
+// The first three were adjacent-but-unlabelled in the old panel: 2FA and
 // Connected apps rendered their own headings mid-scroll with no parent, and
 // "Download my data" sat between a privacy toggle and the bug reporter as
 // a bare text button. They are all account-level rather than preference-
 // level, which is the distinction this page draws.
 
 import { useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/lib/toast';
 import TwoFactorSection from '../TwoFactorSection';
 import ConnectedAppsSection from '../ConnectedAppsSection';
+import { requestProfilePanel } from '@/lib/profilePanels';
 import { Group, ActionRow } from './SettingsPrimitives';
 
 export default function AccountSection() {
@@ -57,6 +59,19 @@ export default function AccountSection() {
           hint={tFallback('settings.export.hint', 'Everything on your account, as a JSON file')}
           onClick={handleDataExport}
           busy={exporting}
+        />
+      </Group>
+
+      {/* Delete account. App Store rules want it easy to find, and Account is
+          where people look. ProfileMenu still owns the typed-confirmation
+          dialog and the deletion itself; this row only asks it to open, the
+          same way the You tab used to. */}
+      <Group>
+        <ActionRow
+          icon={Trash2}
+          label={tFallback('profile.deleteAccount', 'Delete account')}
+          onClick={() => requestProfilePanel('deleteAccount')}
+          tone="destructive"
         />
       </Group>
     </div>

@@ -37,19 +37,27 @@
 //
 // This module is the single source of truth. Pure function — fully
 // unit-testable, zero React / Supabase deps.
+//
+// ── ONE SET, since 2026-09-27 (Kegan) ─────────────────────────────────
+// "Bench 225 × 5" means one set of five at 225 or heavier, which is how a
+// lifter reads it. Until this date reps at or above the target weight were
+// SUMMED across every session since the goal was set, so five singles over
+// a month completed a five-rep goal. Rep-only goals ("Pull-ups 15") are one
+// set too, for the same reason: the goal names a set, not a tally.
 
 /**
  * Compute progress for a single strength goal.
  *
  * @param {object} goal     — goal row, expects { exercise_name,
  *   exercise_canonical?, target_weight, target_reps, created_date }
- * @param {Array}  logs     — workout_logs rows (oldest filter applied
- *   internally — pass them all, function handles filtering)
- * @returns {{ maxWeight: number, repsAtOrAboveTarget: number,
- *            bodyweightReps: number, progress: number,
- *            currentValue: number }}
+ * @param {Array}  logs     — workout_logs rows (pass them all; logs from
+ *   before the goal was created are skipped here)
+ * @returns {{ maxWeight: number, maxReps: number,
+ *            bestSet: {weight:number, reps:number}|null,
+ *            progress: number, currentValue: number }}
  *   progress: 0-100, clamped.
- *   currentValue: number to display in the "X / Y" subtitle.
+ *   bestSet: the single set closest to the target, for "215 × 5" labels.
+ *   currentValue: weight for weight goals, reps for rep-only goals.
  */
 export function computeStrengthGoalProgress(goal, logs) {
   if (!goal) return _empty();
@@ -62,98 +70,75 @@ export function computeStrengthGoalProgress(goal, logs) {
 
   const createdAt = goal.created_date ? new Date(goal.created_date).getTime() : 0;
 
-  const hasWeightTarget = goal.target_weight != null && goal.target_weight > 0;
-  const hasRepsTarget   = goal.target_reps   != null && goal.target_reps   > 0;
-  // If neither target is set the goal is malformed — return 0 progress.
+  const tw = Number(goal.target_weight);
+  const tr = Number(goal.target_reps);
+  const hasWeightTarget = Number.isFinite(tw) && tw > 0;
+  const hasRepsTarget   = Number.isFinite(tr) && tr > 0;
   if (!hasWeightTarget && !hasRepsTarget) return _empty();
 
-  let maxWeight             = 0;
-  let repsAtOrAboveTarget   = 0;
-  let bodyweightReps        = 0;
+  let maxWeight = 0;
+  let maxReps   = 0;
+  let bestSet   = null;
+  let bestScore = 0;
 
   for (const log of (logs || [])) {
-    // Skip logs from BEFORE the goal was created — only forward
-    // progress counts.
+    // Only forward progress counts: a goal set today is not met by last
+    // month's session.
     if (createdAt && log?.created_date) {
       if (new Date(log.created_date).getTime() < createdAt) continue;
     }
     for (const ex of (log?.exercises || [])) {
       if ((ex?.name || '').toLowerCase().trim() !== target) continue;
       for (const set of (ex?.sets || [])) {
-        const w = Number(set?.weight);
         const r = Number(set?.reps);
+        // A set with no reps was never lifted, so its weight proves nothing.
         if (!Number.isFinite(r) || r <= 0) continue;
-        const hasWeight = Number.isFinite(w) && w > 0;
+        const wRaw = Number(set?.weight);
+        const w = Number.isFinite(wRaw) && wRaw > 0 ? wRaw : 0;
+        if (w > maxWeight) maxWeight = w;
+        if (r > maxReps) maxReps = r;
 
-        if (hasWeight) {
-          if (w > maxWeight) maxWeight = w;
-          // Count reps at OR ABOVE the target weight. Lifting heavier
-          // should count — the previous "exactly target_weight" logic
-          // in GoalsList dropped legit progress for users who overshot.
-          if (hasWeightTarget && w >= goal.target_weight) {
-            repsAtOrAboveTarget += r;
-          }
-          // For bodyweight goals (no weight target), weighted-vest
-          // reps STILL count — wearing a vest while doing push-ups
-          // is harder, not easier; we shouldn't exclude that progress.
-          if (!hasWeightTarget) {
-            bodyweightReps += r;
-          }
-        } else {
-          // Bodyweight set (weight null / 0). Always counts for
-          // rep-only goals; tracked but unused for weight goals.
-          bodyweightReps += r;
+        // How close this one set is to the target, 0..1. Both halves are
+        // capped at 1 so a heavy triple cannot make up for missing reps.
+        let score;
+        if (hasWeightTarget && hasRepsTarget) score = Math.min(w / tw, 1) * Math.min(r / tr, 1);
+        else if (hasWeightTarget)             score = Math.min(w / tw, 1);
+        // A weighted-vest set still counts toward a rep goal.
+        else                                  score = Math.min(r / tr, 1);
+
+        if (score > bestScore || (score === bestScore && bestSet && w > bestSet.weight)) {
+          bestScore = score;
+          bestSet = { weight: w, reps: r };
         }
       }
     }
   }
 
-  // Compute progress.
-  let progress;
-  let currentValue;
-
-  if (hasWeightTarget && hasRepsTarget) {
-    // Both targets — user needs to hit BOTH weight and rep count
-    // at-or-above. Progress reflects whichever they're further on.
-    // Once weight is met, only reps-at-target gates completion;
-    // once reps-at-target is met, only weight gates.
-    if (maxWeight >= goal.target_weight && repsAtOrAboveTarget >= goal.target_reps) {
-      progress = 100;
-    } else if (maxWeight < goal.target_weight) {
-      // Haven't hit the weight yet — progress is weight-driven.
-      progress = (maxWeight / goal.target_weight) * 100;
-    } else {
-      // Weight is met, building reps at-or-above.
-      progress = (repsAtOrAboveTarget / goal.target_reps) * 100;
-    }
-    currentValue = maxWeight || repsAtOrAboveTarget;
-  } else if (hasWeightTarget) {
-    // Weight-only goal (e.g. "deadlift 405 once").
-    progress = maxWeight >= goal.target_weight ? 100 : (maxWeight / goal.target_weight) * 100;
-    currentValue = maxWeight;
-  } else {
-    // Reps-only goal — bodyweight-style (e.g. "100 push-ups").
-    // Total counts: bodyweight reps + any weighted reps (a user
-    // weighted-vest push-up still counts toward the bodyweight goal).
-    const totalReps = bodyweightReps + repsAtOrAboveTarget;
-    progress = (totalReps / goal.target_reps) * 100;
-    currentValue = totalReps;
-  }
-
   return {
     maxWeight,
-    repsAtOrAboveTarget,
-    bodyweightReps,
-    progress: clamp(progress, 0, 100),
-    currentValue,
+    maxReps,
+    bestSet,
+    progress: clamp(bestScore * 100, 0, 100),
+    currentValue: hasWeightTarget ? (bestSet?.weight || 0) : maxReps,
   };
+}
+
+/**
+ * Progress for any goal type. Cardio needs cardio_logs; a caller that
+ * forgets them gets 0% for every cardio goal, which is exactly how the
+ * Goals sheet showed 0 km for months.
+ */
+export function goalProgress(goal, logs, cardioLogs) {
+  return isCardioGoal(goal)
+    ? computeCardioGoalProgress(goal, cardioLogs).progress
+    : computeStrengthGoalProgress(goal, logs).progress;
 }
 
 function _empty() {
   return {
     maxWeight: 0,
-    repsAtOrAboveTarget: 0,
-    bodyweightReps: 0,
+    maxReps: 0,
+    bestSet: null,
     progress: 0,
     currentValue: 0,
   };

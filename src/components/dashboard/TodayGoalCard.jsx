@@ -20,15 +20,7 @@ import useCountUp from '@/hooks/useCountUp';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { summarizeGoalTarget } from '@/lib/goalSummary';
-import {
-  computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal,
-} from '@/lib/goalProgress';
-
-export function goalProgressOf(goal, logs, cardioLogs) {
-  return isCardioGoal(goal)
-    ? computeCardioGoalProgress(goal, cardioLogs).progress
-    : computeStrengthGoalProgress(goal, logs).progress;
-}
+import { goalProgress } from '@/lib/goalProgress';
 
 export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], onOpen, onCreate }) {
   const { tFallback } = useLanguage();
@@ -38,7 +30,7 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
     const active = goals.filter(g => g.status === 'active');
     if (active.length === 0) return { kind: 'empty' };
     const ranked = active
-      .map(goal => ({ goal, progress: Math.max(0, Math.min(100, goalProgressOf(goal, logs, cardioLogs) || 0)) }))
+      .map(goal => ({ goal, progress: Math.max(0, Math.min(100, goalProgress(goal, logs, cardioLogs) || 0)) }))
       .sort((a, b) => b.progress - a.progress);
     return { kind: 'closest', top: ranked[0], count: active.length };
   }, [goals, logs, cardioLogs]);

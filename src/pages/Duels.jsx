@@ -8,7 +8,7 @@ import { haptic } from '@/lib/haptic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Target, Crown, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { listMyDuels, cancelDuel, getDuel, duelErrorMessage } from '@/lib/data/duels';
+import { listMyDuels, cancelDuel, getDuel, duelErrorMessage, countsTowardRecord } from '@/lib/data/duels';
 import { duelTypeName, duelStatusName } from '@/components/duels/duelLabels';
 import { formatDuration, formatNumber } from '@/lib/intl';
 import { isGuestAccount } from '@/lib/guestIdentity';
@@ -39,6 +39,9 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
   const { tFallback, language } = useLanguage();
   const reduceMotion = useReducedMotion();
   const isChallenger = duel.challenger_id === currentUserId;
+  // Someone took on your last workout. You never played, so it carries no
+  // W or L for you.
+  const takenOn      = !countsTowardRecord(duel, currentUserId);
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
   const statusStyle  = STATUS_STYLE[duel.status] || STATUS_STYLE.expired;
@@ -67,10 +70,15 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">
-          {isChallenger
-            ? (tFallback('duels.youChallenged', 'You challenged'))
-            : (tFallback('duels.challengedBy', 'Challenged by'))}
-          {opponentName ? <span className="text-foreground"> {opponentName}</span> : null} ·{' '}
+          {takenOn
+            ? tFallback('duels.tookOnYourSession', '{name} took on your last workout', { name: opponentName || tFallback('duelInviteLanding.someone', 'Someone') })
+            : <>
+                {isChallenger
+                  ? (tFallback('duels.youChallenged', 'You challenged'))
+                  : (tFallback('duels.challengedBy', 'Challenged by'))}
+                {opponentName ? <span className="text-foreground"> {opponentName}</span> : null}
+              </>}
+          {' '}·{' '}
           <span className="text-muted-foreground">{duelTypeName(duel.type, tFallback, duel.mode)}</span>
         </p>
         {/* Deadline countdown for active/pending duels */}
@@ -108,7 +116,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
           </p>
         )}
       </div>
-      {duel.status === 'completed' && (
+      {duel.status === 'completed' && !takenOn && (
         <span className={`text-xs font-bold ${won ? 'text-success' : lost ? 'text-destructive' : 'text-muted-foreground'}`}>
           {won
             ? (tFallback('duels.resultWin', 'W'))
@@ -208,8 +216,10 @@ export default function Duels() {
   // winner_id on the first result before the second lands) doesn't
   // inflate the W column. The losses calc already required completed;
   // wins didn't and was asymmetric. (Audit 15 #L2.)
-  const wins      = duels.filter(d => d.status === 'completed' && d.winner_id === user?.id).length;
-  const losses    = duels.filter(d => d.status === 'completed' && d.winner_id && d.winner_id !== user?.id).length;
+  // A Session Duel someone started against you is not on your record.
+  const record    = duels.filter(d => d.status === 'completed' && countsTowardRecord(d, user?.id));
+  const wins      = record.filter(d => d.winner_id === user?.id).length;
+  const losses    = record.filter(d => d.winner_id && d.winner_id !== user?.id).length;
 
   return (
     <ErrorBoundary label="Duels">
@@ -259,7 +269,7 @@ export default function Duels() {
       {/* W/L record. Also surface for tie-only records so a user
           whose history is all draws still sees their participation
           stats. (Audit 15 #L1.) */}
-      {(wins > 0 || losses > 0 || duels.some(d => d.status === 'completed' && !d.winner_id)) && (
+      {record.length > 0 && (
         <div className="mx-4 mb-4 flex gap-3">
           <div className="flex-1 rounded-xl bg-success/10 border border-success/20 p-3 text-center">
             <p className="text-2xl font-black text-success">{wins}</p>
@@ -270,7 +280,7 @@ export default function Duels() {
             <p className="text-xs text-muted-foreground">{tFallback("duels.losses", "Losses")}</p>
           </div>
           <div className="flex-1 rounded-xl bg-secondary border border-border p-3 text-center">
-            <p className="text-2xl font-black">{duels.filter(d => d.status === 'completed').length}</p>
+            <p className="text-2xl font-black">{record.length}</p>
             <p className="text-xs text-muted-foreground">{tFallback("duels.total", "Total")}</p>
           </div>
         </div>
