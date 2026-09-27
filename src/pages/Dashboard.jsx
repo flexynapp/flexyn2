@@ -36,6 +36,7 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import TonightRow from '@/components/dashboard/TonightRow';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
+import * as regimensData from '@/lib/data/regimens';
 // Sleep / mood / steps logging + the score explainer live in this sheet, so
 // three log cards leave the eager dashboard chunk and arrive on first open.
 // Lazy: sections hidden on Today by default (restorable from edit mode) and
@@ -961,7 +962,7 @@ export default function Dashboard() {
 
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }),
+    queryFn: () => regimensData.list(user.id),
     enabled: !!user?.email,
   });
 

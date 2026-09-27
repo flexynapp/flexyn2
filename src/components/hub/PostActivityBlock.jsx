@@ -31,6 +31,7 @@ import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
+import * as regimensData from '@/lib/data/regimens';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { workoutDurationMin } from '@/lib/workoutDuration';
 // Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
@@ -407,7 +408,7 @@ function RegimenBlock({ snap, post }) {
   // Query the user's regimens so the "Copied" state survives card unmounts.
   const { data: myRegimens = [] } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.list(),
+    queryFn: () => regimensData.list(user.id),
     enabled: !!user?.email,
     staleTime: 30_000,
   });
@@ -433,7 +434,7 @@ function RegimenBlock({ snap, post }) {
         notes: '',
       }));
 
-      await db.entities.Regimen.create({
+      await regimensData.create({
         name: snap.name,
         description: snap.description || '',
         exercises: copiedExercises,

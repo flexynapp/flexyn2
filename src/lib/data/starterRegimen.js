@@ -13,7 +13,7 @@
 //  - Payload shape mirrors RegimenForm exactly, so the regimen renders the
 //    same as one a user typed in by hand.
 
-import { db } from '@/api/db';
+import * as regimensData from '@/lib/data/regimens';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { runningTargets, formatPace, formatClock, repTime } from '@/lib/running/paces';
 import { classifyEquipment } from '@/lib/exerciseEquipment';
@@ -341,7 +341,7 @@ function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
 /**
  * Build a deterministic regimen payload from the user's onboarding inputs.
  * Pure function — no I/O. The returned object is ready to hand to
- * `db.entities.Regimen.create()`.
+ * `regimens.create()`.
  *
  * @param {Object} input
  * @param {string[]} input.goals       - Goal IDs; goals[0] drives the core pool,
@@ -649,14 +649,14 @@ export async function ensureStarterRegimen({ user, profile } = {}) {
   if (!user?.email) return null;
 
   // Idempotency: bail if anything is already in this user's regimen list.
-  // db.entities.Regimen.filter() returns [] on RLS denial / read failure, so a
-  // read hiccup falls through to creation — better than silently no-op'ing.
+  // A failed read falls through to creation rather than silently
+  // no-op'ing; see the catch below.
   let existing = [];
   try {
-    existing = await db.entities.Regimen.filter({ user_id: user.id }, '-created_date', 1);
+    existing = await regimensData.list(user.id, 1);
   } catch {
-    // Treat read failure as "no regimens"; the create() path has its own
-    // strip-and-retry resilience.
+    // Treat read failure as "no regimens"; a failed create throws to the
+    // caller, which catches it.
   }
   if (existing && existing.length > 0) return null;
 
@@ -670,5 +670,5 @@ export async function ensureStarterRegimen({ user, profile } = {}) {
   // plan than one that either loads the injuries or renders blank.
   if (!Array.isArray(payload.exercises) || payload.exercises.length === 0) return null;
 
-  return db.entities.Regimen.create(payload);
+  return regimensData.create(payload);
 }

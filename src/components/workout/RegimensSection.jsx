@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XP_REWARDS } from '@/lib/xpSystem';
 import RegimenForm from '@/components/regimens/RegimenForm';
+import * as regimensData from '@/lib/data/regimens';
 import RegimenDetailView from '@/components/regimens/RegimenDetailView';
 import TemplatesModal from '@/components/workout/TemplatesModal';
 import RegimenTemplateStore from '@/components/regimens/RegimenTemplateStore';
@@ -41,7 +42,7 @@ export default function RegimensSection({ onStartRegimen }) {
 
   const { data: regimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }, '-created_date'),
+    queryFn: () => regimensData.list(user.id),
     enabled: !!user?.email,
   });
 
@@ -51,9 +52,16 @@ export default function RegimensSection({ onStartRegimen }) {
     enabled: !!user?.email,
   });
 
+  // regimens.create/update refuse a name or description with flagged
+  // language. Without a message the form just reopened, which reads as a
+  // dead button.
+  const saveErrorMessage = (err) => (err?.code === 'PROFANITY'
+    ? tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.')
+    : tFallback('common.error', 'Something went wrong'));
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const regimen = await db.entities.Regimen.create(data);
+      const regimen = await regimensData.create(data);
       // An EMPTY regimen earns nothing. Creating one is a name and a save —
       // it was paying 100 XP a pop (a whole level-1→2), twice a day against
       // the server's 200/day cap, for typing. The XP is for planning a
@@ -88,9 +96,10 @@ export default function RegimensSection({ onStartRegimen }) {
       setShowForm(false);
       return { previous };
     },
-    onError: (_err, _data, ctx) => {
+    onError: (err, _data, ctx) => {
       queryClient.setQueryData(['regimens', user?.email], ctx.previous);
       setShowForm(true);
+      toast.error(saveErrorMessage(err));
     },
     onSuccess: (result, _data, ctx) => {
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -127,7 +136,7 @@ export default function RegimensSection({ onStartRegimen }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => db.entities.Regimen.update(id, data),
+    mutationFn: ({ id, data }) => regimensData.update(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
       const previous = queryClient.getQueryData(['regimens', user?.email]);
@@ -138,14 +147,15 @@ export default function RegimensSection({ onStartRegimen }) {
       setEditing(null);
       return { previous };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       queryClient.setQueryData(['regimens', user?.email], ctx.previous);
+      toast.error(saveErrorMessage(err));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => db.entities.Regimen.delete(id),
+    mutationFn: (id) => regimensData.remove(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
       const previous = queryClient.getQueryData(['regimens', user?.email]);
