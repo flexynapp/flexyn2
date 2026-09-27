@@ -2,23 +2,16 @@
 //
 // WHY THIS CARD IS USUALLY EMPTY, AND WHY THAT IS THE HONEST ANSWER
 //
-// All eight nutrients below read columns that DO NOT EXIST on
-// `nutrition_logs`. Migration 006 declares iron_mg, magnesium_mg,
-// calcium_mg, potassium_mg and the four vitamins; it has never been applied
-// to production. `db.js`'s write-path strip-and-retry therefore drops all
-// eight from every insert — deliberately, so the save still succeeds — and
-// `db.js:53` names this table as the reason that cache exists.
+// Until 2026-09-27 all eight nutrients below read columns that did not
+// exist on `nutrition_logs`, so every save dropped them and this card drew
+// eight "0mg · 0%" tiles for every user since launch. Migration
+// 20260927174000 added the columns, and the Log Meal form's inputs now
+// persist. Rows logged before it carry NULL for all eight.
 //
-// The consequence was that this card rendered eight tiles reading
-// "0mg · 0%" over a zero-width bar, for every user, every day, since
-// launch. Not "no data yet": there is no code path in the application that
-// could ever have made one of them non-zero. CLAUDE.md's rule is that a
-// section with no data must not render as zeros, because a 0 reads as a
-// failure the user did not commit.
-//
-// So a tile appears only once its nutrient has something behind it. If
-// migration 006 is applied and the Log Meal form's micronutrient inputs
-// start persisting, these come back on their own with no change here.
+// A tile still appears only once its nutrient has something behind it:
+// CLAUDE.md's rule is that a section with no data must not render as zeros,
+// because a 0 reads as a failure the user did not commit. Most meals are
+// logged without micronutrients, so this card is often empty, honestly.
 // Full write-up: docs/nutrition-meal-logging-audit.md.
 
 import React, { useMemo } from 'react';
