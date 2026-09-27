@@ -1,19 +1,19 @@
 // src/components/competition/RulesSheet.jsx
 //
-// The "i" button and the short ruleset behind it for Duels, Rival and Crew
-// Wars. Each ruleset is four or five plain lines a new user can read in ten
-// seconds, not the full system: LeagueInfoSheet is the long-form explainer
-// and these deliberately are not.
+// The "i" button and the short ruleset behind it for Duels and Crew Wars.
+// A new ruleset is one more entry in RULESETS (Rival is meant to join).
+// Each is four or five plain lines a new user can read in ten seconds, not
+// the full system: LeagueInfoSheet is the long-form explainer and these
+// deliberately are not.
 //
 // Every line states what the SERVER does, so when a rule changes the copy
 // here changes with it:
 //   duels     — scored by the trigger on workout_logs (20260927180000)
-//   rival     — gym_rival_* and Past You (20260927070000, 130000)
 //   crewWars  — recompute_crew_war: top N lifters per side, N the smaller
 //               roster; starting a war is leader only (mig 358)
 //
-// It opens over full-screen surfaces (the Rival menu sits at z-[9999]), so
-// the dialog and its overlay are raised above them.
+// It can open over full-screen surfaces (the Rival menu sits at z-[9999]),
+// so the dialog and its overlay are raised above them.
 
 import React, { useState } from 'react';
 import { Info } from 'lucide-react';
@@ -30,17 +30,6 @@ const RULESETS = {
       ['train', 'Just train', 'Your best workout inside the time window counts automatically. There is nothing to submit.'],
       ['win', 'How you win', 'Open: lift the most total weight. Mirror and Session: finish every set of the same workout and lift more in total.'],
       ['end', 'When time runs out', 'The better score wins. In an Open or Mirror Duel, if only one of you trained, they win. If nobody trained, the duel expires.'],
-    ],
-  },
-  rival: {
-    title: 'How Rival works',
-    intro: 'Each week you are matched with one person close to your level. Whoever does more that week wins.',
-    rules: [
-      ['start', 'It starts when you both accept', 'The match runs for seven days from that moment.'],
-      ['count', 'What counts', 'Gym Rival adds up the total weight you lift. Cardio Rival adds up the total distance you cover. Every session counts.'],
-      ['early', 'Show up early', 'If neither of you logs a session in the first 48 hours, the match is cancelled and nobody earns anything.'],
-      ['prize', 'The winner gets paid', 'The winner earns XP, coins and capsules. Winning because your rival never showed up pays less.'],
-      ['pastYou', 'Past You', 'Nobody to race? Race a ghost built from your own last four weeks. Beat it and it gets a little stronger.'],
     ],
   },
   crewWars: {

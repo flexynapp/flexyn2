@@ -10,8 +10,8 @@ import { RULE_KEYS } from '@/components/competition/RulesSheet';
 describe('RulesSheet catalog', () => {
   const entries = Object.entries(RULE_KEYS);
 
-  it('covers all three features', () => {
-    for (const id of ['duels', 'rival', 'crewWars']) {
+  it('covers Duels and Crew Wars', () => {
+    for (const id of ['duels', 'crewWars']) {
       expect(RULE_KEYS[`rules.${id}.title`]).toBeTruthy();
     }
   });
