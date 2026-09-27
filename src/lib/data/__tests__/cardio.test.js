@@ -1,7 +1,7 @@
 // Every screen that reads or writes cardio_logs now goes through
-// src/lib/data/cardio.js. These tests pin the exact statements the entity
-// backed functions send, through the real db.js underneath, so the next step
-// (replacing db.entities inside this module) has to reproduce them exactly.
+// src/lib/data/cardio.js. These tests pin the exact statements its plain
+// row functions send. They were written against the old db.js client and
+// pass unchanged on ownedRows, which is the proof the swap matched.
 // listForPRs, listSummaries and getById already query supabase directly and
 // are pinned in cardioListForPRs.test.js and cardioDetailFetch.test.jsx.
 
@@ -146,9 +146,9 @@ describe('cardio writes', () => {
 });
 
 describe('one door to cardio_logs', () => {
-  // Only this module may use the old entity for cardio logs. A new call site
-  // elsewhere would skip whatever this module does next.
-  it('no other source file touches db.entities.CardioLog', () => {
+  // The old entity client is gone from cardio logs everywhere, this module
+  // included.
+  it('no source file touches db.entities.CardioLog', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -157,7 +157,6 @@ describe('one door to cardio_logs', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'cardio.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*CardioLog\b/.test(code)) offenders.push(rel);
       }

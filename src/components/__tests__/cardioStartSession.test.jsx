@@ -31,8 +31,11 @@ vi.mock('@/lib/cardioSession', () => ({ readSnapshot: () => null, clearSnapshot:
 vi.mock('@/api/db', () => ({
   db: {
     auth: { me: async () => ({}) },
-    entities: { CardioLog: { filter: async () => LAST_LOG } },
   },
+}));
+vi.mock('@/lib/data/cardio', async (importOriginal) => ({
+  ...(await importOriginal()),
+  list: async () => LAST_LOG,
 }));
 vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 

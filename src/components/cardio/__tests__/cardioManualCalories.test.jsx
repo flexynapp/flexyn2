@@ -34,16 +34,16 @@ vi.mock('@/api/db', () => ({
   db: {
     auth: { me: () => Promise.resolve({}), updateMe: () => Promise.resolve({}) },
     functions: { invoke: () => Promise.resolve({}) },
-    entities: {
-      CardioLog: {
-        create: (...a) => createLog(...a),
-        update: (...a) => updateLog(...a),
-        filter: () => Promise.resolve([]),
-      },
-      WorkoutLog: { filter: () => Promise.resolve([]) },
-    },
   },
 }));
+
+vi.mock('@/lib/data/cardio', async (importOriginal) => ({
+  ...(await importOriginal()),
+  create: (...a) => createLog(...a),
+  update: (...a) => updateLog(...a),
+  listForDate: () => Promise.resolve([]),
+}));
+vi.mock('@/lib/data/workouts', () => ({ listForDate: () => Promise.resolve([]) }));
 
 vi.mock('@/api/supabaseClient', () => ({
   supabase: { rpc: () => Promise.resolve({ error: null }), from: () => ({ insert: () => Promise.resolve({}) }) },

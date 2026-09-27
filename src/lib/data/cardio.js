@@ -1,8 +1,10 @@
 // src/lib/data/cardio.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { ownedRows } from './ownedRows';
+
+const rows = ownedRows('cardio_logs');
 
 // Re-exported so callers already importing this module keep working.
 // It is DEFINED in cardioKeys.js, which imports nothing — see the note
@@ -89,13 +91,13 @@ export async function getById(id) {
 }
 
 export const list = (userId, limit = 50) =>
-  db.entities.CardioLog.filter({ user_id: userId }, '-date', limit);
+  rows.filter({ user_id: userId }, '-date', limit);
 
 /** Fetch a cardio log by id, or null. */
-export const get = (id) => db.entities.CardioLog.get(id);
+export const get = (id) => rows.get(id);
 
 export const listForDate = (userId, date, limit = 50) =>
-  db.entities.CardioLog.filter({ user_id: userId, date }, '-date', limit);
+  rows.filter({ user_id: userId, date }, '-date', limit);
 
 /**
  * Just the `date` of each log on or after `since` (yyyy-MM-dd). For callers
@@ -125,10 +127,10 @@ function assertNoTextProfanity(fields) {
 
 export const create = (data) => {
   assertNoTextProfanity({ notes: data.notes });
-  return db.entities.CardioLog.create(data);
+  return rows.create(data);
 };
 export const update = (id, data) => {
   if (data.notes !== undefined) assertNoTextProfanity({ notes: data.notes });
-  return db.entities.CardioLog.update(id, data);
+  return rows.update(id, data);
 };
-export const remove = (id) => db.entities.CardioLog.delete(id);
+export const remove = (id) => rows.remove(id);
