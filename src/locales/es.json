@@ -1756,6 +1756,7 @@
   "duels.subtitle": "Batallas de entrenamiento cara a cara",
   "duels.timeLeft": "Quedan {time}",
   "duels.title": "Duelos",
+  "duels.tookOnYourSession": "{name} retó tu última sesión",
   "duels.total": "Total",
   "duels.wins": "Victorias",
   "duels.youChallenged": "Retaste a",

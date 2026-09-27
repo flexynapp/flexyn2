@@ -9,6 +9,15 @@ import { reportError } from '@/lib/reportError';
 // ── Social helpers ────────────────────────────────────────────────────────────
 
 /**
+ * Whether a duel belongs on this user's win/loss record. A Session Duel is
+ * someone taking on your last workout without asking you, so it counts for the
+ * person who started it and never as a loss for the person taken on.
+ */
+export function countsTowardRecord(duel, userId) {
+  return !(duel?.mode === 'session' && duel?.opponent_id === userId);
+}
+
+/**
  * Returns opponents the user has dueled, sorted by duel frequency (most first).
  * Each entry: { id, username, avatar_url, current_level, count, wins, losses }
  */
@@ -16,7 +25,7 @@ export async function getFrequentOpponents(userId, limit = 8) {
   if (!userId) return [];
   const { data: duels } = await supabase
     .from('duels')
-    .select('challenger_id, opponent_id, winner_id, status')
+    .select('challenger_id, opponent_id, winner_id, status, mode')
     .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -29,7 +38,7 @@ export async function getFrequentOpponents(userId, limit = 8) {
     if (!opId || opId === userId) continue;
     if (!stats[opId]) stats[opId] = { count: 0, wins: 0, losses: 0 };
     stats[opId].count++;
-    if (d.status === 'completed') {
+    if (d.status === 'completed' && countsTowardRecord(d, userId)) {
       if (d.winner_id === userId) stats[opId].wins++;
       else if (d.winner_id) stats[opId].losses++;
     }
@@ -58,16 +67,18 @@ export async function getHeadToHead(userId, opponentId) {
   if (!userId || !opponentId) return { myWins: 0, theirWins: 0, total: 0 };
   const { data } = await supabase
     .from('duels')
-    .select('winner_id, status')
+    .select('winner_id, status, mode, opponent_id')
     .or(
       `and(challenger_id.eq.${userId},opponent_id.eq.${opponentId}),` +
       `and(challenger_id.eq.${opponentId},opponent_id.eq.${userId})`
     )
     .eq('status', 'completed');
 
-  const myWins    = (data ?? []).filter(d => d.winner_id === userId).length;
-  const theirWins = (data ?? []).filter(d => d.winner_id === opponentId).length;
-  return { myWins, theirWins, total: (data ?? []).length };
+  // A Session Duel is on the record of the person who started it only.
+  const rows      = (data ?? []).filter(d => d.mode !== 'session');
+  const myWins    = rows.filter(d => d.winner_id === userId).length;
+  const theirWins = rows.filter(d => d.winner_id === opponentId).length;
+  return { myWins, theirWins, total: rows.length };
 }
 
 /**
@@ -276,7 +287,11 @@ export async function createSessionDuel({ opponentId, windowHours = 48 }) {
 // There is no submit call any more: a trigger on workout_logs scores each
 // side from its best session in the window (20260927184500).
 
-/** The live duel (if any) for the current user, shown as a workout banner. */
+/**
+ * The live duel (if any) for the current user, shown as a workout banner.
+ * A Session Duel someone started against you is left out: there is nothing
+ * for you to do in it, so it must not badge your Workout page.
+ */
 export async function getActiveDuel() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -285,7 +300,7 @@ export async function getActiveDuel() {
   const { data, error } = await supabase
     .from('duels')
     .select('*')
-    .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
+    .or(`challenger_id.eq.${user.id},and(opponent_id.eq.${user.id},mode.eq.live)`)
     .in('status', ['pending', 'active'])
     .gt('expires_at', nowISO)
     .order('created_at', { ascending: false })

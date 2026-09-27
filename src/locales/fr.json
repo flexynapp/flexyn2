@@ -1756,6 +1756,7 @@
   "duels.subtitle": "Duels d'entraînement en tête-à-tête",
   "duels.timeLeft": "Encore {time}",
   "duels.title": "Duels",
+  "duels.tookOnYourSession": "{name} a défié votre dernière séance",
   "duels.total": "Total",
   "duels.wins": "Victoires",
   "duels.youChallenged": "Vous avez défié",

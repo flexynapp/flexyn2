@@ -34,6 +34,7 @@ import {
   stashPendingToken,
   clearPendingToken,
 } from '@/lib/data/duelInvites';
+import { duelErrorCode, duelErrorMessage } from '@/lib/data/duels';
 import { useLanguage } from '@/lib/LanguageContext';
 import { isGuestAccount } from '@/lib/guestIdentity';
 import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
@@ -115,6 +116,9 @@ export default function DuelInviteLanding() {
         toast.error(tFallback('duelInviteLanding.expired', 'This invite has expired. Ask for a new one.'));
       } else if (msg.includes('invite_not_found')) {
         toast.error(tFallback('duelInviteLanding.notFound', 'Invite not found. The link may be wrong.'));
+      } else if (duelErrorCode(err)) {
+        // A block either way, or a duel already running between you two.
+        toast.error(duelErrorMessage(err, tFallback));
       } else {
         toast.error(tFallback('duelInviteLanding.acceptFailed', 'Could not accept. Try again.'));
       }
@@ -155,7 +159,7 @@ export default function DuelInviteLanding() {
   if (!invite) {
     return (
       <Shell>
-        <AlertTriangle className="w-10 h-10 text-amber-500" />
+        <AlertTriangle className="w-10 h-10 text-primary" />
         <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.inviteNotFound", "Invite not found")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           This duel-invite link is invalid or has been deleted. Ask the
@@ -168,7 +172,7 @@ export default function DuelInviteLanding() {
   if (invite.is_expired) {
     return (
       <Shell>
-        <AlertTriangle className="w-10 h-10 text-amber-500" />
+        <AlertTriangle className="w-10 h-10 text-primary" />
         <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.inviteExpired", "Invite expired")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           This invite has expired. Ask {invite.challenger_username || 'them'} for a new one.
@@ -180,7 +184,7 @@ export default function DuelInviteLanding() {
   if (invite.is_claimed) {
     return (
       <Shell>
-        <Trophy className="w-10 h-10 text-amber-500" />
+        <Trophy className="w-10 h-10 text-primary" />
         <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.alreadyAccepted", "Already accepted")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           Someone already accepted this invite. Ask {invite.challenger_username || 'them'} for a fresh one.
@@ -235,7 +239,7 @@ export default function DuelInviteLanding() {
           <button
             onClick={handleAccept}
             disabled={accepting}
-            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors shadow-md"
+            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors shadow-md"
           >
             {accepting
               ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -252,7 +256,7 @@ export default function DuelInviteLanding() {
                 // and bounces back here once the user has an account.
                 navigate('/');
               }}
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors shadow-md"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors shadow-md"
             >
               <Swords className="w-5 h-5" />
               {tFallback("duelInviteLanding.signUpToAccept", "Sign up to accept")}
@@ -307,13 +311,13 @@ function ChallengerHeader({ invite }) {
             />
           ) : initials}
         </div>
-        <div className="absolute -bottom-1 -end-1 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md ring-2 ring-background">
+        <div className="absolute -bottom-1 -end-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-background">
           <Swords className="w-4 h-4" />
         </div>
       </div>
 
       <div className="text-center">
-        <span className="text-micro font-semibold tracking-[0.2em] uppercase text-rose-500">
+        <span className="text-micro font-semibold tracking-[0.2em] uppercase text-primary">
           {tFallback("duelInviteLanding.duelChallenge", "Duel challenge")}
         </span>
         <h1 className="font-heading font-bold text-2xl mt-1">
