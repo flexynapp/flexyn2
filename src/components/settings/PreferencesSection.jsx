@@ -22,13 +22,14 @@ import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/hap
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import LanguagePicker from '../LanguagePicker';
 import { Group, Row, ToggleRow, SegmentedControl } from './SettingsPrimitives';
+import PumpkinMark from '../seasonal/PumpkinMark';
 import { detectTimeZone } from '@/lib/intl';
 
 export default function PreferencesSection() {
   const { t, tFallback } = useLanguage();
   const { distanceUnit, setDistanceUnit } = useDistanceUnit();
   const { weightUnit, setWeightUnit } = useWeightUnit();
-  const { darkMode, setDarkMode } = useTheme();
+  const { darkMode, setDarkMode, halloween, halloweenAvailable, setHalloween } = useTheme();
   const { levelAnimationsEnabled, setLevelAnimationsEnabled } = useSettings();
 
   // Local mirrors of the per-device tactile preferences. Both are
@@ -110,6 +111,17 @@ export default function PreferencesSection() {
             ]}
           />
         </div>
+        {/* Seasonal: the row exists only while the skin can apply, so it
+            never sits in Settings as a switch that does nothing. */}
+        {halloweenAvailable && (
+          <ToggleRow
+            icon={PumpkinMark}
+            label={tFallback('settings.halloween', 'Halloween look')}
+            hint={tFallback('settings.halloween.hint', 'Warm autumn colours and a pumpkin until November 1.')}
+            checked={halloween}
+            onChange={setHalloween}
+          />
+        )}
         <ToggleRow
           icon={Sparkles}
           label={t('settings.levelAnimations')}
