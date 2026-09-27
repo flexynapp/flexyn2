@@ -2,7 +2,8 @@
 // Bottom sheet showing duel details, session template (mirror), and result card when complete.
 
 import React, { useState } from 'react';
-import { motion, useDragControls } from 'framer-motion';
+import { motion, useDragControls, useReducedMotion } from 'framer-motion';
+import { haptic } from '@/lib/haptic';
 import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -43,6 +44,8 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   // Above the `if (!duel) return null` below, because hooks cannot sit behind
   // an early return.
   const dragControls = useDragControls();
+  const reduceMotion = useReducedMotion();
+  const tap = reduceMotion ? undefined : { scale: 0.97 };
   const fmt = useNumberFormatter();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
@@ -91,12 +94,15 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const run = async (kind, fn, success) => {
     if (busy) return;
     setBusy(kind);
+    haptic('primary');
     try {
       await fn();
       refresh();
+      haptic('success');
       toast.success(success);
       onClose?.();
     } catch (err) {
+      haptic('warning');
       toast.error(duelErrorMessage(err, tFallback));
     } finally {
       setBusy(null);
@@ -116,10 +122,10 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       <motion.div
-        className="relative w-full max-w-md bg-background border border-border rounded-t-2xl shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto"
+        className="relative w-full max-w-md bg-background border border-border rounded-t-2xl shadow-md overflow-hidden max-h-[85vh] overflow-y-auto"
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
@@ -155,9 +161,9 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
             <Icon className="w-5 h-5 text-primary" />
             <span className="font-bold">{duelTypeName(duel.type, tFallback)}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary">
+          <motion.button type="button" whileTap={tap} onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4 text-muted-foreground" />
-          </button>
+          </motion.button>
         </div>
 
         <div className="px-5 pb-6 space-y-5">
@@ -241,32 +247,35 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               way to accept was the DM card. */}
           {canRespond && (
             <div className="flex gap-2">
-              <button
+              <motion.button
                 type="button"
+                whileTap={tap}
                 onClick={handleDecline}
                 disabled={!!busy}
                 className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-secondary active:bg-secondary transition-colors"
               >
                 {busy === 'decline' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
                 {tFallback('duelInviteCard.decline', 'Decline')}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                whileTap={tap}
                 onClick={handleAccept}
                 disabled={!!busy}
                 className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
               >
                 {busy === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {tFallback('duelInviteCard.accept', 'Accept')}
-              </button>
+              </motion.button>
             </div>
           )}
 
           {/* Submit — sends the newest workout logged since the duel was
               accepted. The server scores it from the log itself. */}
           {canSubmit && (
-            <button
+            <motion.button
               type="button"
+              whileTap={tap}
               onClick={handleSubmit}
               disabled={!!busy || !latestLog}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
@@ -275,18 +284,19 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               {latestLog
                 ? tFallback('duelDetailSheet.submitLatest', 'Submit my latest workout')
                 : tFallback('duelDetailSheet.logToSubmit', 'Log a workout to submit')}
-            </button>
+            </motion.button>
           )}
 
           {/* Cancel — challenger can withdraw a still-pending challenge */}
           {isChallenger && duel.status === 'pending' && onCancel && (
-            <button
+            <motion.button
               type="button"
+              whileTap={tap}
               onClick={() => onCancel(duel.id)}
               className="w-full py-2.5 rounded-xl border border-destructive/30 text-destructive text-sm font-semibold hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
             >
               {tFallback("duelDetailSheet.cancelChallenge", "Cancel challenge")}
-            </button>
+            </motion.button>
           )}
 
           {/* Mirror — session template */}

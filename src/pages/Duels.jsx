@@ -3,7 +3,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { haptic } from '@/lib/haptic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -33,8 +34,9 @@ const STATUS_STYLE = {
 
 const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
-function DuelRow({ duel, currentUserId, opponent, onClick }) {
+function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
   const { tFallback, language } = useLanguage();
+  const reduceMotion = useReducedMotion();
   const isChallenger = duel.challenger_id === currentUserId;
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
@@ -44,9 +46,17 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
   const opponentName = opponent?.username ? `@${opponent.username}` : null;
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/40 active:bg-secondary/40 transition-colors text-start"
+    <motion.button
+      type="button"
+      layout={!reduceMotion}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      onClick={() => { haptic('subtle'); onClick(); }}
+      className={`w-full flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start ${
+        yourMove ? 'border-primary/50' : 'border-border'
+      }`}
     >
       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
         {duel.status === 'completed'
@@ -109,7 +119,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
       <span className={`text-micro font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
         {duelStatusName(duel.status, tFallback)}
       </span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -123,6 +133,8 @@ export default function Duels() {
   // (Audit 15 #M1.)
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
+  const reduceMotion = useReducedMotion();
+  const tap = reduceMotion ? undefined : { scale: 0.97 };
   const [showCreate,    setShowCreate]    = useState(false);
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [selectedDuel,  setSelectedDuel]  = useState(null);
@@ -206,21 +218,25 @@ export default function Duels() {
         {/* Action buttons — lifted into their own row above the title so
             they have room to breathe. Full-width (flex-1) + larger. */}
         <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => (isGuest ? setConnectOpen(true) : setShowInviteLink(true))}
+          <motion.button
+            type="button"
+            whileTap={tap}
+            onClick={() => { haptic('subtle'); if (isGuest) setConnectOpen(true); else setShowInviteLink(true); }}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
             aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
           >
             <LinkIcon className="w-4 h-4" />
             {tFallback('duels.inviteLink', 'Invite link')}
-          </button>
-          <button
-            onClick={() => (isGuest ? setConnectOpen(true) : setShowCreate(true))}
+          </motion.button>
+          <motion.button
+            type="button"
+            whileTap={tap}
+            onClick={() => { haptic('primary'); if (isGuest) setConnectOpen(true); else setShowCreate(true); }}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             {tFallback('duels.challenge', 'Challenge')}
-          </button>
+          </motion.button>
         </div>
 
         <div className="flex items-center gap-2 mb-1">
@@ -264,8 +280,8 @@ export default function Duels() {
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.status.active", "Active")}</p>
             <div className="space-y-2">
-              {active.map(d => (
-                <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
+              {active.map((d, i) => (
+                <DuelRow key={d.id} index={i} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
               ))}
             </div>
           </div>
@@ -276,10 +292,19 @@ export default function Duels() {
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.history", "History")}</p>
             <div className="space-y-2">
-              {history.map(d => (
-                <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
+              {history.map((d, i) => (
+                <DuelRow key={d.id} index={active.length + i} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Loading: rows in the shape they will arrive in, not a blank page. */}
+        {isLoading && (
+          <div className="space-y-2" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-[62px] rounded-xl border border-border bg-card animate-pulse" />
+            ))}
           </div>
         )}
 

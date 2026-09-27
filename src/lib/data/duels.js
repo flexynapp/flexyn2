@@ -71,6 +71,18 @@ export async function getHeadToHead(userId, opponentId) {
 }
 
 /**
+ * People the caller can challenge. A query of two or more characters searches
+ * usernames and display names; anything shorter lists the people they follow.
+ * Server-side (duel_opponent_candidates) so it can leave out guests, blocked
+ * users and anyone hidden from search, none of which the client can see.
+ */
+export async function searchDuelOpponents(query = '') {
+  const { data, error } = await supabase.rpc('duel_opponent_candidates', { p_query: query || null });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
  * Send a structured [DUEL_INVITE_V1] DM to the opponent.
  * Renders as an accept/decline card in HubChat.
  * Fire-and-forget — failure is non-critical.
