@@ -29,7 +29,7 @@
 // this collapsed should download, which is the same rule the repo already
 // applies to modals and tabs (see the lazy-loading note in CLAUDE.md).
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { ChevronDown, Shapes, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { posesFor } from '@/lib/data/exercisePoses';
@@ -45,14 +45,53 @@ const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
  * @param {string} exerciseName  canonical English name, as stored
  * @param {string} className     spacing from the caller, since the hosts sit
  *                               in cards with different rhythms
+ * @param {boolean} [open]       CONTROLLED mode. Pass it when the trigger
+ *                               lives elsewhere (the active logger opens the
+ *                               guide from the exercise ⋯ menu). The panel
+ *                               then renders nothing while closed, its own
+ *                               header only folds it away again, and opening
+ *                               brings it into view. Omit it and the panel
+ *                               keeps its own disclosure, as everywhere else.
+ * @param {(open: boolean) => void} [onOpenChange]
  */
-export default function ExerciseFormPanel({ exerciseName, className = '' }) {
+export default function ExerciseFormPanel({ exerciseName, className = '', open: openProp, onOpenChange }) {
   const { tFallback } = useLanguage();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? !!openProp : openState;
+  const setOpen = (next) => {
+    const value = typeof next === 'function' ? next(open) : next;
+    if (controlled) onOpenChange?.(value);
+    else setOpenState(value);
+  };
+  const rootRef = useRef(null);
+
+  // Opened from a menu, the panel appears somewhere the eye was not. Bring
+  // its top into view, clear of the pinned session bar above and the rest
+  // timer and tab bar below. Measured by hand: a 'nearest' scrollIntoView
+  // skips an element that is technically on screen under the tab bar.
+  useEffect(() => {
+    if (!controlled || !open) return undefined;
+    const id = setTimeout(() => {
+      const el = rootRef.current;
+      if (!el || typeof el.getBoundingClientRect !== 'function') return;
+      const r = el.getBoundingClientRect();
+      const top = 180;
+      const floor = window.innerHeight - 160;
+      let dy = 0;
+      if (r.top < top) dy = r.top - top;
+      else if (r.bottom > floor) dy = Math.min(r.bottom - floor, r.top - top);
+      if (dy) {
+        try { window.scrollBy({ top: dy, behavior: 'smooth' }); } catch { /* noop */ }
+      }
+    }, 60);
+    return () => clearTimeout(id);
+  }, [controlled, open]);
 
   const guide = guideFor(exerciseName);
   const poses = posesFor(exerciseName);
   if (!guide && !poses) return null;
+  if (controlled && !open) return null;
 
   // TODO(i18n): the cues and the written steps live in English in
   // exercisePoses.js / exerciseGuides.js and are the single source, so
@@ -72,7 +111,7 @@ export default function ExerciseFormPanel({ exerciseName, className = '' }) {
   const watch = guide ? tFallback(`exerciseGuide.${guide.id}.watch`, guide.watch) : null;
 
   return (
-    <div className={`rounded-xl border border-border bg-secondary/30 overflow-hidden ${className}`}>
+    <div ref={rootRef} className={`rounded-xl border border-border bg-secondary/30 overflow-hidden ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
