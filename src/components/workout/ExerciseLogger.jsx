@@ -377,13 +377,18 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   return (
     <Card className="p-4 border-none shadow-sm before:hidden">
-      <div className="flex items-start gap-3 mb-3 pe-8">
+      {/* No right-hand reserve on the whole column: only the title row
+          sits level with the ⋯ button (absolute, top-3 end-2, 32px), so
+          only it keeps pe-8. The title row is at least 32px tall because
+          of the equipment chip, which puts every line below it clear of
+          the button, and those lines run to the card's content edge. */}
+      <div className="flex items-start gap-3 mb-3">
         <ExerciseProgressRing done={doneCount} total={sets.length} bursting={closing} />
         <div className="flex-1 min-w-0">
           {/* Title + equipment picker share a row. The picker wraps
               underneath on narrow screens rather than squeezing the
               exercise name, which is the more important of the two. */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap pe-8">
             <h4 className="font-medium text-sm">{exercise.displayName || translateExerciseName(exercise.name, language)}</h4>
             <ImplementPicker
               exerciseName={exercise.name || exercise.displayName}
@@ -400,14 +405,11 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           {/* Bar weight and this exercise's volume share one line: both
               are small readouts, and on their own rows they cost two
               lines of setup before the first set. The row is only drawn
-              when one of them has something to say. -me-8 gives back the
-              column's pe-8, which reserves room for the ⋯ button up at
-              the title; this line sits below it, so the volume lines up
-              with the card edge as it did on its own row. Without a
-              muscles line the row would sit level with that button, so it
-              keeps the reserve then. */}
+              when one of them has something to say. It always sits below
+              the title row, so the volume ends at the card's content edge
+              with or without a muscles line. */}
           {(isBarbell || totalVolume > 0) && (
-            <div className={`flex items-center gap-2 mt-1.5 ${muscles.length > 0 ? '-me-8' : ''}`}>
+            <div className="flex items-center gap-2 mt-1.5">
               {isBarbell && (
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</span>

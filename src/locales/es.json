@@ -1728,6 +1728,8 @@
   "exerciseLogger.finishThisExercise": "¿Terminar este ejercicio?",
   "exerciseLogger.keepGoing": "Seguir",
   "exerciseLogger.tempo": "Tempo",
+  "exerciseSearch.noMatches": "Ningún ejercicio coincide con ese nombre.",
+  "exerciseSearch.noMatchesFiltered": "Nada coincide con este equipo. Prueba Todo.",
   "fastingTrackerCard.customFastingHours": "Horas de ayuno personalizadas",
   "fastingTrackerCard.durationRange": "Introduce una duración de ayuno entre 1 y 48 horas.",
   "fastingTrackerCard.endFast": "Terminar el ayuno",

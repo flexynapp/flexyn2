@@ -472,7 +472,7 @@ const EXERCISE_LIBRARY = [
 
 export { EXERCISE_LIBRARY };
 
-export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail }) {
+export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail, panelEndClassName = 'end-0' }) {
   const { t, tFallback, language } = useLanguage();
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
@@ -574,41 +574,52 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
         placeholder={placeholder || 'Search exercise...'}
         autoComplete="off"
       />
-      {/* Equipment filter — visible whenever the dropdown is open OR a
-          non-default filter is active. Lets the user say "I only have
-          dumbbells today" without typing the equipment into the
-          search box. */}
-      {(open || equipmentFilter !== 'all') && (
-        <div className="absolute z-50 top-full mt-1 start-0 end-0 flex gap-1 overflow-x-auto px-1 pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-          {EQUIPMENT_FILTERS.map(f => (
-            <button
-              key={f.id}
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); setEquipmentFilter(f.id); }}
-              className={`shrink-0 px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide border transition-colors ${
-                equipmentFilter === f.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/40 bg-card'
-              }`}
-            >
-              {tFallback(`exerciseEquip.filter.${f.id}`, f.label)}
-            </button>
-          ))}
-        </div>
-      )}
-      {open && suggestions.length > 0 && (
-        <div className="absolute z-40 start-0 end-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto" style={{ top: 'calc(100% + 28px)' }}>
-          {suggestions.map((ex) => (
-            <button
-              key={ex.name}
-              type="button"
-              onMouseDown={() => handleSelect(ex)}
-              className="w-full text-start px-3 py-2.5 text-sm hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-between gap-3"
-            >
-              <span className="font-medium">{ex.displayName}</span>
-              <span className="text-xs text-muted-foreground truncate">{ex.muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}</span>
-            </button>
-          ))}
+      {/* One panel under the input: the equipment filter on top, the
+          matches below it. The chips used to float on their own with no
+          surface, straight over whatever sat under the field (the Cardio
+          row on Workout), and the list was a second floating box 28px
+          lower. The filter persists while the panel is closed; it just
+          is not drawn over the page. */}
+      {open && query.trim().length >= 1 && (
+        <div className={`absolute z-50 top-full mt-1 start-0 ${panelEndClassName} bg-card border border-border rounded-2xl shadow-md overflow-hidden`}>
+          <div className="flex gap-1 overflow-x-auto px-2 py-2 border-b border-border scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+            {EQUIPMENT_FILTERS.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={equipmentFilter === f.id}
+                onMouseDown={(e) => { e.preventDefault(); setEquipmentFilter(f.id); }}
+                className={`shrink-0 h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${
+                  equipmentFilter === f.id
+                    ? 'bg-secondary text-foreground border-foreground/30'
+                    : 'border-border text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                {tFallback(`exerciseEquip.filter.${f.id}`, f.label)}
+              </button>
+            ))}
+          </div>
+          {suggestions.length > 0 ? (
+            <div className="max-h-64 overflow-y-auto">
+              {suggestions.map((ex) => (
+                <button
+                  key={ex.name}
+                  type="button"
+                  onMouseDown={() => handleSelect(ex)}
+                  className="w-full min-h-11 text-start px-3 py-2.5 text-sm hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-between gap-3"
+                >
+                  <span className="font-medium">{ex.displayName}</span>
+                  <span className="text-xs text-muted-foreground truncate">{ex.muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="px-3 py-3 text-sm text-muted-foreground">
+              {equipmentFilter === 'all'
+                ? tFallback('exerciseSearch.noMatches', 'No exercise matches that name.')
+                : tFallback('exerciseSearch.noMatchesFiltered', 'Nothing matches with this equipment. Try All.')}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -39,6 +39,12 @@ const ExerciseDiagram = React.lazy(() =>
   import('@/components/exercise/ExerciseFigure').then((m) => ({ default: m.ExerciseDiagram })),
 );
 
+// Room the guide leaves when it scrolls itself into view: the app header
+// and pinned session bar above, the rest timer and tab bar below. The same
+// clearances the logger uses for the next set.
+const GUIDE_CLEAR_TOP = 180;
+const GUIDE_CLEAR_BOTTOM = 160;
+
 const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 /**
@@ -66,26 +72,45 @@ export default function ExerciseFormPanel({ exerciseName, className = '', open: 
   };
   const rootRef = useRef(null);
 
-  // Opened from a menu, the panel appears somewhere the eye was not. Bring
-  // its top into view, clear of the pinned session bar above and the rest
-  // timer and tab bar below. Measured by hand: a 'nearest' scrollIntoView
-  // skips an element that is technically on screen under the tab bar.
+  // Opened from a menu, the panel appears somewhere the eye was not, so
+  // bring the whole guide into view: its bottom clear of the rest timer and
+  // tab bar when it fits, otherwise its top just under the header and the
+  // pinned session bar. The figure is lazy and lands after the first
+  // measurement, growing the panel by ~100px, so placement re-runs on every
+  // resize until the person scrolls or touches the page themselves.
+  //
+  // Positions are worked out in page coordinates, not as a delta from the
+  // current rect: a resize that lands mid smooth scroll would otherwise add
+  // a second delta on top of the first and overshoot.
   useEffect(() => {
     if (!controlled || !open) return undefined;
-    const id = setTimeout(() => {
-      const el = rootRef.current;
-      if (!el || typeof el.getBoundingClientRect !== 'function') return;
+    const el = rootRef.current;
+    if (!el || typeof el.getBoundingClientRect !== 'function') return undefined;
+    let target = null;
+    const place = () => {
       const r = el.getBoundingClientRect();
-      const top = 180;
-      const floor = window.innerHeight - 160;
-      let dy = 0;
-      if (r.top < top) dy = r.top - top;
-      else if (r.bottom > floor) dy = Math.min(r.bottom - floor, r.top - top);
-      if (dy) {
-        try { window.scrollBy({ top: dy, behavior: 'smooth' }); } catch { /* noop */ }
-      }
-    }, 60);
-    return () => clearTimeout(id);
+      const y = window.scrollY || 0;
+      const floor = window.innerHeight - GUIDE_CLEAR_BOTTOM;
+      const topAt = r.top + y - GUIDE_CLEAR_TOP;     // scroll that puts the top under the header
+      const bottomAt = r.bottom + y - floor;         // scroll that lifts the bottom clear
+      const from = target ?? y;
+      const next = r.height <= floor - GUIDE_CLEAR_TOP
+        ? Math.min(Math.max(from, bottomAt), topAt)
+        : topAt;
+      if (Math.abs(next - from) < 1) return;
+      target = next;
+      try { window.scrollTo({ top: next, behavior: 'smooth' }); } catch { /* noop */ }
+    };
+    const first = setTimeout(place, 60);
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => place()) : null;
+    ro?.observe(el);
+    // Hands off once the person moves the page. Keeps a late figure from
+    // yanking the view back, and the timeout bounds it if nothing happens.
+    const stop = () => { ro?.disconnect(); window.removeEventListener('touchstart', stop); window.removeEventListener('wheel', stop); };
+    window.addEventListener('touchstart', stop, { passive: true });
+    window.addEventListener('wheel', stop, { passive: true });
+    const done = setTimeout(stop, 4000);
+    return () => { clearTimeout(first); clearTimeout(done); stop(); };
   }, [controlled, open]);
 
   const guide = guideFor(exerciseName);
