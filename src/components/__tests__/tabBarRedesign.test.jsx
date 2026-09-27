@@ -31,7 +31,6 @@ vi.mock('@/lib/haptic', () => ({ triggerHaptic: () => {} }));
 const h = vi.hoisted(() => ({
   createWater: vi.fn(async (row) => ({ id: 'w1', ...row })),
   rewardWaterLog: vi.fn(),
-  saveWeight: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   fuel: { waterOz: 40 },
@@ -39,21 +38,12 @@ const h = vi.hoisted(() => ({
 vi.mock('@/lib/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'a@b.c', weight_lbs: 180 } }),
 }));
-vi.mock('@/lib/WeightUnitContext', () => ({
-  useWeightUnit: () => ({ weightUnit: 'lbs', setWeightUnit: () => {} }),
-}));
 vi.mock('@/lib/toast', () => ({ toast: { error: h.toastError, success: h.toastSuccess } }));
 vi.mock('@/lib/reportError', () => ({ reportError: () => {} }));
 vi.mock('@/lib/data/nutrition', () => ({ create: h.createWater }));
 vi.mock('@/lib/waterLogging', () => ({ rewardWaterLog: h.rewardWaterLog, WATER_DAILY_CAP_OZ: 200 }));
 vi.mock('@/hooks/useTodayFuel', () => ({
   useTodayFuel: () => ({ today: '2026-09-26', waterOz: h.fuel.waterOz, waterGoal: 64 }),
-}));
-vi.mock('@/hooks/useSaveWeight', () => ({
-  useSaveWeight: ({ onSaved }) => ({
-    isPending: false,
-    mutate: (args) => { h.saveWeight(args); onSaved?.(); },
-  }),
 }));
 
 describe('which tab is lit', () => {
@@ -124,11 +114,25 @@ describe('the + sheet', () => {
   it('closes once a row is chosen', async () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Meal' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Weight' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cardio' })).toBeNull());
+  });
+
+  it('offers cardio in place of weight, opening the cardio sheet', () => {
+    const ids = QUICK_LOG_ITEMS.map((i) => i.id);
+    expect(ids).toContain('cardio');
+    expect(ids).not.toContain('weight');
+    expect(QUICK_LOG_ITEMS.find((i) => i.id === 'cardio').to).toBe('/workout?openCardio=1');
+  });
+
+  it('keeps weight logging one search away', () => {
+    renderSheet();
+    fireEvent.change(screen.getByPlaceholderText('Find a screen'), { target: { value: 'weight' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log weight' }));
+    expect(screen.getByTestId('where').textContent).toBe('REPLACE /dashboard?logWeight=1');
   });
 });
 
-// Phase 4: water and weight log in the sheet itself, so you never leave
+// Phase 4: water logs in the sheet itself, so you never leave
 // the page you were on to record one number.
 describe('logging inline', () => {
   it('logs a glass of water without leaving the page', async () => {
@@ -157,21 +161,9 @@ describe('logging inline', () => {
     expect(h.toastError).toHaveBeenCalled();
   });
 
-  it('saves a weight prefilled from the profile and closes', async () => {
-    renderSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Weight' }));
-    const input = screen.getByRole('spinbutton', { name: "Today's weight" });
-    expect(input.value).toBe('180');
-    fireEvent.change(input, { target: { value: '178.4' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save weight' }));
-    expect(h.saveWeight).toHaveBeenCalledWith({ value: '178.4', date: '2026-09-26', weightUnit: 'lbs' });
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save weight' })).toBeNull());
-    expect(screen.getByTestId('where').textContent).toBe('POP /dashboard');
-  });
-
   it('goes back to the grid from a panel', () => {
     renderSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Weight' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Water' }));
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('button', { name: 'Meal' })).toBeTruthy();
   });
