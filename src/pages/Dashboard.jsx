@@ -1905,7 +1905,7 @@ export default function Dashboard() {
           {todayLabel}
         </p>
         <div className="flex items-start justify-between gap-2">
-          <h1 className="font-heading text-3xl [@media(max-height:700px)]:text-2xl [@media(max-height:700px)]:leading-tight md:text-4xl font-bold tracking-tight leading-tight flex-1 min-w-0">
+          <h1 className="font-display text-3xl [@media(max-height:700px)]:text-2xl [@media(max-height:700px)]:leading-[0.95] md:text-4xl md:leading-[0.95] flex-1 min-w-0">
             <span className="text-muted-foreground/80">{greeting}</span>
             {firstName && (
               <>

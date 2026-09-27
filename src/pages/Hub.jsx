@@ -306,7 +306,7 @@ export default function Hub() {
                 <button
                   type="button"
                   onClick={() => { setSection('feed'); setProfileTarget(null); }}
-                  className="font-heading text-2xl md:text-3xl font-bold tracking-tight hover:opacity-70 transition-opacity"
+                  className="font-display text-2xl md:text-3xl md:leading-[0.95] hover:opacity-70 transition-opacity"
                 >
                   {t('hub.title')}
                 </button>

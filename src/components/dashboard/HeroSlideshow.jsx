@@ -1074,7 +1074,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <div className="min-w-0">
             <div className="flex items-baseline gap-3">
               <span
-                className={`font-heading font-bold leading-none tracking-tight tabular-nums ${SHORT_STREAK}`}
+                className={`font-display tabular-nums ${SHORT_STREAK}`}
                 style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
               >
                 <AnimatedNumber from={0} value={streak} duration={HERO_COUNT_MS} />
@@ -1235,7 +1235,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           {slide.metricValue != null && (
             <div className="flex items-baseline gap-2 mt-1">
               <span
-                className={`font-heading font-bold leading-none tracking-tight tabular-nums text-foreground ${SHORT_METRIC}`}
+                className={`font-display tabular-nums text-foreground ${SHORT_METRIC}`}
                 style={{ fontSize: 'clamp(3rem, 10vw, 5.25rem)' }}
               >
                 {tr(slide.metricPrefixKey, slide.metricPrefix)}

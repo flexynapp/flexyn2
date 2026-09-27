@@ -583,6 +583,35 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* ── Display type ────────────────────────────────────────────────
+     ONE display style, for page titles and headline numerals only. It is
+     what gives those two things a voice of their own; everything else in
+     the app stays in plain Archivo or Figtree, and body copy, buttons,
+     labels and captions never take it. A face used everywhere is not a
+     display face.
+
+     Archivo at weight 800, condensed to width 75 on its variable wdth
+     axis (loaded in index.html; without it this renders at normal width
+     while the computed style still says 75%). Uppercase through
+     text-transform only: the translated strings stay as written.
+
+     This sets NO size. The call site keeps its own, including the fluid
+     and short-screen clamps, so a converted title keeps its box. Do not
+     combine it with font-heading, font-bold/black, tracking-* or leading-*
+     on the same element: they fight over the same properties. A title
+     that truncates to one line takes `!leading-tight`, because 0.95
+     clips an accent above a capital (the O in NUTRICIÓN) under the
+     overflow that `truncate` sets. Add tabular-nums where it is a number. */
+  .font-display {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-stretch: 75%;
+    font-variation-settings: 'wdth' 75;
+    text-transform: uppercase;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+  }
+
   .break-anywhere {
     overflow-wrap: anywhere;
     word-break: break-word;

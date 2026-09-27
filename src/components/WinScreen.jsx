@@ -108,7 +108,7 @@ export default function WinScreen({
               <span className="text-xs font-semibold uppercase tracking-widest text-success">{kicker}</span>
               {subject && <span className="text-base text-muted-foreground">{subject}</span>}
               <span
-                className={`font-heading font-black leading-none tabular-nums ${size === 'hero' ? 'text-[5.5rem]' : 'text-[4rem]'}`}
+                className={`font-display tabular-nums ${size === 'hero' ? 'text-[5.5rem]' : 'text-[4rem]'}`}
                 aria-live="polite"
               >
                 {formatNumber(Number(shown.toFixed(decimals)), language, { maximumFractionDigits: decimals })}
@@ -122,7 +122,7 @@ export default function WinScreen({
             <div className="flex flex-col gap-2 flex-1">
               {before && beat >= 2 && (
                 <motion.div {...rise} className="flex flex-col items-center gap-3 px-4 py-5 rounded-2xl bg-card border border-border text-center">
-                  <span className="font-heading text-2xl font-extrabold leading-none tabular-nums">
+                  <span className="font-display text-2xl tabular-nums">
                     {tFallback('win.xpGained', '+{n} XP', { n: formatNumber(xp.gained, language) })}
                   </span>
                   <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
@@ -154,7 +154,7 @@ export default function WinScreen({
                 <motion.div {...rise} className="flex gap-2">
                   {stats.map((s) => (
                     <div key={s.key} className="flex-1 min-w-0 flex flex-col items-center gap-1 px-2 py-4 rounded-2xl bg-card border border-border text-center">
-                      <span className="max-w-full font-heading text-2xl font-extrabold leading-none tabular-nums truncate">{s.value}</span>
+                      <span className="max-w-full font-display text-2xl !leading-tight tabular-nums truncate">{s.value}</span>
                       <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">{s.label}</span>
                     </div>
                   ))}

@@ -130,7 +130,7 @@ export default function Header() {
         <button
           onClick={handleLogoTap}
           aria-label={isChildRoute ? undefined : 'Go to dashboard'}
-          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-start hover:opacity-80 transition-opacity px-2 touch-manipulation"
+          className="font-display text-xl !leading-tight flex-1 min-w-0 truncate text-start hover:opacity-80 transition-opacity px-2 touch-manipulation"
         >
           {/* On the home route the lockup already shows the wordmark, so
               this collapses to a spacer; on child routes it holds the page
