@@ -1,11 +1,11 @@
 // src/lib/data/hubComments.js
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from './hubPosts';
 import * as hubCommentLikes from './hubCommentLikes';
 
-const e = () => db.entities.HubComment;
+const e = () => ownedRows('hub_comments');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -42,8 +42,8 @@ export const incrementCounter = async (commentId, field, delta = 1) => {
  * NOTE: writes `body` AND `content` so the insert succeeds whether the
  * legacy `content` column still has a NOT NULL constraint or the newer
  * `body` column is the source of truth (migration 004 introduced `body`
- * but didn't drop `content` to avoid breaking older clients). The payload
- * cleanup in src/api/db.js will strip whichever column doesn't exist.
+ * but didn't drop `content` to avoid breaking older clients). Both columns
+ * exist in production (checked 2026-09-27), both nullable.
  */
 export const create = async (data) => {
   assertNoTextProfanity({ body: data.body });
@@ -103,8 +103,8 @@ export const remove = async (commentId, postId) => {
   );
 
   // Delete replies first, then the comment itself
-  await Promise.all(replies.map(r => e().delete(r.id).catch(() => {})));
-  await e().delete(commentId).catch(() => {});
+  await Promise.all(replies.map(r => e().remove(r.id).catch(() => {})));
+  await e().remove(commentId).catch(() => {});
 
   if (postId) {
     await hubPosts.incrementCounter(postId, 'comment_count', -(1 + replies.length));
@@ -202,7 +202,7 @@ export const purgeForUser = async (email) => {
   for (const r of rows) {
     if (r.post_id) decrements[r.post_id] = (decrements[r.post_id] || 0) + 1;
   }
-  await Promise.all(rows.map(r => e().delete(r.id).catch(() => {})));
+  await Promise.all(rows.map(r => e().remove(r.id).catch(() => {})));
   await Promise.all(
     Object.entries(decrements).map(([postId, n]) =>
       hubPosts.incrementCounter(postId, 'comment_count', -n).catch(() => {})
