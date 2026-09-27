@@ -12,7 +12,7 @@
 
 import React, { useState } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@/test/utils';
+import { render, screen, fireEvent } from '@/test/utils';
 import ExerciseLogger from '../ExerciseLogger';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
@@ -52,54 +52,89 @@ function mount(exercise, workoutLogs = []) {
   return { ...utils, onChange };
 }
 
+// Bar weight, the machine and the recent-sessions history moved off the card
+// face into the Setup sheet behind the pill under the exercise name.
+async function openSetup() {
+  fireEvent.click(await screen.findByRole('button', { name: /^Setup:/ }));
+  await screen.findByRole('heading', { name: / setup$/i });
+}
+
 const legPress = (equipment) => ({
   name: 'Leg Press', muscle_groups: ['Quads'],
   sets: [{ weight: 300, reps: 10 }],
   ...(equipment ? { equipment } : {}),
 });
 
-describe('bar-weight selector gating', () => {
-  it('still shows for a real barbell lift', () => {
+describe('bar-weight selector gating (in the Setup sheet)', () => {
+  it('still shows for a real barbell lift', async () => {
     mount({ name: 'Bench Press', muscle_groups: ['Chest'], sets: [{ weight: 185, reps: 5 }] });
+    await openSetup();
     expect(screen.getByLabelText(/barbell weight/i)).toBeInTheDocument();
   });
 
-  it('shows on a Leg Press with no equipment chosen — unchanged behavior', () => {
+  it('shows on a Leg Press with no equipment chosen — unchanged behavior', async () => {
     // The name regex matches "press". Without an explicit choice we have
     // nothing better to go on, so this stays as it was.
     mount(legPress(null));
+    await openSetup();
     expect(screen.getByLabelText(/barbell weight/i)).toBeInTheDocument();
   });
 
-  it('disappears once the user says it is a machine', () => {
+  it('disappears once the user says it is a machine', async () => {
     mount(legPress({
       brand: 'hammer_strength', line: 'Plate Loaded', model: 'Super Squat Press',
       implementType: 'leg_press', label: 'Hammer Strength Plate Loaded Super Squat Press',
     }));
+    await openSetup();
     expect(screen.queryByLabelText(/barbell weight/i)).toBeNull();
   });
 
-  it('stays when the chosen implement really is a barbell', () => {
+  it('stays when the chosen implement really is a barbell', async () => {
     mount({
       name: 'Bench Press', muscle_groups: ['Chest'], sets: [{ weight: 185, reps: 5 }],
       equipment: { brand: 'rogue', line: 'Ohio Bar', model: null, implementType: 'barbell', label: 'Rogue Ohio Bar' },
     });
+    await openSetup();
     expect(screen.getByLabelText(/barbell weight/i)).toBeInTheDocument();
   });
 
-  it('disappears for a cable choice too', () => {
+  it('disappears for a cable choice too', async () => {
     mount({
       name: 'Cable Chest Press', muscle_groups: ['Chest'], sets: [{ weight: 60, reps: 12 }],
       equipment: { brand: 'unknown', line: null, model: null, implementType: 'cable_station', label: 'Cable station' },
     });
+    await openSetup();
     expect(screen.queryByLabelText(/barbell weight/i)).toBeNull();
   });
 
-  it('is unaffected by an implement type we do not recognise', () => {
+  it('is unaffected by an implement type we do not recognise', async () => {
     mount(legPress({ implementType: 'not_a_real_type', label: 'Mystery machine' }));
+    await openSetup();
     // Unknown kind resolves to null, which means "no opinion" — the name
     // regex keeps its existing behavior rather than the control vanishing.
     expect(screen.getByLabelText(/barbell weight/i)).toBeInTheDocument();
+  });
+});
+
+describe('the equipment picker, from the Setup sheet', () => {
+  // The chip beside the title is gone; the Setup sheet's Equipment row is
+  // the way in, and choosing a machine still lands on the exercise.
+  it('opens from the Equipment row and saves the pick', async () => {
+    const { onChange } = mount(legPress(null));
+    expect(screen.queryByText(/add equipment/i)).toBeNull();
+    await openSetup();
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    fireEvent.click(await screen.findByText(/Super Squat Press/i));
+    const call = onChange.mock.calls.find(c => /Super Squat Press/.test(c[0]?.equipment?.label || ''));
+    expect(call).toBeTruthy();
+  });
+
+  it('names the chosen machine on the pill when there is no bar to show', async () => {
+    mount({
+      name: 'Cable Chest Press', muscle_groups: ['Chest'], sets: [{ weight: 60, reps: 12 }],
+      equipment: { brand: 'unknown', line: null, model: null, implementType: 'cable_station', label: 'Cable station' },
+    });
+    expect(await screen.findByRole('button', { name: 'Setup: Cable station' })).toBeInTheDocument();
   });
 });
 
@@ -139,17 +174,18 @@ describe('prefill from history', () => {
 });
 
 describe('the machine in the history line', () => {
-  it('names the machine when it changed between sessions', () => {
+  it('names the machine when it changed between sessions', async () => {
     const logs = [
       { date: '2026-07-20', exercises: [{ name: 'Seated Row', equipment: { implementType: 'seated_row', label: 'Hammer Strength Row' }, sets: [{ weight: 185, reps: 8 }] }] },
       { date: '2026-07-13', exercises: [{ name: 'Seated Row', equipment: { implementType: 'seated_row', label: 'Cybex Eagle' }, sets: [{ weight: 160, reps: 8 }] }] },
     ];
     mount({ name: 'Seated Row', muscle_groups: ['Back'], sets: [{ weight: 185, reps: 8 }] }, logs);
+    await openSetup();
     expect(screen.getByText(/Hammer Strength Row/)).toBeInTheDocument();
     expect(screen.getByText(/Cybex Eagle/)).toBeInTheDocument();
   });
 
-  it('does not repeat an unchanged machine on every line', () => {
+  it('does not repeat an unchanged machine on every line', async () => {
     const same = { implementType: 'seated_row', label: 'Hammer Strength Row' };
     const logs = [
       { date: '2026-07-20', exercises: [{ name: 'Seated Row', equipment: same, sets: [{ weight: 185, reps: 8 }] }] },
@@ -157,8 +193,9 @@ describe('the machine in the history line', () => {
       { date: '2026-07-06', exercises: [{ name: 'Seated Row', equipment: same, sets: [{ weight: 175, reps: 8 }] }] },
     ];
     mount({ name: 'Seated Row', muscle_groups: ['Back'], sets: [{ weight: 185, reps: 8 }] }, logs);
+    await openSetup();
     // Once in the history block (the oldest line, where it "changed"
-    // from nothing) plus once in the picker chip — never on all three.
+    // from nothing) plus at most once more in the sheet, never on all three.
     expect(screen.getAllByText(/Hammer Strength Row/).length).toBeLessThanOrEqual(2);
   });
 });

@@ -1,12 +1,12 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, History, Pencil, ChevronDown } from 'lucide-react';
+import { Plus, History, Pencil, ChevronDown, ChevronRight, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import SetRow from './SetRow';
 import { getRecentSessionsDetailed, getLastImplementForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useRestTimer } from '@/lib/RestTimerContext';
@@ -19,7 +19,7 @@ import ImplementPicker from './ImplementPicker';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 import EquipmentThumb from './EquipmentThumb';
 import ExerciseProgressRing from './ExerciseProgressRing';
-import { IMPLEMENT_TYPE_META } from '@/lib/equipmentCatalog';
+import { IMPLEMENT_TYPE_META, implementTypeForExercise } from '@/lib/equipmentCatalog';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -42,7 +42,10 @@ export function isBodyweightExercise(name) {
 const NEXT_SET_CLEAR_TOP = 180;
 const NEXT_SET_CLEAR_BOTTOM = 160;
 
-export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [], guideOpen, onGuideOpenChange }) {
+// `menu` is the card's one ⋯ (ExerciseActionsMenu), handed in by the page
+// so it sits in the header row beside the name instead of floating over the
+// card. Optional: a superset block renders cards without one.
+export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [], guideOpen, onGuideOpenChange, menu = null }) {
   // Last 3 sessions' sets for this exercise. Pulled from the user's
   // cached workout-log array — no extra query. Self-collapses to []
   // for first-ever attempts so the hint hides gracefully.
@@ -85,6 +88,13 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     && (implementKind == null || implementKind === 'barbell')
     && /barbell|squat|deadlift|bench|press|row|clean|snatch|overhead|ohp/i.test(exercise.name || exercise.displayName || '');
   const [barLbs, setBarLbs] = useState(() => getActiveBarLbs());
+  // The Setup sheet (bar, equipment, tempo, notes, recent sessions) and the
+  // equipment picker it hands off to. The picker is mounted on the card, not
+  // inside the sheet, so closing the sheet to open it does not unmount it.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const tap = reduceMotion ? undefined : { scale: 0.97 };
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
   // Sets that beat the all-time best, for the folded summary. Same rule
   // SetRow stamps with: warm-ups and failed sets never count.
@@ -375,142 +385,103 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     );
   }
 
+  const exerciseTitle = exercise.displayName || translateExerciseName(exercise.name, language);
+  const hasImplement = !!implementTypeForExercise(exercise.name || exercise.displayName);
+  const barPreset = BAR_PRESETS.find(b => b.lbs === barLbs) || null;
+  const barLabel = barPreset
+    ? (barPreset.lbs > 0
+      ? `${tFallback(`bar.preset.${barPreset.id}`, barPreset.label)} ${formatWeight(barPreset.lbs, weightUnit)}`
+      : tFallback(`bar.preset.${barPreset.id}`, barPreset.label))
+    : formatWeight(barLbs, weightUnit);
+  // The pill names the one setup value that changes the numbers: the bar
+  // on a barbell lift (it is what the plate math subtracts), otherwise the
+  // machine, otherwise just "Setup".
+  const pillLabel = isBarbell
+    ? barLabel
+    : (exercise.equipment?.label || tFallback('exerciseLogger.setup', 'Setup'));
+  // A tempo or a note you wrote for yourself is worth seeing mid set, so it
+  // stays on the card as one muted line rather than behind the pill.
+  const noteLine = [exercise.tempo, exercise.notes].filter(Boolean).join(' · ');
+  const openPicker = () => { setSetupOpen(false); setPickerOpen(true); };
+
   return (
-    <Card className="p-4 border-none shadow-sm before:hidden">
-      {/* No right-hand reserve on the whole column: only the title row
-          sits level with the ⋯ button (absolute, top-3 end-2, 32px), so
-          only it keeps pe-8. The title row is at least 32px tall because
-          of the equipment chip, which puts every line below it clear of
-          the button, and those lines run to the card's content edge. */}
-      <div className="flex items-start gap-3 mb-3">
-        <ExerciseProgressRing done={doneCount} total={sets.length} bursting={closing} />
-        <div className="flex-1 min-w-0">
-          {/* Title + equipment picker share a row. The picker wraps
-              underneath on narrow screens rather than squeezing the
-              exercise name, which is the more important of the two. */}
-          <div className="flex items-center gap-1.5 flex-wrap pe-8">
-            <h4 className="font-medium text-sm">{exercise.displayName || translateExerciseName(exercise.name, language)}</h4>
-            <ImplementPicker
-              exerciseName={exercise.name || exercise.displayName}
-              value={exercise.equipment}
-              userId={userProfile?.id}
-              onChange={(implement) => onChange({ ...exercise, equipment: implement || undefined })}
-            />
-          </div>
-          {muscles.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}
-            </p>
-          )}
-          {/* Bar weight and this exercise's volume share one line: both
-              are small readouts, and on their own rows they cost two
-              lines of setup before the first set. The row is only drawn
-              when one of them has something to say. It always sits below
-              the title row, so the volume ends at the card's content edge
-              with or without a muscles line. */}
-          {(isBarbell || totalVolume > 0) && (
-            <div className="flex items-center gap-2 mt-1.5">
-              {isBarbell && (
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</span>
-                  <select
-                    value={barLbs}
-                    onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
-                    aria-label={tFallback("exerciseLogger.barbellWeight", "Barbell weight")}
-                    className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
-                  >
-                    {BAR_PRESETS.map(b => (
-                      <option key={b.id} value={b.lbs}>{tFallback(`bar.preset.${b.id}`, b.label)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {totalVolume > 0 && (
-                <span className="ms-auto shrink-0 text-xs text-muted-foreground font-medium tabular-nums">
-                  {/* formatWeight already converts lbs → display unit. The prior
-                      `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
-                      converted twice — kg users saw half their real per-exercise
-                      volume label. Same fix family as LiveVolumePill, audit 11 #11. */}
-                  {formatWeight(totalVolume, weightUnit)} vol
-                </span>
-              )}
-            </div>
-          )}
-          {/* Last-session sidebar — "Last: 185×8, 185×8, 185×7".
-              Renders only when this exercise has been logged before;
-              otherwise the line hides (a "Last: (nothing)" hint would
-              be misleading). Helps the user pick a starting weight
-              without flipping between screens. */}
-          {recentSessions.length > 0 && (
-            <div className="mt-1.5 space-y-0.5">
-              {recentSessions.slice(0, 3).map((session, idx) => {
-                const line = formatSetsLine(session.sets);
-                if (!line) return null;
-                // Name the machine only when it CHANGED from the session
-                // before — "185 on the Hammer Strength, 160 on the Cybex"
-                // is the insight; repeating the same machine on every
-                // line is noise that buries the numbers.
-                const prev = recentSessions[idx + 1]?.equipment?.label || null;
-                const here = session.equipment?.label || null;
-                const showMachine = here && here !== prev;
-                return (
-                  <div key={idx} className="flex items-center gap-1 text-micro text-muted-foreground">
-                    {idx === 0 && <History className="w-3 h-3 shrink-0" aria-hidden="true" />}
-                    <span className={idx === 0 ? 'font-semibold' : 'ps-4'}>{line}</span>
-                    {showMachine && (
-                      <span className="truncate opacity-75">· {here}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {/* Progressive-overload hint — color tints by kind so the
-              user can scan-read intent (bump = primary, hold = amber,
-              regress = muted). */}
-          {progressionHint && (
-            <p className={`mt-1 text-micro font-medium ${
-              progressionHint.kind === 'bump'    ? 'text-foreground' :
-              progressionHint.kind === 'hold'    ? 'text-foreground' :
-                                                   'text-muted-foreground'
-            }`}>
-              {progressionHint.message}
-            </p>
-          )}
+    <Card className="p-3 rounded-2xl border border-border shadow-none before:hidden">
+      {/* Header: the name, one muted line of muscles and progress, and the
+          card's single ⋯. Everything you set once lives behind the Setup
+          pill under it. */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0 pt-1">
+          <h4 className="font-bold text-base leading-tight">{exerciseTitle}</h4>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            {muscles.length > 0 && (
+              <>{muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(' · ')}<span aria-hidden="true"> · </span></>
+            )}
+            <span className={closing ? 'text-success font-semibold transition-colors' : 'transition-colors'}>
+              {tFallback('workout.setsProgress', '{done} of {total} sets', { done: doneCount, total: sets.length })}
+            </span>
+          </p>
         </div>
+        {menu && <div className="shrink-0 -mt-1 -me-1">{menu}</div>}
       </div>
 
-      {/* Under the name and muscles, above the sets: this is the moment
-          someone is deciding how to move, and it must not sit below the
-          thing they are about to fill in.
+      {/* Setup pill, then a tempo or note if there is one, then this
+          exercise's volume at the end of the same line. The pill is 32px
+          to look at and 44px to hit. */}
+      <div className="flex items-center gap-2 mt-2 min-w-0">
+        <motion.button
+          type="button"
+          whileTap={tap}
+          onClick={() => { triggerHaptic?.('light'); setSetupOpen(true); }}
+          aria-haspopup="dialog"
+          aria-expanded={setupOpen}
+          aria-label={`${tFallback('exerciseLogger.setup', 'Setup')}: ${pillLabel}`}
+          className="relative inline-flex items-center gap-1 h-8 max-w-[65%] shrink-0 rounded-full bg-secondary ps-3 pe-2 text-xs font-semibold text-foreground select-none-ui after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+        >
+          <span className="truncate">{pillLabel}</span>
+          <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+        </motion.button>
+        {noteLine && (
+          <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">{noteLine}</span>
+        )}
+        {totalVolume > 0 && (
+          <span className="ms-auto shrink-0 text-xs text-muted-foreground font-medium tabular-nums">
+            {/* formatWeight already converts lbs → display unit. The prior
+                `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
+                converted twice — kg users saw half their real per-exercise
+                volume label. Same fix family as LiveVolumePill, audit 11 #11. */}
+            {formatWeight(totalVolume, weightUnit)} vol
+          </span>
+        )}
+      </div>
 
-          OUTSIDE the header, not inside its left column. That column is a
-          content-sized flex child sharing a row with the PR badge, so the
-          disclosure rendered at about 60% of the card's width while every
-          block under it ran full-bleed — fine while it only appeared on the
-          39 drawn movements, obviously wrong now that it appears on all of
-          them. Renders nothing only for a custom exercise the user typed in
-          themselves. */}
+      {/* Progressive-overload hint. Quiet by design: one muted line, and
+          nothing at all without enough history. */}
+      {progressionHint && (
+        <p className={`mt-2 text-micro font-medium ${
+          (progressionHint.kind === 'bump' || progressionHint.kind === 'hold') ? 'text-foreground' : 'text-muted-foreground'
+        }`}>
+          {progressionHint.message}
+        </p>
+      )}
+
       {/* Where the menu is handed in, "How to do it" is a row in the
           exercise ⋯ menu and the guide appears here, open, only when asked
-          for: a full width disclosure on every card was a line of setup
-          before the first set. Without them (a superset block) it keeps
-          its own disclosure. */}
+          for. Without them (a superset block) it keeps its own disclosure.
+          Renders nothing only for a custom exercise the user typed in. */}
       <ExerciseFormPanel
         exerciseName={exercise.name || exercise.displayName}
-        className="mb-3"
+        className="mt-2"
         {...(onGuideOpenChange ? { open: !!guideOpen, onOpenChange: onGuideOpenChange } : {})}
       />
 
-      <div ref={setListRef} className="space-y-2 mb-3">
+      <div ref={setListRef} className="flex flex-col gap-1 mt-2">
         {sets.length > 0 && (
-          <div className="flex items-center gap-1 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground">
-            <span className="w-5 shrink-0 text-center">{t('workout.set')}</span>
-            <span className="flex-1 min-w-0 px-1 truncate">{tFallback('setRow.previous', 'Last')}</span>
+          <div className="flex items-center gap-1 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground" aria-hidden="true">
+            <span className="w-11 shrink-0 text-center">{t('workout.set')}</span>
+            <span className="flex-1 min-w-0 px-1 truncate">{tFallback('setRow.previous', 'Previous')}</span>
             <span className="w-16 shrink-0 text-center">{weightUnit}</span>
             <span className="w-12 shrink-0 text-center">{t('workout.repsLabel')}</span>
-            <span className="w-7 shrink-0"></span>
-            <span className="w-11 shrink-0"></span>
+            <span className="w-11 shrink-0 flex justify-center"><Check className="w-3.5 h-3.5" /></span>
           </div>
         )}
         <AnimatePresence initial={false}>
@@ -521,10 +492,10 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               // the minted-id pattern — but those rows mint a key on
               // first updateSet via the updateSet handler below.
               key={set?._key || `legacy_${i}`}
-              initial={{ opacity: 0, height: 0, y: -6 }}
+              initial={reduceMotion ? false : { opacity: 0, height: 0, y: -8 }}
               animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, height: 0, x: -24 }}
+              transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
               style={{ overflow: 'hidden' }}
               data-set-row={i}
             >
@@ -534,71 +505,154 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         </AnimatePresence>
       </div>
 
-      <motion.div whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={addSet}
-          disabled={atSetLimit}
-          title={atSetLimit ? t('workout.maxSetsTitle', { count: maxSetsPerExercise }) : undefined}
-        >
-          <Plus className="w-3.5 h-3.5 me-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel', { count: maxSetsPerExercise }) : t('workout.addSet')}
-        </Button>
-      </motion.div>
+      {/* Add set: a quiet full width text row, not another outlined box. */}
+      <motion.button
+        type="button"
+        whileTap={atSetLimit ? undefined : tap}
+        onClick={addSet}
+        disabled={atSetLimit}
+        title={atSetLimit ? t('workout.maxSetsTitle', { count: maxSetsPerExercise }) : undefined}
+        className="w-full min-h-11 mt-1 rounded-lg flex items-center justify-center gap-1 text-sm font-semibold text-muted-foreground enabled:hover:text-foreground enabled:active:text-foreground enabled:hover:bg-secondary/60 enabled:active:bg-secondary/60 disabled:opacity-60 transition-colors"
+      >
+        <Plus className="w-4 h-4" aria-hidden="true" /> {atSetLimit ? t('workout.maxSetsReachedLabel', { count: maxSetsPerExercise }) : t('workout.addSet')}
+      </motion.button>
 
-      {/* Per-exercise tempo + notes — both optional, both hidden behind
-          a single collapsed chevron so the default ExerciseLogger
-          stays compact. Each persists onto the exercise object via
-          the existing onChange path and lands in the JSONB exercises
-          column on save. */}
-      <ExerciseExtras exercise={exercise} onChange={onChange} />
+      {/* The equipment picker, opened from the Setup sheet's Equipment row.
+          It lives here so the sheet can close as the picker opens. */}
+      {hasImplement && (
+        <ImplementPicker
+          hideTrigger
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          exerciseName={exercise.name || exercise.displayName}
+          value={exercise.equipment}
+          userId={userProfile?.id}
+          onChange={(implement) => onChange({ ...exercise, equipment: implement || undefined })}
+        />
+      )}
 
+      <BottomSheet
+        open={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        title={tFallback('exerciseLogger.setupTitle', '{name} setup', { name: exerciseTitle })}
+      >
+        <ExerciseSetup
+          exercise={exercise}
+          onChange={onChange}
+          isBarbell={isBarbell}
+          barLbs={barLbs}
+          onBarChange={(v) => { setActiveBarLbs(v); setBarLbs(v); }}
+          hasImplement={hasImplement}
+          onOpenPicker={openPicker}
+          recentSessions={recentSessions}
+          tap={tap}
+        />
+      </BottomSheet>
     </Card>
   );
 }
 
-// ── Tempo + notes drawer ──────────────────────────────────────────────────────
-function ExerciseExtras({ exercise, onChange }) {
+// ── Setup sheet ───────────────────────────────────────────────────────────────
+// Everything you set once and forget: the bar (which the plate math reads),
+// the exact machine, tempo, notes, and the last few sessions for context.
+// Replaces the equipment chip, the BAR select and the Tempo · notes drawer
+// that used to sit in three places on the card face.
+function ExerciseSetup({ exercise, onChange, isBarbell, barLbs, onBarChange, hasImplement, onOpenPicker, recentSessions, tap }) {
   const { tFallback } = useLanguage();
-  const hasExtras = !!(exercise?.tempo || exercise?.notes);
-  const [open, setOpen] = React.useState(hasExtras);
+  const sectionLabel = 'text-micro font-bold uppercase tracking-wide text-muted-foreground';
   return (
-    <div className="mt-3 pt-2 border-t border-border/40">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`text-micro font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
-          hasExtras ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
-        }`}
-      >
-        {open ? '▾' : '▸'} Tempo · notes {hasExtras && <span className="opacity-70">·</span>}
-        {exercise?.tempo && <span className="font-mono text-micro opacity-80">{exercise.tempo}</span>}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2">
-          <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.tempo", "Tempo")}</label>
-            <input
-              type="text"
-              value={exercise?.tempo || ''}
-              onChange={(e) => onChange({ ...exercise, tempo: e.target.value.slice(0, 12) || null })}
-              placeholder="3-1-2  (ecc-pause-conc)"
-              maxLength={12}
-              className="w-full mt-0.5 px-2 py-1 text-xs font-mono bg-secondary/40 border border-border rounded-md outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("cardio.field.notes", "Notes")}</label>
-            <textarea
-              value={exercise?.notes || ''}
-              onChange={(e) => onChange({ ...exercise, notes: e.target.value.slice(0, 240) || null })}
-              placeholder={tFallback("exerciseLogger.feltWeakTodayLower", "Felt weak today, lower the working weight next time…")}
-              rows={2}
-              maxLength={240}
-              className="w-full mt-0.5 px-2 py-1.5 text-xs bg-secondary/40 border border-border rounded-md outline-none focus:border-primary/50 resize-none"
-            />
+    <div className="px-4 pb-6 flex flex-col gap-6">
+      {(isBarbell || hasImplement) && (
+        <div className="flex flex-col divide-y divide-border border-b border-border">
+          {isBarbell && (
+            <label className="min-h-[52px] flex items-center gap-2 py-1">
+              <span className="flex-1 min-w-0 text-sm font-semibold">{tFallback('exerciseLogger.bar', 'Bar')}</span>
+              <select
+                value={barLbs}
+                onChange={(e) => onBarChange(Number(e.target.value))}
+                aria-label={tFallback('exerciseLogger.barbellWeight', 'Barbell weight')}
+                className="h-11 max-w-[60%] rounded-lg bg-secondary px-2 text-sm font-medium text-foreground border border-transparent focus:outline-none focus:border-foreground/25"
+              >
+                {BAR_PRESETS.map(b => (
+                  <option key={b.id} value={b.lbs}>{tFallback(`bar.preset.${b.id}`, b.label)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {hasImplement && (
+            <motion.button
+              type="button"
+              whileTap={tap}
+              onClick={onOpenPicker}
+              aria-label={
+                exercise.equipment?.label
+                  ? `${tFallback('implement.choose', 'Choose equipment')}: ${exercise.equipment.label}`
+                  : tFallback('implement.choose', 'Choose equipment')
+              }
+              className="min-h-[52px] w-full flex items-center gap-2 py-1 text-start"
+            >
+              <EquipmentThumb implement={exercise.equipment} size={28} />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold">{tFallback('exerciseLogger.equipment', 'Equipment')}</span>
+                <span className="block text-xs text-muted-foreground truncate">
+                  {exercise.equipment?.label || tFallback('exerciseLogger.equipmentHint', 'Add the exact machine or bar you use')}
+                </span>
+              </span>
+              <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+            </motion.button>
+          )}
+        </div>
+      )}
+
+      <label className="flex flex-col gap-2">
+        <span className={sectionLabel}>{tFallback('exerciseLogger.tempo', 'Tempo')}</span>
+        <input
+          type="text"
+          value={exercise?.tempo || ''}
+          onChange={(e) => onChange({ ...exercise, tempo: e.target.value.slice(0, 12) || null })}
+          placeholder="3-1-2"
+          maxLength={12}
+          className="w-full h-11 px-3 text-sm font-mono bg-transparent border border-border rounded-lg outline-none focus:border-foreground/40"
+        />
+        <span className="text-xs text-muted-foreground">
+          {tFallback('exerciseLogger.tempoHint', 'Seconds down, pause, then up')}
+        </span>
+      </label>
+
+      <label className="flex flex-col gap-2">
+        <span className={sectionLabel}>{tFallback('cardio.field.notes', 'Notes')}</span>
+        <textarea
+          value={exercise?.notes || ''}
+          onChange={(e) => onChange({ ...exercise, notes: e.target.value.slice(0, 240) || null })}
+          placeholder={tFallback('exerciseLogger.feltWeakTodayLower', 'Felt weak today, lower the working weight next time…')}
+          rows={3}
+          maxLength={240}
+          className="w-full px-3 py-2 text-sm bg-transparent border border-border rounded-lg outline-none focus:border-foreground/40 resize-none"
+        />
+      </label>
+
+      {/* The last three sessions, "185×8, 185×8, 185×7". The first of them
+          is also each row's Previous; the older two are here for context.
+          The machine is named only when it CHANGED from the session before:
+          repeating the same one on every line buries the numbers. */}
+      {recentSessions.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className={sectionLabel}>{tFallback('exerciseLogger.recentSessions', 'Recent sessions')}</span>
+          <div className="flex flex-col gap-1">
+            {recentSessions.slice(0, 3).map((session, idx) => {
+              const line = formatSetsLine(session.sets);
+              if (!line) return null;
+              const prev = recentSessions[idx + 1]?.equipment?.label || null;
+              const here = session.equipment?.label || null;
+              const showMachine = here && here !== prev;
+              return (
+                <div key={idx} className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                  <History className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span className={idx === 0 ? 'font-semibold text-foreground' : ''}>{line}</span>
+                  {showMachine && <span className="truncate">· {here}</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

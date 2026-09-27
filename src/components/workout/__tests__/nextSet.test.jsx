@@ -56,9 +56,19 @@ const bench = { name: 'Bench Press', sets: [
 const plateLabels = () => screen.queryAllByText(/· 45 bar/);
 
 describe('the next set', () => {
+  it('is the only row whose ✓ is orange; done rows fill green', async () => {
+    render(<Host initial={bench} />);
+    const done = await screen.findByRole('button', { name: 'Mark set not done' });
+    const open = screen.getAllByRole('button', { name: 'Complete set' });
+    expect(done.className).toMatch(/\bbg-success\b/);
+    expect(open[0].className).toMatch(/\bborder-primary\b/);
+    expect(open[1].className).not.toMatch(/primary/);
+    expect(document.querySelector('[data-set-row="0"] > div').className).toMatch(/\bbg-success\/10\b/);
+  });
+
   it('is the only row with a plate diagram', async () => {
     render(<Host initial={bench} />);
-    await screen.findAllByRole('button', { name: /more set options/i });
+    await screen.findAllByRole('button', { name: /^set \d+ options$/i });
     expect(plateLabels()).toHaveLength(1);
     expect(plateLabels()[0].textContent).toMatch(/1×45 \+ 1×10/); // 155 lb
   });
@@ -73,11 +83,16 @@ describe('the next set', () => {
 
   it('is outlined once the exercise is under way, and not before', async () => {
     const { unmount } = render(<Host initial={bench} />);
-    await screen.findAllByRole('button', { name: /more set options/i });
-    expect(document.querySelectorAll('[data-set-row] .ring-primary\\/50')).toHaveLength(1);
+    await screen.findAllByRole('button', { name: /^set \d+ options$/i });
+    // A neutral outline: orange is kept for that row's ✓, the one control
+    // to press next.
+    const outlined = document.querySelectorAll('[data-set-row] [data-next-outline]');
+    expect(outlined).toHaveLength(1);
+    expect(outlined[0].className).toMatch(/\bring-foreground\/50\b/);
+    expect(document.querySelectorAll('[data-set-row] [class*="ring-primary"]')).toHaveLength(0);
     unmount();
     render(<Host initial={{ ...bench, sets: bench.sets.map(s => ({ ...s, completed: false })) }} />);
-    await screen.findAllByRole('button', { name: /more set options/i });
-    expect(document.querySelectorAll('[data-set-row] .ring-primary\\/50')).toHaveLength(0);
+    await screen.findAllByRole('button', { name: /^set \d+ options$/i });
+    expect(document.querySelectorAll('[data-set-row] [data-next-outline]')).toHaveLength(0);
   });
 });

@@ -120,6 +120,49 @@ describe('ExerciseActionsMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /how to do it/i })).toBeNull();
   });
 
+  // Move up / Move down replaced the grip pill on top of every card: menu
+  // rows a keyboard and a screen reader can reach. Offered only when there
+  // is somewhere to move to, in their own group above Remove.
+  it('offers Move up and Move down in their own group above Remove', async () => {
+    const onMoveUp = vi.fn();
+    const onMoveDown = vi.fn();
+    wrap(<ExerciseActionsMenu name="Bench" onPlateCalc={() => {}} onMoveUp={onMoveUp} onMoveDown={onMoveDown} onRemove={() => {}} />);
+    await open();
+    await screen.findByRole('menuitem', { name: 'Move up' });
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map(i => i.textContent.trim())).toEqual(['Plate calculator', 'Move up', 'Move down', 'Remove exercise']);
+    expect(screen.getAllByRole('separator')).toHaveLength(2);
+    for (const item of items.slice(1, 3)) {
+      expect(item.className).toMatch(/\bmin-h-11\b/);
+      expect(item.className).not.toMatch(/destructive|primary/);
+    }
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move up' }));
+    expect(onMoveUp).toHaveBeenCalledTimes(1);
+    expect(onMoveDown).not.toHaveBeenCalled();
+  });
+
+  it('Move down calls its own handler', async () => {
+    const onMoveDown = vi.fn();
+    wrap(<ExerciseActionsMenu name="Bench" onMoveUp={() => {}} onMoveDown={onMoveDown} onRemove={() => {}} />);
+    await open();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Move down' }));
+    expect(onMoveDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves out a move with nowhere to go', async () => {
+    wrap(<ExerciseActionsMenu name="Bench" onMoveDown={() => {}} onRemove={() => {}} />);
+    await open();
+    await screen.findByRole('menuitem', { name: 'Move down' });
+    expect(screen.queryByRole('menuitem', { name: 'Move up' })).toBeNull();
+  });
+
+  it('is a 44px ghost button', async () => {
+    wrap(<ExerciseActionsMenu name="Bench" onRemove={() => {}} />);
+    const trigger = await screen.findByRole('button', { name: 'Options for Bench' });
+    expect(trigger.className.split(/\s+/)).toEqual(expect.arrayContaining(['w-11', 'h-11']));
+    expect(trigger.className).not.toMatch(/\bborder\b/);
+  });
+
   it('drops the divider when Remove is the only action', async () => {
     wrap(<ExerciseActionsMenu name="Bench" onRemove={() => {}} />);
     await open();

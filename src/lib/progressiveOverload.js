@@ -93,7 +93,7 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date(), 
       kind: 'regress',
       weight: regressed,
       reps: medianReps || null,
-      message: `Off ${ageDays} days — start at ~${regressed} to ease back in.`,
+      message: `Off ${ageDays} days. Start at ~${regressed} to ease back in.`,
     };
   }
 
@@ -103,7 +103,7 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date(), 
       kind: 'hold',
       weight: topWeight,
       reps: medianReps || null,
-      message: `Stay at ${topWeight} — clean the reps before adding load.`,
+      message: `Stay at ${topWeight}. Clean the reps before adding load.`,
     };
   }
 
@@ -121,7 +121,7 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date(), 
       kind: 'hold',
       weight: topWeight,
       reps: medianReps || null,
-      message: `Stay at ${topWeight} — that's the heaviest this gear goes. Add reps instead.`,
+      message: `Stay at ${topWeight}. That's the heaviest this gear goes. Add reps instead.`,
     };
   }
   const actualBump = Math.round((nextWeight - topWeight) * 10) / 10;
@@ -129,6 +129,6 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date(), 
     kind: 'bump',
     weight: nextWeight,
     reps: medianReps || null,
-    message: `Try ${nextWeight} (+${actualBump}) — last session looked smooth.`,
+    message: `Try ${nextWeight} (+${actualBump}). Last session looked smooth.`,
   };
 }

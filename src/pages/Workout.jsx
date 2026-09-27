@@ -186,11 +186,16 @@ function pickSetMeta(s) {
  * screenshot feedback "you can't really scroll through the page up
  * or down because it starts like moving the workouts.")
  *
- * Now the drag handle is the small grip pill at the top-center of each
- * card. Touching anywhere else just scrolls / interacts with the
- * normal logger UI.
+ * The drag handle is the small grip pill at the top-center of a superset
+ * block. Touching anywhere else just scrolls / interacts with the normal
+ * logger UI.
+ *
+ * Single exercise cards have no grip any more (`showHandle={false}`): they
+ * move with Move up / Move down in their ⋯ menu, which a keyboard and a
+ * screen reader can reach and which is not one more look-alike control on
+ * the card. They stay Reorder.Items so a move still animates into place.
  */
-function ReorderItemWithHandle({ value, children, className }) {
+function ReorderItemWithHandle({ value, children, className, showHandle = true }) {
   const { tFallback } = useLanguage();
   const controls = useDragControls();
   return (
@@ -202,6 +207,7 @@ function ReorderItemWithHandle({ value, children, className }) {
       dragListener={false}
       dragControls={controls}
     >
+      {showHandle && (
       <div
         onPointerDown={(e) => controls.start(e)}
         className="absolute top-1 start-1/2 -translate-x-1/2 z-10 w-10 h-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
@@ -210,6 +216,7 @@ function ReorderItemWithHandle({ value, children, className }) {
       >
         <span className="w-8 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/60 active:bg-muted-foreground/60 transition-colors" />
       </div>
+      )}
       {children}
     </Reorder.Item>
   );
@@ -3208,6 +3215,16 @@ export default function Workout() {
           }
           setExercises(nextExercises);
         };
+        // Move up / Move down from a card's ⋯ menu: one step past the
+        // neighbouring top-level item, which may be a whole superset.
+        const moveItem = (key, dir) => {
+          const at = orderKeys.indexOf(key);
+          const to = at + dir;
+          if (at < 0 || to < 0 || to >= orderKeys.length) return;
+          const next = [...orderKeys];
+          [next[at], next[to]] = [next[to], next[at]];
+          reorderTopLevel(next);
+        };
 
         return (
           <ErrorBoundary label="ActiveSession.ExerciseList">
@@ -3238,35 +3255,16 @@ export default function Workout() {
                 );
               }
               const { exercise: ex, globalIdx: i } = item;
-              return (
-                <ReorderItemWithHandle
-                  key={item.key}
-                  value={item.key}
-                  className="relative"
-                >
-                  {ex.kind === 'cardio' ? (
-                    <CardioLogger
-                      exercise={ex}
-                      onChange={(updated) => updateExercise(i, updated)}
-                      gender={userProfile?.gender}
-                    />
-                  ) : (
-                    <ExerciseLogger
-                      exercise={ex}
-                      onChange={(updated) => updateExercise(i, updated)}
-                      userProfile={userProfile}
-                      prIndex={prIndex}
-                      workoutLogs={rawLogs}
-                      guideOpen={openGuides.has(item.key)}
-                      onGuideOpenChange={(next) => setGuideOpen(item.key, next)}
-                    />
-                  )}
-                {/* One menu per exercise: pairing, the plate calculator,
-                    a form check and remove. Remove still skips in one
-                    step with an Undo toast, it is just one tap deeper. */}
-                <div className="absolute top-3 end-2">
+              const pos = orderKeys.indexOf(item.key);
+              // One menu per exercise: pairing, the plate calculator, a
+              // form check, moving it, and remove. Remove still skips in
+              // one step with an Undo toast, it is just one tap deeper.
+              const actionsMenu = (
                   <ExerciseActionsMenu
+                    compact={ex.kind === 'cardio'}
                     name={ex.displayName || ex.name}
+                    onMoveUp={pos > 0 ? () => moveItem(item.key, -1) : undefined}
+                    onMoveDown={pos < orderKeys.length - 1 ? () => moveItem(item.key, 1) : undefined}
                     onPair={ex.kind !== 'cardio' && i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && exercises[i - 1]?.kind !== 'cardio'
                       ? () => {
                         const gid = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -3312,7 +3310,35 @@ export default function Workout() {
                       );
                     }}
                   />
-                </div>
+              );
+              return (
+                <ReorderItemWithHandle
+                  key={item.key}
+                  value={item.key}
+                  className="relative"
+                  showHandle={false}
+                >
+                  {ex.kind === 'cardio' ? (
+                    <CardioLogger
+                      exercise={ex}
+                      onChange={(updated) => updateExercise(i, updated)}
+                      gender={userProfile?.gender}
+                    />
+                  ) : (
+                    <ExerciseLogger
+                      exercise={ex}
+                      onChange={(updated) => updateExercise(i, updated)}
+                      userProfile={userProfile}
+                      prIndex={prIndex}
+                      workoutLogs={rawLogs}
+                      guideOpen={openGuides.has(item.key)}
+                      onGuideOpenChange={(next) => setGuideOpen(item.key, next)}
+                      menu={actionsMenu}
+                    />
+                  )}
+                {ex.kind === 'cardio' && (
+                  <div className="absolute top-3 end-2">{actionsMenu}</div>
+                )}
                 </ReorderItemWithHandle>
               );
             })}
