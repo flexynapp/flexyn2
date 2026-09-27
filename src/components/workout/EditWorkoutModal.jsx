@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Plus, Trash2, X, AlertTriangle } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { reportError } from '@/lib/reportError';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
@@ -56,6 +57,17 @@ function WeightCell({ valueLbs, onCommit, maxWeight, weightUnit }) {
   );
 }
 
+const newSetKey = () => `s-${Math.random().toString(36).slice(2, 10)}`;
+// Saved sets carry no _key (Workout.jsx strips it on save), so a freshly
+// opened log keyed its rows by index. The first edit then ran ensureKeys,
+// every row got a NEW random key and remounted, and the input being typed
+// in lost focus after one digit ("12" reps saved as 1). Key once on load;
+// handleSave rebuilds each set from named fields, so _key is never written.
+const withSetKeys = (exercises) => (exercises || []).map(ex => ({
+  ...ex,
+  sets: (ex.sets || []).map(s => (s._key ? s : { ...s, _key: newSetKey() })),
+}));
+
 function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -64,7 +76,7 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   // in ExerciseLogger (audit 09 #C-5). Without this, mid-typing a
   // weight while another set is removed could jump focus / snap the
   // input's rendered value to the next row's value.
-  const ensureKeys = (arr) => arr.map(s => s._key ? s : { ...s, _key: `s-${Math.random().toString(36).slice(2, 10)}` });
+  const ensureKeys = (arr) => arr.map(s => s._key ? s : { ...s, _key: newSetKey() });
   const updateSet = (i, field, val) => {
     const updated = ensureKeys(sets);
     updated[i] = { ...updated[i], [field]: val };
@@ -75,9 +87,9 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   const addSet = () => {
     if (atSetLimit) return;
     const last = sets[sets.length - 1] || { weight: null, reps: null };
-    onChange([...ensureKeys(sets), { weight: last.weight, reps: last.reps, _key: `s-${Math.random().toString(36).slice(2, 10)}` }]);
+    onChange([...ensureKeys(sets), { weight: last.weight, reps: last.reps, _key: newSetKey() }]);
   };
-  const removeSet = (i) => onChange(sets.filter((_, idx) => idx !== i));
+  const removeSet = (i) => onChange(ensureKeys(sets).filter((_, idx) => idx !== i));
 
   return (
     <div className="space-y-2">
@@ -132,7 +144,7 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
 
 export default function EditWorkoutModal({ log, userProfile = {}, logs = [], cardioLogs = [], open, onClose, onSave, onDelete }) {
   const { t, language, tFallback } = useLanguage();
-  const [exercises, setExercises] = useState(log?.exercises || []);
+  const [exercises, setExercises] = useState(() => withSetKeys(log?.exercises));
   const [date, setDate] = useState(log?.date || '');
   const [duration, setDuration] = useState(workoutDurationMin(log) || '');
   const [notes, setNotes] = useState(log?.notes || '');
@@ -153,7 +165,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
   // one's exercise list. (Audit 09 #C-3.)
   useEffect(() => {
     if (!log) return;
-    setExercises(log.exercises || []);
+    setExercises(withSetKeys(log.exercises));
     setDate(log.date || '');
     setDuration(workoutDurationMin(log) || '');
     setNotes(log.notes || '');
@@ -304,15 +316,31 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
       });
     }
 
+    // A failed save used to leave the modal stuck on "Saving…" with every
+    // button disabled and no message: onSave throws and nothing caught it.
     setSaving(true);
-    await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, [TITLE_COLUMN]: name.trim() || workoutTitle(log) || null, tags });
+    try {
+      await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, [TITLE_COLUMN]: name.trim() || workoutTitle(log) || null, tags });
+    } catch (err) {
+      reportError(err, { feature: 'workout.edit-save', level: 'error' });
+      toast.error(tFallback('workout.editSaveFailed', 'Could not save your changes. Try again.'));
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     onClose();
   };
 
   const handleDelete = async () => {
     setSaving(true);
-    await onDelete(log.id);
+    try {
+      await onDelete(log.id);
+    } catch (err) {
+      reportError(err, { feature: 'workout.edit-delete', level: 'error' });
+      toast.error(tFallback('workout.editDeleteFailed', 'Could not delete this workout. Try again.'));
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     onClose();
   };
@@ -376,7 +404,10 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
                 <Trash2 className="w-4 h-4 me-1" /> {t('workout.deleteWorkout')}
               </Button>
               <Button variant="outline" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
+              {/* Not onClick={handleSave}: that passed the click event as
+                  forceSkipChecks, which is truthy, so the realistic-weight,
+                  set-cap and plausibility checks never ran on an edit. */}
+              <Button size="sm" onClick={() => handleSave()} disabled={saving}>
                 {saving ? t('workout.saving') : tFallback('workout.saveChanges', 'Save changes')}
               </Button>
             </>

@@ -71,3 +71,15 @@ describe('StoryOverlayRenderer', () => {
     expect(screen.getByText('hi')).toBeInTheDocument();
   });
 });
+
+describe('StoryOverlayRenderer: moving to the next story', () => {
+  it('remounts overlays when the story changes, so no state carries over', () => {
+    const overlays = [{ kind: 'text', text: 'Hi', x: 0.5, y: 0.5 }];
+    const { rerender } = render(<StoryOverlayRenderer overlays={overlays} storyId="a" />);
+    const before = screen.getByText('Hi');
+    rerender(<StoryOverlayRenderer overlays={overlays} storyId="a" />);
+    expect(screen.getByText('Hi')).toBe(before);
+    rerender(<StoryOverlayRenderer overlays={overlays} storyId="b" />);
+    expect(screen.getByText('Hi')).not.toBe(before);
+  });
+});

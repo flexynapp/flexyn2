@@ -298,6 +298,26 @@ export default function Workout() {
   // Show the rolling-day banner from midnight until 5 AM.
   const isLateNight = new Date().getHours() < 5;
   const [rollingDay, setRollingDay] = useState(false);
+  // `date` used to be fixed at mount. A PWA left on this tab overnight, or a
+  // session saved at 11:50pm, then logged the NEXT session under yesterday
+  // (wrong streak, wrong league bucket), and a "Yesterday" toggle made at
+  // 1am stuck for every later session in the mount. While no session is
+  // running, keep the date on today (or yesterday while the late-night
+  // toggle is on and it is still before 5am). A running session keeps the
+  // day it started on. Same minute tick as Nutrition.
+  useEffect(() => {
+    const sync = () => {
+      if (started) return;
+      const now = new Date();
+      const roll = rollingDay && now.getHours() < 5;
+      if (rollingDay && !roll) setRollingDay(false);
+      const want = format(roll ? subDays(now, 1) : now, 'yyyy-MM-dd');
+      setDate(prev => (prev === want ? prev : want));
+    };
+    sync();
+    const id = setInterval(sync, 60_000);
+    return () => clearInterval(id);
+  }, [started, rollingDay]);
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [workoutName, setWorkoutName] = useState('');
@@ -316,6 +336,29 @@ export default function Workout() {
   // rather than inside ExerciseLogger, so the state does too. Held apart
   // from the exercise objects so it never lands in the saved JSONB.
   const [openGuides, setOpenGuides] = useState(() => new Set());
+  // Every exercise in the session gets a client-only `_uid` so its card has
+  // a stable React key and Reorder.Item value. Freeform exercises carry no
+  // id, so cards were keyed by name + index: a drag that crossed a neighbour
+  // re-keyed the moved cards and remounted them mid-gesture, and removing an
+  // exercise remounted every card below it and shifted open "How to" panels
+  // onto the wrong card. Duplicates are re-issued too, in case a copied
+  // exercise brought its _uid along. Stripped again before saving.
+  useEffect(() => {
+    const seen = new Set();
+    const needs = exercises.some(ex => {
+      const bad = !ex._uid || seen.has(ex._uid);
+      seen.add(ex._uid);
+      return bad;
+    });
+    if (!needs) return;
+    const used = new Set();
+    setExercises(prev => prev.map(ex => {
+      if (ex._uid && !used.has(ex._uid)) { used.add(ex._uid); return ex; }
+      const uid = `x-${Math.random().toString(36).slice(2, 10)}`;
+      used.add(uid);
+      return { ...ex, _uid: uid };
+    }));
+  }, [exercises]);
   const setGuideOpen = useCallback((key, next) => {
     setOpenGuides(prev => {
       if (prev.has(key) === !!next) return prev;
@@ -1828,6 +1871,7 @@ export default function Workout() {
 
     const normalizedExercises = exercises.map(ex => ({
       ...ex,
+      _uid: undefined, // list key only; undefined drops out of the JSON
       sets: (ex.sets || []).map(s => ({
         weight: Number(s.weight) || 0,
         reps: Number(s.reps) || 0,
@@ -3002,7 +3046,10 @@ export default function Workout() {
               await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
               if (delta !== 0) {
                 try {
-                  await supabase.rpc('increment_user_volume', { p_delta: delta });
+                  // supabase-js returns { error } rather than throwing, so the catch
+                  // alone never saw a failed delta and total_volume_lbs drifted silently.
+                  const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: delta });
+                  if (rpcErr) throw rpcErr;
                 } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta', level: 'warning', userEmail: user?.email, delta }); }
               }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -3016,7 +3063,10 @@ export default function Workout() {
               await db.entities.WorkoutLog.delete(id);
               if (deletedVolume > 0) {
                 try {
-                  await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+                  // supabase-js returns { error } rather than throwing, so the catch
+                  // alone never saw a failed delta and total_volume_lbs drifted silently.
+                  const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+                  if (rpcErr) throw rpcErr;
                 } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta', level: 'warning', userEmail: user?.email, deletedVolume }); }
               }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -3134,11 +3184,9 @@ export default function Workout() {
               items.push({ type: 'group', key: `group:${ex.group_id}`, groupId: ex.group_id, groupMeta: ex.group_meta || {}, items: groupItems });
             }
           } else {
-            // Use the exercise's stable id when available, else the
-            // global index. Since freeform exercises don't carry ids,
-            // a synthetic key per name+position is good enough — we
-            // re-key on every render anyway.
-            items.push({ type: 'single', key: `ex:${ex.id || `${ex.name}-${globalIdx}`}`, exercise: ex, globalIdx });
+            // `_uid` is assigned by the effect beside openGuides; the
+            // name+index fallback only covers the one render before it runs.
+            items.push({ type: 'single', key: `ex:${ex._uid || ex.id || `${ex.name}-${globalIdx}`}`, exercise: ex, globalIdx });
           }
         });
         const orderKeys = items.map(it => it.key);
@@ -3579,7 +3627,10 @@ export default function Workout() {
             await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
             if (delta !== 0) {
               try {
-                await supabase.rpc('increment_user_volume', { p_delta: delta });
+                // supabase-js returns { error } rather than throwing, so the catch
+                // alone never saw a failed delta and total_volume_lbs drifted silently.
+                const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: delta });
+                if (rpcErr) throw rpcErr;
               } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta-active', level: 'warning', userEmail: user?.email, delta }); }
             }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -3591,7 +3642,10 @@ export default function Workout() {
             await db.entities.WorkoutLog.delete(id);
             if (deletedVolume > 0) {
               try {
-                await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+                // supabase-js returns { error } rather than throwing, so the catch
+                // alone never saw a failed delta and total_volume_lbs drifted silently.
+                const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+                if (rpcErr) throw rpcErr;
               } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta-active', level: 'warning', userEmail: user?.email, deletedVolume }); }
             }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });

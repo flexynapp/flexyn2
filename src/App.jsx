@@ -359,6 +359,28 @@ const AuthenticatedApp = () => {
     }
   }
 
+  // The profile row could not be read (see fetchProfile). Without this the
+  // user fell through to Onboarding below, as if they were new.
+  if (user?.profileLoadFailed) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center safe-page">
+        <p className="text-base font-semibold">
+          {tFallback('app.profileLoadFailed.title', 'We could not load your profile')}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {tFallback('app.profileLoadFailed.body', 'Check your connection and try again.')}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-6 min-h-[48px] px-6 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
+        >
+          {tFallback('errorBoundary.tryAgain', 'Try again')}
+        </button>
+      </div>
+    );
+  }
+
   // If user is authenticated but onboarding isn't complete, show onboarding.
   // Check both column variants: onboarding_complete (migration 002) and
   // onboarding_completed (migration 001). Having a real username also counts as done.

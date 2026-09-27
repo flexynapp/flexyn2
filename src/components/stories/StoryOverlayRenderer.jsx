@@ -181,9 +181,13 @@ export default function StoryOverlayRenderer({ overlays, storyId, userId, isOwn 
   if (!Array.isArray(overlays) || overlays.length === 0) return null;
   return (
     <>
+      {/* storyId is in the key so advancing to the next story remounts its
+          overlays. The viewer reuses this renderer, so without it a poll
+          kept the previous story's vote: story B opened on results with
+          A's choice highlighted and no way to vote. */}
       {overlays.map((o, i) => (
         <OverlayItem
-          key={`${o?.kind || 'x'}-${i}`}
+          key={`${storyId}-${o?.kind || 'x'}-${i}`}
           overlay={o}
           storyId={storyId}
           userId={userId}

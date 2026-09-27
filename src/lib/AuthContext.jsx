@@ -28,13 +28,23 @@ function nativeAuthFailedMessage() {
   }
 }
 
+// A failed read used to be ignored and returned { id, email } alone, which
+// has no onboarding flag and no username, so App.jsx routed a fully
+// onboarded user into Onboarding on a network blip, and its final save
+// could overwrite their real answers. A missing row (data null, no error)
+// is still a new user; an ERROR is retried once and then thrown.
 async function fetchProfile(authUser) {
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', authUser.id)
-    .maybeSingle();
-  return { id: authUser.id, email: authUser.email, ...(profile ?? {}) };
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .maybeSingle();
+    if (!error) return { id: authUser.id, email: authUser.email, ...(profile ?? {}) };
+    lastError = error;
+  }
+  throw lastError;
 }
 
 
@@ -69,7 +79,12 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
       markReturningUser();
     } catch {
-      setUser({ id: authUser.id, email: authUser.email });
+      // Keep a profile already loaded for this account (a refresh on tab
+      // focus failing must not blank the app). Otherwise flag the failure
+      // so App.jsx offers a retry instead of treating the user as new.
+      setUser(prev => (prev?.id === authUser.id && !prev.profileLoadFailed
+        ? prev
+        : { id: authUser.id, email: authUser.email, profileLoadFailed: true }));
       setIsAuthenticated(true);
     } finally {
       setIsLoadingAuth(false);

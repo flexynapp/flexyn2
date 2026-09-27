@@ -43,6 +43,8 @@
 	<string>Flexyn uses the microphone for voice logging, voice memos and coach dictation.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Flexyn turns what you say into logged sets and coach messages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Flexyn saves the workout, progress and profile cards you share to your photo library when you choose Save Image.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Flexyn uses your location to find gyms near you and to map your runs and rides.</string>
 	<key>UIApplicationSceneManifest</key>
