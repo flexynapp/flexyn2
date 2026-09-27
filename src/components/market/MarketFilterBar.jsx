@@ -134,7 +134,7 @@ export default function MarketFilterBar({
         <div
           role="group"
           aria-label={tFallback('marketFilterBar.listingType', 'Listing type')}
-          className="flex-1 h-11 p-[3px] rounded-full bg-card border flex"
+          className="flex-1 h-[52px] p-[3px] rounded-full bg-card border flex"
         >
           {TYPES.map(t => {
             const on = filters.type === t.id;
@@ -162,7 +162,7 @@ export default function MarketFilterBar({
           onClick={() => setPanelOpen(o => !o)}
           aria-expanded={panelOpen}
           aria-controls="market-filter-panel"
-          className={`h-11 px-3 rounded-full border inline-flex items-center gap-1 text-label font-semibold ${
+          className={`h-[52px] px-3 rounded-full border inline-flex items-center gap-1 text-label font-semibold ${
             panelOpen ? 'bg-secondary' : ''
           }`}
         >
@@ -227,7 +227,7 @@ export default function MarketFilterBar({
           value={filters.sort}
           onChange={(e) => set({ sort: e.target.value })}
           aria-label={tFallback('marketFilterBar.sortListings', 'Sort listings')}
-          className="h-8 bg-transparent text-caption text-muted-foreground text-end outline-none appearance-none cursor-pointer"
+          className="h-11 bg-transparent text-caption text-muted-foreground text-end outline-none appearance-none cursor-pointer"
         >
           {SORTS.map(id => <option key={id} value={id}>{sortLabel(id)}</option>)}
         </select>
