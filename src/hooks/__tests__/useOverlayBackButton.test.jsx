@@ -5,8 +5,13 @@
 // hook must not leave a stray history entry behind either way.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
+
+// A real history.back() produces a popstate. The hook now consumes the
+// popstate its own back() causes, so a mock that fired nothing would leave
+// that pending and swallow the next simulated Back press.
+const browserBack = () => { window.dispatchEvent(new PopStateEvent('popstate')); };
 
 describe('useOverlayBackButton', () => {
   let pushSpy;
@@ -14,9 +19,12 @@ describe('useOverlayBackButton', () => {
 
   beforeEach(() => {
     pushSpy = vi.spyOn(window.history, 'pushState');
-    backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    backSpy = vi.spyOn(window.history, 'back').mockImplementation(browserBack);
   });
   afterEach(() => {
+    // Unmount while back() is still mocked, so the unmount's own back()
+    // is consumed here and not by the next test's Back press.
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -93,9 +101,9 @@ describe('useOverlayBackButton — nested overlays', () => {
   let backSpy;
   beforeEach(() => {
     vi.spyOn(window.history, 'pushState');
-    backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    backSpy = vi.spyOn(window.history, 'back').mockImplementation(browserBack);
   });
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
   const mountBoth = () => {
     const outer = vi.fn(), inner = vi.fn();
@@ -197,5 +205,49 @@ describe('useOverlayBackButton — nested overlays', () => {
     renderHook(() => useOverlayBackButton(true, vi.fn()));
     expect(window.history.state).toMatchObject({ key: 'k1', idx: 3 });
     expect(window.history.state.__flexynOverlay).toBeTruthy();
+  });
+});
+
+describe('useOverlayBackButton: one overlay closes as another opens', () => {
+  afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  // The Finish sheet closes and saveWorkout() opens a warning dialog in the
+  // same commit. The sheet's back() is async in a browser, so its popstate
+  // lands after the dialog has registered on top, and used to close it.
+  it("does not let the closing overlay's own back() close the new one", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window.history, 'back').mockImplementation(() => {
+      setTimeout(() => window.dispatchEvent(new PopStateEvent('popstate')), 0);
+    });
+    const closeSheet = vi.fn();
+    const closeDialog = vi.fn();
+    const { rerender } = renderHook(
+      ({ sheet, dialog }) => {
+        useOverlayBackButton(sheet, closeSheet);
+        useOverlayBackButton(dialog, closeDialog);
+      },
+      { initialProps: { sheet: true, dialog: false } },
+    );
+    act(() => { rerender({ sheet: false, dialog: true }); });
+    act(() => { vi.runAllTimers(); });
+    expect(closeDialog).not.toHaveBeenCalled();
+    // A real Back press afterwards still closes the dialog.
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(closeDialog).toHaveBeenCalledTimes(1);
+    expect(closeSheet).not.toHaveBeenCalled();
+  });
+
+  it('forgets a back() that never produced a popstate', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    const { rerender } = renderHook(({ on }) => useOverlayBackButton(on, vi.fn()), {
+      initialProps: { on: true },
+    });
+    act(() => { rerender({ on: false }); });
+    act(() => { vi.advanceTimersByTime(2000); });
+    const onClose = vi.fn();
+    renderHook(() => useOverlayBackButton(true, onClose));
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

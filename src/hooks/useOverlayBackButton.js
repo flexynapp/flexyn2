@@ -63,6 +63,66 @@ import { useEffect, useRef } from 'react';
 const stack = [];
 let seq = 0;
 
+// ── Our own history.back() must not close the next overlay ──────────
+//
+// history.back() is ASYNC: the popstate it causes arrives after the
+// current task. When one overlay closes and another opens in the same
+// commit (tap Save Workout in the Finish sheet, and saveWorkout() opens a
+// warning dialog), the sheet's cleanup calls back(), the dialog pushes
+// its entry and registers on top of the stack, and THEN the sheet's
+// popstate lands and is handled by the dialog, which closes. The user saw
+// the sheet close and nothing else: no warning, no save.
+//
+// Two parts to the fix, both measured in Chromium:
+//   1. Every back() this hook issues is recorded, and the popstate it
+//      produces is consumed here instead of reaching the top overlay.
+//   2. An overlay that opens while one of those is pending waits for it
+//      before pushing its own entry. Pushed straight away, Chromium lands
+//      the pending back() BELOW the new entry, so the dialog stayed open
+//      with no entry of its own and the next Back left the page.
+// Pending backs expire, so one that never produces a popstate (a
+// sandboxed webview) cannot swallow a real Back press or strand a push.
+const SELF_BACK_TTL_MS = 1000;
+let selfBacks = [];
+let deferredPushes = [];
+let expiryTimer = null;
+let listening = false;
+
+function flushDeferredPushes() {
+  const run = deferredPushes;
+  deferredPushes = [];
+  run.forEach(fn => fn());
+}
+
+function dropExpiredSelfBacks() {
+  const now = Date.now();
+  selfBacks = selfBacks.filter(t => now - t < SELF_BACK_TTL_MS);
+  if (selfBacks.length === 0) flushDeferredPushes();
+}
+
+function handlePopState() {
+  dropExpiredSelfBacks();
+  if (selfBacks.length > 0) {
+    selfBacks.shift();
+    if (selfBacks.length === 0) flushDeferredPushes();
+    return;
+  }
+  const top = stack[stack.length - 1];
+  if (top) top.onPop();
+}
+
+function ensureListening() {
+  if (listening) return;
+  window.addEventListener('popstate', handlePopState);
+  listening = true;
+}
+
+function recordSelfBack() {
+  selfBacks.push(Date.now());
+  clearTimeout(expiryTimer);
+  expiryTimer = setTimeout(dropExpiredSelfBacks, SELF_BACK_TTL_MS);
+}
+
 export function useOverlayBackButton(active, onClose) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -72,36 +132,54 @@ export function useOverlayBackButton(active, onClose) {
     if (typeof window === 'undefined' || !window.history) return undefined;
 
     let popped = false;
+    let pushed = false;
     const entry = {};
     const token = `ov-${++seq}`;
-    try {
-      // Keep the router's own state (key, idx, usr) on our entry. A bare
-      // object here made the entry look like a page with no router state,
-      // which goBack() and anything else reading history.state would
-      // misread while an overlay is open.
+    // Keep the router's own state (key, idx, usr) on our entry. A bare
+    // object here made the entry look like a page with no router state,
+    // which goBack() and anything else reading history.state would
+    // misread while an overlay is open.
+    const push = () => {
       const base = (window.history.state && typeof window.history.state === 'object') ? window.history.state : {};
       window.history.pushState({ ...base, __flexynOverlay: token }, '');
-    } catch {
-      // History is unavailable (rare, but a sandboxed webview will do
-      // this). Degrade to no back handling rather than breaking the
-      // overlay entirely.
-      return undefined;
-    }
-    stack.push(entry);
+      pushed = true;
+    };
+    const removeFromStack = () => {
+      const i = stack.indexOf(entry);
+      if (i !== -1) stack.splice(i, 1);
+    };
+    const deferredPush = () => {
+      try { push(); } catch { removeFromStack(); }
+    };
 
-    const onPop = () => {
-      // Not the top overlay? The press belongs to whoever is above us.
-      if (stack[stack.length - 1] !== entry) return;
+    if (selfBacks.length > 0) {
+      deferredPushes.push(deferredPush);
+    } else {
+      try {
+        push();
+      } catch {
+        // History is unavailable (rare, but a sandboxed webview will do
+        // this). Degrade to no back handling rather than breaking the
+        // overlay entirely.
+        return undefined;
+      }
+    }
+    // One module listener hands each popstate to the top overlay only,
+    // so a press closes the innermost one and leaves the rest alone.
+    entry.onPop = () => {
       popped = true;
       stack.pop();
       try { onCloseRef.current?.(); } catch { /* caller's problem */ }
     };
-    window.addEventListener('popstate', onPop);
+    stack.push(entry);
+    ensureListening();
 
     return () => {
-      window.removeEventListener('popstate', onPop);
-      const i = stack.indexOf(entry);
-      if (i !== -1) stack.splice(i, 1);
+      removeFromStack();
+      if (!pushed) {
+        deferredPushes = deferredPushes.filter(fn => fn !== deferredPush);
+        return;
+      }
       // Only undo our entry if it is still the current one. When a sheet
       // closes BECAUSE something inside it navigated (tap a row, go to a
       // page), the router has pushed a new entry on top of ours by the time
@@ -112,7 +190,8 @@ export function useOverlayBackButton(active, onClose) {
       let ours = false;
       try { ours = window.history.state?.__flexynOverlay === token; } catch { /* treat as not ours */ }
       if (!popped && ours) {
-        try { window.history.back(); } catch { /* nothing to undo */ }
+        recordSelfBack();
+        try { window.history.back(); } catch { selfBacks.pop(); }
       }
     };
   }, [active]);
