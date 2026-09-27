@@ -128,24 +128,6 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// Decode a JWT's payload claims WITHOUT verifying the signature. Used
-// only to read the `role` claim so we can tell a service_role token
-// apart from a user token — the actual trust decision for user tokens
-// goes through supabase.auth.getUser() (which DOES verify), and the
-// service_role branch is gated on a constant-time secret compare against
-// the env key, so an unverified role peek here is safe.
-function decodeJwtRole(jwt: string): string | null {
-  try {
-    const part = jwt.split('.')[1];
-    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-    const claims = JSON.parse(atob(padded));
-    return typeof claims?.role === 'string' ? claims.role : null;
-  } catch {
-    return null;
-  }
-}
-
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 // Guard against an empty VAPID key pair. Without this, setVapidDetails
@@ -217,8 +199,8 @@ serve(async (req) => {
                       && triggerSecret.length > 0
                       && safeEqual(triggerSecret, SEND_PUSH_TRIGGER_SECRET);
 
-  // A service_role bearer (constant-time compared against the env key, or
-  // role-claim service_role validated by getUser below) may target anyone.
+  // A service_role bearer, constant-time compared against the env key, may
+  // target anyone. Nothing else about a token can grant that.
   const isServiceRoleToken = bearerToken.length > 0
                       && SERVICE_ROLE_KEY.length > 0
                       && safeEqual(bearerToken, SERVICE_ROLE_KEY);
@@ -226,14 +208,15 @@ serve(async (req) => {
   // For a normal user token, resolve the caller's verified identity now.
   let callerUserId: string | null = null;
   let canSendToAnyUser = hasTrigger || isServiceRoleToken;
+  // SECURITY (2026-09-27 audit): a Bearer whose unverified payload said
+  // role=service_role used to unlock cross-user sends here. verify_jwt is
+  // off for this function, so nothing checked that token's signature and a
+  // hand-made one reached every user. The only cross-user doors are now the
+  // trigger secret and the exact service key above; every other Bearer must
+  // verify through getUser() and may only push to its own user.
   if (!canSendToAnyUser && bearerToken) {
-    const role = decodeJwtRole(bearerToken);
-    if (role === 'service_role') {
-      canSendToAnyUser = true;
-    } else {
-      const { data: { user }, error: userErr } = await supabase.auth.getUser(bearerToken);
-      if (!userErr && user) callerUserId = user.id;
-    }
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(bearerToken);
+    if (!userErr && user) callerUserId = user.id;
   }
 
   if (!canSendToAnyUser && !callerUserId) {

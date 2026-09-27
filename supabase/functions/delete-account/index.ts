@@ -46,7 +46,7 @@
 // email, and the reason mig 284 revokes EXECUTE from `authenticated`.
 //
 // verify_jwt is left ON for this function (unlike send-push and
-// generateWeeklyDebriefs, which authenticate with their own shared secrets):
+// generate-weekly-debriefs, which authenticate with their own shared secrets):
 // there is no cron path here, every legitimate caller is a signed-in user in
 // a browser, so the gateway check is a free extra layer.
 //

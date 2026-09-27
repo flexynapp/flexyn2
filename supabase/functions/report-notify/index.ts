@@ -20,7 +20,7 @@
 //   • verify_jwt MUST be false. The caller is a database trigger via pg_net,
 //     which has no user JWT — with the gateway check on, the request is
 //     rejected before this handler's own auth runs. Same posture as send-push
-//     and generateWeeklyDebriefs. Auth is the shared secret below.
+//     and generate-weekly-debriefs. Auth is the shared secret below.
 //
 // Deploy: the Supabase CLI cannot deploy from this repo (no config.toml — see
 // CLAUDE.md). Use the MCP deploy_edge_function tool or the dashboard, then
