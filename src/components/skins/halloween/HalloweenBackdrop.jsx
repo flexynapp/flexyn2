@@ -2,7 +2,8 @@
 //
 // The Halloween skin's `Backdrop`: a night scene fixed BEHIND the page.
 // Stars, a harvest moon, corner cobwebs with a spider, a witch and her bats
-// crossing now and then, and a graveyard along the bottom.
+// crossing now and then, and a graveyard along the bottom with a scarecrow
+// and two jack o lanterns.
 //
 // Everything lives here, behind the page, on purpose. Cards are opaque, so
 // the scene shows only in the gaps between them, under short pages and in
@@ -22,9 +23,13 @@
 // context. That only works because Layout's shell is transparent while a
 // skin is on (the `.app-shell` rule in index.css).
 
+import { useId } from 'react';
 import { SKINS } from '@/lib/skins';
 import { Cobweb, Spider, Witch, Bat } from './ornaments';
-import { GROUND_PATH, PLANTED, RAILS } from './graveyard';
+import { GROUND_PATH, SKY_PATH, PLANTED, RAILS } from './graveyard';
+
+const STANDING = PLANTED.filter((f) => !f.lantern);
+const LANTERNS = PLANTED.filter((f) => f.lantern);
 
 const { ink } = SKINS.find((s) => s.id === 'halloween');
 const FG = ink.foreground;
@@ -37,6 +42,7 @@ const STARS = [
 ];
 
 export default function HalloweenBackdrop() {
+  const sky = `hw-sky-${useId().replace(/:/g, '')}`;
   return (
     <div
       className="fixed inset-0 -z-10 pointer-events-none overflow-hidden text-foreground"
@@ -99,12 +105,28 @@ export default function HalloweenBackdrop() {
       >
         <g fill="currentColor" stroke="currentColor" strokeLinecap="round" style={{ opacity: FG }}>
           <path strokeWidth="0" d={GROUND_PATH} />
-          {PLANTED.map((f) => (
+          {STANDING.map((f) => (
             <path key={`${f.kind}-${f.x0}`} strokeWidth="0" d={f.d} transform={f.transform} />
           ))}
+          {STANDING.flatMap((f) => (f.parts || []).map((d) => <path key={d} strokeWidth="0" d={d} />))}
           {RAILS.map((r) => <path key={`rail-${r.d}`} strokeWidth="0" d={r.d} />)}
           {PLANTED.filter((f) => f.branches).map((f) => (
             <path key={`branches-${f.x0}`} fill="none" strokeWidth="3" d={f.branches} />
+          ))}
+        </g>
+        {/* Jack o lanterns in the moon's orange at the moon's strength, their
+            faces cut through to the page. Clipped to the sky so the part
+            buried in the hill is hidden instead of stacking on the ground's
+            ink, which would paint darker than the skin declares. */}
+        <defs>
+          <clipPath id={sky}><path d={SKY_PATH} /></clipPath>
+        </defs>
+        <g clipPath={`url(#${sky})`} fill="hsl(var(--primary))" style={{ opacity: MOON }} data-testid="halloween-lanterns">
+          {LANTERNS.map((f) => (
+            <g key={`${f.kind}-${f.x0}`}>
+              <path fillRule="evenodd" d={f.d} />
+              <path d={f.stem} />
+            </g>
           ))}
         </g>
       </svg>
