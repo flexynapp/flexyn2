@@ -30,7 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Card } from '@/components/ui/card';
-import { db } from '@/api/db';
+import * as nutritionData from '@/lib/data/nutrition';
 import { format } from 'date-fns';
 
 const DEFAULT_GOAL_OZ = 64;
@@ -70,9 +70,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
     queryFn: async () => {
       if (!user?.email) return [];
       try {
-        const all = await db.entities.NutritionLog.filter(
-          { user_id: user.id, date: today }, '-created_date', 100
-        );
+        const all = await nutritionData.listForDate(user.id, today, { newestFirst: true });
         return all || [];
       } catch (err) {
         // Don't crash render; report so observability catches a real

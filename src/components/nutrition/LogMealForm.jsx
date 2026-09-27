@@ -8,7 +8,7 @@ import { Plus, History, ImageIcon, Loader2, Repeat, Search as SearchIcon } from 
 import NutrientIcon, { MealPlateIcon } from './NutrientIcon';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
+import * as nutritionData from '@/lib/data/nutrition';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { toast } from '@/lib/toast';
@@ -117,7 +117,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
   // it doesn't write back to history here.
   const { data: historyRaw = [], isLoading: historyLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-created_at', 300),
+    queryFn: () => nutritionData.listRecent(user.id, 300),
     enabled: !!user?.email && open && activeTab === 'history',
     staleTime: 60_000,
   });

@@ -29,10 +29,8 @@ vi.mock('@/lib/AuthContext', () => ({
 }));
 vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
-vi.mock('@/lib/data/nutrition', () => ({ remove: vi.fn() }));
-
 const filter = vi.fn();
-vi.mock('@/api/db', () => ({ db: { entities: { NutritionLog: { filter: (...a) => filter(...a) } } } }));
+vi.mock('@/lib/data/nutrition', () => ({ remove: vi.fn(), listRecent: (...a) => filter(...a) }));
 
 import MealHistoryModal from '../MealHistoryModal';
 
