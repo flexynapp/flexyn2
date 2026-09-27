@@ -455,7 +455,6 @@ DECLARE
   small JSONB := '[{"name":"Bench Press","sets":[{"weight":"100","reps":"10"},{"weight":"100","reps":"8"}]}]';
   mid   JSONB := '[{"name":"Bench Press","sets":[{"weight":"120","reps":"10"},{"weight":"120","reps":"10"}]}]';
   big   JSONB := '[{"name":"Bench Press","sets":[{"weight":"150","reps":"10"},{"weight":"150","reps":"10"}]}]';
-  junk  JSONB := '[{"name":"Bench Press","sets":[{"weight":"","reps":"10"}]}]';
 BEGIN
   BEGIN
     INSERT INTO auth.users (id, email, aud, role, is_anonymous)
@@ -488,11 +487,13 @@ BEGIN
     IF (v_row.challenger_result->>'volume')::numeric IS DISTINCT FROM 1800 THEN
       RAISE EXCEPTION 'probe: challenger result after a save was %', v_row.challenger_result;
     END IF;
-    -- A better session replaces it; a worse one does not; an unreadable one is skipped.
+    -- A better session replaces it; a worse one does not. (An unreadable set,
+    -- a weight of '', never reaches the table: workout_logs_flag_implausible
+    -- refuses the insert, so there is nothing to probe there.)
     INSERT INTO public.workout_logs (created_by, user_id, exercises, created_at)
     VALUES ('probe', a, big, now()) RETURNING id INTO v_log;
     INSERT INTO public.workout_logs (created_by, user_id, exercises, created_at)
-    VALUES ('probe', a, small, now()), ('probe', a, junk, now());
+    VALUES ('probe', a, small, now());
     SELECT * INTO v_row FROM public.duels WHERE id = v_id;
     IF (v_row.challenger_result->>'workout_log_id')::uuid IS DISTINCT FROM v_log THEN
       RAISE EXCEPTION 'probe: best session not kept, result %', v_row.challenger_result;
