@@ -1,58 +1,36 @@
 // src/components/market/ItemDetailSheet.jsx
 //
-// The item detail view — the step that didn't exist. Tapping a listing
-// used to jump straight from the grid tile to a "Confirm Purchase" modal,
-// so a buyer committed coins having seen an emoji, a name and a number.
+// The listing detail, full screen, from the round 2 design. It answers what
+// the row cannot (what is this, what is it worth, has it sold before, is it
+// listed elsewhere, who is selling) and carries the purchase itself in three
+// states on the same screen: Buy, then Confirm with the balance you will
+// have after, then Bought.
 //
-// This sits between them and answers the questions the grid can't:
-//   • what IS this thing (catalog description)
-//   • is it actually rare, or does everyone have one (sold count)
-//   • what does it normally go for (completed-sale price history)
-//   • can I get it cheaper right now (other live listings of the same item)
+// The purchase is still purchase_listing (mig 025) through the feed's
+// handler: this screen never prices, debits or transfers anything. The
+// "after this you have" line is the viewer's balance minus the asking price,
+// shown before they commit; once it is bought the balance shown is the one
+// the feed re-reads from the server.
 //
-// Read-only. Every mutation still routes through the existing confirm
-// dialogs, so the atomic purchase / trade-offer paths are untouched.
+// Dropped from the design: the "Set 01" series label, which no data carries
+// (the sheet number is real and stays).
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { X, Zap, Lock, Heart, TrendingUp, Store } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import Sticker from '@/components/capsules/Sticker';
+import { NotchedCorner } from '@/components/capsules/parts';
+import { rarityName } from '@/components/capsules/words';
+import { rarityTint } from '@/components/loot/RarityVisuals';
 import * as marketplace from '@/lib/data/marketplace';
 import { findCatalogItem, lootDescription } from '@/lib/lootCatalog';
+import { askMultiple, catalogValue, formatSetNo, setNumber } from '@/lib/capsuleShelf';
 import { displayName } from '@/lib/userDisplay';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import {
-  RarityBadge, RarityGlow, CoinAmount, rarityTint,
-} from '@/components/loot/RarityVisuals';
+import { useNumberFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
-import TransText from '@/components/TransText';
-
-// ─── Price history sparkline ──────────────────────────────────────────────────
-// Deliberately a bar chart, not a line: marketplace_listings has no sold_at
-// column, so the x-axis is "listing order", not real time. Drawing a line
-// would imply a trend the data can't support. See priceStatsForItem.
-function PriceBars({ prices, color }) {
-  const max = Math.max(...prices);
-  // Oldest-left reads more naturally than the newest-first fetch order.
-  const ordered = [...prices].reverse();
-  return (
-    <div className="flex items-end gap-0.5 h-10" aria-hidden="true">
-      {ordered.map((p, i) => (
-        <div
-          key={i}
-          className="flex-1 min-w-[3px] rounded-sm"
-          style={{
-            height: `${Math.max(8, (p / max) * 100)}%`,
-            backgroundColor: color,
-            opacity: 0.35 + (0.65 * (i + 1)) / ordered.length,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
 export default function ItemDetailSheet({
   listing,
@@ -61,27 +39,38 @@ export default function ItemDetailSheet({
   flexCoins,
   isSaved,
   onToggleSave,
-  onBuy,
+  onBuyConfirm,
   onOfferTrade,
   onCancel,
+  onDelete,
   onSellerClick,
+  onMessageSeller,
   onSelectListing,
   onClose,
 }) {
   const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   useBodyScrollLock(!!listing);
+  // 'idle' → 'confirm' → 'done'. Reset whenever a different listing opens.
+  const [step, setStep] = useState('idle');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setStep('idle'); setBusy(false); }, [listing?.id]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, onClose]);
 
   const itemId = listing?.item_id;
-
-  const { data: priceStats, isLoading: priceLoading } = useQuery({
+  const { data: priceStats } = useQuery({
     queryKey: ['itemPriceStats', itemId],
-    queryFn:  () => marketplace.priceStatsForItem(itemId),
-    enabled:  !!itemId,
+    queryFn: () => marketplace.priceStatsForItem(itemId),
+    enabled: !!itemId,
     staleTime: 5 * 60_000,
   });
 
-  // Other live listings of the SAME item — the "can I get it cheaper right
-  // now" answer. Cheapest first; sale listings before trade-only ones.
+  // Other live listings of the same item, cheapest sale first.
   const alternatives = useMemo(() => {
     if (!listing) return [];
     return allListings
@@ -91,236 +80,271 @@ export default function ItemDetailSheet({
         const bs = b.listing_type === 'sale' ? 0 : 1;
         if (as !== bs) return as - bs;
         return (a.asking_price ?? Infinity) - (b.asking_price ?? Infinity);
-      })
-      .slice(0, 6);
+      });
   }, [listing, allListings]);
 
   if (!listing || typeof document === 'undefined') return null;
 
   const catalogItem = findCatalogItem(listing.item_id);
-  const tint        = rarityTint(listing.item_rarity);
-  // seller_user_id, not seller_email — see the note in ListingCard. A guest's
-  // seller_email is '' so the email comparison hid Cancel on their own listing.
-  const isMine      = !!currentUser?.id && listing.seller_user_id === currentUser.id;
-  const isSale      = listing.listing_type === 'sale';
-  const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
+  const tint = rarityTint(listing.item_rarity);
+  const isMine = !!currentUser?.id && listing.seller_user_id === currentUser.id;
+  const isSale = listing.listing_type === 'sale';
+  const price = listing.asking_price ?? 0;
+  const canAfford = isSale && flexCoins >= price;
+  const catalog = catalogValue(listing.item_id);
+  const multiple = isSale ? askMultiple(price, catalog) : null;
+  const set = setNumber(listing.item_id);
+  const lastSale = priceStats?.recent?.[0] ?? null;
 
-  // How this listing prices against the item's own history — the single
-  // most useful number here, so it gets called out rather than left for
-  // the buyer to eyeball off the bars.
-  const vsMedian = (isSale && priceStats && listing.asking_price)
-    ? Math.round(((listing.asking_price - priceStats.median) / priceStats.median) * 100)
-    : null;
+  const buy = async () => {
+    if (step === 'idle') { setStep('confirm'); return; }
+    if (step !== 'confirm' || busy) return;
+    setBusy(true);
+    const ok = await onBuyConfirm?.(listing);
+    setBusy(false);
+    setStep(ok ? 'done' : 'idle');
+  };
 
-  // AnimatePresence lives INSIDE the portal, matching ItemIndexModal. A
-  // parent-side AnimatePresence can't drive exit animations on a portaled
-  // subtree, so wrapping it out there would silently skip the exit.
+  const facts = [
+    { k: tFallback('itemDetail.catalogValue', 'Catalog value'), coin: catalog != null, v: catalog != null ? fmt(catalog) : tFallback('itemDetail.none', 'None') },
+    {
+      k: tFallback('itemDetail.lastSale', 'Last priced sale'),
+      coin: lastSale != null,
+      v: lastSale != null ? fmt(lastSale) : tFallback('itemDetail.noneYet', 'None yet'),
+    },
+    ...(priceStats && priceStats.count > 1 ? [{
+      k: tFallback('itemDetail.typical', 'Typical sale'), coin: true, v: fmt(priceStats.median),
+    }] : []),
+    {
+      k: tFallback('itemDetail.otherListings', 'Other {item} listings', { item: listing.item_name }),
+      coin: false,
+      v: alternatives.length > 0 ? fmt(alternatives.length) : tFallback('itemDetail.none', 'None'),
+    },
+  ];
+
   return createPortal(
-    <AnimatePresence>
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
-      <motion.div
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        role="dialog"
-        aria-modal="true"
-        aria-label={listing.item_name}
-        className="relative z-10 w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[88vh] flex flex-col overflow-hidden"
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-      >
-        {/* Hero */}
-        <div className="relative px-5 pt-5 pb-4 border-b border-border">
-          <RarityGlow rarity={listing.item_rarity} className="rounded-none" />
-          <div className="flex items-start gap-2 relative z-10">
-            <div className="flex-1 flex flex-col items-center text-center gap-1.5">
-              <span className="text-6xl leading-none">{listing.item_emoji}</span>
-              <h2 className="font-heading font-bold text-lg leading-tight">{listing.item_name}</h2>
-              <RarityBadge rarity={listing.item_rarity} />
-              {catalogItem?.description && (
-                <p className="text-muted-foreground text-xs max-w-xs mt-0.5">
-                  {lootDescription(catalogItem, tFallback)}
-                </p>
-              )}
-            </div>
+    <div
+      className="fixed inset-0 z-[70] bg-background text-foreground overflow-y-auto overscroll-contain"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="listing-detail-title"
+    >
+      <div className="mx-auto max-w-lg min-h-full flex flex-col">
+        <div className="h-[60px] px-2.5 pt-2 flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            aria-label={tFallback('itemDetail.back', 'Back to market')}
+            className="w-11 h-11 inline-flex items-center justify-center rounded-full"
+          >
+            <ChevronLeft className="w-6 h-6 rtl:scale-x-[-1]" aria-hidden="true" />
+          </button>
+          {!isMine && onToggleSave && (
             <button
               type="button"
-              onClick={onClose}
-              aria-label={tFallback("common.close", "Close")}
-              className="absolute top-0 end-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+              onClick={() => onToggleSave(listing.id)}
+              aria-pressed={!!isSaved}
+              aria-label={tFallback('itemDetail.save', 'Save for later')}
+              className="w-11 h-11 inline-flex items-center justify-center rounded-full"
             >
-              <X className="w-4 h-4" />
+              <Heart className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} aria-hidden="true" />
             </button>
-          </div>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* Price / trade requirement */}
-          <div className="flex items-center justify-between">
-            {isSale ? (
-              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-300 font-bold text-xl">
-                <FlexCoinIcon size={16} />
-                <CoinAmount value={listing.asking_price ?? 0} />
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 font-bold">
-                <Zap className="w-4 h-4" />
-                <TransText k="itemDetailSheet.wantsRarity" en="Wants {rarity}"
-                  values={{ rarity: <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span> }} />
-              </span>
-            )}
-            {!isMine && onToggleSave && (
-              <button
-                type="button"
-                onClick={() => onToggleSave(listing.id)}
-                aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
-              >
-                <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
-                {isSaved ? 'Saved' : 'Save'}
-              </button>
-            )}
+        <div className="px-5 pt-1 flex items-center gap-4">
+          <div className="relative w-[clamp(112px,32vw,136px)] aspect-square shrink-0 rounded-2xl bg-card border flex items-center justify-center">
+            <Sticker itemId={listing.item_id} emoji={listing.item_emoji} rarity={listing.item_rarity} size="74%" shadow />
+            <NotchedCorner />
           </div>
-
-          {/* What it normally goes for */}
-          {priceLoading ? (
-            <div className="h-24 rounded-xl bg-secondary/40 animate-pulse" />
-          ) : priceStats ? (
-            <section className="rounded-xl border border-border bg-secondary/30 p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
-                <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground">
-                  {tFallback("itemDetailSheet.sold", "Sold for")}
-                </h3>
-                <span className="text-micro text-muted-foreground ms-auto">
-                  last {priceStats.count}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="font-bold text-lg">
-                  <CoinAmount value={priceStats.median} />
-                </span>
-                <span className="text-micro text-muted-foreground">
-                  typical · range {priceStats.low}–{priceStats.high}
-                </span>
-              </div>
-              <PriceBars prices={priceStats.recent} color={tint.color} />
-              {vsMedian !== null && Math.abs(vsMedian) >= 5 && (
-                <p className={`text-micro font-semibold mt-2 ${
-                  vsMedian < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                }`}>
-                  This one is {Math.abs(vsMedian)}% {vsMedian < 0 ? 'below' : 'above'} the typical price
-                </p>
-              )}
-            </section>
-          ) : (
-            // Neutral, because we no longer know. This used to branch on the
-            // sold count: "no priced sales yet" when the item had traded, and
-            // "you're early" when it had not. With the count gone there is
-            // nothing to tell those apart, and "you're early" is a claim about
-            // the world we would be making without checking it. Price history
-            // covers completed SALE listings that carried a price, which was
-            // never the same thing as the sold counter anyway (mig 119 counts
-            // trades too) — that mismatch is what put "1 sold all-time"
-            // directly above "no sale history yet" on device.
-            <p className="text-micro text-muted-foreground">
-              {tFallback('itemDetail.noSales', 'No priced sales recorded for this item yet.')}
-            </p>
-          )}
-
-          {/* Other live listings of the same item */}
-          {alternatives.length > 0 && (
-            <section>
-              <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground mb-2">
-                {tFallback("itemDetailSheet.alsoListedRightNow", "Also listed right now")}
-              </h3>
-              <ul className="space-y-1.5">
-                {alternatives.map(alt => (
-                  <li key={alt.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectListing?.(alt)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary active:bg-secondary transition-colors text-start"
-                    >
-                      <Store className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs flex-1 min-w-0 truncate">{displayName(alt)}</span>
-                      {alt.listing_type === 'sale' ? (
-                        <span className="text-xs font-bold text-amber-600 dark:text-amber-300 shrink-0">
-                          <CoinAmount value={alt.asking_price ?? 0} />
-                        </span>
-                      ) : (
-                        <span className="text-micro font-bold text-blue-600 dark:text-blue-300 shrink-0">
-                          {tFallback("itemDetailSheet.trade", "Trade")}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* Seller */}
-          <section className="flex items-center justify-between pt-1">
-            <span className="text-micro text-muted-foreground">
-              <TransText k="itemDetailSheet.listedBy" en="Listed by {seller}"
-                values={{ seller: <span className="text-foreground font-medium">{displayName(listing)}</span> }} />
+          <div className="min-w-0 flex flex-col gap-1.5">
+            {set && (
+              <span className="stamp">
+                {tFallback('itemDetail.setNo', 'No. {no} of {total}', { no: formatSetNo(set.no), total: set.total })}
+              </span>
+            )}
+            <h2 id="listing-detail-title" className="font-display text-display break-anywhere">{listing.item_name}</h2>
+            <span className="inline-flex items-center gap-2 text-label font-semibold" style={{ color: tint.color }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: tint.color }} aria-hidden="true" />
+              {rarityName(tFallback, listing.item_rarity)}
             </span>
-            {!isMine && onSellerClick && (
-              <button
-                type="button"
-                onClick={() => onSellerClick(listing.seller_user_id)}
-                className="text-micro font-bold text-primary hover:underline"
-              >
-                View profile →
-              </button>
+            {catalogItem?.description && (
+              <span className="text-label text-muted-foreground">{lootDescription(catalogItem, tFallback)}</span>
             )}
-          </section>
+          </div>
         </div>
 
-        {/* Sticky CTA */}
-        <div className="px-5 py-3 border-t border-border bg-card">
-          {isMine ? (
-            <button
-              onClick={() => onCancel(listing)}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
-            >
-              {tFallback("itemDetailSheet.cancelListing", "Cancel listing")}
-            </button>
-          ) : isSale ? (
-            <button
-              onClick={() => onBuy(listing)}
-              disabled={!canAfford}
-              className={[
-                'w-full py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5',
-                canAfford
-                  ? 'bg-primary text-primary-foreground hover:opacity-90'
-                  : 'bg-secondary text-muted-foreground border border-border cursor-not-allowed',
-              ].join(' ')}
-            >
-              {!canAfford && <Lock className="w-3.5 h-3.5" />}
-              {canAfford
-                ? <TransText k="itemDetailSheet.buyForPrice" en="Buy · {price}"
-                    values={{ price: <CoinAmount value={listing.asking_price ?? 0} /> }} />
-                : <TransText k="itemDetailSheet.needMoreCoins" en="Need {amount} more"
-                    values={{ amount: <CoinAmount value={(listing.asking_price ?? 0) - flexCoins} /> }} />}
-            </button>
+        <div className="px-5 pt-6 flex flex-col gap-1.5">
+          <span className="eyebrow">
+            {isSale ? tFallback('itemDetail.asking', 'Asking') : tFallback('itemDetail.wants', 'Wants in trade')}
+          </span>
+          {isSale ? (
+            <span className="inline-flex items-center gap-2.5">
+              <FlexCoinIcon size={32} />
+              <span className="font-display text-display tabular-nums">{fmt(price)}</span>
+            </span>
           ) : (
-            <button
-              onClick={() => onOfferTrade(listing)}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 active:bg-blue-500/20 transition-colors"
-            >
-              {tFallback("itemDetailSheet.offerATrade", "Offer a trade")}
-            </button>
+            <span className="font-display text-display">
+              {listing.trade_for_rarity
+                ? tFallback('itemDetail.rarityOrBetter', '{rarity} or better', { rarity: rarityName(tFallback, listing.trade_for_rarity) })
+                : tFallback('itemDetail.anySticker', 'Any sticker')}
+            </span>
           )}
         </div>
-      </motion.div>
-    </div>
-    </AnimatePresence>,
+
+        <dl className="mx-5 mt-4 border-t">
+          {facts.map(f => (
+            <div key={f.k} className="h-12 border-b flex items-center justify-between gap-3 text-body">
+              <dt className="text-muted-foreground truncate">{f.k}</dt>
+              <dd className="inline-flex items-center gap-1.5 font-semibold tabular-nums shrink-0">
+                {f.coin && <FlexCoinIcon size={14} />}{f.v}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        {multiple != null && (
+          <p className="mx-5 mt-2 text-label text-muted-foreground">
+            {tFallback('itemDetail.askMultiple', 'Sellers set their own prices. This one asks {n} times the catalog value.', { n: fmt(multiple) })}
+          </p>
+        )}
+
+        {alternatives.length > 0 && (
+          <div className="mx-5 mt-4 flex flex-col">
+            <span className="eyebrow pb-1">{tFallback('itemDetailSheet.alsoListedRightNow', 'Also listed right now')}</span>
+            {alternatives.slice(0, 4).map(alt => (
+              <button
+                key={alt.id}
+                type="button"
+                onClick={() => onSelectListing?.(alt)}
+                className="h-12 border-t flex items-center gap-2 text-start text-body"
+              >
+                <span className="flex-1 min-w-0 truncate">{displayName(alt)}</span>
+                <span className="inline-flex items-center gap-1 font-semibold tabular-nums">
+                  {alt.listing_type === 'sale'
+                    ? <><FlexCoinIcon size={14} />{fmt(alt.asking_price ?? 0)}</>
+                    : tFallback('itemDetailSheet.trade', 'Trade')}
+                </span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isMine ? (
+          <p className="mx-5 mt-5 h-14 border-y flex items-center text-body text-muted-foreground">
+            {tFallback('itemDetail.yourListing', 'This is your listing.')}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSellerClick?.(listing.seller_user_id)}
+            disabled={!onSellerClick}
+            className="mx-5 mt-5 h-14 border-y flex items-center gap-2 text-start"
+          >
+            <span className="w-8 h-8 rounded-full bg-border inline-flex items-center justify-center text-label font-bold shrink-0" aria-hidden="true">
+              {(displayName(listing) || '?').slice(0, 1).toUpperCase()}
+            </span>
+            <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="text-caption text-muted-foreground">{tFallback('itemDetail.listedBy', 'Listed by')}</span>
+              <span className="text-body font-semibold truncate">{displayName(listing)}</span>
+            </span>
+            <span className="text-label font-semibold">{tFallback('itemDetail.profile', 'Profile')}</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+          </button>
+        )}
+
+        <div className="h-6 shrink-0" />
+        {/* Pinned actions. */}
+        <div className="sticky bottom-0 mt-auto px-5 pt-3 pb-4 bg-background flex flex-col gap-1">
+          {isMine ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onCancel?.(listing)}
+                className="h-14 rounded-full border font-display text-title"
+              >
+                {tFallback('itemDetailSheet.cancelListing', 'Cancel listing')}
+              </button>
+              {onDelete && (
+                <button type="button" onClick={() => onDelete(listing)} className="h-11 text-label font-semibold text-destructive">
+                  {tFallback('listingCard.deleteListing', 'Delete listing')}
+                </button>
+              )}
+            </>
+          ) : isSale ? (
+            <>
+              <div className="flex justify-between text-label pb-1">
+                <span className="text-muted-foreground">
+                  {step === 'done'
+                    ? tFallback('itemDetail.inYourSet', '{item} is in your bag', { item: listing.item_name })
+                    : step === 'confirm'
+                      ? tFallback('itemDetail.afterThis', 'After this you have')
+                      : tFallback('itemDetail.balance', 'Your balance')}
+                </span>
+                <span className={`inline-flex items-center gap-1 font-semibold tabular-nums ${step === 'done' ? 'text-success' : ''}`}>
+                  <FlexCoinIcon size={13} />
+                  {step === 'confirm'
+                    ? fmt(flexCoins - price)
+                    : step === 'done'
+                      ? tFallback('itemDetail.left', '{n} left', { n: fmt(flexCoins) })
+                      : fmt(flexCoins)}
+                </span>
+              </div>
+              {step === 'done' ? (
+                <div className="h-14 rounded-full bg-card border inline-flex items-center justify-center gap-2 font-display text-title text-success" role="status">
+                  <Check className="w-5 h-5" aria-hidden="true" />
+                  {tFallback('itemDetail.bought', 'Bought')}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={buy}
+                  disabled={!canAfford || busy}
+                  aria-busy={busy}
+                  className="h-14 rounded-full bg-primary text-primary-foreground font-display text-title disabled:opacity-50"
+                >
+                  {!canAfford
+                    ? tFallback('itemDetail.needMore', 'You need {n} more', { n: fmt(price - flexCoins) })
+                    : step === 'confirm'
+                      ? tFallback('itemDetail.confirm', 'Confirm {price}', { price: fmt(price) })
+                      : tFallback('itemDetail.buyFor', 'Buy for {price}', { price: fmt(price) })}
+                </button>
+              )}
+              {step === 'confirm' ? (
+                <button type="button" onClick={() => setStep('idle')} disabled={busy} className="h-11 text-label font-semibold">
+                  {tFallback('common.cancel', 'Cancel')}
+                </button>
+              ) : step === 'done' ? (
+                <button type="button" onClick={onClose} className="h-11 text-label font-semibold">
+                  {tFallback('itemDetail.back', 'Back to market')}
+                </button>
+              ) : onMessageSeller && (
+                <button type="button" onClick={() => onMessageSeller(listing)} className="h-11 text-label font-semibold">
+                  {tFallback('itemDetail.message', 'Message the seller')}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onOfferTrade?.(listing)}
+                className="h-14 rounded-full bg-primary text-primary-foreground font-display text-title"
+              >
+                {tFallback('itemDetailSheet.offerATrade', 'Offer a trade')}
+              </button>
+              {onMessageSeller && (
+                <button type="button" onClick={() => onMessageSeller(listing)} className="h-11 text-label font-semibold">
+                  {tFallback('itemDetail.message', 'Message the seller')}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
     document.body,
   );
 }

@@ -10,21 +10,16 @@
 // friendly toast when the purchase fails so we can roll the migration
 // out in stages.
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Gift, Loader2, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { BRANDED_ITEMS, getDailyDrop } from '@/lib/lootCatalog';
-import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
+import { getDailyDrop } from '@/lib/lootCatalog';
+import Sticker from '@/components/capsules/Sticker';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
+import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-
-// Tints derive from lootCatalog.RARITY via rarityTint. The hand-written
-// map that used to live here covered only six of the seven tiers (no
-// `animated`), so a legendary-tier branded item and an animated one
-// rendered identically — and its zinc/sky/violet palette didn't match the
-// catalog's own slate/blue/purple anyway.
 
 function msUntilLocalMidnight() {
   const now = new Date();
@@ -44,6 +39,7 @@ function formatCountdown(ms) {
 
 export default function DailyFlexynDrop() {
   const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   const { user } = useAuth();
   const [drop, setDrop] = useState(() => getDailyDrop());
   const [purchasing, setPurchasing] = useState(null); // sku of in-flight buy
@@ -110,76 +106,48 @@ export default function DailyFlexynDrop() {
 
   if (drop.length === 0) return null;
 
+  // The round 2 layout: a hairline, "Today's drop" with the time to the next
+  // one, and three stickers with their prices. Each tile is its own buy.
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      // Flat card, hairline border. It wore a primary to amber gradient, which
-      // is decoration, and its Sparkles icon is reserved for the AI Coach.
-      // Rarity still reads, from each tile's ring and tier label.
-      className="mb-4 rounded-2xl border border-border bg-card p-3 md:p-4 relative overflow-hidden"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center">
-            <Gift className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="font-heading font-bold text-sm leading-none">{tFallback("dailyFlexynDrop.todaySFlexynDrop", "Today's Flexyn Drop")}</p>
-            <p className="text-micro text-muted-foreground mt-0.5">Rotates in {formatCountdown(remaining)}</p>
-          </div>
-        </div>
+    <section className="pt-3 border-t flex flex-col gap-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="eyebrow">{tFallback('dailyFlexynDrop.title', "Today's drop")}</h2>
+        <span className="text-caption text-muted-foreground tabular-nums">
+          {tFallback('dailyFlexynDrop.newIn', 'New in {time}', { time: formatCountdown(remaining) })}
+        </span>
       </div>
-
-      <div className="grid grid-cols-3 gap-2">
+      <ul className="flex justify-between gap-2">
         {drop.map(item => {
-          const tint = rarityTint(item.rarity);
           const owned = purchased.has(item.id);
           const busy = purchasing === item.id;
           return (
-            <div
-              key={item.id}
-              className="relative rounded-xl bg-card ring-1 p-2.5 flex flex-col items-center text-center"
-              // The ring is the rarity tier, which is what purple is for. The
-              // tinted gradient that used to fill the tile was decoration.
-              style={{ '--tw-ring-color': tint.ring }}
-            >
-              <span className="text-3xl leading-none mb-1.5" aria-hidden="true">{item.emoji}</span>
-              <p className="font-heading font-bold text-micro leading-tight line-clamp-2 h-7">
-                {item.name}
-              </p>
-              <p
-                className="text-micro font-bold uppercase tracking-wide mt-0.5"
-                style={{ color: tint.color }}
-              >
-                {tint.label}
-              </p>
+            <li key={item.id} className="flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => buy(item)}
                 disabled={busy || owned}
-                // Outline, not --primary: three price buttons side by side
-                // were three orange controls on a page that gets one.
-                className={`mt-2 w-full inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md border text-micro font-bold transition-colors ${
-                  owned
-                    ? 'border-transparent bg-success/15 text-success cursor-default'
-                    : 'border-border bg-background text-foreground hover:bg-secondary active:bg-secondary disabled:opacity-50'
-                }`}
+                aria-busy={busy}
+                aria-label={owned
+                  ? tFallback('dailyFlexynDrop.ownedLabel', '{name}, owned', { name: item.name })
+                  : tFallback('dailyFlexynDrop.buyLabel', 'Buy {name} for {price} coins', { name: item.name, price: fmt(item.baseCoins) })}
+                className="w-full min-h-11 flex flex-col items-center gap-2 disabled:cursor-default"
               >
-                {owned
-                  ? <><Check className="w-3 h-3" /> {tFallback("dailyFlexynDrop.owned", "Owned")}</>
-                  : busy
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
-                    : <>{COIN} {item.baseCoins}</>}
+                <Sticker itemId={item.id} emoji={item.emoji} rarity={item.rarity} size={52} />
+                <span className="flex flex-col items-center gap-0.5 min-w-0 max-w-full">
+                  <span className="text-label font-semibold truncate max-w-full">{item.name}</span>
+                  <span className={`inline-flex items-center gap-1 text-caption tabular-nums ${owned ? 'text-success' : 'text-muted-foreground'}`}>
+                    {owned
+                      ? <><Check className="w-3 h-3" aria-hidden="true" />{tFallback('dailyFlexynDrop.owned', 'Owned')}</>
+                      : busy
+                        ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                        : <><FlexCoinIcon size={12} />{fmt(item.baseCoins)}</>}
+                  </span>
+                </span>
               </button>
-            </div>
+            </li>
           );
         })}
-      </div>
-      <p className="text-micro text-muted-foreground/80 mt-2 text-center">
-        New drop every day at midnight · {BRANDED_ITEMS.length} branded items total
-      </p>
-    </motion.div>
+      </ul>
+    </section>
   );
 }

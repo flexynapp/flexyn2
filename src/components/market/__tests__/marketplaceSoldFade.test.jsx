@@ -88,8 +88,6 @@ vi.mock('../TodayRail', () => ({ default: () => null }));
 vi.mock('../ItemDetailSheet', () => ({ default: () => null }));
 vi.mock('../ListItemDialog', () => ({ default: () => null }));
 vi.mock('../TradeOfferDialog', () => ({ default: () => null }));
-vi.mock('../BuyConfirmDialog', () => ({ default: () => null }));
-vi.mock('@/components/hub/CoinShopModal', () => ({ default: () => null }));
 vi.mock('@/components/hub/RecentlyViewedRail', () => ({ default: () => null }));
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,

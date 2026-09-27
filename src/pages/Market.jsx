@@ -4,8 +4,7 @@
 // navigate cleanly to /messages with a pending conversation target.
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Lock, LibraryBig } from 'lucide-react';
+import { GraduationCap, Lock } from 'lucide-react';
 import MarketplaceFeed from '@/components/market/MarketplaceFeed';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CollectionModal from '@/components/loot/CollectionModal';
@@ -14,43 +13,28 @@ import { useStartConversation } from '@/lib/hubMessaging';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function Market() {
-  const { t, tFallback } = useLanguage();
-  const navigate = useNavigate();
+  const { tFallback } = useLanguage();
   const startConversation = useStartConversation();
   const [indexOpen, setIndexOpen] = useState(false);
 
   return (
-    <div className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto">
-      {/* Header row — Browse every item button (book icon).
-          There is deliberately NO <h1> here. On mobile the fixed app header
-          already renders "Marketplace" as the child-route title (see
-          Header.jsx CHILD_ROUTES); on lg+ that header is hidden but
-          MarketplaceHeader renders its own "Marketplace" heading
-          unconditionally — so a page-level h1 meant the word appeared twice
-          on every desktop viewport. MarketplaceHeader owns the title now. */}
-      <div className="flex items-center justify-end mb-3">
-        <button
-          type="button"
-          onClick={() => setIndexOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary active:bg-secondary transition-colors text-xs font-semibold"
-          title={tFallback("market.everythingInTheGame", "Everything in the game, and what you're still missing")}
-        >
-          <LibraryBig className="w-3.5 h-3.5" />
-          {tFallback("collectionModal.collection", "Collection")}
-        </button>
-      </div>
-
-
+    <div className="px-4 pt-1 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto">
       <ErrorBoundary label="Market">
-        <MarketplaceFeed onStartConversation={startConversation} />
+        <MarketplaceFeed onStartConversation={startConversation} onOpenCollection={() => setIndexOpen(true)} />
       </ErrorBoundary>
+
+      {/* Today's drop sits under the listings: the page is for listings,
+          and the drop is the thing you find after scanning them. */}
+      <div className="mt-6">
+        <DailyFlexynDrop />
+      </div>
 
       {/* Trainer Programs, coming soon. It used to open the page, above the
           listings, with a violet gradient, a pulsing violet glow, a shimmer
           and a purple pill. Purple is for rarity only, and a feature you
           cannot use yet should not be the first thing on the page, so it is
           a quiet flat row under the feed. */}
-      <div className="w-full mt-6 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-start select-none">
+      <div className="w-full mt-6 mb-6 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-start select-none">
         <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
           <GraduationCap className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
         </div>
@@ -64,16 +48,6 @@ export default function Market() {
           </div>
           <p className="text-xs text-muted-foreground">{tFallback("market.trainerProgramsSub", "Premium regimens from certified creators, launching soon")}</p>
         </div>
-      </div>
-
-      {/* Daily Flexyn Drop — branded items, rotates every 24h.
-          Moved BELOW the main marketplace feed per user feedback:
-          the drop was eating prime real-estate at the top of the page
-          where users expect to see browse/feed/listings. It still
-          rotates daily and counts as "today's drop" — just lives
-          underneath the main marketplace UI now. */}
-      <div className="mt-4">
-        <DailyFlexynDrop />
       </div>
 
       <CollectionModal open={indexOpen} onClose={() => setIndexOpen(false)} />

@@ -2,8 +2,9 @@
 //
 // Marketplace orchestrator — data fetching, mutation handlers, and layout.
 // The presentational pieces live alongside this file:
-//   MarketplaceHeader · DailyChestBlock · ListingCard · BundleCard
-//   ListItemDialog · TradeOfferDialog · BuyConfirmDialog
+//   MarketplaceHeader · TodayRail (DailyChestBlock) · MarketFilterBar
+//   ListingCard (a row) · BundleCard · ItemDetailSheet (detail + buy)
+//   ListItemDialog · TradeOfferDialog
 //
 // This file used to be ~1,500 lines containing all of the above inline.
 
@@ -11,7 +12,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { ShoppingBag, Heart, Package, SearchX } from 'lucide-react';
+import { ShoppingBag, Heart, Package, SearchX, Plus, ArrowUpDown, LibraryBig, ChevronRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { reportError } from '@/lib/reportError';
@@ -19,13 +20,13 @@ import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import * as wishlist from '@/lib/data/marketplaceWishlist';
 import * as bundles from '@/lib/data/marketplaceBundles';
+import * as capsules from '@/lib/data/capsules';
 import { getFlexCoins } from '@/lib/data/coinShop';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
-import CoinShopModal from '@/components/hub/CoinShopModal';
+import { requestOpenBag } from '@/lib/inventoryFlow';
 import RecentlyViewedRail from '@/components/hub/RecentlyViewedRail';
 import MarketplaceHeader from './MarketplaceHeader';
 import TodayRail from './TodayRail';
-import { isDailyChestClaimedLocally } from './dailyChest';
 import MarketFilterBar, { DEFAULT_FILTERS, applyFilters, activeFilterCount } from './MarketFilterBar';
 import ListingCard from './ListingCard';
 import BundleCard, { bundlePrice } from './BundleCard';
@@ -33,28 +34,14 @@ import ItemDetailSheet from './ItemDetailSheet';
 import ListItemDialog from './ListItemDialog';
 import CreateBundleDialog from './CreateBundleDialog';
 import TradeOfferDialog from './TradeOfferDialog';
-import BuyConfirmDialog from './BuyConfirmDialog';
-import { tileRow } from '@/lib/tileRows';
 import { LIST_PRESENCE } from '@/lib/listMotion';
 import { useLanguage } from '@/lib/LanguageContext';
 
-// The listings feed: 2 cards per row on a phone, 3 from sm, wrapped and
-// centred — a marketplace holds however many listings it holds, so a partial
-// last row is the norm. `align: 'start'` stops a card stretching to the
-// tallest card on its line. ListingCard asks tileRow() for the SAME spec, so
-// the two halves agree by construction rather than by a copied string.
-//
-// NOT applied to the bundles row below. Every BundleCard is `col-span-full`,
-// so that row is a full-width stack with no partial row to centre — and
-// `col-span-full` is a GRID property a flex container silently ignores, so
-// converting it would collapse each bundle to its content width.
-//
+// The listings are rows now (the round 2 design), in a plain list.
 // `relative` is required, not cosmetic: AnimatePresence runs in popLayout
-// mode here, which absolutely-positions an exiting card from its measured
-// offsetTop/offsetLeft. Those are relative to the nearest POSITIONED
-// ancestor, so a static row sends every exiting card to coordinates measured
-// against something further up the tree.
-const LISTING_ROW = `${tileRow({ gap: 3, cols: 2, smCols: 3, align: 'start' }).row} relative`;
+// mode here, which absolutely-positions an exiting row from its measured
+// offset, relative to the nearest POSITIONED ancestor.
+const LISTING_LIST = 'relative flex flex-col border-b';
 
 // Stable empty values. A `= []` / `= new Map()` default in a destructured
 // useQuery result allocates a NEW one on every render, which changes the
@@ -75,26 +62,15 @@ const SORT_TO_QUERY = {
   'price-desc': ['price',  'desc'],
 };
 
-export default function MarketplaceFeed() {
+export default function MarketplaceFeed({ onStartConversation, onOpenCollection }) {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
-  // One orange control per screen. While today's Daily Chest is unclaimed,
-  // Claim is the Market's acting button and List Item steps down to an
-  // outline; once it is claimed (or there is no chest to claim) List Item
-  // takes the primary back. The local hint is the same one the chest itself
-  // reads on cold load, and the chest reports when a claim settles.
-  const [chestClaimed, setChestClaimed] = useState(() => {
-    try { return isDailyChestClaimedLocally(user?.id); } catch { return false; }
-  });
   const qc       = useQueryClient();
   const navigate = useNavigate();
 
   const [showListDialog,   setShowListDialog]   = useState(false);
   const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [tradeTarget,    setTradeTarget]    = useState(null);
-  const [buyTarget,      setBuyTarget]      = useState(null);
-  const [buyBusy,        setBuyBusy]        = useState(false);
-  const [shopOpen,       setShopOpen]       = useState(false);
 
   // Sold-fade tracking — the listing ROWS that just disappeared from the
   // active feed. We render the SOLD overlay for ~5s before the listing
@@ -257,7 +233,7 @@ export default function MarketplaceFeed() {
     if (!user?.id) return;
     try {
       const result = await marketplace.purchaseBundle(bundle.id);
-      toast.success(`Bundle purchased! 🪙 ${result.paid_price} spent. Items are yours.`);
+      toast.success(tFallback('marketplaceFeed.bundleBought', 'Bundle bought for {price} coins. The items are in your bag.', { price: result.paid_price }));
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['marketplaceBundles'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
@@ -269,15 +245,15 @@ export default function MarketplaceFeed() {
       // does one whose listings have all sold.
       const raw = err.message || '';
       const msg =
-          raw.includes('insufficient_coins')      ? 'Not enough coins for this bundle.'
-        : raw.includes('bundle_not_available')    ? 'This bundle is no longer available.'
-        : raw.includes('cannot_buy_own_bundle')   ? "That's your own bundle — you can't buy it."
-        : raw.includes('bundle_empty')            ? 'Everything in this bundle has already sold.'
-        : raw.includes('bundle_not_found')        ? 'This bundle is no longer available.'
-        : 'Could not purchase bundle — try again.';
+          raw.includes('insufficient_coins')      ? tFallback('marketplaceFeed.bundleShort', 'Not enough coins for this bundle.')
+        : raw.includes('bundle_not_available')    ? tFallback('marketplaceFeed.bundleGone', 'This bundle is no longer available.')
+        : raw.includes('cannot_buy_own_bundle')   ? tFallback('marketplaceFeed.bundleOwn', 'That is your own bundle, so you cannot buy it.')
+        : raw.includes('bundle_empty')            ? tFallback('marketplaceFeed.bundleEmpty', 'Everything in this bundle has already sold.')
+        : raw.includes('bundle_not_found')        ? tFallback('marketplaceFeed.bundleGone', 'This bundle is no longer available.')
+        : tFallback('marketplaceFeed.bundleFailed', 'Could not buy the bundle. Try again.');
       toast.error(msg);
     }
-  }, [user?.id, user?.email, qc]);
+  }, [user?.id, user?.email, qc, tFallback]);
 
   // ── Bundling your own listings ─────────────────────────────────────────────
   //
@@ -444,6 +420,16 @@ export default function MarketplaceFeed() {
   });
   const flexCoins = liveCoins ?? user?.flex_coins ?? 0;
 
+  // Unopened capsules, for the badge on the header's capsule button and the
+  // shelf row. Same key and reader as the bag's own badge, so one fetch
+  // serves both.
+  const { data: capsuleCount = 0 } = useQuery({
+    queryKey: ['userCapsulesCount', user?.email],
+    queryFn: async () => (await capsules.listUnopenedCapsules(user.email)).length,
+    enabled: !!user?.email,
+    staleTime: 30_000,
+  });
+
   // ── Refresh ────────────────────────────────────────────────────────────────
   //
   // The header's refresh button used to be `() => refetch()`, which reloaded
@@ -477,6 +463,7 @@ export default function MarketplaceFeed() {
         // gated on, so a refresh that skipped it left the most consequential
         // value on the page as the one thing the button couldn't reload.
         qc.invalidateQueries({ queryKey: ['flexCoins', user?.id] }),
+        qc.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] }),
       ]);
     } catch (err) {
       // The listings query renders its own error state, so this is only
@@ -622,9 +609,10 @@ export default function MarketplaceFeed() {
   // transfers the inventory row, marks the listing completed — all in one
   // transaction. Replaces a 5-step client-orchestrated sequence that had a
   // double-sell race and a free-item cheat path.
-  const handleBuyConfirm = useCallback(async () => {
-    if (!buyTarget || !user) return;
-    setBuyBusy(true);
+  // Returns whether the purchase went through, so the detail screen can move
+  // to its Bought state or stay where it was.
+  const handleBuyListing = useCallback(async (buyTarget) => {
+    if (!buyTarget || !user) return false;
     try {
       await marketplace.purchaseListing(buyTarget.id);
       // Flag this listing for the warmer YOURS! sold-fade variant BEFORE
@@ -643,7 +631,7 @@ export default function MarketplaceFeed() {
         emoji: buyTarget.item_emoji,
         name: buyTarget.item_name,
       }));
-      setBuyTarget(null);
+      return true;
     } catch (err) {
       reportError(err, { feature: 'marketplace.purchase', level: 'warning', userEmail: user?.email });
       const msg = err?.message || '';
@@ -660,10 +648,9 @@ export default function MarketplaceFeed() {
       } else {
         toast.error(tFallback("marketplaceFeed.purchaseFailed", "Purchase failed: {reason}", { reason: msg || tFallback('marketplaceFeed.unknownError', 'unknown error') }));
       }
-    } finally {
-      setBuyBusy(false);
+      return false;
     }
-  }, [buyTarget, user, qc]);
+  }, [user, qc, tFallback]);
 
   // Everything the grid could show before ANY filter runs. Bundled listings
   // are always excluded because they're rendered as bundle cards above.
@@ -694,6 +681,13 @@ export default function MarketplaceFeed() {
     () => browsableListings.reduce((n, l) => n + (savedIds.has(l.id) ? 1 : 0), 0),
     [browsableListings, savedIds]
   );
+
+  // Counts on the All / Buy / Trade control, over what Saved leaves.
+  const typeCounts = useMemo(() => {
+    let sale = 0;
+    viewListings.forEach(l => { if (l.listing_type === 'sale') sale += 1; });
+    return { all: viewListings.length, sale, trade: viewListings.length - sale };
+  }, [viewListings]);
 
   // Rarities actually on the market, so the bar can stop offering tiers that
   // can only ever return nothing.
@@ -756,10 +750,6 @@ export default function MarketplaceFeed() {
   // for the refresh spinner, the detail sheet, a purchase, a wishlist tap and
   // five queries settling. Each of those re-rendered all 60 tiles, and when
   // one lands mid-filter it re-renders them while framer is animating them.
-  const handleBuyClick = useCallback((l) => {
-    if (user?.email) addRecentlyViewed(user.email, l);
-    setBuyTarget(l);
-  }, [user?.email]);
   const handleTradeClick = useCallback((l) => {
     if (user?.email) addRecentlyViewed(user.email, l);
     setTradeTarget(l);
@@ -774,13 +764,12 @@ export default function MarketplaceFeed() {
     flexCoins,
     onCancel: handleCancel,
     onDelete: handleDelete,
-    onBuy: handleBuyClick,
     onOfferTrade: handleTradeClick,
     onSellerClick: handleSellerClick,
     onToggleSave: handleToggleSave,
     onOpenDetail: handleOpenDetail,
   }), [
-    user, flexCoins, handleCancel, handleDelete, handleBuyClick, handleTradeClick,
+    user, flexCoins, handleCancel, handleDelete, handleTradeClick,
     handleSellerClick, handleToggleSave, handleOpenDetail,
   ]);
 
@@ -791,125 +780,106 @@ export default function MarketplaceFeed() {
   const soldCardProps = useMemo(() => ({
     ...cardProps,
     recentlySold: true,
-    onBuy: NOOP,
     onCancel: NOOP,
     onDelete: NOOP,
     onOfferTrade: NOOP,
     onOpenDetail: undefined,
   }), [cardProps]);
 
+  const rowLink = 'h-12 border-t flex items-center gap-2 text-label font-semibold text-start';
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       <MarketplaceHeader
         flexCoins={flexCoins}
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        onList={() => setShowListDialog(true)}
-        onOpenTradeHistory={() => navigate('/market/trades')}
-        listableCount={listableCount}
-        listIsPrimary={!user || chestClaimed}
+        capsuleCount={capsuleCount}
+        onOpenCapsules={() => navigate('/market/capsules')}
+        onOpenBag={requestOpenBag}
       />
 
       <TodayRail
         user={user}
-        onClaimedState={() => setChestClaimed(true)}
+        capsuleCount={capsuleCount}
+        onOpenCapsules={() => navigate('/market/capsules')}
         onClaimed={() => {
-          // The chest pays coins, so the balance has to move — this used to
-          // invalidate only ['userProfile'], which nothing on this screen
-          // reads, so claiming left the header on the pre-claim number.
+          // The chest pays coins and a capsule, so the balance and both
+          // capsule counts have to move.
           qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
           qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
           qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+          qc.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+          qc.invalidateQueries({ queryKey: ['userCapsules', user.email] });
         }}
-        onOpenShop={() => setShopOpen(true)}
       />
 
+      <div className="h-2" />
       <MarketFilterBar
         filters={filters}
         onChange={setFilters}
         resultCount={visibleListings.length}
-        // The count before ANY narrowing, Saved included. It used to be
-        // viewListings.length, which already had Saved applied — so with
-        // Saved on, the row read "3 of 3 listings" and the denominator
-        // stopped meaning anything.
+        // The count before ANY narrowing, Saved included.
         totalCount={browsableListings.length}
         savedCount={savedHereCount}
         availableRarities={availableRarities}
+        typeCounts={typeCounts}
       />
 
-      {/* Listings grid */}
       {loadingListings ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-20" role="status" aria-label={tFallback('marketplaceFeed.loading', 'Loading listings')}>
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
       ) : listingsError ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
-          <p className="text-muted-foreground font-medium">{tFallback("marketplaceFeed.couldNotLoadListings", "Could not load listings")}</p>
-          <button onClick={() => refetch()} className="text-primary text-sm hover:underline">
-            {tFallback("errorBoundary.tryAgain", "Try again")}
+          <ShoppingBag className="w-10 h-10 text-muted-foreground/50" aria-hidden="true" />
+          <p className="text-muted-foreground font-medium">{tFallback('marketplaceFeed.couldNotLoadListings', 'Could not load listings')}</p>
+          <button onClick={() => refetch()} className="h-11 px-4 text-label font-semibold">
+            {tFallback('errorBoundary.tryAgain', 'Try again')}
           </button>
         </div>
       ) : filters.saved && savedIds.size === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <Heart className="w-12 h-12 text-muted-foreground/50" />
-          <p className="font-heading font-bold">{tFallback("marketplaceFeed.noSavedListingsYet", "No saved listings yet")}</p>
-          <p className="text-muted-foreground text-sm max-w-xs">
-            Tap the ♥ on any listing to save it here.
+        <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
+          <Heart className="w-10 h-10 text-muted-foreground/50" aria-hidden="true" />
+          <p className="font-semibold">{tFallback('marketplaceFeed.noSavedListingsYet', 'No saved listings yet')}</p>
+          <p className="text-muted-foreground text-label max-w-xs">
+            {tFallback('marketplaceFeed.savedHint', 'Tap the heart on a listing to save it here.')}
           </p>
           <button
             onClick={() => setFilters(f => ({ ...f, saved: false }))}
-            className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
+            className="h-11 px-4 text-label font-semibold"
           >
-            Browse marketplace →
+            {tFallback('marketplaceFeed.browseAll', 'Show every listing')}
           </button>
         </div>
       ) : listings.length === 0 && soldFading.size === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
-          <p className="font-heading font-bold">{tFallback("marketplaceFeed.marketplaceIsQuiet", "Marketplace is quiet")}</p>
-          <p className="text-muted-foreground text-sm max-w-xs">
-            No one&apos;s listing right now — be the trendsetter.
+        <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
+          <ShoppingBag className="w-10 h-10 text-muted-foreground/50" aria-hidden="true" />
+          <p className="font-semibold">{tFallback('marketplaceFeed.marketplaceIsQuiet', 'Marketplace is quiet')}</p>
+          <p className="text-muted-foreground text-label max-w-xs">
+            {tFallback('marketplaceFeed.quietHint', 'Nobody is listing right now. Yours could be the first.')}
           </p>
-          {listableCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowListDialog(true)}
-              className="mt-2 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-opacity"
-            >
-              List the first item →
-            </button>
-          )}
         </div>
       ) : (
         <>
-          {/* Bundle your own listings. Deliberately NOT a card or a banner:
-              this page was already criticised for the amount of chrome
-              between the user and the listings, and most viewers are buyers
-              for whom this is noise. It appears only for someone holding two
-              or more bundleable listings — i.e. only when the tap would
-              actually do something. */}
+          {/* Bundle your own listings: only for someone holding two or more
+              bundleable listings, i.e. only when the tap would do something. */}
           {bundleableListings.length >= bundles.BUNDLE_MIN_LISTINGS && !filters.saved && (
             <button
               type="button"
               onClick={() => setShowBundleDialog(true)}
-              className="self-start -mt-1 mb-1 flex items-center gap-1.5 text-micro font-bold text-amber-600 dark:text-amber-300 hover:underline"
+              className="self-start h-11 flex items-center gap-1.5 text-label font-semibold"
             >
-              <Package className="w-3.5 h-3.5" />
-              Bundle {bundleableListings.length} of your listings →
+              <Package className="w-4 h-4" aria-hidden="true" />
+              {tFallback('marketplaceFeed.bundleYours', 'Bundle {n} of your listings', { n: bundleableListings.length })}
             </button>
           )}
 
-          {/* Bundle deal rows (mig 134) — browse view only. Bundled items
-              are excluded from the regular grid below. */}
+          {/* Bundle deal rows (mig 134). Bundled items are excluded from the
+              list below. */}
           {visibleBundles.length > 0 && (
             <div className="mb-4">
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Package className="w-3.5 h-3.5 text-amber-500" />
-                <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-500">
-                  {tFallback("marketplaceFeed.bundleDeals", "Bundle deals")}
-                </h3>
-              </div>
+              <h3 className="eyebrow pb-2">{tFallback('marketplaceFeed.bundleDeals', 'Bundle deals')}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 relative">
                 <AnimatePresence {...LIST_PRESENCE}>
                   {visibleBundles.map(bundle => (
@@ -928,19 +898,10 @@ export default function MarketplaceFeed() {
             </div>
           )}
 
-          {/* The row is a plain div. It used to be `<motion.div layout>`,
-              which added a projection node whose only job was animating the
-              row's own height — so while 40 cards flew toward their new
-              slots, the container they were flying into was moving too.
-              With exits out of flow the row can just snap to its new height.
-
-              `isPlaceholderData` is the sort-change window: the rows on
-              screen are the previous sort's, correct but about to reorder.
-              A light dim says "this is being replaced" without the teardown
-              a spinner caused. Safe as a CSS transition here — nothing on
-              this element is framer-animated any more. */}
-          <div
-            className={`${LISTING_ROW} transition-opacity duration-150 ${
+          {/* `isPlaceholderData` is the sort-change window: the rows on screen
+              are the previous sort's, correct but about to reorder. */}
+          <ul
+            className={`${LISTING_LIST} transition-opacity duration-150 ${
               isPlaceholderData ? 'opacity-60' : 'opacity-100'
             }`}
           >
@@ -953,11 +914,9 @@ export default function MarketplaceFeed() {
                   {...cardProps}
                 />
               ))}
-              {/* Sold-fade cards — the just-removed listings, held on screen
-                  with the SOLD overlay for ~5s before they collapse out. The
-                  rows come from soldFading, which captured them at the moment
-                  they vanished; see the note on that state for why reading
-                  them back out of previousListingsRef never worked. */}
+              {/* Sold-fade rows: the just-removed listings, held under a stamp
+                  for ~5s before they collapse out. The rows come from
+                  soldFading, which captured them the moment they vanished. */}
               {soldFadeListings.map(listing => (
                 <ListingCard
                   key={`sold-${listing.id}`}
@@ -968,48 +927,69 @@ export default function MarketplaceFeed() {
                 />
               ))}
             </AnimatePresence>
-          </div>
+          </ul>
 
-          {/* Filtered everything out — distinct from "marketplace is quiet",
-              and the fix is one tap rather than "come back later". */}
+          {/* Filtered everything out: distinct from "marketplace is quiet",
+              and the fix is one tap. */}
           {visibleListings.length === 0 && soldFadeListings.length === 0 && filtersActive && (
-            <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
-              <SearchX className="w-10 h-10 text-muted-foreground/50" />
-              <p className="font-heading font-bold">{tFallback("marketplaceFeed.nothingMatchesThoseFilters", "Nothing matches those filters")}</p>
-              <p className="text-muted-foreground text-sm max-w-xs">
-                {/* browsableListings, not viewListings: the button below
-                    clears Saved too, so this has to promise what clearing
-                    actually reveals. */}
-                {browsableListings.length} listing{browsableListings.length === 1 ? '' : 's'} available — try widening the search.
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+              <SearchX className="w-10 h-10 text-muted-foreground/50" aria-hidden="true" />
+              <p className="font-semibold">{tFallback('marketplaceFeed.nothingMatchesThoseFilters', 'Nothing matches those filters')}</p>
+              <p className="text-muted-foreground text-label max-w-xs">
+                {tFallback('marketplaceFeed.widen', '{n} listings are up. Try widening the search.', { n: browsableListings.length })}
               </p>
               <button
                 type="button"
                 onClick={() => setFilters({ ...DEFAULT_FILTERS, sort: filters.sort })}
-                className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
+                className="h-11 px-4 text-label font-semibold"
               >
-                {tFallback("trends.clearFilters", "Clear filters")}
+                {tFallback('trends.clearFilters', 'Clear filters')}
               </button>
-            </div>
-          )}
-
-          {/* Recently viewed — moved BELOW the grid. As a pre-grid rail it
-              was another band of chrome between the user and the listings,
-              and it's a "pick up where you left off" affordance, which is a
-              reasonable thing to find after you've scanned what's new. */}
-          {user?.email && (
-            <div className="mt-4">
-              <RecentlyViewedRail
-                userEmail={user.email}
-                listings={listings}
-                onSelect={(listing) => setDetailTarget(listing)}
-              />
             </div>
           )}
         </>
       )}
 
-      {/* Item detail — the read step between the grid and any commit step.
-          It owns its own AnimatePresence inside the portal. */}
+      {/* The actions under the list, as quiet rows. Listing is here rather
+          than an orange button up top: the page's one orange control is the
+          daily Claim. */}
+      <div className="flex flex-col mt-1 border-b">
+        <button type="button" onClick={() => setShowListDialog(true)} className={rowLink}>
+          <Plus className="w-5 h-5" aria-hidden="true" />
+          <span className="flex-1">{tFallback('marketplaceFeed.listFromSet', 'List a sticker from your set')}</span>
+          {listableCount > 0 && (
+            <span className="text-caption text-muted-foreground font-medium tabular-nums">
+              {tFallback('marketplaceFeed.listable', '{n} to list', { n: listableCount > 99 ? '99+' : listableCount })}
+            </span>
+          )}
+        </button>
+        <button type="button" onClick={() => navigate('/market/trades')} className={rowLink}>
+          <ArrowUpDown className="w-5 h-5" aria-hidden="true" />
+          <span className="flex-1">{tFallback('marketplaceHeader.tradeHistory', 'Trade history')}</span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+        </button>
+        {onOpenCollection && (
+          <button type="button" onClick={onOpenCollection} className={rowLink}>
+            <LibraryBig className="w-5 h-5" aria-hidden="true" />
+            <span className="flex-1">{tFallback('collectionModal.collection', 'Collection')}</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      {/* Recently viewed: a "pick up where you left off" affordance, found
+          after you have scanned what is new. */}
+      {user?.email && listings.length > 0 && (
+        <div className="mt-6">
+          <RecentlyViewedRail
+            userEmail={user.email}
+            listings={listings}
+            onSelect={(listing) => setDetailTarget(listing)}
+          />
+        </div>
+      )}
+
+      {/* The listing detail: the read step and the buy, on one screen. */}
       {detailTarget && (
         <ItemDetailSheet
           listing={detailTarget}
@@ -1018,16 +998,19 @@ export default function MarketplaceFeed() {
           flexCoins={flexCoins}
           isSaved={savedIds.has(detailTarget.id)}
           onToggleSave={handleToggleSave}
-          onSellerClick={handleSellerClick}
+          onSellerClick={(id) => { setDetailTarget(null); handleSellerClick(id); }}
           onSelectListing={(l) => setDetailTarget(l)}
-          onBuy={(l) => { setDetailTarget(null); setBuyTarget(l); }}
+          onBuyConfirm={handleBuyListing}
           onOfferTrade={(l) => { setDetailTarget(null); setTradeTarget(l); }}
           onCancel={(l) => { setDetailTarget(null); handleCancel(l); }}
+          onDelete={(l) => { setDetailTarget(null); handleDelete(l); }}
+          onMessageSeller={onStartConversation
+            ? (l) => { setDetailTarget(null); onStartConversation({ id: l.seller_user_id }); }
+            : undefined}
           onClose={() => setDetailTarget(null)}
         />
       )}
 
-      {/* Dialogs */}
       <AnimatePresence>
         {showListDialog && (
           <ListItemDialog
@@ -1056,19 +1039,7 @@ export default function MarketplaceFeed() {
             onClose={() => setTradeTarget(null)}
           />
         )}
-        {buyTarget && (
-          <BuyConfirmDialog
-            open={!!buyTarget}
-            listing={buyTarget}
-            onClose={() => !buyBusy && setBuyTarget(null)}
-            onConfirm={handleBuyConfirm}
-            busy={buyBusy}
-          />
-        )}
       </AnimatePresence>
-
-      {/* Coin Shop — opened via the Buy More Capsules CTA */}
-      <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
     </div>
   );
 }
