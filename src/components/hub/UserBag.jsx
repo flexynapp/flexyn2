@@ -36,6 +36,7 @@ import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 import { sellPriceFor } from '@/lib/sellPrice';
+import { enT } from '@/lib/translatorArg';
 
 // Lazy — the Collection pulls in every catalog (themes alone is ~800
 // lines) and only mounts on an explicit tap.
@@ -121,8 +122,10 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
  *
  * Exported for the test; same pattern as MarketFilterBar's applyFilters.
  */
-export function sellLabelFor(count) {
-  return count > 1 ? 'Sell extra' : 'Sell';
+export function sellLabelFor(count, tf = enT) {
+  return count > 1
+    ? tf('userBag.sellExtra', 'Sell extra')
+    : tf('userBag.sell', 'Sell');
 }
 
 // ─── Sticker group card (shows duplicates + sell button) ──────────────────────
@@ -140,7 +143,7 @@ function StickerGroupCard({ group, onSell, selling }) {
   // we forced keeping one copy; per product the user can sell ANY item,
   // "even if it's really small.")
   const canSell  = unlisted.length >= 1;
-  const sellLabel = sellLabelFor(count);
+  const sellLabel = sellLabelFor(count, tFallback);
 
   // Two-step confirm: first click arms the button, second executes.
   const [armed, setArmed] = useState(false);
@@ -205,7 +208,7 @@ function StickerGroupCard({ group, onSell, selling }) {
           ].join(' ')}
         >
           {armed ? (
-            'Confirm sell?'
+            tFallback('userBag.confirmSell', 'Confirm sale?')
           ) : (
             <span className="flex items-center justify-center gap-1">
               {sellLabel} · {COIN} {price}
@@ -270,7 +273,11 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
               : 'bg-primary text-primary-foreground hover:opacity-90',
         ].join(' ')}
       >
-        {!THEMES_ENABLED ? 'Coming soon' : isActive ? '✓ Active' : 'Apply'}
+        {!THEMES_ENABLED
+          ? tFallback('levelBar.comingSoon', 'Coming Soon')
+          : isActive
+            ? tFallback('userBag.themeActive', '✓ Active')
+            : tFallback('userBag.themeApply', 'Apply')}
       </button>
     </RarityFrame>
   );
@@ -410,7 +417,7 @@ function TitleList({ items, userId }) {
               <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             </div>
             <span className="text-micro font-bold uppercase tracking-wider text-primary shrink-0">
-              {isEquipped ? 'Equipped' : 'Equip'}
+              {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
             </span>
           </button>
         );
@@ -538,7 +545,7 @@ function FrameList({ items, userId }) {
             <p className="font-heading font-bold text-xs text-center leading-tight">{item.item_name}</p>
             <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             <span className="text-micro font-bold uppercase tracking-wider text-primary">
-              {isEquipped ? 'Equipped' : 'Equip'}
+              {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
             </span>
           </button>
         );
@@ -688,7 +695,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
       const { coins } = await inventory.sellItem(inventoryRow.id);
       qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
-      toast.success(`🪙 +${coins} Flex Coins! Sold ${inventoryRow.item_emoji} ${inventoryRow.item_name}.`);
+      toast.success(tFallback('userBag.soldOne', 'Sold {item} for {coins} coins.', { item: inventoryRow.item_name, coins }));
     } catch (err) {
       if (err?.code === 'COIN_CAP') {
         toast.error(tFallback('userBag.sellCapped', "You've hit today's coin limit. Your item is still in your bag."));
@@ -750,11 +757,15 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
     qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
     setSelling(false);
-    if (sold > 0) toast.success(`Sold ${sold} duplicate${sold === 1 ? '' : 's'} · ${COIN} +${earned}`);
+    if (sold > 0) {
+      toast.success(sold === 1
+        ? tFallback('userBag.soldDupOne', 'Sold 1 duplicate for {coins} coins.', { coins: earned })
+        : tFallback('userBag.soldDupMany', 'Sold {n} duplicates for {coins} coins.', { n: sold, coins: earned }));
+    }
     if (capped) {
       toast.error(tFallback('userBag.sellCapped', "You've hit today's coin limit. Your item is still in your bag."));
     } else if (sold < duplicateSales.length) {
-      toast.error(`${duplicateSales.length - sold} could not be sold. Try again.`);
+      toast.error(tFallback('userBag.someUnsold', '{n} could not be sold. Try again.', { n: duplicateSales.length - sold }));
     }
   }, [user?.id, user?.email, duplicateSales, qc, tFallback]);
 
@@ -937,7 +948,9 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               </div>
             ) : activeTab === 'capsules' ? (
               fCapsules.length === 0 ? (
-                <EmptyState icon={Package} label={q ? `No capsules match "${query}".` : 'No capsules yet — level up to earn them!'} />
+                <EmptyState icon={Package} label={q
+                  ? tFallback('userBag.noCapsulesMatch', 'No capsules match "{q}".', { q: query })
+                  : tFallback('userBag.noCapsules', 'No capsules yet. Level up to earn them.')} />
               ) : (
                 <>
                   {/* Batch open — one bar per type the user holds 2+ of.
@@ -956,15 +969,20 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                         >
                           <CapsuleIcon type={type} size={26} className="shrink-0" />
                           <span className="flex-1 min-w-0">
-                            <span className="block text-sm font-bold capitalize leading-tight">
-                              Open {take} {type}
+                            <span className="block text-sm font-bold leading-tight">
+                              {type === 'elite'
+                                ? tFallback('userBag.openNElite', 'Open {n} elite', { n: take })
+                                : type === 'premium'
+                                  ? tFallback('userBag.openNPremium', 'Open {n} premium', { n: take })
+                                  : tFallback('userBag.openNStandard', 'Open {n} standard', { n: take })}
                             </span>
                             <span className="block text-micro text-muted-foreground leading-tight">
-                              One spin, every result at once
-                              {rows.length > take && ` · ${rows.length - take} more after`}
+                              {rows.length > take
+                                ? tFallback('userBag.batchMore', 'One after another, then all of them at once. {n} more after.', { n: rows.length - take })
+                                : tFallback('userBag.batchHint', 'One after another, then all of them at once')}
                             </span>
                           </span>
-                          <span className="text-xs font-bold text-primary shrink-0">Open all →</span>
+                          <span className="text-xs font-bold text-primary shrink-0">{tFallback('userBag.openAll', 'Open all')}</span>
                         </button>
                       );
                     })}
@@ -977,7 +995,9 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               )
             ) : activeTab === 'stickers' ? (
               fStickerGroups.length === 0 ? (
-                <EmptyState icon={Package} label={q ? `No stickers match "${query}".` : 'No stickers yet. Open a capsule!'} />
+                <EmptyState icon={Package} label={q
+                  ? tFallback('userBag.noStickersMatch', 'No stickers match "{q}".', { q: query })
+                  : tFallback('userBag.noStickers', 'No stickers yet. Open a capsule.')} />
               ) : (
                 <>
                   {duplicateSales.length > 0 && (
@@ -1001,10 +1021,10 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                       }`}
                     >
                       {selling
-                        ? 'Selling…'
+                        ? tFallback('userBag.selling', 'Selling…')
                         : bulkArmed
-                          ? `Sell ${duplicateSales.length} duplicates for ${COIN} ${duplicateTotal}?`
-                          : `Sell all duplicates · ${duplicateSales.length} extra · ${COIN} ${duplicateTotal}`}
+                          ? tFallback('userBag.confirmSellDups', 'Sell {n} duplicates for {coin} {total}?', { n: duplicateSales.length, coin: COIN, total: duplicateTotal })
+                          : tFallback('userBag.sellAllDups', 'Sell all duplicates: {n} extra for {coin} {total}', { n: duplicateSales.length, coin: COIN, total: duplicateTotal })}
                     </button>
                   )}
                   <motion.div layout className={TILE.row}>
@@ -1021,13 +1041,17 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               )
             ) : activeTab === 'titles' ? (
               fTitles.length === 0 ? (
-                <EmptyState icon={Crown} label={q ? `No titles match "${query}".` : 'No titles yet — open capsules to earn them!'} />
+                <EmptyState icon={Crown} label={q
+                  ? tFallback('userBag.noTitlesMatch', 'No titles match "{q}".', { q: query })
+                  : tFallback('userBag.noTitles', 'No titles yet. Open capsules to earn them.')} />
               ) : (
                 <TitleList items={fTitles} userId={user?.id} />
               )
             ) : activeTab === 'frames' ? (
               fFrames.length === 0 ? (
-                <EmptyState icon={Square} label={q ? `No frames match "${query}".` : 'No frames yet — open capsules to earn them!'} />
+                <EmptyState icon={Square} label={q
+                  ? tFallback('userBag.noFramesMatch', 'No frames match "{q}".', { q: query })
+                  : tFallback('userBag.noFrames', 'No frames yet. Open capsules to earn them.')} />
               ) : (
                 <FrameList items={fFrames} userId={user?.id} />
               )
@@ -1036,12 +1060,12 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                 <EmptyState
                   icon={Palette}
                   label={q
-                    ? `No themes match "${query}".`
+                    ? tFallback('userBag.noThemesMatch', 'No themes match "{q}".', { q: query })
                     : THEMES_ENABLED
-                      ? 'No themes yet — open Elite capsules!'
+                      ? tFallback('userBag.noThemes', 'No themes yet. Open elite capsules.')
                       // Don't send anyone spending Elite capsules chasing a
                       // drop the server no longer rolls (migration 281).
-                      : 'Themes are coming soon.'}
+                      : tFallback('userBag.themesSoon', 'Themes are coming soon.')}
                 />
               ) : (
                 <motion.div layout className={TILE.row}>
