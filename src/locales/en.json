@@ -2111,7 +2111,6 @@
   "goals.row.done": "Done",
   "goals.row.doneOn": "Done {date}",
   "goals.row.hit": "Target hit",
-  "goals.row.markDone": "Mark done",
   "goals.row.notStarted": "Log a set to start it",
   "goals.row.repsInSet.one": "{n} rep in one set",
   "goals.row.repsInSet.other": "{n} reps in one set",

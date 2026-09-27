@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { db } from '@/api/db';
 import * as goalsData from '@/lib/data/goals';
-import * as quests from '@/lib/data/quests';
-import { ACTION_TYPES } from '@/lib/questCatalog';
-import { calculateGoalXp } from '@/lib/xpSystem';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,7 +10,6 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalForm from './GoalForm';
 import GoalsList from './GoalsList';
-import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
 import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
@@ -142,96 +137,6 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], cardi
     },
   });
 
-  const completeMutation = useMutation({
-    mutationFn: async (goalId) => {
-      const goal = goals.find(g => g.id === goalId);
-      // One formula, in xpSystem.js. This was duplicated here and in
-      // GoalsAlmostComplete.jsx, both capped at 500 — a single goal could
-      // pay the whole day's goal_completed allowance.
-      const xpReward = calculateGoalXp(goal);
-
-      // Idempotency: atomic state transition via complete_goal RPC (migration
-      // 030). Only the FIRST caller flips status active→completed; subsequent
-      // callers get { already: true } and we SKIP the XP grant + quest progress
-      // so a stale-state double-tap can't double-credit the user.
-      // Falls back to the legacy direct UPDATE when the RPC isn't available
-      // (pre-migration). The fallback path retains the double-credit risk but
-      // matches old behavior so it doesn't break.
-      let alreadyCompleted = false;
-      try {
-        const { supabase } = await import('@/api/supabaseClient');
-        const { data, error } = await supabase.rpc('complete_goal', { p_goal_id: goalId });
-        if (!error) {
-          if (data?.already) alreadyCompleted = true;
-        } else if (error.code === '42883' || error.code === '42P01') {
-          // RPC missing — legacy direct write below.
-          await goalsData.update(goalId, { status: 'completed' });
-        } else {
-          throw error;
-        }
-      } catch (rpcErr) {
-        if (rpcErr?.code === '42883' || rpcErr?.code === '42P01') {
-          await goalsData.update(goalId, { status: 'completed' });
-        } else {
-          throw rpcErr;
-        }
-      }
-
-      if (alreadyCompleted) {
-        // Skip all reward grants. Return 0 XP so the toast reflects no-op.
-        return { xpReward: 0, alreadyCompleted: true, goalName: goal?.exercise_name };
-      }
-
-      // First-time completion path — grant XP, snapshot achieved values.
-      if (xpReward > 0) {
-        try {
-          await db.functions.invoke('updateUserXpAndAchievements', {
-            xp_gained: xpReward,
-            action_type: 'goal_completed',
-            action_data: { goal_id: goalId, goal_name: goal?.exercise_name, xp_earned: xpReward },
-          });
-        } catch (xpErr) {
-          reportError(xpErr, { feature: 'goals.xp-update', level: 'warning', userEmail: user?.email, goalId, xpReward });
-        }
-      }
-      // Snapshot the achieved values at completion time so Hub posts can
-      // display "achieved / target" rather than just the target.
-      const achievedUpdate = {};
-      if (goal?.target_weight > 0) achievedUpdate.achieved_weight = goal.target_weight;
-      if (goal?.target_reps > 0) achievedUpdate.achieved_reps = goal.target_reps;
-      if (Object.keys(achievedUpdate).length > 0) {
-        await goalsData.update(goalId, achievedUpdate);
-      }
-
-      return { xpReward, alreadyCompleted: false, goalName: goal?.exercise_name };
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
-      if (result?.alreadyCompleted) {
-        // Idempotent double-tap path — no toast.
-        return;
-      }
-      // Centralized celebration: confetti + haptic + XP toast + Sentry
-      // breadcrumb. Replaces the previous plain-text toast — the user
-      // now gets a real moment of feedback for hitting their target.
-      fireGoalCelebration({
-        goalName: result?.goalName,
-        xpReward: result?.xpReward ?? 0,
-        userEmail: user?.email,
-      });
-      // Quest progress — only on the genuine first completion.
-      quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(err => reportError(err, { feature: 'goals.quest-credit', level: 'warning', userEmail: user?.email }));
-    },
-    onError: (err) => {
-      reportError(err, { feature: 'goals.complete', userEmail: user?.email });
-      toast.error(t('goals.toast.saveError'));
-    },
-  });
-
   const handleSubmit = (data) => {
     if (editing) {
       updateMutation.mutate({ id: editing.id, data });
@@ -344,7 +249,6 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], cardi
                       isViewingArchived={activeTab === 'archived'}
                       onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
                       onDelete={onDeleteGoal}
-                      onComplete={activeTab === 'active' ? (id) => completeMutation.mutate(id) : undefined}
                       onArchive={activeTab === 'completed' ? undefined : (id) => archiveMutation.mutateAsync(id)}
                     />
                   )}

@@ -71,6 +71,7 @@ import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
 import * as activity from '@/lib/data/activity';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
+import useGoalAutoComplete from '@/hooks/useGoalAutoComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
@@ -794,6 +795,8 @@ export default function Workout() {
   const prIndex = useMemo(() => buildPRIndex(logs), [logs]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+  // A goal completes and pays the moment the logs on screen hit it.
+  useGoalAutoComplete({ user, goals, logs, cardioLogs, enabled: !logsLoading });
 
   const { data: activeDuel } = useQuery({
     queryKey:  ['activeDuel', user?.id],

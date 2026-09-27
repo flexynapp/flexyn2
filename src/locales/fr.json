@@ -2108,7 +2108,6 @@
   "goals.row.done": "Atteint",
   "goals.row.doneOn": "Atteint le {date}",
   "goals.row.hit": "Cible atteinte",
-  "goals.row.markDone": "Marquer comme atteint",
   "goals.row.notStarted": "Enregistrez une série pour commencer",
   "goals.row.repsInSet.one": "{n} rép. en une série",
   "goals.row.repsInSet.other": "{n} rép. en une série",

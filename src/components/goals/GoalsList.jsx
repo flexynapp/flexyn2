@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Target, Dumbbell, Activity, Footprints, PersonStanding, Bike, MoreVertical, Pencil, Archive, ArchiveRestore, Check } from 'lucide-react';
+import { Trash2, Target, Dumbbell, Activity, Footprints, PersonStanding, Bike, MoreVertical, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { differenceInDays, startOfToday } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
@@ -26,20 +26,19 @@ import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 
 const ACTIVITY_ICON = { running: Footprints, biking: Bike, walking: PersonStanding };
 
-export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onComplete, onArchive, isViewingCompleted = false, isViewingArchived = false }) {
-  // Track which goal IDs have an in-flight delete/complete action so the
+export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onArchive, isViewingCompleted = false, isViewingArchived = false }) {
+  // Track which goal IDs have an in-flight delete/archive action so the
   // user can't double-tap. Parent owns the mutation; we just guard the
   // trigger here without requiring isPending to be plumbed through props.
-  const [pendingIds, setPendingIds] = useState(() => ({ delete: new Set(), complete: new Set(), archive: new Set() }));
+  const [pendingIds, setPendingIds] = useState(() => ({ delete: new Set(), archive: new Set() }));
   const guardedAction = useCallback(async (kind, id, handler) => {
     setPendingIds(prev => {
       if (prev[kind].has(id)) return prev;
       return { ...prev, [kind]: new Set([...prev[kind], id]) };
     });
-    // Complete is the high-intent moment (the celebration fires its own
-    // pattern after success). Archive is reversible, so it buzzes quietly;
-    // a 'warning' there would tell the hand it was destructive.
-    triggerHaptic(kind === 'complete' ? 'primary' : kind === 'archive' ? 'subtle' : 'warning');
+    // Archive is reversible, so it buzzes quietly; a 'warning' there would
+    // tell the hand it was destructive.
+    triggerHaptic(kind === 'archive' ? 'subtle' : 'warning');
     try {
       await handler(id);
     } finally {
@@ -147,7 +146,6 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
       {rows.map((row) => {
         const { goal, title, Icon } = row;
         const showMenu = !isViewingCompleted || allowDeleteCompletedGoals;
-        const canComplete = !row.done && row.hit && goal.status === 'active' && onComplete;
 
         // The line under the bar: what is left, then the date. A goal with no
         // date grows no date text ("a section with no data must not render").
@@ -201,16 +199,6 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                   {status}
                   {overdueText && <span className="text-primary">{status ? ' · ' : ''}{overdueText}</span>}
                 </p>
-              )}
-              {canComplete && (
-                <Button
-                  size="sm"
-                  disabled={pendingIds.complete.has(goal.id)}
-                  className="self-start mt-0.5 h-8 bg-success text-white gap-1.5 hover:brightness-105 active:brightness-105"
-                  onClick={() => guardedAction('complete', goal.id, onComplete)}
-                >
-                  <Check className="w-4 h-4" aria-hidden="true" /> {tFallback('goals.row.markDone', 'Mark done')}
-                </Button>
               )}
             </div>
             {showMenu && (
