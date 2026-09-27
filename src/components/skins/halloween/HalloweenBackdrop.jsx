@@ -24,6 +24,7 @@
 
 import { SKINS } from '@/lib/skins';
 import { Cobweb, Spider, Witch, Bat } from './ornaments';
+import { GROUND_PATH, PLANTED, RAILS } from './graveyard';
 
 const { ink } = SKINS.find((s) => s.id === 'halloween');
 const FG = ink.foreground;
@@ -34,8 +35,6 @@ const STARS = [
   [8, 6], [19, 14], [27, 4], [36, 19], [44, 9], [55, 16], [63, 5], [71, 22],
   [12, 27], [30, 31], [48, 26], [58, 35], [83, 30], [92, 12], [4, 40], [76, 41],
 ];
-
-const PICKETS = Array.from({ length: 10 }, (_, i) => 206 + i * 7);
 
 export default function HalloweenBackdrop() {
   return (
@@ -75,34 +74,34 @@ export default function HalloweenBackdrop() {
         </div>
       </div>
 
-      {/* Harvest moon: one disc in --primary at the declared strength. Kept
-          clear of the flyover's lane so the two never stack. */}
-      <svg className="absolute top-[42%] end-[8%] w-20 h-20" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="46" fill="hsl(var(--primary))" opacity={MOON} />
+      {/* Crescent moon in --primary at the declared strength. It was a full
+          disc, and at this strength a plain disc read as a stray brown blob
+          rather than a moon; the crescent is the silhouette nobody has to
+          decode. One path, one layer. Kept clear of the flyover's lane. */}
+      <svg className="absolute top-[42%] end-[8%] w-16 h-16 rtl:scale-x-[-1]" viewBox="0 0 100 100" data-testid="halloween-moon">
+        <path d="M62 6A46 46 0 1 0 62 94A38 44 0 1 1 62 6Z" fill="hsl(var(--primary))" opacity={MOON} />
       </svg>
 
       {/* Graveyard, cropped at the sides on wide screens rather than scaled
           up. Its foot meets the nav's top, so the ground runs behind the
           pumpkin row and the patch grows out of it. --nav-h already
           includes --skin-nav-edge; adding it again floated the whole
-          graveyard up into the page's last lines. */}
+          graveyard up into the page's last lines. Every figure is planted
+          from the ground curve in graveyard.js, never hand-placed. */}
       <svg
         className="absolute inset-x-0 bottom-[calc(var(--nav-h)-var(--skin-nav-edge,0px))] lg:bottom-0 w-full h-[clamp(96px,32vw,150px)]"
         viewBox="0 0 400 160"
         preserveAspectRatio="xMidYMax slice"
       >
         <g fill="currentColor" stroke="currentColor" strokeLinecap="round" style={{ opacity: FG }}>
-          <path strokeWidth="0" d="M0 160L0 128Q60 110 130 122T260 118T400 124L400 160Z" />
-          <path strokeWidth="0" d="M40 128v-22a10 10 0 0 1 20 0v22Z" />
-          <path strokeWidth="0" d="M96 124v-30h-8v-6h8v-8h6v8h8v6h-8v30Z" />
-          <path strokeWidth="0" d="M150 122v-18a13 13 0 0 1 26 0v18Z" transform="rotate(-6 163 122)" />
-          <path strokeWidth="0" d="M300 122v-16a9 9 0 0 1 18 0v16Z" />
-          {PICKETS.map((x) => (
-            <path key={x} strokeWidth="0" d={`M${x} 121v-18l2.5-4 2.5 4v18Z`} />
+          <path strokeWidth="0" d={GROUND_PATH} />
+          {PLANTED.map((f) => (
+            <path key={`${f.kind}-${f.x0}`} strokeWidth="0" d={f.d} transform={f.transform} />
           ))}
-          <path strokeWidth="0" d="M204 107h70v2.5h-70ZM204 116h70v2.5h-70Z" />
-          <path strokeWidth="0" d="M352 124C354 100 350 80 356 60L360 60C358 82 362 100 363 124Z" />
-          <path fill="none" strokeWidth="3" d="M357 70Q340 55 326 52L318 44M358 64Q372 48 388 44L394 36M356 84Q344 76 334 78M361 78Q374 72 384 74" />
+          {RAILS.map((r) => <path key={`rail-${r.d}`} strokeWidth="0" d={r.d} />)}
+          {PLANTED.filter((f) => f.branches).map((f) => (
+            <path key={`branches-${f.x0}`} fill="none" strokeWidth="3" d={f.branches} />
+          ))}
         </g>
       </svg>
     </div>
