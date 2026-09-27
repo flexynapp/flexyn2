@@ -1,7 +1,7 @@
 // Every screen that reads or writes nutrition_logs now goes through
-// src/lib/data/nutrition.js. These tests pin the exact statements the entity
-// backed functions send, through the real db.js underneath, so the next step
-// (replacing db.entities inside this module) has to reproduce them exactly.
+// src/lib/data/nutrition.js. These tests pin the exact statements its plain
+// row functions send. They were written against the old db.js client and
+// pass unchanged on ownedRows, which is the proof the swap matched.
 // What create() does to the form's payload is pinned in mealWritePath.test.js.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -129,9 +129,9 @@ describe('nutrition writes', () => {
 });
 
 describe('one door to nutrition_logs', () => {
-  // Only this module may use the old entity for meal and water logs. A new
-  // call site elsewhere would skip whatever this module does next.
-  it('no other source file touches db.entities.NutritionLog', () => {
+  // The old entity client is gone from meal and water logs everywhere,
+  // this module included.
+  it('no source file touches db.entities.NutritionLog', () => {
     const root = join(process.cwd(), 'src');
     const offenders = [];
     const walk = (dir) => {
@@ -140,7 +140,6 @@ describe('one door to nutrition_logs', () => {
         if (statSync(p).isDirectory()) { if (name !== '__tests__' && name !== 'i18n-langs') walk(p); continue; }
         if (!/\.(jsx?|tsx?)$/.test(name)) continue;
         const rel = relative(root, p);
-        if (rel === join('lib', 'data', 'nutrition.js')) continue;
         const code = readFileSync(p, 'utf8').replace(/^\s*\/\/.*$/gm, '');
         if (/entities\s*\.\s*NutritionLog\b/.test(code)) offenders.push(rel);
       }

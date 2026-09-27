@@ -1,7 +1,9 @@
 // src/lib/data/nutrition.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { ownedRows } from './ownedRows';
+
+const rows = ownedRows('nutrition_logs');
 
 // Diary logs mirrored from the meal planner carry notes:'planner' so they
 // can be kept in sync with the plan grid without touching manually-logged
@@ -9,22 +11,22 @@ import { containsProfanity } from '@/lib/profanityFilter';
 export const PLANNER_LOG_TAG = 'planner';
 
 export const list = (userId, limit = 50) =>
-  db.entities.NutritionLog.filter({ user_id: userId }, '-date', limit);
+  rows.filter({ user_id: userId }, '-date', limit);
 
 /** Fetch a diary row by id, or null. */
-export const get = (id) => db.entities.NutritionLog.get(id);
+export const get = (id) => rows.get(id);
 
 // Newest logged first, for history, search and "log it again" lists.
 export const listRecent = (userId, limit = 300) =>
-  db.entities.NutritionLog.filter({ user_id: userId }, '-created_at', limit);
+  rows.filter({ user_id: userId }, '-created_at', limit);
 
 // One day's diary, meals and water together. The Nutrition page takes the
 // rows in whatever order the table returns them and sorts them itself; the
 // hydration ring asks for newest first and caps the read.
 export const listForDate = (userId, date, { newestFirst = false, limit } = {}) =>
   newestFirst
-    ? db.entities.NutritionLog.filter({ user_id: userId, date }, '-created_date', limit ?? 100)
-    : db.entities.NutritionLog.filter({ user_id: userId, date }, undefined, limit);
+    ? rows.filter({ user_id: userId, date }, '-created_date', limit ?? 100)
+    : rows.filter({ user_id: userId, date }, undefined, limit);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -51,16 +53,16 @@ export const create = (data) => {
     row[column] = data[alias] ?? data[column] ?? null;
     delete row[alias];
   }
-  return db.entities.NutritionLog.create(row);
+  return rows.create(row);
 };
 export const update = (id, data) => {
   const textFields = {};
   if (data.food_name !== undefined) textFields.food_name = data.food_name;
   if (data.notes !== undefined) textFields.notes = data.notes;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return db.entities.NutritionLog.update(id, data);
+  return rows.update(id, data);
 };
-export const remove = (id) => db.entities.NutritionLog.delete(id);
+export const remove = (id) => rows.remove(id);
 
 // Remove any planner-originated diary log for a given slot (date + meal_type).
 // Idempotent; only touches rows tagged notes:'planner', never manual logs.

@@ -61,18 +61,8 @@ vi.mock('@/api/supabaseClient', () => ({
     },
   },
 }));
-vi.mock('@/api/db', () => ({
-  db: {
-    entities: {
-      NutritionLog: {
-        filter: (...args) => {
-          CALLS.push(['nutrition_logs', 'filter', ...args]);
-          return Promise.resolve(TABLES.nutrition_logs ?? []);
-        },
-      },
-    },
-  },
-}));
+// foodItems.js still sits on the old client; nothing here reaches it.
+vi.mock('@/api/db', () => ({ db: { entities: {} } }));
 
 import FoodSearchSheet from '../FoodSearchSheet';
 
