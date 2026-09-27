@@ -29,6 +29,7 @@ import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import * as workouts from '@/lib/data/workouts';
+import * as cardioData from '@/lib/data/cardio';
 // Both sheets are lazy per the lazy-loading rule: they only mount on a tap,
 // and neither is on the first paint of this page.
 const AdvancedAnalyticsSheet = lazy(() => import('@/components/progress/AdvancedAnalyticsSheet'));
@@ -539,7 +540,7 @@ export default function Progress() {
   });
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'progress'),
-    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => cardioData.list(user.id, LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   const { data: rawBodyMetrics = [] } = useQuery({

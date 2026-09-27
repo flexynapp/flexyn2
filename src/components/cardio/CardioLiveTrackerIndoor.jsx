@@ -246,7 +246,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         notes: null,
         gps_track: [],
       };
-      const createdLog = await db.entities.CardioLog.create(payload);
+      const createdLog = await cardioData.create(payload);
       track(EVENTS.CARDIO_LOGGED, { mode: 'indoor' });
       clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).

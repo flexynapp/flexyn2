@@ -60,9 +60,7 @@ export default function CardioManualForm({
   });
   const { data: todayCardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs.today', user?.email, todayStr],
-    queryFn: () => db.entities.CardioLog.filter(
-      { user_id: user.id, date: todayStr }, '-date', 50
-    ).catch(() => []),
+    queryFn: () => cardioData.listForDate(user.id, todayStr).catch(() => []),
     enabled: !!user?.email,
     staleTime: 60_000,
   });
@@ -339,9 +337,9 @@ export default function CardioManualForm({
 
       let prCount = 0;
       if (initial?.id) {
-        await db.entities.CardioLog.update(initial.id, payload);
+        await cardioData.update(initial.id, payload);
       } else {
-        const createdLog = await db.entities.CardioLog.create(payload);
+        const createdLog = await cardioData.create(payload);
         track(EVENTS.CARDIO_LOGGED, { mode: 'manual' });
         if (Number(payload.distance_meters) > 0) {
           try {
