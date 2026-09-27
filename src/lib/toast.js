@@ -64,7 +64,21 @@
 // NOTE: because plain `toast(...)` is silenced too, this also hides the
 // Undo/action toasts (e.g. delete → Undo). If we want those back, allow-list
 // calls whose second arg carries an `action`.
-import { toast as sonnerToast } from 'sonner';
+//
+// ── 2026-09-27: sonner is gone ──────────────────────────────────────────
+//
+// Kegan hated the box itself ("these toasts need to go, I want custom
+// animated ones like in other apps"). Every call site already came through
+// this module, so the renderer was swapped underneath them: messages now go
+// to lib/feedbackStore.js and FeedbackPill draws them as one animated pill
+// at the top of the screen. The API below is still sonner's shape
+// (message, { id, description, action, icon, duration, onDismiss }) so none
+// of the ~900 call sites changed. Where an action can answer in place (the
+// pressed button turning into "Added", a number counting up), prefer that
+// and send nothing here; the pill is for everything else.
+import { show, dismiss } from '@/lib/feedbackStore';
+
+const variant = (kind) => (...args) => show(kind, ...args);
 
 const noop = () => undefined;
 
@@ -75,14 +89,14 @@ const hasAction = (opts) => !!(opts && typeof opts === 'object' && opts.action);
 
 // Callable form: `toast('Saved!')` → suppressed, unless it has an action.
 function toast(message, opts) {
-  if (hasAction(opts)) return sonnerToast(message, opts);
+  if (hasAction(opts)) return show('default', message, opts);
   return undefined;
 }
 
 // Errors still reach the user so failures never go silent.
-toast.error = (...args) => sonnerToast.error(...args);
+toast.error = variant('error');
 // Keep dismiss working (harmless passthrough for any imperative toast.dismiss).
-toast.dismiss = (...args) => sonnerToast.dismiss(...args);
+toast.dismiss = (id) => dismiss(id);
 // Promise helper: run the work, show nothing.
 toast.promise = (p) => (typeof p === 'function' ? p() : p);
 
@@ -97,10 +111,10 @@ const keepIfAction = (fn) => (message, opts) => (hasAction(opts) ? fn(message, o
 // Every variant below reaches the user. Each one is a thing the app needs to
 // tell someone about an action they just took — a save that worked, a value
 // that got clamped, a run that auto-paused, a field that failed to persist.
-toast.success = (...args) => sonnerToast.success(...args);
-toast.info    = (...args) => sonnerToast.info(...args);
-toast.message = (...args) => sonnerToast.message(...args);
-toast.warning = (...args) => sonnerToast.warning(...args);
+toast.success = variant('success');
+toast.info    = variant('info');
+toast.message = variant('message');
+toast.warning = variant('warning');
 
 // Decoration, not information. These stay off.
 toast.loading = noop;

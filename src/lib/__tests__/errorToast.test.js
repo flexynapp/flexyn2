@@ -1,13 +1,12 @@
-// Tests for src/lib/errorToast.js — the sonner-backed error toast
+// Tests for src/lib/errorToast.js — the error toast
 // helper with an optional Retry action.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const errSpy = vi.fn();
-vi.mock('sonner', () => ({
-  toast: {
-    error: (...args) => errSpy(...args),
-  },
+vi.mock('@/lib/feedbackStore', () => ({
+  show: (kind, ...args) => { if (kind === 'error') errSpy(...args); },
+  dismiss: () => {},
 }));
 
 describe('errorToast', () => {
