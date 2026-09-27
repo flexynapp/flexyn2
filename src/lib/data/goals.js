@@ -1,15 +1,17 @@
 // src/lib/data/goals.js
-import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { track, EVENTS } from '@/lib/analytics';
+import { ownedRows } from './ownedRows';
+
+const rows = ownedRows('goals');
 
 // Newest first. Dashboard, Workout and GoalsModal share the
 // ['goals', email] cache, so every reader has to ask for the same order.
 export const list = (userId, limit) =>
-  db.entities.Goal.filter({ user_id: userId }, '-created_date', limit);
+  rows.filter({ user_id: userId }, '-created_date', limit);
 
-export const get = (id) => db.entities.Goal.get(id);
+export const get = (id) => rows.get(id);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -25,7 +27,7 @@ export const create = (data) => {
     exercise: data.exercise,
     notes: data.notes,
   });
-  return Promise.resolve(db.entities.Goal.create(data)).then((row) => {
+  return rows.create(data).then((row) => {
     track(EVENTS.GOAL_CREATED, { type: data.goal_type || data.type || null });
     return row;
   });
@@ -36,9 +38,9 @@ export const update = (id, data) => {
   if (data.exercise      !== undefined) textFields.exercise      = data.exercise;
   if (data.notes         !== undefined) textFields.notes         = data.notes;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return db.entities.Goal.update(id, data);
+  return rows.update(id, data);
 };
-export const remove = (id) => db.entities.Goal.delete(id);
+export const remove = (id) => rows.remove(id);
 
 // Completes a goal and pays its XP, both on the server. complete_goal checks
 // the goal against the caller's own logs, so a goal that is not met comes
