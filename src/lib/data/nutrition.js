@@ -11,6 +11,9 @@ export const PLANNER_LOG_TAG = 'planner';
 export const list = (userId, limit = 50) =>
   db.entities.NutritionLog.filter({ user_id: userId }, '-date', limit);
 
+/** Fetch a diary row by id, or null. */
+export const get = (id) => db.entities.NutritionLog.get(id);
+
 // Newest logged first, for history, search and "log it again" lists.
 export const listRecent = (userId, limit = 300) =>
   db.entities.NutritionLog.filter({ user_id: userId }, '-created_at', limit);

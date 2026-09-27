@@ -164,3 +164,11 @@ describe('one door to cardio_logs', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('cardio get', () => {
+  it('reads one row by id', async () => {
+    calls = []; results = [{ data: { id: 'x1' }, error: null }];
+    expect(await cardio.get('x1')).toEqual({ id: 'x1' });
+    expect(calls).toEqual([['cardio_logs', 'from'], ['cardio_logs', 'select', '*'], ['cardio_logs', 'eq', 'id', 'x1'], ['cardio_logs', 'maybeSingle']]);
+  });
+});

@@ -125,3 +125,11 @@ describe('one door to regimens', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('regimens get', () => {
+  it('reads one row by id', async () => {
+    calls = []; results = [{ data: { id: 'x1' }, error: null }];
+    expect(await regimens.get('x1')).toEqual({ id: 'x1' });
+    expect(calls).toEqual([['regimens', 'from'], ['regimens', 'select', '*'], ['regimens', 'eq', 'id', 'x1'], ['regimens', 'maybeSingle']]);
+  });
+});

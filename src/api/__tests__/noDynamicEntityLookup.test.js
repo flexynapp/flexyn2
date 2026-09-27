@@ -5,22 +5,18 @@
 // string, `db.entities[name]`, gets past every one of them: the Coach context
 // read meals and weigh-ins that way after both tables were declared done.
 //
-// This fails on any new bracket lookup. The one file still doing it is listed
-// below, and the list is checked in both directions, so fixing it without
-// taking it off the list also fails rather than leaving a stale exception.
+// This fails on any bracket lookup.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const KNOWN = [
-  // Share cards fetch the shared row by id when the post has no snapshot.
-  // It spans five tables, so it moves when the last of them does.
-  join('components', 'hub', 'PostActivityBlock.jsx'),
-];
+// PostActivityBlock was the last one; its share-card fallback now calls each
+// table's data module by id.
+const KNOWN = [];
 
 describe('no lookup of db.entities by a string name', () => {
-  it('only the known file does it, and it still does', () => {
+  it('no source file does it', () => {
     const root = join(process.cwd(), 'src');
     const found = [];
     const walk = (dir) => {
