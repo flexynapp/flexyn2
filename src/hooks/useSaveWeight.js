@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { toast } from '@/lib/toast';
 import * as quests from '@/lib/data/quests';
+import * as bodyMetrics from '@/lib/data/bodyMetrics';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { toLbs } from '@/lib/weightUnit';
 import { reportError } from '@/lib/reportError';
@@ -38,7 +39,7 @@ export function useSaveWeight({ onSaved, errorContext } = {}) {
       // committed row on a failed mirror, and Save again made a second
       // one for the same date (audit 08 #3; there is no unique constraint).
       await db.auth.updateMe({ weight_lbs: lbs });
-      await db.entities.BodyMetric.create({ date, weight_lbs: lbs });
+      await bodyMetrics.create({ date, weight_lbs: lbs });
       return lbs;
     },
     onSuccess: (lbs) => {
