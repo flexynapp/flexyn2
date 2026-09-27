@@ -11,12 +11,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  X, Swords, Dumbbell, Timer, Loader2, Search, UserCircle2,
+  X, Swords, Dumbbell, Timer, Target, Loader2, Search, UserCircle2,
   ArrowLeft, SendHorizonal, Check, ChevronRight,
 } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import {
-  createDuel, getFrequentOpponents, sendDuelDM, duelErrorMessage, searchDuelOpponents,
+  createDuel, createSessionDuel, getFrequentOpponents, sendDuelDM, duelErrorMessage, searchDuelOpponents,
 } from '@/lib/data/duels';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/lib/toast';
@@ -30,7 +30,10 @@ import { useLanguage } from '@/lib/LanguageContext';
 // server refuses it too (20260927161000_duels_lockdown). Mirror used violet,
 // which the app reserves for rarity tiers.
 
+// Session is first and the default: it is the one that starts without the
+// other person, which with a handful of active users is most duels.
 const DUEL_TYPES = [
+  { id: 'session', label: 'Session Duel', icon: Target, description: 'Starts now. Beat their last workout before time runs out. They do not need to accept.' },
   { id: 'open',   label: 'Open Duel',   icon: Timer,    description: 'Train freely in the time window. Most total volume wins.' },
   { id: 'mirror', label: 'Mirror Duel', icon: Dumbbell, description: 'Opponent completes your exact session. Scored on completion % + volume.' },
 ];
@@ -160,7 +163,7 @@ export default function CreateDuelModal({
     initialOpponentId ? { id: initialOpponentId, username: initialOpponentUsername } : null
   );
   const [query,        setQuery]        = useState('');
-  const [selectedType, setSelectedType] = useState('open');
+  const [selectedType, setSelectedType] = useState('session');
   const [windowHours,  setWindowHours]  = useState(24);
   const [sendingId,    setSendingId]    = useState(null);
   const inputRef = useRef(null);
@@ -202,16 +205,26 @@ export default function CreateDuelModal({
     setSendingId(profile.id);
     haptic('primary');
     try {
-      const duel = await createDuel({ opponentId: profile.id, type, windowHours: hours });
-      sendDuelDM(duel.id, profile.id, type, hours);
-      haptic('success');
-      toast.success(
-        tFallback('createDuelModal.openDuelSent', '{type} sent to @{handle}!', {
-          type: tFallback(`duel.type.${type}.name`, type === 'mirror' ? 'Mirror Duel' : 'Open Duel'),
-          handle: profile.username,
-        }),
-        { description: tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: hours }) },
-      );
+      let duel;
+      if (type === 'session') {
+        duel = await createSessionDuel({ opponentId: profile.id, windowHours: hours });
+        haptic('success');
+        toast.success(
+          tFallback('createDuelModal.sessionStarted', 'Duel on. Beat @{handle}\'s last workout.', { handle: profile.username }),
+          { description: tFallback('createDuelModal.bestCounts', 'Your best workout in the next {n}h counts automatically.', { n: hours }) },
+        );
+      } else {
+        duel = await createDuel({ opponentId: profile.id, type, windowHours: hours });
+        sendDuelDM(duel.id, profile.id, type, hours);
+        haptic('success');
+        toast.success(
+          tFallback('createDuelModal.openDuelSent', '{type} sent to @{handle}!', {
+            type: tFallback(`duel.type.${type}.name`, type === 'mirror' ? 'Mirror Duel' : 'Open Duel'),
+            handle: profile.username,
+          }),
+          { description: tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: hours }) },
+        );
+      }
       onCreated?.(duel);
       onClose();
     } catch (err) {
@@ -453,7 +466,11 @@ export default function CreateDuelModal({
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">{tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: windowHours })}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {selectedType === 'session'
+                    ? tFallback('createDuelModal.windowStartsNow', 'The {n}h window starts now.', { n: windowHours })
+                    : tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: windowHours })}
+                </p>
               </div>
 
               <motion.button
@@ -465,7 +482,9 @@ export default function CreateDuelModal({
               >
                 {sendingId
                   ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <><Swords className="w-4 h-4" /> {tFallback('createDuelModal.challengeHandle', 'Challenge @{handle}', { handle: opponent?.username })}</>}
+                  : <><Swords className="w-4 h-4" /> {selectedType === 'session'
+                      ? tFallback('createDuelModal.takeOnHandle', 'Take on @{handle}', { handle: opponent?.username })
+                      : tFallback('createDuelModal.challengeHandle', 'Challenge @{handle}', { handle: opponent?.username })}</>}
               </motion.button>
             </motion.div>
           )}

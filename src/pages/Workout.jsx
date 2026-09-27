@@ -2566,7 +2566,7 @@ export default function Workout() {
         <div className="flex items-center justify-end mb-3">
           <div className="flex items-center gap-1.5">
             {activeDuel && (
-              <button type="button" onClick={() => navigate('/duels')}
+              <button type="button" onClick={() => navigate(`/duels?duel=${activeDuel.id}`)}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/20 active:bg-destructive/20 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>{tFallback("workout.duel", "Duel")}</span>
