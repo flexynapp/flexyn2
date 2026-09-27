@@ -828,6 +828,7 @@ export default function Workout() {
   // Comeback protocol — triggers when the user hasn't worked out in over 72h
   const comebackProtocol = useComebackProtocol({
     workoutLogs: logs,
+    cardioLogs,
     hasActiveSession: sessions.length > 0,
     userId: user?.id,
   });
