@@ -37,6 +37,11 @@ export function isBodyweightExercise(name) {
   return BW_REGEX.test(String(name || ''));
 }
 
+// Room to leave when scrolling the next set into view: the app header and
+// the pinned session bar above, the rest timer and the tab bar below.
+const NEXT_SET_CLEAR_TOP = 180;
+const NEXT_SET_CLEAR_BOTTOM = 160;
+
 export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [] }) {
   // Last 3 sessions' sets for this exercise. Pulled from the user's
   // cached workout-log array — no extra query. Self-collapses to []
@@ -94,6 +99,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   // Session-best 1RM tracking — fires haptic [50,30,100] when a new intra-session PR is hit
   const sessionBest1RMRef = useRef(0);
+  const setListRef = useRef(null);
 
   // Warm-up detector: seed a freshly-added exercise's first set from last
   // session. If the lifter was working heavy (top working set > 135 lb),
@@ -212,6 +218,28 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     newSets[index] = { ...updated, _key: prev._key || updated._key || `legacy_${index}` };
     checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
+    // Checking a set brings the next open one into view, so the thumb
+    // never has to go looking for it. Measured by hand rather than with
+    // scrollIntoView: Chrome skips a 'nearest' scroll for a row that is
+    // technically on screen even when it sits under the rest timer and the
+    // tab bar, which is exactly the row this is for.
+    if (!prev.completed && updated.completed) {
+      const next = newSets.findIndex((s, i) => i > index && !s.completed);
+      if (next !== -1) {
+        setTimeout(() => {
+          const el = setListRef.current?.querySelector(`[data-set-row="${next}"]`);
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const floor = window.innerHeight - NEXT_SET_CLEAR_BOTTOM;
+          let dy = 0;
+          if (r.bottom > floor) dy = r.bottom - floor;
+          else if (r.top < NEXT_SET_CLEAR_TOP) dy = r.top - NEXT_SET_CLEAR_TOP;
+          if (dy) {
+            try { window.scrollBy({ top: dy, behavior: 'smooth' }); } catch { /* noop */ }
+          }
+        }, 350);
+      }
+    }
     // Auto-start the rest timer the moment a set transitions to
     // "fully logged". For barbell/DB lifts that means both weight + reps;
     // for bodyweight exercises (pushups, pullups), weight = 0 is the
@@ -252,6 +280,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // Only the false→true EDGE folds it. Reopening a finished exercise to
   // fix a number must not snap shut again while every set is still ticked.
   const doneCount = sets.filter(s => s.completed).length;
+  // The set about to be lifted: its row carries the plate diagram, and once
+  // the exercise is under way, the outline that says "you are here".
+  const nextSetIndex = sets.findIndex(s => !s.completed);
   const allSetsDone = sets.length > 0 && doneCount === sets.length;
   const isComplete = !!exercise.completed;
   const prevAllDoneRef = useRef(allSetsDone);
@@ -453,7 +484,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         </div>
       )}
 
-      <div className="space-y-2 mb-3">
+      <div ref={setListRef} className="space-y-2 mb-3">
         {sets.length > 0 && (
           <div className="flex items-center gap-1 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="w-5 shrink-0 text-center">{t('workout.set')}</span>
@@ -477,8 +508,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               exit={{ opacity: 0, height: 0, y: -6 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ overflow: 'hidden' }}
+              data-set-row={i}
             >
-              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} prevFeelNote={i > 0 ? (sets[i - 1]?.feel_note || '') : ''} previous={previousSets[i] || null} />
+              <SetRow set={set} index={i} isNext={i === nextSetIndex} isCurrent={i === nextSetIndex && doneCount > 0} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} prevFeelNote={i > 0 ? (sets[i - 1]?.feel_note || '') : ''} previous={previousSets[i] || null} />
             </motion.div>
           ))}
         </AnimatePresence>

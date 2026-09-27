@@ -190,3 +190,16 @@ describe('OneShotTooltip — coming back after a reset', () => {
     expect(screen.getByText('hint text')).toBeInTheDocument();
   });
 });
+
+// The paste hint is anchored on the first set of EVERY exercise, so a
+// session with three exercises mounts three instances of one id at once.
+// All three pass the seen-check on mount, before any has fired, and the
+// screen got three orange bubbles. One id means one bubble.
+describe('OneShotTooltip — several instances of one id', () => {
+  it('shows once, not once per instance', () => {
+    render(<><Harness /><Harness /><Harness /></>);
+    open();
+
+    expect(screen.getAllByText('hint text')).toHaveLength(1);
+  });
+});
