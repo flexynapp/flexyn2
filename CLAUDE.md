@@ -244,10 +244,15 @@ Across `src/lib/data/` alone: `user_id` 231 uses, `created_by` 71,
    migration on it; merging to `main` applies the new file to production
    and records it in production's history. See "Database migrations"
    below.
-6. **Kegan merges every PR that touches `supabase/`** (his call,
-   2026-09-26): merging one is the same act as running SQL on production.
-   Claude merges its own green code-only PRs. In the PR description, say
-   in plain words what the migration changes for users and data.
+6. **Claude merges its own green PRs, database ones included** (kegan,
+   2026-09-27; until then he merged every PR touching `supabase/`).
+   Merging a migration is the same act as running SQL on production, so
+   a database PR merges only when the Supabase Preview check has run the
+   migration and passed, and its description says in plain words what it
+   changes for users and data. **One exception: a migration that deletes
+   user data** (DROP TABLE or COLUMN, DELETE, TRUNCATE on user rows)
+   waits for Kegan's typed go-ahead, because it cannot be undone. After
+   merging, confirm it landed (see "A merge is not a deploy" below).
 7. Never run SQL that writes to production yourself, and never hand the
    user SQL to paste as a substitute for a migration. Read-only queries to
    check state are fine.
