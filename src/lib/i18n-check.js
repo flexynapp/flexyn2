@@ -65,6 +65,8 @@ async function loadAllLanguages() {
 const ALLOW_IDENTICAL = new Set([
   'app.name',       // "Flexyn" — brand name
   'levelBar.level', // "Lv {n}" — widely understood abbreviation
+  'createDuelModal.level', // "Lv {n}" — same abbreviation (glossary doNotTranslate)
+  'win.levelN',             // "Level {n}" — Level is a kept product noun (Kegan, 2026-09-27)
   // ── Units, codes and proper nouns ──────────────────────────────────
   // These are identical in EVERY language by design. They were flagged
   // in all 14 because `hasLetters` only skips values with no letters at

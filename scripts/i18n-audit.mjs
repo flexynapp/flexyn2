@@ -256,7 +256,7 @@ const enVals = entries.en;
 // Mirrors i18n-check.js: a value with no letters (numbers, tokens,
 // punctuation) or the bare brand name is never a missing translation.
 // Keep this aligned with ALLOW_IDENTICAL in that file.
-const ALLOW_IDENTICAL = new Set(['app.name', 'levelBar.level']);
+const ALLOW_IDENTICAL = new Set(['app.name', 'levelBar.level', 'createDuelModal.level', 'win.levelN']);
 const substantive = (v, k) =>
   v && v.length > 3 && /\p{L}/u.test(v) && !/^\s*Flexyn\s*$/i.test(v) && !ALLOW_IDENTICAL.has(k);
 console.log('\n=== C. present but holding the English string ===');
