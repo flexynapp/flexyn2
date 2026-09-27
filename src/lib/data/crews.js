@@ -6,6 +6,7 @@ import { db } from '@/api/db';
 import { compressImage } from '@/lib/imageCompress';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { reportError } from '@/lib/reportError';
+import * as workouts from '@/lib/data/workouts';
 
 // Display value of one XP-fuel claim. The AUTHORITATIVE number is the
 // constant inside claim_crew_xp_fuel (migration 298) — this is only what
@@ -936,9 +937,7 @@ export async function getCrewStats(crewId) {
 
         let logs = [];
         try {
-          logs = await db.entities.WorkoutLog
-            .filter({ user_id: m.user_id }, '-date', 20)
-            .catch(() => []);
+          logs = await workouts.list(m.user_id, 20).catch(() => []);
           // Filter to this week
           logs = (logs ?? []).filter(l => l.date >= weekAgo);
         } catch { logs = []; }

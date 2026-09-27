@@ -61,6 +61,7 @@ import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { safeExternalUrl } from '@/lib/safeUrl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareOrigin } from '@/lib/appOrigin';
+import * as workouts from '@/lib/data/workouts';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'));
@@ -1272,7 +1273,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryFn: async () => {
       if (!user?.id) return [];
       try {
-        return await db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 500);
+        return await workouts.list(user.id, 500);
       } catch { return []; }
     },
     enabled: isSelf && !!user?.id,

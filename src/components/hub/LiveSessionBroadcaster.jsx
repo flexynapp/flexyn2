@@ -12,11 +12,11 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
-import { db } from '@/api/db';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
+import * as workouts from '@/lib/data/workouts';
 
 export default function LiveSessionBroadcaster({ onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -154,7 +154,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
         const elapsedMin = sessionStartedAt
           ? Math.max(1, Math.round((Date.now() - sessionStartedAt.getTime()) / 60000))
           : null;
-        await db.entities.WorkoutLog.create({
+        await workouts.create({
           date: format(new Date(), 'yyyy-MM-dd'),
           title: title || 'Live Workout',
           exercises: grouped,

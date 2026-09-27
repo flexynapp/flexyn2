@@ -13,7 +13,6 @@ import { reportError } from '@/lib/reportError';
 import { toast } from '@/lib/toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
 import { totalVolume } from '@/lib/workoutVolume';
 import {
   getGauntletChallenges,
@@ -28,6 +27,7 @@ import GauntletPath from '@/components/gauntlet/GauntletPath';
 import WeeklyGauntletCard from '@/components/gauntlet/WeeklyGauntletCard';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import * as workouts from '@/lib/data/workouts';
 
 // Challenge-type readable label — stored as i18n keys + fallbacks; resolved
 // at render-time via t() so the same map works for every locale.
@@ -271,7 +271,7 @@ export default function Gauntlet() {
 
   const { data: weekLogs = [] } = useQuery({
     queryKey: ['gauntlet-weekly-logs', user?.email, weeklyGauntlet?.id],
-    queryFn:  () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
+    queryFn:  () => workouts.list(user.id, 50),
     enabled:  !!user?.email && !!weeklyGauntlet?.id && scoringSupported && attemptOpen,
     staleTime: 60_000,
   });

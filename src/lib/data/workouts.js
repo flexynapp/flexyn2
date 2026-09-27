@@ -7,6 +7,10 @@ import { containsProfanity } from '@/lib/profanityFilter';
 export const list = (userId, limit = 50) =>
   db.entities.WorkoutLog.filter({ user_id: userId }, '-date', limit);
 
+/** The current user's workout logs on one calendar day (yyyy-MM-dd). */
+export const listForDate = (userId, date, limit = 50) =>
+  db.entities.WorkoutLog.filter({ user_id: userId, date }, '-date', limit);
+
 /** Fetch a workout log by id. */
 export const get = (id) =>
   db.entities.WorkoutLog.get(id);

@@ -42,6 +42,7 @@ import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
 import JournalWidget from '@/components/dashboard/JournalWidget';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import TonightRow from '@/components/dashboard/TonightRow';
+import * as workouts from '@/lib/data/workouts';
 // Sleep / mood / steps logging + the score explainer live in this sheet, so
 // three log cards leave the eager dashboard chunk and arrive on first open.
 const ReadinessSheet = React.lazy(() => import('@/components/dashboard/ReadinessSheet'));
@@ -1173,8 +1174,7 @@ export default function Dashboard() {
     let cancelled = false;
     (async () => {
       try {
-        const { reconcileMyVolume } = await import('@/lib/data/workouts');
-        const res = await reconcileMyVolume();
+        const res = await workouts.reconcileMyVolume();
         if (cancelled) return;
         try { sessionStorage.setItem(sessionKey, '1'); } catch {}
         if (res.ok && res.reconciled > 0) {
@@ -1189,7 +1189,7 @@ export default function Dashboard() {
 
   const { data: rawLogs = [], isLoading: logsLoading, dataUpdatedAt: logsUpdatedAt } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'dashboard'),
-    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
+    queryFn: () => workouts.list(user.id, 50),
     enabled: !!user?.email,
   });
 

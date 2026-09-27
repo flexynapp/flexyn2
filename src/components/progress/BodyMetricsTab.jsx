@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import MuscleGroupHeatmap from '@/components/progress/MuscleGroupHeatmap';
+import * as workouts from '@/lib/data/workouts';
 
 // The Body tab is intentionally minimal: just the body heat map (plus
 // the opt-in cycle tracker, which self-hides when disabled). Height,
@@ -27,7 +28,7 @@ export default function BodyMetricsTab() {
   // for a moment, which makes the row count depend on mount order.
   const { data: rawLogs = [] } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'bodyMetrics'),
-    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => workouts.list(user.id, LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 

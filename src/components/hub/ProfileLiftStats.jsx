@@ -9,13 +9,13 @@ import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Share2 } from 'lucide-react';
-import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import TapToCopy from '@/components/TapToCopy';
+import * as workouts from '@/lib/data/workouts';
 
 const ProfileShareCard = lazy(() => import('./ProfileShareCard'));
 
@@ -30,7 +30,7 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
     queryFn: async () => {
       if (!userId) return [];
       try {
-        return await db.entities.WorkoutLog.filter({ user_id: userId }, '-date', 500);
+        return await workouts.list(userId, 500);
       } catch { return []; }
     },
     enabled: !!userId,

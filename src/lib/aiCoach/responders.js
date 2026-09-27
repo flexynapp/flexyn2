@@ -31,6 +31,7 @@ import { normalizeGoals, profileAge } from './trainingModifiers';
 // see it.
 import { listRecentMoodLogs } from '@/lib/data/moodLogs';
 import { listRecentStepLogs } from '@/lib/data/stepLogs';
+import * as workoutLogs from '@/lib/data/workouts';
 
 
 // ── Log dates are calendar days, not instants ────────────────────────────────
@@ -78,7 +79,7 @@ async function _fetchRecentWorkouts(userId, days = 14) {
   if (!userId) return [];
   const since = subDays(new Date(), days);
   try {
-    const all = await db.entities.WorkoutLog.filter({ user_id: userId }, '-date', 200);
+    const all = await workoutLogs.list(userId, 200);
     return (all || []).filter(w => { const d = parseLogDate(w.date); return d && d >= since; });
   } catch {
     return [];
