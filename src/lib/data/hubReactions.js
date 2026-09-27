@@ -5,12 +5,12 @@
 // The migration keeps emoji ↔ reaction_type and created_by ↔ user_email in sync via trigger,
 // but we write the canonical schema fields here (created_by via auto-inject, emoji for the value).
 
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import { supabase } from '@/api/supabaseClient';
 import { createBatcher } from '@/lib/microBatcher';
 import * as hubPosts from './hubPosts';
 
-const e = () => db.entities.HubReaction;
+const e = () => ownedRows('hub_reactions');
 
 // ── Batched my-reaction reads ────────────────────────────────────────────
 //
@@ -93,7 +93,7 @@ export const setReaction = async (postId, email, newReaction /* 'like' | 'dislik
   if (existing && existing.reaction_type === newReaction) return existing;
 
   if (existing) {
-    await e().delete(existing.id).catch(() => {});
+    await e().remove(existing.id).catch(() => {});
     const field = existing.reaction_type === 'like' ? 'like_count' : 'dislike_count';
     await hubPosts.incrementCounter(postId, field, -1);
   }
@@ -159,7 +159,7 @@ export const purgeForUser = async (email) => {
     dec[r.post_id] = dec[r.post_id] || { like: 0, dislike: 0 };
     dec[r.post_id][r.reaction_type] = (dec[r.post_id][r.reaction_type] || 0) + 1;
   }
-  await Promise.all(rows.map(r => e().delete(r.id).catch(() => {})));
+  await Promise.all(rows.map(r => e().remove(r.id).catch(() => {})));
   await Promise.all(
     Object.entries(dec).flatMap(([postId, counts]) => [
       counts.like    ? hubPosts.incrementCounter(postId, 'like_count',    -counts.like).catch(() => {})    : null,
@@ -172,7 +172,7 @@ export const purgeForUser = async (email) => {
  * Post ids the signed-in user has LIKED, newest first.
  *
  * Reads `created_by` rather than taking a user id parameter: the column is
- * auto-injected on insert (see db.js makeEntity) and the table's RLS scopes a
+ * injected on insert (see ownedRows.create) and the table's RLS scopes a
  * SELECT to your own rows, so this can only ever return your own likes. That
  * is the whole privacy model for this screen — there is no view of anyone
  * else's likes to accidentally expose, because the query cannot express one.
