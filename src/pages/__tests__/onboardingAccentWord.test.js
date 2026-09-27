@@ -52,9 +52,13 @@ const SITES = [...SOURCE.matchAll(/<KineticHeading\b([\s\S]*?)\/>/g)].map((m) =>
   return { heading: heading?.[1], accentKey: accentKey?.[1], accentLiteral: accentLiteral?.[1] };
 });
 
-// The welcome hero renders its own markup rather than using KineticHeading, so
-// it cannot be discovered by the scan above. Its keys are asserted to exist.
-const WELCOME = { heading: 'onboarding.welcome.headline2', accentKey: 'onboarding.welcome.accentWord' };
+// The welcome hero no longer uses the accent-WORD matcher at all. Its accent
+// is a two word phrase ("learns you."), which a single-token matcher cannot
+// express, so the sentence is two catalog keys and the whole second key is
+// orange. Nothing here can drift between a sentence and a separately
+// translated word, which is the failure this file exists for; the welcome
+// assertions below check the two halves exist in every released locale.
+const WELCOME_KEYS = ['onboarding.welcome.brandHeadline', 'onboarding.welcome.brandAccent'];
 
 // The catalog assertions below run the REAL matcher, so they cannot tell a
 // correct matcher from a consistently wrong one. These pin its behaviour to
@@ -111,15 +115,19 @@ describe('onboarding accent words', () => {
     expect(mismatched.map((s) => `${s.heading} + ${s.accentKey}`)).toEqual([]);
   });
 
-  it('still renders the welcome hero from the two keys this test assumes', () => {
-    expect(SOURCE).toContain(`tFallback('${WELCOME.heading}'`);
-    expect(SOURCE).toContain(`tFallback('${WELCOME.accentKey}'`);
-    expect(SOURCE).toContain('isAccent(w, accent)');
+  it('renders the welcome hero from its two halves, the second one orange', () => {
+    for (const key of WELCOME_KEYS) expect(SOURCE).toContain(`tFallback('${key}'`);
+    expect(SOURCE).toMatch(/<span className="text-primary">\{tFallback\('onboarding\.welcome\.brandAccent'/);
   });
 
   describe.each(RELEASED)('in %s', (lang) => {
     const dict = catalog(lang);
-    const all = [...SITES, WELCOME];
+    const all = SITES;
+
+    it('translates both halves of the welcome hero', () => {
+      const missing = WELCOME_KEYS.filter((k) => !dict[k] || !dict[k].trim());
+      expect(missing).toEqual([]);
+    });
 
     it('gives every accent word as a single token', () => {
       // The Spanish "en serio" bug. Two words can never equal one token, so
