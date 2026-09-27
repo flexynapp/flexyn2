@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Swords, Copy, Share2, Loader2, Check, Link as LinkIcon } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { createInviteLink, buildInviteUrl } from '@/lib/data/duelInvites';
+import { duelErrorCode, duelErrorMessage } from '@/lib/data/duels';
 import { useDateFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { track, EVENTS } from '@/lib/analytics';
@@ -19,7 +20,8 @@ import { track, EVENTS } from '@/lib/analytics';
 const TYPE_OPTIONS = [
   { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
   { id: 'mirror',   label: 'Mirror',   desc: 'Complete the same session' },
-  { id: 'exercise', label: 'Exercise', desc: 'Single exercise showdown' },
+  // No Exercise option: nothing chose the exercise, so it could not be
+  // scored fairly. The server refuses it (20260927161000_duels_lockdown).
 ];
 
 export default function CreateInviteLinkModal({ open, onOpenChange }) {
@@ -49,9 +51,8 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
       });
       setGenerated(result);
     } catch (err) {
-      const code = err?.code || err?.status;
-      if (code === '42883' || code === '42P01') {
-        toast.error(tFallback('createInviteLinkModal.migrationMissing', 'Invite system pending. Apply migration 072.'));
+      if (duelErrorCode(err)) {
+        toast.error(duelErrorMessage(err, tFallback));
       } else {
         toast.error(tFallback('createInviteLinkModal.createFailed', 'Could not create invite. Try again.'));
       }
@@ -174,7 +175,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                 {creating
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <Swords className="w-4 h-4" />}
-                {creating ? 'Generating…' : 'Generate invite link'}
+                {tFallback('createInviteLinkModal.generate', 'Generate invite link')}
               </button>
             </motion.div>
           ) : (
@@ -196,8 +197,8 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                   onClick={handleCopy}
                   className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-sm font-bold border border-border hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
                 >
-                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                  {copied ? tFallback('referral.copied', 'Link copied') : tFallback('common.copy', 'Copy')}
                 </button>
                 <button
                   onClick={handleNativeShare}

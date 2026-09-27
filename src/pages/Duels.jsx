@@ -1,13 +1,17 @@
 // src/pages/Duels.jsx
 // Full duels hub — active duels, history, challenge someone.
 
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { listMyDuels, cancelDuel } from '@/lib/data/duels';
+import { listMyDuels, cancelDuel, getDuel, duelErrorMessage } from '@/lib/data/duels';
+import { duelTypeName, duelStatusName } from '@/components/duels/duelLabels';
+import { formatDuration, formatNumber } from '@/lib/intl';
+import { isGuestAccount } from '@/lib/guestIdentity';
+import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
 import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -18,24 +22,24 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Link as LinkIcon } from 'lucide-react';
 import { formatRelativeDate } from '@/lib/formatRelativeDate';
 
-// Static config keyed by status; the visible label is resolved at render
-// time via t() so the same English fallback works for every locale.
-const STATUS_CONFIG = {
-  pending:   { i18nKey: 'duels.status.pending',   fallback: 'Pending',   color: 'text-amber-500',         bg: 'bg-amber-500/10 border-amber-500/20' },
-  active:    { i18nKey: 'duels.status.active',    fallback: 'Active',    color: 'text-primary',           bg: 'bg-primary/10 border-primary/20' },
-  completed: { i18nKey: 'duels.status.completed', fallback: 'Complete',  color: 'text-emerald-500',       bg: 'bg-emerald-500/10 border-emerald-500/20' },
-  declined:  { i18nKey: 'duels.status.declined',  fallback: 'Declined',  color: 'text-rose-500',          bg: 'bg-rose-500/10 border-rose-500/20' },
-  expired:   { i18nKey: 'duels.status.expired',   fallback: 'Expired',   color: 'text-muted-foreground',  bg: 'bg-secondary' },
+// Status chip colours, from the app's four hues (no amber/emerald/rose).
+const STATUS_STYLE = {
+  pending:   'bg-primary/10 border-primary/20 text-primary',
+  active:    'bg-primary/10 border-primary/20 text-primary',
+  completed: 'bg-success/10 border-success/20 text-success',
+  declined:  'bg-secondary border-border text-muted-foreground',
+  expired:   'bg-secondary border-border text-muted-foreground',
 };
 
 const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
 function DuelRow({ duel, currentUserId, opponent, onClick }) {
-  const { t, tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const isChallenger = duel.challenger_id === currentUserId;
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
-  const cfg          = STATUS_CONFIG[duel.status] || STATUS_CONFIG.expired;
+  const statusStyle  = STATUS_STYLE[duel.status] || STATUS_STYLE.expired;
+  const yourMove     = !isChallenger && duel.status === 'pending';
   const Icon         = TYPE_ICON[duel.type] || Swords;
   const opponentName = opponent?.username ? `@${opponent.username}` : null;
 
@@ -46,7 +50,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
     >
       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
         {duel.status === 'completed'
-          ? <Crown className={`w-4 h-4 ${won ? 'text-primary' : 'text-muted-foreground'}`} />
+          ? <Crown className={`w-4 h-4 ${won ? 'text-success' : 'text-muted-foreground'}`} />
           : <Icon className="w-4 h-4 text-primary" />
         }
       </div>
@@ -56,21 +60,18 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
             ? (tFallback('duels.youChallenged', 'You challenged'))
             : (tFallback('duels.challengedBy', 'Challenged by'))}
           {opponentName ? <span className="text-foreground"> {opponentName}</span> : null} ·{' '}
-          <span className="text-muted-foreground capitalize">{duel.type}</span>
+          <span className="text-muted-foreground">{duelTypeName(duel.type, tFallback)}</span>
         </p>
         {/* Deadline countdown for active/pending duels */}
         {['pending', 'active'].includes(duel.status) && duel.expires_at && (() => {
-          const minsLeft = Math.max(0, Math.round((new Date(duel.expires_at) - Date.now()) / 60_000));
-          const hoursLeft = Math.floor(minsLeft / 60);
-          const label = hoursLeft >= 48
-            ? `${Math.floor(hoursLeft / 24)}d left`
-            : hoursLeft >= 1
-              ? `${hoursLeft}h left`
-              : minsLeft > 0 ? `${minsLeft}m left` : 'Expires soon';
-          const urgent = hoursLeft < 6;
+          const msLeft = new Date(duel.expires_at) - Date.now();
+          const urgent = msLeft < 6 * 3_600_000;
+          const left = msLeft > 60_000
+            ? tFallback('duels.timeLeft', '{time} left', { time: formatDuration(msLeft, language) })
+            : tFallback('duels.expiresSoon', 'Expires soon');
           return (
-            <p className={`text-xs mt-0.5 ${urgent ? 'text-rose-500 font-semibold' : 'text-muted-foreground'}`}>
-              {label}
+            <p className={`text-xs mt-0.5 ${urgent ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+              {yourMove ? `${tFallback('duels.yourMove', 'Tap to accept or decline')} · ${left}` : left}
             </p>
           );
         })()}
@@ -83,7 +84,10 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
           if (myVol == null && theirVol == null) return <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeDate(duel.created_at, { variant: 'short' })}</p>;
           return (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {myVol != null ? Math.round(myVol).toLocaleString() : '—'} vs {theirVol != null ? Math.round(theirVol).toLocaleString() : '—'}
+              {tFallback('duels.scoreLine', '{mine} vs {theirs}', {
+                mine:   myVol != null ? formatNumber(Math.round(myVol), language) : '—',
+                theirs: theirVol != null ? formatNumber(Math.round(theirVol), language) : '—',
+              })}
             </p>
           );
         })()}
@@ -94,7 +98,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
         )}
       </div>
       {duel.status === 'completed' && (
-        <span className={`text-xs font-bold ${won ? 'text-primary' : lost ? 'text-rose-500' : 'text-amber-500'}`}>
+        <span className={`text-xs font-bold ${won ? 'text-success' : lost ? 'text-destructive' : 'text-muted-foreground'}`}>
           {won
             ? (tFallback('duels.resultWin', 'W'))
             : lost
@@ -102,8 +106,8 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
               : (tFallback('duels.resultTie', 'TIE'))}
         </span>
       )}
-      <span className={`text-micro font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
-        {t(cfg.i18nKey) || cfg.fallback}
+      <span className={`text-micro font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+        {duelStatusName(duel.status, tFallback)}
       </span>
     </button>
   );
@@ -122,6 +126,10 @@ export default function Duels() {
   const [showCreate,    setShowCreate]    = useState(false);
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [selectedDuel,  setSelectedDuel]  = useState(null);
+  const [connectOpen,   setConnectOpen]   = useState(false);
+  const isGuest = isGuestAccount(user);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedDuelId = searchParams.get('duel');
 
   const { data: duels = [], isLoading } = useQuery({
     queryKey:  ['myDuels', user?.id],
@@ -155,6 +163,18 @@ export default function Duels() {
       return map;
     },
   });
+  // /duels?duel=<id> is where the invite and result pushes land: open that
+  // duel's sheet, so "Tap to accept" puts the Accept button in front of them.
+  useEffect(() => {
+    if (!linkedDuelId || isLoading) return;
+    let cancelled = false;
+    const clear = () => setSearchParams((p) => { p.delete('duel'); return p; }, { replace: true });
+    const found = duels.find((d) => d.id === linkedDuelId);
+    if (found) { setSelectedDuel(found); clear(); return; }
+    getDuel(linkedDuelId).then((d) => { if (!cancelled && d) setSelectedDuel(d); clear(); });
+    return () => { cancelled = true; };
+  }, [linkedDuelId, isLoading, duels, setSearchParams]);
+
   const opponentFor = (d) => profileMap[d.challenger_id === user?.id ? d.opponent_id : d.challenger_id] || null;
 
   const handleCancelDuel = async (id) => {
@@ -163,8 +183,8 @@ export default function Duels() {
       qc.invalidateQueries({ queryKey: ['myDuels'] });
       setSelectedDuel(null);
       toast.success(tFallback('duels.challengeCancelled', 'Challenge cancelled.'));
-    } catch {
-      toast.error(tFallback('marketplaceFeed.cancelFailed', 'Could not cancel. Try again.'));
+    } catch (err) {
+      toast.error(duelErrorMessage(err, tFallback));
     }
   };
 
@@ -187,7 +207,7 @@ export default function Duels() {
             they have room to breathe. Full-width (flex-1) + larger. */}
         <div className="flex items-center gap-2 mb-4">
           <button
-            onClick={() => setShowInviteLink(true)}
+            onClick={() => (isGuest ? setConnectOpen(true) : setShowInviteLink(true))}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
             aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
           >
@@ -195,7 +215,7 @@ export default function Duels() {
             {tFallback('duels.inviteLink', 'Invite link')}
           </button>
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => (isGuest ? setConnectOpen(true) : setShowCreate(true))}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -223,12 +243,12 @@ export default function Duels() {
           stats. (Audit 15 #L1.) */}
       {(wins > 0 || losses > 0 || duels.some(d => d.status === 'completed' && !d.winner_id)) && (
         <div className="mx-4 mb-4 flex gap-3">
-          <div className="flex-1 rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
-            <p className="text-2xl font-black text-primary">{wins}</p>
+          <div className="flex-1 rounded-xl bg-success/10 border border-success/20 p-3 text-center">
+            <p className="text-2xl font-black text-success">{wins}</p>
             <p className="text-xs text-muted-foreground">{tFallback("duels.wins", "Wins")}</p>
           </div>
-          <div className="flex-1 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-center">
-            <p className="text-2xl font-black text-rose-500">{losses}</p>
+          <div className="flex-1 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-center">
+            <p className="text-2xl font-black text-destructive">{losses}</p>
             <p className="text-xs text-muted-foreground">{tFallback("duels.losses", "Losses")}</p>
           </div>
           <div className="flex-1 rounded-xl bg-secondary border border-border p-3 text-center">
@@ -254,7 +274,7 @@ export default function Duels() {
         {/* Completed / History */}
         {history.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("hub.activity.completed", "Completed")}</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.history", "History")}</p>
             <div className="space-y-2">
               {history.map(d => (
                 <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
@@ -268,7 +288,7 @@ export default function Duels() {
           <div className="text-center py-16">
             <Swords className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
             <p className="font-semibold text-muted-foreground">{tFallback("duels.noDuelsYet", "No duels yet")}</p>
-            <p className="text-sm text-muted-foreground/60 mt-1">{tFallback("duels.challengeSomeoneFromTheirProfile", "Challenge someone from their profile")}</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">{tFallback("duels.emptyHint", "Tap Challenge to pick someone, or send an invite link.")}</p>
           </div>
         )}
       </div>
@@ -298,6 +318,12 @@ export default function Duels() {
           />
         )}
       </AnimatePresence>
+      <ConnectAccountSheet
+        open={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        reason={tFallback('duels.error.guest', 'Connect an account to duel. Guest accounts cannot compete.')}
+        returnPath="/duels"
+      />
     </div>
     </ErrorBoundary>
   );

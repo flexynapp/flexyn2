@@ -1,12 +1,12 @@
 {
   "$comment": "Per-file counts of patterns CLAUDE.md bans. They may SHRINK, never grow. See scripts/ui-ratchet.mjs and src/test/__tests__/uiRatchet.test.js. After a cleanup, re-baseline with `npm run ui:ratchet -- --write` so the lower number is the new ceiling.",
   "$totals": {
-    "purple": 74,
+    "purple": 67,
     "gradient": 30,
     "backdropBlur": 82,
     "sparkles": 76,
     "heavyShadow": 60,
-    "colouredShadow": 28,
+    "colouredShadow": 26,
     "offScaleRadius": 31,
     "subFloorText": 0,
     "hoverMotion": 58
@@ -15,8 +15,6 @@
     "purple": {
       "src/components/cardio/CardioLiveTrackerOutside.jsx": 3,
       "src/components/coach/CoachPlanCard.jsx": 2,
-      "src/components/duels/CreateDuelModal.jsx": 5,
-      "src/components/duels/DuelInviteCard.jsx": 2,
       "src/components/gauntlet/GauntletStatsModal.jsx": 2,
       "src/components/gauntlet/WeeklyGauntletCard.jsx": 3,
       "src/components/hub/SnakeGameModal.jsx": 1,
@@ -217,7 +215,6 @@
       "src/components/workout/FirstWorkoutTutorial.jsx": 1,
       "src/lib/lootCatalog.js": 6,
       "src/lib/xpTier.js": 8,
-      "src/pages/DuelInviteLanding.jsx": 2,
       "src/pages/GymMap.jsx": 1,
       "src/pages/SignInToContinue.jsx": 1
     },

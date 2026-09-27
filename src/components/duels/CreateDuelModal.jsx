@@ -6,11 +6,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Swords, Dumbbell, Timer, Trophy, Loader2, Search, UserCircle2,
+  X, Swords, Dumbbell, Timer, Loader2, Search, UserCircle2,
   ArrowLeft, SendHorizonal,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { createDuel, getFrequentOpponents, sendDuelDM } from '@/lib/data/duels';
+import { createDuel, getFrequentOpponents, sendDuelDM, duelErrorMessage } from '@/lib/data/duels';
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
@@ -30,24 +30,19 @@ const DUEL_TYPES = [
     color:       'text-primary',
     description: 'Train freely in the time window. Most total volume wins.',
   },
+  // Mirror used violet, which the app reserves for rarity tiers.
   {
     id:          'mirror',
     label:       'Mirror Duel',
     icon:        Dumbbell,
-    activeBg:    'bg-violet-500 border-violet-500',
-    idleBg:      'bg-violet-500/10 border-violet-500/30',
-    color:       'text-violet-500',
+    activeBg:    'bg-primary border-primary',
+    idleBg:      'bg-primary/10 border-primary/30',
+    color:       'text-primary',
     description: 'Opponent completes your exact session. Scored on completion % + volume.',
   },
-  {
-    id:          'exercise',
-    label:       'Exercise Duel',
-    icon:        Trophy,
-    activeBg:    'bg-amber-500 border-amber-500',
-    idleBg:      'bg-amber-500/10 border-amber-500/30',
-    color:       'text-amber-500',
-    description: 'Single exercise showdown. Most reps or highest weight.',
-  },
+  // Exercise Duel is gone from the picker: nothing ever let the challenger
+  // choose the exercise, so it scored "most reps in any set of anything".
+  // The server refuses it too (20260927161000_duels_lockdown).
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -111,6 +106,7 @@ function H2HBadge({ wins, losses }) {
 // ── Friend row (quick-send) ───────────────────────────────────────────────────
 
 function FriendRow({ profile, stats, onQuickSend, onSelect }) {
+  const { tFallback } = useLanguage();
   const wins   = stats?.wins   ?? 0;
   const losses = stats?.losses ?? 0;
 
@@ -120,7 +116,7 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
         <Avatar profile={profile} size="sm" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">@{profile.username}</p>
-          <p className="text-micro text-muted-foreground">Lv {profile.current_level ?? '—'}</p>
+          <p className="text-micro text-muted-foreground">{tFallback('createDuelModal.level', 'Lv {n}', { n: profile.current_level ?? '—' })}</p>
         </div>
         <H2HBadge wins={wins} losses={losses} />
       </button>
@@ -128,7 +124,8 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
       <button
         onClick={() => onQuickSend(profile)}
         className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/20 text-rose-500 transition-colors shrink-0"
-        title={`Quick challenge @${profile.username}`}
+        title={tFallback('createDuelModal.quickChallenge', 'Quick challenge @{handle}', { handle: profile.username })}
+        aria-label={tFallback('createDuelModal.quickChallenge', 'Quick challenge @{handle}', { handle: profile.username })}
       >
         <SendHorizonal className="w-3.5 h-3.5" />
       </button>
@@ -141,7 +138,6 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
 export default function CreateDuelModal({
   opponentId: initialOpponentId,
   opponentUsername: initialOpponentUsername,
-  recentSession = null,
   onClose,
   onCreated,
 }) {
@@ -237,7 +233,7 @@ export default function CreateDuelModal({
       onCreated?.(duel);
       onClose();
     } catch (err) {
-      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: err.message });
+      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: duelErrorMessage(err, tFallback) });
     } finally {
       setLoading(false);
       quickSendRef.current = false;
@@ -250,24 +246,23 @@ export default function CreateDuelModal({
     createRef.current = true;
     setLoading(true);
     try {
-      const sessionTemplate = selectedType === 'mirror' && recentSession
-        ? { exercises: recentSession.exercises, name: recentSession.regimen_name }
-        : null;
-
       const duel = await createDuel({
         opponentId: opponent.id,
         type:       selectedType,
-        sessionTemplate,
         windowHours,
       });
       sendDuelDM(duel.id, opponent.id, selectedType, windowHours);
-      toast.success(`Duel challenge sent to @${opponent.username}!`, {
-        description: `${windowHours}h window · Check their DMs.`,
-      });
+      toast.success(
+        tFallback('createDuelModal.openDuelSent', '{type} sent to @{handle}!', {
+          type: tFallback(`duel.type.${selectedType}.name`, selectedType === 'mirror' ? 'Mirror Duel' : 'Open Duel'),
+          handle: opponent.username,
+        }),
+        { description: tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: windowHours }) },
+      );
       onCreated?.(duel);
       onClose();
     } catch (err) {
-      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: err.message });
+      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: duelErrorMessage(err, tFallback) });
     } finally {
       setLoading(false);
       createRef.current = false;
@@ -307,7 +302,9 @@ export default function CreateDuelModal({
               <Swords className="w-3.5 h-3.5 text-rose-500" />
             </div>
             <p className="text-sm font-bold">
-              {step === 'pick' ? 'Challenge Someone' : `Duel @${opponent?.username}`}
+              {step === 'pick'
+                ? tFallback('createDuelModal.challengeSomeone', 'Challenge someone')
+                : tFallback('createDuelModal.duelHandle', 'Duel @{handle}', { handle: opponent?.username })}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary transition-colors">
@@ -363,7 +360,7 @@ export default function CreateDuelModal({
                   ) : !searching ? (
                     <div className="py-10 text-center">
                       <UserCircle2 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No users found for "{query}"</p>
+                      <p className="text-sm text-muted-foreground">{tFallback('createDuelModal.noUsersFound', 'No one found for "{query}"', { query })}</p>
                     </div>
                   ) : null
                 ) : (
@@ -371,7 +368,9 @@ export default function CreateDuelModal({
                   suggestedList.length > 0 ? (
                     <div>
                       <p className="text-micro font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        {frequent.length > 0 ? 'Recent Rivals & Friends' : 'Friends'}
+                        {frequent.length > 0
+                          ? tFallback('createDuelModal.recentAndFriends', 'Recent opponents and friends')
+                          : tFallback('createDuelModal.friends', 'Friends')}
                       </p>
                       <div className="space-y-0.5">
                         {suggestedList.map(p => (
@@ -432,19 +431,13 @@ export default function CreateDuelModal({
                 })}
               </div>
 
-              {/* Mirror template */}
+              {/* Mirror template. The server copies the challenger's last
+                  logged workout; no caller ever passed one before, so every
+                  Mirror duel scored 0 to 0. */}
               {selectedType === 'mirror' && (
                 <div className="rounded-xl bg-secondary/50 border border-border p-3">
                   <p className="text-xs font-semibold text-muted-foreground mb-1">{tFallback("createDuelModal.sessionTemplate", "Session Template")}</p>
-                  {recentSession ? (
-                    <p className="text-sm font-medium">
-                      {recentSession.regimen_name || tFallback('createDuelModal.yourLastWorkout', 'Your last workout')}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">
-                      {tFallback('createDuelModal.noRecentSession', 'No recent session found.')}
-                    </p>
-                  )}
+                  <p className="text-sm font-medium">{tFallback('createDuelModal.yourLastWorkout', 'Your last workout')}</p>
                 </div>
               )}
 
@@ -462,7 +455,7 @@ export default function CreateDuelModal({
                           : 'border-border hover:border-primary/40'
                       }`}
                     >
-                      {h}h
+                      {tFallback('createDuelModal.hours', '{n}h', { n: h })}
                     </button>
                   ))}
                 </div>
@@ -476,7 +469,7 @@ export default function CreateDuelModal({
               >
                 {loading
                   ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <><Swords className="w-4 h-4" /> Challenge @{opponent?.username}</>
+                  : <><Swords className="w-4 h-4" /> {tFallback('createDuelModal.challengeHandle', 'Challenge @{handle}', { handle: opponent?.username })}</>
                 }
               </button>
             </motion.div>

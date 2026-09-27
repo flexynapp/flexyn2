@@ -130,119 +130,58 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Errors ────────────────────────────────────────────────────────────────────
 
-/** Total volume (lbs) from a workout exercises array */
-export function calcDuelVolume(exercises = []) {
-  let v = 0;
-  for (const ex of exercises) {
-    for (const s of ex.sets || []) {
-      v += (Number(s.weight) || 0) * (Number(s.reps) || 0);
-    }
-  }
-  return v;
+// Server error codes → the sentence a person reads. Every write goes through
+// a SECURITY DEFINER RPC now (migration 20260927161000_duels_lockdown), and
+// its RAISE messages are codes, so a raw `err.message` in a toast would read
+// "workout_outside_duel_window".
+const DUEL_ERRORS = {
+  guest_account:              ['duels.error.guest', 'Connect an account to duel. Guest accounts cannot compete.'],
+  opponent_unavailable:       ['duels.error.unavailable', 'You cannot challenge this person.'],
+  duel_already_open:          ['duels.error.alreadyOpen', 'You already have a duel with this person.'],
+  too_many_duels:             ['duels.error.tooMany', 'You have sent 10 challenges today. Try again tomorrow.'],
+  mirror_needs_workout:       ['duels.error.mirrorNeedsWorkout', 'Log a workout first. A Mirror duel copies your last session.'],
+  duel_not_pending:           ['duels.error.notPending', 'This duel has already been answered.'],
+  duel_expired:               ['duels.error.expired', 'This duel has expired.'],
+  duel_not_active:            ['duels.error.notActive', 'This duel has not been accepted yet.'],
+  result_already_submitted:   ['duels.error.alreadySubmitted', 'You already submitted a workout for this duel.'],
+  workout_outside_duel_window:['duels.error.outsideWindow', 'Log a workout after the duel started, then submit it.'],
+  implausible_workout_log:    ['duels.error.implausible', 'That workout cannot be used for a duel.'],
+};
+
+export function duelErrorCode(err) {
+  const msg = String(err?.message || '');
+  return Object.keys(DUEL_ERRORS).find((code) => msg.includes(code)) || null;
 }
 
-/** Mirror duel score: completion % (0-1) weighted with volume ratio */
-export function scoreMirrorDuel(result, template) {
-  const templateExercises = template?.exercises || [];
-  const prescribed = templateExercises.reduce((a, ex) => a + (ex.sets?.length || 0), 0);
-  if (!prescribed) return 0;
-  const completed = (result?.sets_completed || 0);
-  const completionPct = Math.min(completed / prescribed, 1);
-  const prescribedVolume = calcDuelVolume(templateExercises);
-  const volumeRatio = prescribedVolume > 0
-    ? Math.min((result?.volume || 0) / prescribedVolume, 1.5)
-    : 1;
-  return Math.round((completionPct * 0.6 + (volumeRatio / 1.5) * 0.4) * 1000); // 0-1000
+export function duelErrorMessage(err, tFallback) {
+  const code = duelErrorCode(err);
+  if (code) return tFallback(...DUEL_ERRORS[code]);
+  return tFallback('duels.error.generic', 'Something went wrong. Try again.');
 }
 
-/** Determine winner from completed duel row */
-export function resolveDuelWinner(duel) {
-  const { type, challenger_result, opponent_result, challenger_id, opponent_id, session_template } = duel;
-  if (!challenger_result || !opponent_result) return null;
-
-  let cScore, oScore;
-  if (type === 'mirror') {
-    cScore = scoreMirrorDuel(challenger_result, session_template);
-    oScore = scoreMirrorDuel(opponent_result, session_template);
-  } else if (type === 'open') {
-    cScore = challenger_result.volume || 0;
-    oScore = opponent_result.volume || 0;
-  } else {
-    // exercise duel: reps at prescribed weight, or max weight
-    cScore = challenger_result.reps || challenger_result.weight || 0;
-    oScore = opponent_result.reps || opponent_result.weight || 0;
-  }
-
-  if (cScore === oScore) return null;            // tie
-  return cScore > oScore ? challenger_id : opponent_id;
-}
-
-// ── CRUD ──────────────────────────────────────────────────────────────────────
+// ── Writes ────────────────────────────────────────────────────────────────────
+// Clients can only READ the duels table. Each write below is one RPC that
+// derives the caller from auth.uid(); the server also sends the push.
 
 /**
- * Create a new duel challenge.
- * @param {object} opts
- * @param {string} opts.opponentId
- * @param {'mirror'|'open'|'exercise'} opts.type
- * @param {object|null} opts.sessionTemplate   mirror duel exercise list
- * @param {string|null} opts.targetExerciseId  exercise duel focus
- * @param {number}      opts.windowHours       default 72 (3 days to accept)
+ * Challenge someone. Only 'open' and 'mirror' are playable: an Exercise duel
+ * never had an exercise to compete on. A Mirror duel copies the challenger's
+ * latest workout server-side.
  */
-export async function createDuel({ opponentId, type = 'open', sessionTemplate = null, targetExerciseId = null, windowHours = 72 }) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-  // Reject self-duels at the data-layer entry point so every caller is
-  // covered — CreateDuelModal's search already excludes self, but the
-  // Nemesis challenge button and the duel-invite landing both bypass
-  // that filter. `challenger_id === opponent_id` rows otherwise break
-  // resolveDuelWinner. (Audit 15 #H8.)
+export async function createDuel({ opponentId, type = 'open', windowHours = 24 }) {
   if (!opponentId) throw new Error('opponent_required');
-  if (opponentId === user.id) throw new Error('cannot_duel_self');
-
-  const expiresAt = new Date(Date.now() + windowHours * 60 * 60 * 1000).toISOString();
-
-  const { data, error } = await supabase
-    .from('duels')
-    .insert({
-      challenger_id:      user.id,
-      opponent_id:        opponentId,
-      type,
-      status:             'pending',
-      session_template:   sessionTemplate,
-      target_exercise_id: targetExerciseId,
-      window_hours:       windowHours,
-      expires_at:         expiresAt,
-    })
-    .select()
-    .single();
-
+  const { data, error } = await supabase.rpc('create_duel', {
+    p_opponent_id:  opponentId,
+    p_type:         type,
+    p_window_hours: windowHours,
+  });
   if (error) throw error;
-
-  // Fan out a notification to the opponent — server-side i18n via
-  // notify_duel_invite_for (migration 065). The 034 trigger turns
-  // this into a Web Push if the opponent has subscribed and hasn't
-  // muted 'duels' in their notification_prefs. Pre-migration hosts
-  // (RPC missing) silently no-op so duel creation still succeeds.
-  try {
-    await supabase.rpc('notify_duel_invite_for', {
-      p_opponent_id: opponentId,
-      p_duel_id:     data.id,
-      p_duel_type:   type,
-    });
-  } catch (e) {
-    // Non-fatal — the duel itself was created. Log but don't throw.
-    if (e?.code !== '42883' && e?.code !== '42P01') {
-      console.warn('[duels] notify_duel_invite_for failed:', e?.message || e);
-    }
-  }
-
   return data;
 }
 
-/** Fetch all duels (pending + active + recent completed) for the current user,
- *  enriched with challenger_username and opponent_username from user_profiles. */
+/** Fetch the current user's duels, newest first, with both usernames. */
 export async function listMyDuels() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -251,7 +190,6 @@ export async function listMyDuels() {
     .from('duels')
     .select('*')
     .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
-    .in('status', ['pending', 'active', 'completed'])
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -281,219 +219,48 @@ export async function getDuel(id) {
     .from('duels')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   return error ? null : data;
 }
 
-/**
- * Opponent accepts a duel. Status-guarded so a tampered client can't
- * flip a `completed` / `declined` / `expired` row back to `active`
- * (which would unblock fresh result submission). Wave 57 (Duels
- * audit) caught this defect — the prior version had no
- * `.eq('status', 'pending')` predicate.
- */
+/** Opponent accepts. The duel's window starts now, not when it was sent. */
 export async function acceptDuel(id) {
-  const { data, error } = await supabase
-    .from('duels')
-    .update({ status: 'active' })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select()
-    .single();
-  if (error) {
-    // PGRST116 = no rows updated = row wasn't pending anymore.
-    // Re-fetch to return the current state so callers can show a
-    // helpful "this duel has already started / ended" toast.
-    if (error.code === 'PGRST116') {
-      const { data: current } = await supabase.from('duels').select('*').eq('id', id).maybeSingle();
-      const err = new Error('duel_not_pending');
-      err.current = current;
-      throw err;
-    }
-    throw error;
-  }
+  const { data, error } = await supabase.rpc('respond_to_duel', { p_duel_id: id, p_accept: true });
+  if (error) throw error;
   return data;
 }
 
-/**
- * Opponent declines a duel. Same status guard as acceptDuel — a losing
- * participant could previously call declineDuel(id) AFTER the duel was
- * `completed`, flipping status='declined' and erasing the loss from
- * the W/L tally. Wave 57 (Duels audit) caught this.
- */
+/** Opponent declines a pending duel. */
 export async function declineDuel(id) {
-  const { data, error } = await supabase
-    .from('duels')
-    .update({ status: 'declined' })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select()
-    .single();
-  if (error) {
-    if (error.code === 'PGRST116') {
-      const { data: current } = await supabase.from('duels').select('*').eq('id', id).maybeSingle();
-      const err = new Error('duel_not_pending');
-      err.current = current;
-      throw err;
-    }
-    throw error;
-  }
+  const { data, error } = await supabase.rpc('respond_to_duel', { p_duel_id: id, p_accept: false });
+  if (error) throw error;
   return data;
 }
 
-/**
- * Challenger withdraws a still-pending duel they created. Guarded to
- * status='pending' so it can't clobber a duel the opponent already
- * accepted. Reuses the 'declined' status — the duel_status enum has no
- * 'cancelled' value and adding one would need an ALTER TYPE migration;
- * the duel simply moves to history as ended.
- */
+/** Challenger withdraws a duel nobody has answered yet. */
 export async function cancelDuel(id) {
-  const { data, error } = await supabase
-    .from('duels')
-    .update({ status: 'declined' })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('cancel_duel', { p_duel_id: id });
   if (error) throw error;
   return data;
 }
 
 /**
- * Submit a result for the current user on a duel.
- * Auto-resolves winner if both results are in.
- * @param {string} duelId
- * @param {object} result          { volume, sets_completed, ... }
- * @param {object} duel            current duel row (to check other result)
- * @param {string} workoutLogId    REQUIRED post-mig-159 — proof of work
- *
- * Mig 159 hardened submit_duel_result_atomic to require a workout_log_id
- * so it can recompute volume SERVER-SIDE from the user's own log,
- * preventing the prior `{ volume: 999999999 }` cheat. The legacy
- * fallback path is preserved for pre-159 hosts but is no longer
- * the canonical flow.
+ * Submit a logged workout as this user's duel entry. The server scores it
+ * from the workout log itself, refuses a workout from before the duel was
+ * accepted, resolves the winner once both sides are in, and notifies the
+ * other lifter. Returns the refreshed duel row.
  */
-export async function submitDuelResult(duelId, result, duel, workoutLogId) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
-  // Atomic via submit_duel_result_atomic RPC (migration 079, hardened
-  // in 159 to require workout_log_id + recompute volume server-side).
-  // The previous client flow had a race: concurrent
-  // challenger+opponent submissions could both read otherResult=null
-  // and both write only their own result, leaving the duel stuck at
-  // status='active' with both results filled in but no winner. The
-  // RPC locks the duel row FOR UPDATE, writes the caller's result,
-  // and if both sides are now in, resolves the winner inline under
-  // the same lock.
-  //
-  // Pre-079 hosts fall back to the legacy two-write path so the
-  // feature doesn't break on stale deployments; the race is the
-  // documented bug.
-  const { data: rpcData, error: rpcError } = await supabase.rpc('submit_duel_result_atomic', {
+export async function submitDuelResult(duelId, workoutLogId) {
+  const { error } = await supabase.rpc('submit_duel_result_atomic', {
     p_duel_id:        duelId,
-    p_result:         result,
-    p_workout_log_id: workoutLogId || null,
+    p_result:         {},
+    p_workout_log_id: workoutLogId,
   });
-  if (!rpcError) {
-    // Re-fetch the full duel row for the caller's downstream logic
-    // (notification dispatch reads winner_id + opponent_id from this).
-    const { data: full } = await supabase
-      .from('duels')
-      .select('*')
-      .eq('id', duelId)
-      .single();
-    const data = full;
-    const isChallenger = duel.challenger_id === user.id;
-    // Fall through to the notification block below — preserve the
-    // existing post-completion fanout path.
-    if (data?.status === 'completed') {
-      try {
-        const recipientId = isChallenger ? data.opponent_id : data.challenger_id;
-        let outcome;
-        if (data.winner_id == null)               outcome = 'tied';
-        else if (data.winner_id === recipientId)  outcome = 'won';
-        else                                      outcome = 'lost';
-
-        await supabase.rpc('notify_duel_result_for', {
-          p_recipient_id: recipientId,
-          p_duel_id:      data.id,
-          p_outcome:      outcome,
-        });
-      } catch (e) {
-        if (e?.code !== '42883' && e?.code !== '42P01') {
-          console.warn('[duels] notify_duel_result_for failed:', e?.message || e);
-        }
-      }
-    }
-    return data;
-  }
-
-  // Legacy fallback for pre-079 hosts (RPC missing).
-  if (rpcError.code !== '42883' && rpcError.code !== '42P01') {
-    throw rpcError;
-  }
-
-  const isChallenger = duel.challenger_id === user.id;
-  const resultField  = isChallenger ? 'challenger_result' : 'opponent_result';
-  const otherResult  = isChallenger ? duel.opponent_result : duel.challenger_result;
-
-  const updates = { [resultField]: result };
-
-  // If the other party already submitted, resolve the winner
-  if (otherResult) {
-    const updatedDuel = { ...duel, [resultField]: result };
-    const winnerId = resolveDuelWinner(updatedDuel);
-    updates.status    = 'completed';
-    updates.winner_id = winnerId;
-  }
-
-  const { data, error } = await supabase
-    .from('duels')
-    .update(updates)
-    .eq('id', duelId)
-    .select()
-    .single();
-
   if (error) throw error;
-
-  // If this submission resolved the duel, notify the OTHER participant
-  // with the result from THEIR perspective. We only notify the opposite
-  // party — the submitter knows the outcome from their own UI without
-  // a separate push. The RPC validates auth.uid() is one of the
-  // participants and 034's trigger handles push fan-out.
-  if (data?.status === 'completed') {
-    try {
-      const recipientId = isChallenger ? data.opponent_id : data.challenger_id;
-      let outcome;
-      if (data.winner_id == null)               outcome = 'tied';
-      else if (data.winner_id === recipientId)  outcome = 'won';
-      else                                      outcome = 'lost';
-
-      await supabase.rpc('notify_duel_result_for', {
-        p_recipient_id: recipientId,
-        p_duel_id:      data.id,
-        p_outcome:      outcome,
-      });
-    } catch (e) {
-      if (e?.code !== '42883' && e?.code !== '42P01') {
-        console.warn('[duels] notify_duel_result_for failed:', e?.message || e);
-      }
-    }
-  }
-
-  return data;
+  return getDuel(duelId);
 }
 
-/** Get active duel (if any) for the current user — shown as workout banner.
- *
- *  Filters by status AND expires_at — a duel can still have status='active'
- *  in the row even though its expires_at is in the past (no cron flips it
- *  to 'expired' until someone submits / the rollover runs). Without the
- *  expires_at filter the workout banner kept showing "Active Duel vs.
- *  @Opponent · Expired · Open duel" for stale rows — confusing and ugly.
- */
+/** The live duel (if any) for the current user, shown as a workout banner. */
 export async function getActiveDuel() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -510,14 +277,4 @@ export async function getActiveDuel() {
     .maybeSingle();
 
   return error ? null : data;
-}
-
-/** Mark a completed duel result card as seen (no-op on pending) */
-export async function dismissDuelResult(id) {
-  const { error } = await supabase
-    .from('duels')
-    .update({ hub_posted: true })
-    .eq('id', id)
-    .in('status', ['completed']);
-  if (error) console.warn('dismissDuelResult', error.message);
 }

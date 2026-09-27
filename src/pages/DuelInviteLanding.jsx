@@ -35,11 +35,14 @@ import {
   clearPendingToken,
 } from '@/lib/data/duelInvites';
 import { useLanguage } from '@/lib/LanguageContext';
+import { isGuestAccount } from '@/lib/guestIdentity';
+import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
 
+// An Exercise invite minted before the lockdown migration is played as an
+// Open duel when claimed, so it is described as one.
 const DUEL_TYPE_LABEL = {
-  open:     'Open duel — most total volume wins',
-  mirror:   'Mirror duel — same workout, who completes it best',
-  exercise: 'Exercise duel — head-to-head on one lift',
+  open:     ['duelInviteLanding.type.open', 'Open duel. Most total volume wins.'],
+  mirror:   ['duelInviteLanding.type.mirror', 'Mirror duel. Same workout, best completion wins.'],
 };
 
 export default function DuelInviteLanding() {
@@ -62,6 +65,7 @@ export default function DuelInviteLanding() {
   const [invite, setInvite]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
 
   // ── Fetch the invite via the anon-safe RPC ─────────────────────────────
   useEffect(() => {
@@ -88,6 +92,9 @@ export default function DuelInviteLanding() {
 
   const handleAccept = async () => {
     if (!token || accepting) return;
+    // Guests do not compete (same rule as Rival). Ask them to connect first;
+    // linking keeps the same account, so the stashed token still works.
+    if (isGuestAccount(user)) { setConnectOpen(true); return; }
     setAccepting(true);
     try {
       const result = await claimInvite(token);
@@ -98,7 +105,9 @@ export default function DuelInviteLanding() {
       }
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
-      if (msg.includes('cannot_claim_own_invite')) {
+      if (msg.includes('guest_account')) {
+        setConnectOpen(true);
+      } else if (msg.includes('cannot_claim_own_invite')) {
         toast.error(tFallback('duelInviteLanding.ownInvite', 'That is your own invite. Share the link with someone else.'));
       } else if (msg.includes('invite_already_claimed')) {
         toast.error(tFallback('duelInviteLanding.alreadyUsed', 'This invite has already been used.'));
@@ -194,10 +203,10 @@ export default function DuelInviteLanding() {
       <ChallengerHeader invite={invite} />
 
       <p className="text-sm text-muted-foreground max-w-xs text-center">
-        {DUEL_TYPE_LABEL[invite.duel_type] || 'A duel — most stats wins'}
+        {tFallback(...(DUEL_TYPE_LABEL[invite.duel_type] || DUEL_TYPE_LABEL.open))}
       </p>
       <p className="text-xs text-muted-foreground/80">
-        {invite.window_hours}h window after accept
+        {tFallback('duelInviteLanding.windowAfterAccept', '{n}h window after accept', { n: invite.window_hours })}
       </p>
 
       {/* Action area — depends on who's looking */}
@@ -205,7 +214,7 @@ export default function DuelInviteLanding() {
         {isOwnInvite ? (
           <div className="space-y-2">
             <p className="text-xs text-center text-muted-foreground">
-              This is your own invite — share it with someone:
+              {tFallback('duelInviteLanding.ownInviteShare', 'This is your own invite. Share it with someone.')}
             </p>
             <div className="flex gap-2">
               <button
@@ -226,12 +235,12 @@ export default function DuelInviteLanding() {
           <button
             onClick={handleAccept}
             disabled={accepting}
-            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors shadow-lg shadow-rose-500/30"
+            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors shadow-md"
           >
             {accepting
               ? <Loader2 className="w-5 h-5 animate-spin" />
               : <Swords className="w-5 h-5" />}
-            {accepting ? 'Accepting…' : 'Accept the duel'}
+            {tFallback('duelInviteLanding.acceptTheDuel', 'Accept the duel')}
           </button>
         ) : (
           <div className="space-y-3">
@@ -243,17 +252,23 @@ export default function DuelInviteLanding() {
                 // and bounces back here once the user has an account.
                 navigate('/');
               }}
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors shadow-lg shadow-rose-500/30"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors shadow-md"
             >
               <Swords className="w-5 h-5" />
               {tFallback("duelInviteLanding.signUpToAccept", "Sign up to accept")}
             </button>
             <p className="text-micro text-center text-muted-foreground">
-              Free. Takes ~30 seconds. We'll bring you back here.
+              {tFallback('duelInviteLanding.signUpHint', "Free. Takes about 30 seconds. We'll bring you back here.")}
             </p>
           </div>
         )}
       </div>
+      <ConnectAccountSheet
+        open={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        reason={tFallback('duels.error.guest', 'Connect an account to duel. Guest accounts cannot compete.')}
+        returnPath={`/duel-invite/${token}`}
+      />
     </Shell>
   );
 }
@@ -302,9 +317,9 @@ function ChallengerHeader({ invite }) {
           {tFallback("duelInviteLanding.duelChallenge", "Duel challenge")}
         </span>
         <h1 className="font-heading font-bold text-2xl mt-1">
-          {invite.challenger_username || 'Someone'}
+          {invite.challenger_username || tFallback('duelInviteLanding.someone', 'Someone')}
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">wants to challenge you</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{tFallback('duelInviteLanding.wantsToChallenge', 'wants to challenge you')}</p>
       </div>
     </div>
   );
