@@ -49,18 +49,8 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const qc = useQueryClient();
   const [busy, setBusy] = useState(null); // 'submit' | 'accept' | 'decline'
   const { data: latestLog } = useQuery({
-<<<<<<< HEAD
     queryKey: ['duelEligibleWorkout', user?.id, duel?.id, duel?.accepted_at],
     queryFn: () => eligibleWorkout(user.id, duel),
-=======
-    queryKey: ['latestWorkoutLog', user?.id],
-    queryFn: async () => {
-      const rows = await db.entities.WorkoutLog.filter({ user_id: user?.id });
-      const withEx = (rows || []).filter((r) => (r.exercises || []).some((e) => (e.sets || []).length));
-      withEx.sort((a, b) => new Date(b.date) - new Date(a.date));
-      return withEx[0] || null;
-    },
->>>>>>> origin/main
     enabled: !!user?.id && !!duel && duel.status === 'active',
     staleTime: 30_000,
   });
