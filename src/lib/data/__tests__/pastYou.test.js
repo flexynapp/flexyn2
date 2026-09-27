@@ -79,6 +79,13 @@ describe('getMyPastYou', () => {
   });
 });
 
+describe('getMyPastYou after quitting', () => {
+  it('shows nothing when the newest race was abandoned, not the race before it', async () => {
+    row = { id: 'm2', status: 'abandoned' };
+    expect(await getMyPastYou()).toBeNull();
+  });
+});
+
 describe('helpers', () => {
   it('ghost boost is 4% per level above 1', () => {
     expect(ghostBoostPct(1)).toBe(0);
@@ -94,5 +101,10 @@ describe('helpers', () => {
     expect(isGuestAccount({ id: 'x', email: 'guest_x@flexyn.guest' })).toBe(true);
     expect(isGuestAccount({ is_anonymous: false, email: 'a@b.com' })).toBe(false);
     expect(isGuestAccount(null)).toBe(false);
+  });
+
+  it('a guest who connected an account is not a guest, whatever the profile email says', () => {
+    // user_profiles.email keeps the guest address after linking; the flag wins.
+    expect(isGuestAccount({ is_anonymous: false, email: 'guest_x@flexyn.guest' })).toBe(false);
   });
 });

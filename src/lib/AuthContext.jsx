@@ -163,6 +163,12 @@ export function AuthProvider({ children }) {
     // 2. Keep in sync with auth events (OAuth redirect, sign-out, token refresh).
     //    IMPORTANT: callback must be synchronous — defer async work with setTimeout.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // USER_UPDATED is how a guest becomes a real account (linkIdentity or
+      // a confirmed email change): reload so is_anonymous flips without a
+      // sign-out.
+      if (event === 'USER_UPDATED' && session?.user) {
+        setTimeout(() => loadProfile(session.user), 0);
+      }
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           // Defer so Supabase's internal auth state settles first

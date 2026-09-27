@@ -11,6 +11,10 @@ const one = (data) => (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
 /**
  * The live Past You race, or the one that settled in the last two days (so
  * the card can show the result). Null when there is neither.
+ *
+ * Reads the NEWEST race whatever its status: filtering abandoned rows out
+ * made quitting a rematch resurface the race before it as "last week's
+ * result". An abandoned newest race means there is nothing to show.
  */
 export async function getMyPastYou() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,11 +23,10 @@ export async function getMyPastYou() {
     .from('past_you_matches')
     .select('*')
     .eq('user_id', user.id)
-    .in('status', ['active', 'completed'])
     .order('started_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data || data.status === 'abandoned') return null;
   if (data.status === 'completed') {
     const settled = data.settled_at ? new Date(data.settled_at).getTime() : 0;
     if (Date.now() - settled > 2 * 86400_000) return null;

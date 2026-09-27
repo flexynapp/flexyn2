@@ -33,12 +33,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Check, Clock, AlertTriangle, Award } from 'lucide-react';
+import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Check, AlertTriangle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import {
-  getRivalProfile, msUntilNextWeekStart, isThisWeek, computeRivalReward,
+  getRivalProfile, isThisWeek, computeRivalReward,
   confirmGymRival, voidStaleGymRival, getGymRivalRecord,
   getGymRivalWeekState, rivalMetric, matchQuality,
 } from '@/lib/data/gymRival';
@@ -46,7 +46,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
-import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter, formatDuration } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { getCrewBadges } from '@/lib/data/crews';
@@ -57,17 +57,6 @@ const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x =
 const winRate = (rec) => { const w = rec?.wins || 0, l = rec?.losses || 0; return (w + l) ? w / (w + l) : 0; };
 
 const revealedKey = (id) => `flexyn.gymRival.revealed.${id}`;
-
-function fmtDuration(ms) {
-  if (ms <= 0) return '0m';
-  const totalMin = Math.floor(ms / 60000);
-  const d = Math.floor(totalMin / 1440);
-  const h = Math.floor((totalMin % 1440) / 60);
-  const m = totalMin % 60;
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
 
 function Avatar({ profile, size = 'w-20 h-20', ring = 'ring-primary/40' }) {
   const name = profile?.username || '';
@@ -168,7 +157,8 @@ function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
 }
 
 export default function GymRivalMenu({ open, onClose, assignment, currentUserId, onReroll, rerolling, onDecline, declining, onChallenge }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
+  const fmtDuration = (ms) => formatDuration(ms, language);
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const navigate = useNavigate();
@@ -184,7 +174,10 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
   const iConfirmed    = assignment ? (iAmInitiator ? assignment.initiator_confirmed : assignment.rival_confirmed) : false;
   const otherConfirmed = assignment ? (iAmInitiator ? assignment.rival_confirmed : assignment.initiator_confirmed) : false;
   const status = assignment?.status;
-  const voidThisWeek = status === 'void' && isThisWeek(assignment?.assigned_at);
+  // A void no longer locks anyone out until Monday: gym_rival_roll only
+  // refuses while a match is pending or active, so the void screen offers the
+  // next roll straight away.
+  const isVoid = status === 'void';
   const settledRecent = status === 'completed' && assignment?.settled_at
     && (Date.now() - new Date(assignment.settled_at).getTime() < 2 * 86400_000);
   const myResult = assignment?.winner_id
@@ -283,7 +276,6 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
     () => (week?.endsAt ? week.endsAt.getTime() - Date.now() : null),
     [week?.endsAt, nowTick],
   );
-  const resetCountdown = useMemo(() => fmtDuration(msUntilNextWeekStart()), [nowTick, open]);
   const afkMsLeft = useMemo(
     () => (week?.afkDeadline ? week.afkDeadline.getTime() - Date.now() : null),
     [week?.afkDeadline, nowTick],
@@ -300,6 +292,8 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
   const myCrew    = crews?.[currentUserId] || null;
   const rivalCrew = otherId ? (crews?.[otherId] || null) : null;
   const reward = computeRivalReward();
+  // I won and the rival never logged: the settler paid the walkover prize.
+  const paidOut = computeRivalReward({ walkover: myResult === 'win' && !!week && !week.themLogged });
   const dist = (m) => formatDistance(m || 0, distanceUnit, m >= 1000 ? 1 : 2);
   const metric = rivalMetric(week, rivalType);
   const metricText = (v) => (isCardio ? dist(v) : formatWeight(v, weightUnit));
@@ -431,9 +425,9 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                       {tFallback('gymRivalMenu.paidOut', 'Paid out')}
                     </p>
                     <div className="grid grid-cols-3 gap-2 text-center border-y border-border py-3">
-                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(reward.xp)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">XP</p></div>
-                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.coins', 'Coins')}</p></div>
-                      <div><p className="font-heading font-black text-lg tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.capsules', 'Capsules')}</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.xp)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">XP</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.coins)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.coins', 'Coins')}</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{paidOut.capsules}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.capsules', 'Capsules')}</p></div>
                     </div>
                   </div>
                 )}
@@ -484,7 +478,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   {tFallback('gymRivalMenu.clearAndReroll', 'Clear it and find a new rival')}
                 </button>
               </motion.div>
-            ) : voidThisWeek ? (
+            ) : isVoid ? (
               // ── Void / AFK (board G) ────────────────────────────────
               <motion.div key="void" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="text-center mb-7">
@@ -518,15 +512,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <p className="text-xs text-muted-foreground mb-6">
                   {tFallback('gymRivalMenu.voidStillCounts', 'Your sessions still count for XP, quests and your league. Only the rival match was cancelled.')}
                 </p>
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border">
-                  <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
-                      {tFallback('gymRivalMenu.nextRoll', 'Next rival roll')}
-                    </p>
-                    <p className="text-sm font-bold">{resetCountdown}</p>
-                  </div>
-                </div>
+                <button onClick={onReroll} disabled={rerolling}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] disabled:opacity-50 transition-all">
+                  {rerolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                  {rerolling ? tFallback('gymRival.searching', 'Searching…') : tFallback('gymRivalMenu.findNewRival', 'Find a new rival')}
+                </button>
               </motion.div>
             ) : status === 'pending' ? (
               // ── Pending confirmation (board C) ──────────────────────
@@ -636,7 +626,10 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
               <motion.div key="compare" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 {/* The 48h gate, with a dot each — the rule that decides most
                     matches is not a footnote. */}
-                {afkMsLeft != null && afkMsLeft > 0 && (
+                {/* Only while it can still bite: once either side has logged,
+                    the match can no longer void and the banner would read
+                    as a threat that no longer applies. */}
+                {afkMsLeft != null && afkMsLeft > 0 && !(week?.youLogged || week?.themLogged) && (
                   <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 mb-6">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <LogDot on={week?.youLogged}
@@ -645,7 +638,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                         label={week?.themLogged ? tFallback('gymRivalMenu.theyLogged', 'They logged') : tFallback('gymRivalMenu.theyHaventLogged', "They haven't")} />
                     </div>
                     <p className="text-micro text-muted-foreground font-semibold">
-                      {tFallback('gymRivalMenu.afkRule', 'Both must log within {t}, or the match voids.', { t: fmtDuration(afkMsLeft) })}
+                      {tFallback('gymRivalMenu.afkRule', 'If neither of you logs within {t}, the match voids.', { t: fmtDuration(afkMsLeft) })}
                     </p>
                   </div>
                 )}
@@ -717,7 +710,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
 
                 {/* The action that wins this match is training. The duel — a
                     different feature — used to be the only button here. */}
-                <button onClick={() => { onClose?.(); navigate('/workout'); }}
+                <button onClick={() => { onClose?.(); navigate(isCardio ? '/workout?openCardio=1' : '/workout?freestyle=1'); }}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] transition-all">
                   {isCardio ? <Footprints className="w-4 h-4" /> : <Dumbbell className="w-4 h-4" />}
                   {isCardio

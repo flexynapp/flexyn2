@@ -21,22 +21,11 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
-import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter, formatDuration } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export const PAST_YOU_REWARD = { xp: 1000, coins: 100, capsules: 1 };
-
-function fmtDuration(ms) {
-  if (ms <= 0) return '0m';
-  const totalMin = Math.floor(ms / 60000);
-  const d = Math.floor(totalMin / 1440);
-  const h = Math.floor((totalMin % 1440) / 60);
-  const m = totalMin % 60;
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
 
 function Row({ label, children, valueClass = '' }) {
   return (
@@ -48,7 +37,7 @@ function Row({ label, children, valueClass = '' }) {
 }
 
 export default function PastYouSheet({ open, onClose, match }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { weightUnit } = useWeightUnit();
@@ -188,7 +177,7 @@ export default function PastYouSheet({ open, onClose, match }) {
               <>
                 <Row label={tFallback('gymRivalMenu.ends', 'Ends')}>{fmtDate(state.endsAt, { dateStyle: 'medium' })}</Row>
                 <Row label={tFallback('gymRivalMenu.remaining', 'Remaining')}>
-                  {left > 0 ? fmtDuration(left) : tFallback('gymRivalMenu.settlingNow', 'settling now')}
+                  {left > 0 ? formatDuration(left, language) : tFallback('gymRivalMenu.settlingNow', 'settling now')}
                 </Row>
               </>
             )}
@@ -209,7 +198,7 @@ export default function PastYouSheet({ open, onClose, match }) {
                 </p>
               </div>
 
-              <button onClick={() => { onClose?.(); navigate('/workout'); }}
+              <button onClick={() => { onClose?.(); navigate(isCardio ? '/workout?openCardio=1' : '/workout?freestyle=1'); }}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm active:scale-[0.98] transition-all">
                 {isCardio ? <Footprints className="w-4 h-4" /> : <Dumbbell className="w-4 h-4" />}
                 {isCardio ? tFallback('gymRivalMenu.startCardio', 'Start a cardio session') : tFallback('gymRivalMenu.logWorkout', 'Log a workout')}
