@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { SKINS, skinStorageKey } from '@/lib/skins';
 
 const setSkinOn = vi.fn();
@@ -24,8 +25,8 @@ describe('SkinPrompt', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  const mount = () => {
-    render(<SkinPrompt />);
+  const mount = (path = '/dashboard') => {
+    render(<MemoryRouter initialEntries={[path]}><SkinPrompt /></MemoryRouter>);
     act(() => { vi.advanceTimersByTime(3000); });
   };
 
@@ -46,6 +47,14 @@ describe('SkinPrompt', () => {
     localStorage.setItem(skinStorageKey(halloween), 'off');
     mount();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('never covers the workout logger, or any page but Home', () => {
+    for (const path of ['/workout', '/hub', '/progress']) {
+      mount(path);
+      expect(screen.queryByRole('dialog'), path).toBeNull();
+    }
+    expect(localStorage.getItem(skinStorageKey(halloween))).toBeNull();
   });
 
   it('stays away out of season', () => {

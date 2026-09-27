@@ -9,30 +9,38 @@
 // signed-in, onboarded user. It waits a beat after mount so it doesn't land
 // on top of the launch splash or the first paint of the dashboard.
 //
+// Home only. It docks above the nav, which on Workout is exactly where the
+// logger's exercise card sits, so offering it anywhere else puts a choice
+// about decoration on top of someone mid-set. Away from Home it waits; the
+// offer is still unanswered, so it appears the next time they are there.
+//
 // No close X on purpose. "Not now" IS the dismiss, and a third control
 // would only create a state where the prompt is gone but nothing was
 // recorded, which is how it would come back tomorrow.
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { readSkinChoice } from '@/lib/skins';
 import { useSkin } from './useSkin';
 
 const SHOW_DELAY_MS = 2500;
+const OFFER_ON = '/dashboard';
 
 export default function SkinPrompt() {
   const { tFallback } = useLanguage();
   const { skin, parts, setOn } = useSkin();
   const Icon = parts?.Icon;
   const [show, setShow] = useState(false);
+  const onHome = useLocation().pathname === OFFER_ON;
 
   useEffect(() => {
-    if (!skin) return undefined;
+    if (!skin || !onHome) return undefined;
     if (readSkinChoice(skin) !== null) return undefined;
     const t = setTimeout(() => setShow(true), SHOW_DELAY_MS);
     return () => clearTimeout(t);
-  }, [skin]);
+  }, [skin, onHome]);
 
   const answer = (on) => {
     setShow(false);
@@ -41,7 +49,7 @@ export default function SkinPrompt() {
 
   return (
     <AnimatePresence>
-      {show && skin && (
+      {show && skin && onHome && (
         <motion.div
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
