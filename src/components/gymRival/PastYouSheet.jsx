@@ -27,6 +27,7 @@ import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter, formatDuration } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { RulesButton } from '@/components/competition/RulesSheet';
 
 export const PAST_YOU_REWARD = { xp: 1000, coins: 100, capsules: 1 };
 
@@ -149,10 +150,13 @@ export default function PastYouSheet({ open, onClose, match }) {
             <Ghost className="w-4 h-4 text-primary shrink-0" />
             <h2 className="font-heading font-black text-base truncate">{tFallback('pastYou.title', 'Past You')}</h2>
           </div>
-          <button onClick={onClose} aria-label={tFallback('common.close', 'Close')}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <RulesButton ruleset="pastYou" />
+            <button onClick={onClose} aria-label={tFallback('common.close', 'Close')}
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
