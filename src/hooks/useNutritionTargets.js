@@ -22,12 +22,12 @@ import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { observedSessionsPerWeek } from '@/lib/tdee';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import * as workouts from '@/lib/data/workouts';
+import * as cardioData from '@/lib/data/cardio';
 
 /**
  * Observed sessions per week over the trailing TDEE window, or undefined
@@ -56,7 +56,7 @@ export function useObservedActivity() {
   });
   const { data: cardioLogs, isPending: cardioPending } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'nutritionTargets'),
-    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', LOG_FETCH_LIMIT),
+    queryFn: () => cardioData.list(user.id, LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 

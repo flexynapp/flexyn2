@@ -17,7 +17,6 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
-import { db } from '@/api/db';
 import * as cardioData from '@/lib/data/cardio';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -143,7 +142,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
     : null;
 
   const handleDelete = async () => {
-    await db.entities.CardioLog.delete(log.id);
+    await cardioData.remove(log.id);
     queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
     toast.success(t('cardio.deleted'));
     onOpenChange(false);

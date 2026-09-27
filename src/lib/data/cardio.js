@@ -91,8 +91,8 @@ export async function getById(id) {
 export const list = (userId, limit = 50) =>
   db.entities.CardioLog.filter({ user_id: userId }, '-date', limit);
 
-export const listByDate = (userId, date) =>
-  db.entities.CardioLog.filter({ user_id: userId, date }, '-created_date', 50);
+export const listForDate = (userId, date, limit = 50) =>
+  db.entities.CardioLog.filter({ user_id: userId, date }, '-date', limit);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {

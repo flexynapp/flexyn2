@@ -97,6 +97,7 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import TransText from '@/components/TransText';
 import { formatDate } from '@/lib/intlFormat';
 import * as workouts from '@/lib/data/workouts';
+import * as cardioData from '@/lib/data/cardio';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -711,7 +712,7 @@ export default function Workout() {
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'workout'),
-    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', 100),
+    queryFn: () => cardioData.list(user.id, 100),
     enabled: !!user?.email,
   });
 

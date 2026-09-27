@@ -43,6 +43,7 @@ import JournalWidget from '@/components/dashboard/JournalWidget';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import TonightRow from '@/components/dashboard/TonightRow';
 import * as workouts from '@/lib/data/workouts';
+import * as cardioData from '@/lib/data/cardio';
 // Sleep / mood / steps logging + the score explainer live in this sheet, so
 // three log cards leave the eager dashboard chunk and arrive on first open.
 const ReadinessSheet = React.lazy(() => import('@/components/dashboard/ReadinessSheet'));
@@ -1193,7 +1194,7 @@ export default function Dashboard() {
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'dashboard'),
-    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', 50),
+    queryFn: () => cardioData.list(user.id, 50),
     enabled: !!user?.email,
   });
 

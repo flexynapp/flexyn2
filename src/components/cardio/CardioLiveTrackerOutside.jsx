@@ -557,7 +557,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         notes: null,
         gps_track: trackRef.current,
       };
-      const createdLog = await db.entities.CardioLog.create(payload);
+      const createdLog = await cardioData.create(payload);
       track(EVENTS.CARDIO_LOGGED, { mode: 'outdoor' });
       clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).
