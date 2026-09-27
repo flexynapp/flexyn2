@@ -3,8 +3,12 @@ import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { track, EVENTS } from '@/lib/analytics';
 
-export const list = (userId) =>
-  db.entities.Goal.filter({ user_id: userId }, '-created_date');
+// Newest first. Dashboard, Workout and GoalsModal share the
+// ['goals', email] cache, so every reader has to ask for the same order.
+export const list = (userId, limit) =>
+  db.entities.Goal.filter({ user_id: userId }, '-created_date', limit);
+
+export const get = (id) => db.entities.Goal.get(id);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {

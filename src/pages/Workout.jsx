@@ -99,6 +99,7 @@ import { formatDate } from '@/lib/intlFormat';
 import * as workouts from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
+import * as goalsData from '@/lib/data/goals';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -719,7 +720,7 @@ export default function Workout() {
 
   const { data: rawGoals = [] } = useQuery({
     queryKey: ['goals', user?.email],
-    queryFn: () => db.entities.Goal.filter({ user_id: user.id }),
+    queryFn: () => goalsData.list(user.id),
     enabled: !!user?.email,
   });
 

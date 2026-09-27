@@ -22,7 +22,6 @@ import { formatList, formatNumber, formatDate } from '@/lib/intlFormat';
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
-import { db } from '@/api/db';
 import { subDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { INTENTS } from './intents';
 import { normalizeGoals, profileAge } from './trainingModifiers';
@@ -35,6 +34,7 @@ import * as workoutLogs from '@/lib/data/workouts';
 import * as cardioData from '@/lib/data/cardio';
 import * as nutritionData from '@/lib/data/nutrition';
 import * as bodyMetricsData from '@/lib/data/bodyMetrics';
+import * as goalsData from '@/lib/data/goals';
 
 
 // ── Log dates are calendar days, not instants ────────────────────────────────
@@ -545,7 +545,7 @@ async function goalStatus({ user, t, language }) {
   if (!user?.id) return T('coach.reply.goals.signIn',
       "Sign in to see your goals.");
   try {
-    const goals = await db.entities.Goal.filter({ user_id: user.id }, '-created_date', 50).catch(() => []);
+    const goals = await goalsData.list(user.id, 50).catch(() => []);
     const active = goals.filter(g => g.status !== 'completed');
     if (active.length === 0) {
       return T('coach.reply.goals.none',
