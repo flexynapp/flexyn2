@@ -1,0 +1,86 @@
+// src/lib/data/pastYou.js
+//
+// Past You: the ghost rival built from the lifter's own history
+// (migration 20260927130000). Every number here is computed server-side from
+// the same scorer the human match uses; the client only reads it.
+
+import { supabase } from '@/api/supabaseClient';
+
+const one = (data) => (Array.isArray(data) ? (data[0] ?? null) : (data ?? null));
+
+/**
+ * The live Past You race, or the one that settled in the last two days (so
+ * the card can show the result). Null when there is neither.
+ */
+export async function getMyPastYou() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from('past_you_matches')
+    .select('*')
+    .eq('user_id', user.id)
+    .in('status', ['active', 'completed'])
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  if (data.status === 'completed') {
+    const settled = data.settled_at ? new Date(data.settled_at).getTime() : 0;
+    if (Date.now() - settled > 2 * 86400_000) return null;
+  }
+  return data;
+}
+
+/**
+ * Start racing Past You. Returns the match (the live one if already racing).
+ * Throws with `code` 'guest_account' for a guest and 'rival_in_progress' when
+ * a human match is live, so the caller can say which.
+ */
+export async function startPastYou(type = 'gym') {
+  const { data, error } = await supabase.rpc('past_you_start', { p_type: type === 'cardio' ? 'cardio' : 'gym' });
+  if (error) throw withReason(error);
+  return one(data);
+}
+
+/** The race as the server sees it right now. Null when unavailable. */
+export async function getPastYouState(id) {
+  if (!id) return null;
+  const { data, error } = await supabase.rpc('past_you_state', { p_id: id });
+  if (error) return null;
+  const row = one(data);
+  if (!row) return null;
+  return {
+    you:           Number(row.you_score) || 0,
+    ghostPace:     Number(row.ghost_pace) || 0,
+    target:        Number(row.target) || 0,
+    level:         Number(row.level) || 1,
+    baseline:      Number(row.baseline) || 0,
+    baselineWeeks: Number(row.baseline_weeks) || 0,
+    prs:           Number(row.prs) || 0,
+    startedAt:     row.started_at ? new Date(row.started_at) : null,
+    endsAt:        row.ends_at ? new Date(row.ends_at) : null,
+  };
+}
+
+/** Walk away. Pays nothing and leaves the ghost's level as it was. */
+export async function abandonPastYou(id) {
+  const { error } = await supabase.rpc('past_you_abandon', { p_id: id });
+  if (error) throw error;
+}
+
+/**
+ * Guest refusal and the other expected refusals come back as a plain error
+ * message from the RPC. Tag them so callers branch on a stable reason.
+ */
+export function withReason(error) {
+  const msg = String(error?.message || '');
+  if (msg.includes('guest_account')) error.reason = 'guest_account';
+  else if (msg.includes('rival_in_progress')) error.reason = 'rival_in_progress';
+  else if (msg.includes('past_you_in_progress')) error.reason = 'past_you_in_progress';
+  return error;
+}
+
+/** Percent above the lifter's own baseline the ghost is set at. */
+export function ghostBoostPct(level) {
+  return Math.max(0, (Number(level) || 1) - 1) * 4;
+}

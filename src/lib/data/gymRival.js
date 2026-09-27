@@ -11,6 +11,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
+import { withReason } from '@/lib/data/pastYou';
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,9 @@ export async function getMyGymRival() {
  */
 export async function rollGymRival(type = 'gym') {
   const { data, error } = await supabase.rpc('gym_rival_roll', { p_type: type === 'cardio' ? 'cardio' : 'gym' });
-  if (error) throw error;
+  // A guest, or someone already racing Past You, is refused by name; tag it
+  // so the card can open the right thing instead of a generic error.
+  if (error) throw withReason(error);
   return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
 

@@ -41,7 +41,7 @@ async function fetchProfile(authUser) {
       .select('*')
       .eq('id', authUser.id)
       .maybeSingle();
-    if (!error) return { id: authUser.id, email: authUser.email, ...(profile ?? {}) };
+    if (!error) return { id: authUser.id, email: authUser.email, ...(profile ?? {}), is_anonymous: !!authUser.is_anonymous };
     lastError = error;
   }
   throw lastError;

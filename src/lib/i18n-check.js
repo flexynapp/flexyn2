@@ -148,6 +148,10 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // Past You is the ghost rival's product name and Level is a kept product
+    // noun (glossary doNotTranslate), so these read the same in every locale.
+    'pastYou.title',
+    'pastYou.levelOne',
     // "vol" is the short form of volumen, spelled the same.
     'liveVolumePill.vol',
     // "Zinc" is the same word in Spanish.
@@ -201,6 +205,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // Past You is the ghost rival's product name and Level is a kept product
+    // noun (glossary doNotTranslate), so these read the same in every locale.
+    'pastYou.title',
+    'pastYou.levelOne',
     // "vol" is the short form of volume, spelled the same.
     'liveVolumePill.vol',
     // "Zinc" is the same word in French.
