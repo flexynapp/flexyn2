@@ -66,6 +66,7 @@ export default function RulesSheet({ ruleset, open, onClose }) {
       <DialogContent
         className="z-[10001] max-w-sm max-h-[88vh] overflow-y-auto p-0 gap-0"
         overlayClassName="z-[10000]"
+        closeClassName="focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         <div className="px-5 py-6">
           <DialogHeader className="space-y-0 text-start">
