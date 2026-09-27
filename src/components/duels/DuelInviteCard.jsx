@@ -6,8 +6,8 @@
 
 import React, { useState } from 'react';
 import { Swords, Dumbbell, Timer, Trophy, Check, X, Loader2 } from 'lucide-react';
-import { acceptDuel, declineDuel } from '@/lib/data/duels';
-import { useQueryClient } from '@tanstack/react-query';
+import { acceptDuel, declineDuel, getDuel, duelErrorMessage } from '@/lib/data/duels';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -37,15 +37,15 @@ const TYPE_META = {
   mirror: {
     label:       'Mirror Duel',
     icon:        Dumbbell,
-    color:       'text-violet-500',
-    bg:          'bg-violet-500/10',
+    color:       'text-primary',
+    bg:          'bg-primary/10',
     description: 'Complete the same session',
   },
   exercise: {
     label:       'Exercise Duel',
     icon:        Trophy,
-    color:       'text-amber-500',
-    bg:          'bg-amber-500/10',
+    color:       'text-primary',
+    bg:          'bg-primary/10',
     description: 'Single exercise showdown',
   },
 };
@@ -57,12 +57,27 @@ export default function DuelInviteCard({ payload, isMine }) {
   const qc = useQueryClient();
   const [state, setState] = useState('idle'); // idle | accepting | declining | accepted | declined
 
+  const duelId = payload?.duelId;
+  // The DM is a snapshot from when it was sent. Read the duel itself so a
+  // card reopened later shows what happened instead of offering an Accept
+  // that fails ("duel_not_pending") on an expired or answered duel.
+  const { data: live } = useQuery({
+    queryKey: ['duel', duelId],
+    queryFn:  () => getDuel(duelId),
+    enabled:  !!duelId,
+    staleTime: 30_000,
+  });
+
   if (!payload) return null;
 
-  const { duelId, challengerUsername, challengerAvatar, type = 'open', windowHours = 24 } = payload;
+  const { challengerUsername, challengerAvatar, type = 'open', windowHours = 24 } = payload;
   const meta   = TYPE_META[type] || TYPE_META.open;
   const Icon   = meta.icon;
-  const isDone = state === 'accepted' || state === 'declined';
+  const liveEnded = live && live.status !== 'pending'
+    ? (live.status === 'active' || live.status === 'completed' ? 'accepted' : live.status)
+    : null;
+  const shown  = state === 'accepted' || state === 'declined' ? state : (liveEnded || state);
+  const isDone = shown === 'accepted' || shown === 'declined' || shown === 'expired';
 
   const handleAccept = async () => {
     if (isDone) return;
@@ -73,9 +88,10 @@ export default function DuelInviteCard({ payload, isMine }) {
       toast.success(tFallback('duelInviteCard.accepted', 'Duel accepted! Game on. 🔥'));
       qc.invalidateQueries({ queryKey: ['activeDuel'] });
       qc.invalidateQueries({ queryKey: ['myDuels'] });
+      qc.invalidateQueries({ queryKey: ['duel', duelId] });
     } catch (err) {
       setState('idle');
-      toast.error(tFallback("duelInviteCard.couldNotAcceptDuel", "Could not accept duel"), { description: err.message });
+      toast.error(tFallback("duelInviteCard.couldNotAcceptDuel", "Could not accept duel"), { description: duelErrorMessage(err, tFallback) });
     }
   };
 
@@ -88,9 +104,10 @@ export default function DuelInviteCard({ payload, isMine }) {
       toast.info(tFallback('duelInviteCard.declined', 'Duel declined.'));
       qc.invalidateQueries({ queryKey: ['activeDuel'] });
       qc.invalidateQueries({ queryKey: ['myDuels'] });
+      qc.invalidateQueries({ queryKey: ['duel', duelId] });
     } catch (err) {
       setState('idle');
-      toast.error(tFallback("duelInviteCard.couldNotDeclineDuel", "Could not decline duel"), { description: err.message });
+      toast.error(tFallback("duelInviteCard.couldNotDeclineDuel", "Could not decline duel"), { description: duelErrorMessage(err, tFallback) });
     }
   };
 
@@ -137,22 +154,26 @@ export default function DuelInviteCard({ payload, isMine }) {
 
           {/* Window */}
           <p className="text-micro text-muted-foreground text-center">
-            {windowHours}h to complete after accepting
+            {tFallback('duelInviteCard.windowAfterAccept', '{n}h to complete after accepting', { n: windowHours })}
           </p>
 
           {/* Actions */}
-          {isMine ? (
-            /* Sender sees a "waiting" state — they can't accept their own challenge */
-            <div className="py-2 rounded-xl text-center text-xs font-semibold bg-secondary text-muted-foreground">
-              ⏳ Waiting for their response…
-            </div>
-          ) : isDone ? (
+          {isDone ? (
             <div className={`py-2 rounded-xl text-center text-xs font-bold ${
-              state === 'accepted'
-                ? 'bg-emerald-500/10 text-emerald-500'
+              shown === 'accepted'
+                ? 'bg-success/10 text-success'
                 : 'bg-secondary text-muted-foreground'
             }`}>
-              {state === 'accepted' ? '✓ Duel Accepted — Go train!' : 'Declined'}
+              {shown === 'accepted'
+                ? tFallback('duelInviteCard.acceptedGoTrain', 'Accepted. Go train.')
+                : shown === 'expired'
+                  ? tFallback('duels.status.expired', 'Expired')
+                  : tFallback('duels.status.declined', 'Declined')}
+            </div>
+          ) : isMine ? (
+            /* Sender sees a "waiting" state — they can't accept their own challenge */
+            <div className="py-2 rounded-xl text-center text-xs font-semibold bg-secondary text-muted-foreground">
+              {tFallback('duelInviteCard.waiting', 'Waiting for their answer')}
             </div>
           ) : (
             <div className="flex gap-2">

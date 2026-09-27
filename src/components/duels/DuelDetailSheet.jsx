@@ -2,7 +2,8 @@
 // Bottom sheet showing duel details, session template (mirror), and result card when complete.
 
 import React, { useState } from 'react';
-import { motion, useDragControls } from 'framer-motion';
+import { motion, useDragControls, useReducedMotion } from 'framer-motion';
+import { haptic } from '@/lib/haptic';
 import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -10,32 +11,30 @@ import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
-import { submitDuelResult } from '@/lib/data/duels';
+import { supabase } from '@/api/supabaseClient';
+import { submitDuelResult, acceptDuel, declineDuel, duelErrorMessage } from '@/lib/data/duels';
+import { duelTypeName, duelStatusName, templateSetCount } from '@/components/duels/duelLabels';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
-// Sum weight × reps across a workout log — the volume the duel compares.
-// The server (submit_duel_result_atomic, mig 159) recomputes this from the
-// workout_log_id, so this is only the optimistic/preview value.
-function logVolume(log) {
-  let v = 0;
-  for (const ex of log?.exercises || []) {
-    for (const s of ex.sets || []) v += (Number(s.weight) || 0) * (Number(s.reps) || 0);
-  }
-  return v;
-}
-
 const TYPE_ICON  = { mirror: Dumbbell, open: Timer, exercise: Trophy };
-const TYPE_LABEL = { mirror: 'Mirror Duel', open: 'Open Duel', exercise: 'Exercise Duel' };
 
-function StatPill({ label, value, highlight }) {
-  return (
-    <div className={`flex-1 rounded-xl p-3 text-center ${highlight ? 'bg-primary/10 border border-primary/30' : 'bg-secondary/50'}`}>
-      <p className={`text-lg font-black tabular-nums ${highlight ? 'text-primary' : ''}`}>{value}</p>
-      <p className="text-micro text-muted-foreground mt-0.5">{label}</p>
-    </div>
-  );
+// The workout this duel can take: the newest plausible log with sets in it,
+// logged after the duel was accepted. The server refuses anything older
+// (workout_outside_duel_window), and the sheet used to offer the user's
+// latest log from ANY date, so pressing Submit on a fresh duel always failed.
+async function eligibleWorkout(userId, duel) {
+  const since = duel.accepted_at || duel.created_at;
+  const { data } = await supabase
+    .from('workout_logs')
+    .select('id, exercises, created_at, implausible')
+    .eq('user_id', userId)
+    .gte('created_at', since)
+    .lte('created_at', duel.expires_at)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  return (data || []).find((r) => !r.implausible
+    && (r.exercises || []).some((e) => (e.sets || []).length)) || null;
 }
 
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
@@ -45,22 +44,18 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   // Above the `if (!duel) return null` below, because hooks cannot sit behind
   // an early return.
   const dragControls = useDragControls();
+  const reduceMotion = useReducedMotion();
+  const tap = reduceMotion ? undefined : { scale: 0.97 };
   const fmt = useNumberFormatter();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [submitting, setSubmitting] = useState(false);
-  // The user's most-recent real workout log — submitted as this duel's result.
+  const [busy, setBusy] = useState(null); // 'submit' | 'accept' | 'decline'
   const { data: latestLog } = useQuery({
-    queryKey: ['latestWorkoutLog', user?.id],
-    queryFn: async () => {
-      const rows = await db.entities.WorkoutLog.filter({ user_id: user?.id });
-      const withEx = (rows || []).filter((r) => (r.exercises || []).some((e) => (e.sets || []).length));
-      withEx.sort((a, b) => new Date(b.date) - new Date(a.date));
-      return withEx[0] || null;
-    },
+    queryKey: ['duelEligibleWorkout', user?.id, duel?.id, duel?.accepted_at],
+    queryFn: () => eligibleWorkout(user.id, duel),
     enabled: !!user?.id && !!duel && duel.status === 'active',
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
   if (!duel) return null;
 
@@ -71,6 +66,10 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
   const tied         = duel.status === 'completed' && !duel.winner_id;
+  // The expiry sweep completes a duel only one side trained for as a win for
+  // that side, so a completed duel with one result is a walkover.
+  const walkover     = duel.status === 'completed' && (!myResult || !theirResult);
+  const prescribed   = duel.type === 'mirror' ? templateSetCount(duel.session_template) : 0;
   // When the opponent profile fails to load (deleted account, RLS
   // scoping, network blip) we previously rendered the literal string
   // "@Opponent Won" which read as a bug. Track whether the username is
@@ -86,25 +85,35 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
     : '—';
   const fmtVolDelta = (lbs) => `${fmt(Math.round(fromLbs(Number(lbs) || 0, weightUnit)))} ${unitSuffix}`;
 
-  const canSubmit = duel.status === 'active' && !myResult;
-  const handleSubmit = async () => {
-    if (submitting || !latestLog) return;
-    setSubmitting(true);
+  const canSubmit  = duel.status === 'active' && !myResult;
+  const canRespond = !isChallenger && duel.status === 'pending';
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['activeDuel'] });
+    qc.invalidateQueries({ queryKey: ['myDuels'] });
+  };
+  const run = async (kind, fn, success) => {
+    if (busy) return;
+    setBusy(kind);
+    haptic('primary');
     try {
-      // Server recomputes volume from the workout_log_id (mig 159); the
-      // result object is the optimistic value + the shape the RPC expects.
-      await submitDuelResult(duel.id, { volume: logVolume(latestLog) }, duel, latestLog.id);
-      qc.invalidateQueries({ queryKey: ['duels'] });
-      qc.invalidateQueries({ queryKey: ['activeDuel'] });
-      qc.invalidateQueries({ queryKey: ['myDuels'] });
-      toast.success(tFallback("duelDetailSheet.resultSubmitted", "Result submitted!"));
+      await fn();
+      refresh();
+      haptic('success');
+      toast.success(success);
       onClose?.();
     } catch (err) {
-      toast.error(err?.message || tFallback('duel.submitResultFailed', 'Could not submit result. Try again.'));
+      haptic('warning');
+      toast.error(duelErrorMessage(err, tFallback));
     } finally {
-      setSubmitting(false);
+      setBusy(null);
     }
   };
+  const handleSubmit = () => latestLog && run('submit', () => submitDuelResult(duel.id, latestLog.id),
+    tFallback('duelDetailSheet.resultSubmitted', 'Result submitted!'));
+  const handleAccept = () => run('accept', () => acceptDuel(duel.id),
+    tFallback('duelInviteCard.accepted', 'Duel accepted! Game on. 🔥'));
+  const handleDecline = () => run('decline', () => declineDuel(duel.id),
+    tFallback('duelInviteCard.declined', 'Duel declined.'));
 
   return (
     <motion.div
@@ -113,10 +122,10 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       <motion.div
-        className="relative w-full max-w-md bg-background border border-border rounded-t-2xl shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto"
+        className="relative w-full max-w-md bg-background border border-border rounded-t-2xl shadow-md overflow-hidden max-h-[85vh] overflow-y-auto"
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
@@ -150,25 +159,31 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
         <div className="flex items-center justify-between px-5 pt-2 pb-4">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 text-primary" />
-            <span className="font-bold">{TYPE_LABEL[duel.type]}</span>
+            <span className="font-bold">{duelTypeName(duel.type, tFallback)}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary">
+          <motion.button type="button" whileTap={tap} onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4 text-muted-foreground" />
-          </button>
+          </motion.button>
         </div>
 
         <div className="px-5 pb-6 space-y-5">
           {/* Completed — Result Card */}
           {duel.status === 'completed' && (
-            <div className={`rounded-2xl border-2 p-4 ${won ? 'border-primary bg-primary/5' : lost ? 'border-border' : 'border-amber-500/30 bg-amber-500/5'}`}>
+            <div className={`rounded-2xl border-2 p-4 ${won ? 'border-success bg-success/5' : 'border-border'}`}>
               <div className="flex items-center gap-2 mb-4">
-                <Crown className={`w-5 h-5 ${won ? 'text-primary' : tied ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                <Crown className={`w-5 h-5 ${won ? 'text-success' : 'text-muted-foreground'}`} />
                 <span className="font-black text-base">
                   {won
-                    ? 'You Won!'
+                    ? (walkover
+                        ? tFallback('duelDetailSheet.wonWalkover', 'You won. Your rival never trained.')
+                        : tFallback('duelDetailSheet.youWon', 'You won'))
                     : tied
-                      ? "It's a Tie"
-                      : opponentName ? `@${opponentName} Won` : 'Your rival won'}
+                      ? tFallback('duelDetailSheet.tie', 'It is a tie')
+                      : walkover
+                        ? tFallback('duelDetailSheet.lostWalkover', 'You lost. No workout was submitted in time.')
+                        : opponentName
+                          ? tFallback('duelDetailSheet.theyWon', '@{name} won', { name: opponentName })
+                          : tFallback('duelDetailSheet.rivalWon', 'Your rival won')}
                 </span>
               </div>
 
@@ -177,36 +192,31 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
                   <p className="text-micro text-muted-foreground mb-1">{tFallback("friendLeaderboard.you", "You")}</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(myResult?.volume)}</p>
-                  {myResult?.sets_completed != null && (
+                  {prescribed > 0 && myResult?.sets_completed != null && (
                     <p className="text-micro text-muted-foreground mt-1">
-                      {myResult.sets_completed}/{myResult.sets_prescribed} sets
+                      {tFallback('duelDetailSheet.setsOf', '{done} of {total} sets', { done: myResult.sets_completed, total: prescribed })}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center justify-center w-6 shrink-0">
-                  <span className="text-xs font-black text-muted-foreground">VS</span>
+                  <span className="text-xs font-black text-muted-foreground">{tFallback('duelDetailSheet.vs', 'VS')}</span>
                 </div>
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
-                  <p className="text-micro text-muted-foreground mb-1">{opponentName ? `@${opponentName}` : 'Rival'}</p>
+                  <p className="text-micro text-muted-foreground mb-1">{opponentName ? `@${opponentName}` : tFallback('duelDetailSheet.rival', 'Rival')}</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(theirResult?.volume)}</p>
-                  {theirResult?.sets_completed != null && (
+                  {prescribed > 0 && theirResult?.sets_completed != null && (
                     <p className="text-micro text-muted-foreground mt-1">
-                      {theirResult.sets_completed}/{theirResult.sets_prescribed} sets
+                      {tFallback('duelDetailSheet.setsOf', '{done} of {total} sets', { done: theirResult.sets_completed, total: prescribed })}
                     </p>
                   )}
                 </div>
               </div>
 
-              {won && myResult?.volume && theirResult?.volume && (
-                <p className="text-center text-xs font-semibold text-primary mt-3">
-                  Won by {fmtVolDelta(myResult.volume - theirResult.volume)}
-                </p>
-              )}
-
-              {/* Share line */}
-              {won && (
-                <p className="text-center text-micro text-muted-foreground mt-2 italic">
-                  "I beat {opponentName ? `@${opponentName}` : 'my rival'} by {fmtVolDelta((myResult?.volume || 0) - (theirResult?.volume || 0))}. Flexyn."
+              {/* Volume margin only on an Open duel: a Mirror duel is scored on
+                  completion as well, so its winner can have lifted less. */}
+              {won && !walkover && duel.type === 'open' && myResult.volume > theirResult.volume && (
+                <p className="text-center text-xs font-semibold text-success mt-3">
+                  {tFallback('duelDetailSheet.wonBy', 'Won by {amount}', { amount: fmtVolDelta(myResult.volume - theirResult.volume) })}
                 </p>
               )}
             </div>
@@ -217,45 +227,76 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
             <div className="rounded-xl bg-secondary/40 border border-border p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{tFallback("hub.share.status", "Status")}</span>
-                <span className={`font-semibold capitalize ${duel.status === 'active' ? 'text-primary' : 'text-amber-500'}`}>
-                  {duel.status}
+                <span className={`font-semibold ${duel.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {duelStatusName(duel.status, tFallback)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{tFallback("duelDetailSheet.yourResult", "Your result")}</span>
-                <span className="font-semibold">{myResult ? fmtVol(myResult.volume) : 'Not submitted'}</span>
+                <span className="font-semibold">{myResult ? fmtVol(myResult.volume) : tFallback('duelDetailSheet.notSubmitted', 'Not submitted')}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{opponentName ? `@${opponentName}` : 'Rival'}</span>
-                <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : 'Waiting…'}</span>
+                <span className="text-muted-foreground">{opponentName ? `@${opponentName}` : tFallback('duelDetailSheet.rival', 'Rival')}</span>
+                <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : tFallback('duelDetailSheet.waiting', 'Waiting')}</span>
               </div>
             </div>
           )}
 
-          {/* Submit result — the duel loop's missing completion step. Sends the
-              user's most recent workout as their entry; the server recomputes
-              volume + resolves the winner atomically once both sides are in. */}
+          {/* The opponent answers here. The invite push says "Tap to accept or
+              decline" and lands on this sheet; it had no buttons, so the only
+              way to accept was the DM card. */}
+          {canRespond && (
+            <div className="flex gap-2">
+              <motion.button
+                type="button"
+                whileTap={tap}
+                onClick={handleDecline}
+                disabled={!!busy}
+                className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-secondary active:bg-secondary transition-colors"
+              >
+                {busy === 'decline' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                {tFallback('duelInviteCard.decline', 'Decline')}
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={tap}
+                onClick={handleAccept}
+                disabled={!!busy}
+                className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
+              >
+                {busy === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {tFallback('duelInviteCard.accept', 'Accept')}
+              </motion.button>
+            </div>
+          )}
+
+          {/* Submit — sends the newest workout logged since the duel was
+              accepted. The server scores it from the log itself. */}
           {canSubmit && (
-            <button
+            <motion.button
               type="button"
+              whileTap={tap}
               onClick={handleSubmit}
-              disabled={submitting || !latestLog}
+              disabled={!!busy || !latestLog}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {submitting ? 'Submitting…' : latestLog ? 'Submit my latest workout' : 'Log a workout to submit'}
-            </button>
+              {busy === 'submit' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {latestLog
+                ? tFallback('duelDetailSheet.submitLatest', 'Submit my latest workout')
+                : tFallback('duelDetailSheet.logToSubmit', 'Log a workout to submit')}
+            </motion.button>
           )}
 
           {/* Cancel — challenger can withdraw a still-pending challenge */}
           {isChallenger && duel.status === 'pending' && onCancel && (
-            <button
+            <motion.button
               type="button"
+              whileTap={tap}
               onClick={() => onCancel(duel.id)}
-              className="w-full py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 active:bg-rose-500/10 transition-colors"
+              className="w-full py-2.5 rounded-xl border border-destructive/30 text-destructive text-sm font-semibold hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
             >
               {tFallback("duelDetailSheet.cancelChallenge", "Cancel challenge")}
-            </button>
+            </motion.button>
           )}
 
           {/* Mirror — session template */}
@@ -266,7 +307,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 {duel.session_template.exercises.map((ex, i) => (
                   <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 text-xs">
                     <span className="font-medium">{ex.name}</span>
-                    <span className="text-muted-foreground">{ex.sets?.length || 0} sets</span>
+                    <span className="text-muted-foreground">{tFallback('duelDetailSheet.setCount', '{n} sets', { n: ex.sets?.length || 0 })}</span>
                   </div>
                 ))}
               </div>
