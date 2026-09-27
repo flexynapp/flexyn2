@@ -2,10 +2,11 @@
 // be two bare icons on the card (pair, remove) and two full width buttons
 // above the list (plate calculator, Form Coach), so the card keeps its
 // header for the exercise itself and the tools sit next to the lift they
-// are for.
+// are for. "How to do it" joined them: it was a full width row on every
+// card, paid for by everyone who already knows the lift.
 
 import React from 'react';
-import { MoreHorizontal, Link2, Calculator, Camera, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Link2, Calculator, Camera, BookOpen, Trash2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -21,9 +22,9 @@ const ITEM = 'min-h-11 gap-3 px-3 rounded-lg text-sm font-medium text-foreground
 const DESTRUCTIVE = 'min-h-11 gap-3 px-3 rounded-lg text-sm font-medium text-destructive '
   + 'focus:bg-destructive/10 focus:text-destructive [&>svg]:size-4 [&>svg]:text-destructive';
 
-export default function ExerciseActionsMenu({ name, onPair, onPlateCalc, onFormCheck, onRemove }) {
+export default function ExerciseActionsMenu({ name, onPair, onPlateCalc, onFormCheck, onHowTo, onRemove }) {
   const { tFallback } = useLanguage();
-  const hasTools = !!(onPair || onPlateCalc || onFormCheck);
+  const hasTools = !!(onPair || onPlateCalc || onFormCheck || onHowTo);
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -51,6 +52,14 @@ export default function ExerciseActionsMenu({ name, onPair, onPlateCalc, onFormC
         {onFormCheck && (
           <DropdownMenuItem onSelect={onFormCheck} className={ITEM}>
             <Camera aria-hidden="true" /> {tFallback('workout.checkMyForm', 'Check my form')}
+          </DropdownMenuItem>
+        )}
+        {/* Offered only when the exercise has a guide; a custom lift the
+            user typed in has none, and a row that opens nothing is worse
+            than no row. */}
+        {onHowTo && (
+          <DropdownMenuItem onSelect={onHowTo} className={ITEM}>
+            <BookOpen aria-hidden="true" /> {tFallback('exerciseForm.howTo', 'How to do it')}
           </DropdownMenuItem>
         )}
         {/* A hairline only when there is something above it to separate. */}

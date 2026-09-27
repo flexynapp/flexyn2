@@ -96,6 +96,30 @@ describe('ExerciseActionsMenu', () => {
     expect(screen.getAllByRole('separator')).toHaveLength(1);
   });
 
+  // "How to do it" left the card for this menu. It sits with the other
+  // tools, right after Check my form, above the divider, never coloured.
+  it('offers How to do it next to Check my form and opens the guide', async () => {
+    const onHowTo = vi.fn();
+    wrap(<ExerciseActionsMenu name="Bench" onFormCheck={() => {}} onHowTo={onHowTo} onRemove={() => {}} />);
+    await open();
+    const howTo = await screen.findByRole('menuitem', { name: 'How to do it' });
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map(i => i.textContent.trim())).toEqual(['Check my form', 'How to do it', 'Remove exercise']);
+    expect(howTo.className).toMatch(/\bmin-h-11\b/);
+    expect(howTo.className).not.toMatch(/destructive|primary/);
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+    fireEvent.click(howTo);
+    expect(onHowTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves How to do it out when there is no guide to open', async () => {
+    wrap(<ExerciseActionsMenu name="My Lift" onFormCheck={() => {}} onRemove={() => {}} />);
+    const trigger = await screen.findByRole('button', { name: 'Options for My Lift' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    await screen.findByRole('menuitem', { name: /check my form/i });
+    expect(screen.queryByRole('menuitem', { name: /how to do it/i })).toBeNull();
+  });
+
   it('drops the divider when Remove is the only action', async () => {
     wrap(<ExerciseActionsMenu name="Bench" onRemove={() => {}} />);
     await open();

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
@@ -42,6 +42,8 @@ import WorkoutWin from '@/components/workout/WorkoutWin';
 import { deriveWorkoutTags } from '@/lib/deriveWorkoutTags';
 import { elapsedSeconds } from '@/lib/elapsedClock';
 import ExerciseActionsMenu from '@/components/workout/ExerciseActionsMenu';
+import { guideFor } from '@/lib/exerciseGuides';
+import { posesFor } from '@/lib/data/exercisePoses';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
@@ -309,6 +311,19 @@ export default function Workout() {
   const [storeOpen, setStoreOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
+  // Which exercise cards have their "How to do it" guide open, by list
+  // key. The trigger is a row in each card's ⋯ menu, which sits here
+  // rather than inside ExerciseLogger, so the state does too. Held apart
+  // from the exercise objects so it never lands in the saved JSONB.
+  const [openGuides, setOpenGuides] = useState(() => new Set());
+  const setGuideOpen = useCallback((key, next) => {
+    setOpenGuides(prev => {
+      if (prev.has(key) === !!next) return prev;
+      const out = new Set(prev);
+      if (next) out.add(key); else out.delete(key);
+      return out;
+    });
+  }, []);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   // Armed when the post-save share card closes; see PostWorkoutPushAsk.
   const [pushAskArmed, setPushAskArmed] = useState(false);
@@ -3194,6 +3209,8 @@ export default function Workout() {
                       userProfile={userProfile}
                       prIndex={prIndex}
                       workoutLogs={rawLogs}
+                      guideOpen={openGuides.has(item.key)}
+                      onGuideOpenChange={(next) => setGuideOpen(item.key, next)}
                     />
                   )}
                 {/* One menu per exercise: pairing, the plate calculator,
@@ -3213,6 +3230,9 @@ export default function Workout() {
                       : undefined}
                     onPlateCalc={ex.kind !== 'cardio' ? () => setPlateCalcOpen(true) : undefined}
                     onFormCheck={ex.kind !== 'cardio' ? () => setFormCoachOpen(true) : undefined}
+                    onHowTo={ex.kind !== 'cardio' && (guideFor(ex.name || ex.displayName || '') || posesFor(ex.name || ex.displayName || ''))
+                      ? () => setGuideOpen(item.key, true)
+                      : undefined}
                     onRemove={() => {
                       const removed = exercises[i];
                       // Use a stable identity (group_id || name + reference)

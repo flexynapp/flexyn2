@@ -42,7 +42,7 @@ export function isBodyweightExercise(name) {
 const NEXT_SET_CLEAR_TOP = 180;
 const NEXT_SET_CLEAR_BOTTOM = 160;
 
-export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [] }) {
+export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [], guideOpen, onGuideOpenChange }) {
   // Last 3 sessions' sets for this exercise. Pulled from the user's
   // cached workout-log array — no extra query. Self-collapses to []
   // for first-ever attempts so the hint hides gracefully.
@@ -397,19 +397,41 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               {muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}
             </p>
           )}
-          {isBarbell && (
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</span>
-              <select
-                value={barLbs}
-                onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
-                aria-label={tFallback("exerciseLogger.barbellWeight", "Barbell weight")}
-                className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
-              >
-                {BAR_PRESETS.map(b => (
-                  <option key={b.id} value={b.lbs}>{tFallback(`bar.preset.${b.id}`, b.label)}</option>
-                ))}
-              </select>
+          {/* Bar weight and this exercise's volume share one line: both
+              are small readouts, and on their own rows they cost two
+              lines of setup before the first set. The row is only drawn
+              when one of them has something to say. -me-8 gives back the
+              column's pe-8, which reserves room for the ⋯ button up at
+              the title; this line sits below it, so the volume lines up
+              with the card edge as it did on its own row. Without a
+              muscles line the row would sit level with that button, so it
+              keeps the reserve then. */}
+          {(isBarbell || totalVolume > 0) && (
+            <div className={`flex items-center gap-2 mt-1.5 ${muscles.length > 0 ? '-me-8' : ''}`}>
+              {isBarbell && (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</span>
+                  <select
+                    value={barLbs}
+                    onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
+                    aria-label={tFallback("exerciseLogger.barbellWeight", "Barbell weight")}
+                    className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
+                  >
+                    {BAR_PRESETS.map(b => (
+                      <option key={b.id} value={b.lbs}>{tFallback(`bar.preset.${b.id}`, b.label)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {totalVolume > 0 && (
+                <span className="ms-auto shrink-0 text-xs text-muted-foreground font-medium tabular-nums">
+                  {/* formatWeight already converts lbs → display unit. The prior
+                      `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
+                      converted twice — kg users saw half their real per-exercise
+                      volume label. Same fix family as LiveVolumePill, audit 11 #11. */}
+                  {formatWeight(totalVolume, weightUnit)} vol
+                </span>
+              )}
             </div>
           )}
           {/* Last-session sidebar — "Last: 185×8, 185×8, 185×7".
@@ -467,22 +489,16 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           39 drawn movements, obviously wrong now that it appears on all of
           them. Renders nothing only for a custom exercise the user typed in
           themselves. */}
+      {/* Where the menu is handed in, "How to do it" is a row in the
+          exercise ⋯ menu and the guide appears here, open, only when asked
+          for: a full width disclosure on every card was a line of setup
+          before the first set. Without them (a superset block) it keeps
+          its own disclosure. */}
       <ExerciseFormPanel
         exerciseName={exercise.name || exercise.displayName}
         className="mb-3"
+        {...(onGuideOpenChange ? { open: !!guideOpen, onOpenChange: onGuideOpenChange } : {})}
       />
-
-      {totalVolume > 0 && (
-        <div className="flex justify-end mb-2">
-          <span className="text-xs text-muted-foreground font-medium">
-            {/* formatWeight already converts lbs → display unit. The prior
-                `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
-                converted twice — kg users saw half their real per-exercise
-                volume label. Same fix family as LiveVolumePill, audit 11 #11. */}
-            {formatWeight(totalVolume, weightUnit)} vol
-          </span>
-        </div>
-      )}
 
       <div ref={setListRef} className="space-y-2 mb-3">
         {sets.length > 0 && (
