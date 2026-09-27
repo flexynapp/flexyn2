@@ -725,7 +725,7 @@ writes.** Migration 006 declares the `_g`/`_mg` aliases, sugar, cholesterol,
 eight vitamins and minerals, and `water_oz` — and has never been applied. So
 ten of the sixteen nutrient inputs on the Log Meal form are stripped by
 `db.js` and silently discarded on every save, and ten display tiles rendered a
-permanent zero until 2026-08-11. `db.js:53` documents the strip as deliberate,
+permanent zero until 2026-08-11. `db.js` documented the strip as deliberate,
 which is exactly why it never surfaced. **Do not apply migration 006 without
 reading `docs/nutrition-meal-logging-audit.md` first** — its `water_oz
 DEFAULT 0` would have zeroed every glass of water ever logged (that default
@@ -951,7 +951,7 @@ a different class of bug:
 
 | Layer | Where | What it catches |
 |---|---|---|
-| Write strip-and-retry | `src/api/db.js` `updateMe` + `makeEntity().create` | 42703 / PGRST204 missing-column on inserts/upserts |
+| Write strip-and-retry | `src/api/db.js` `updateMe` only | 42703 / PGRST204 missing-column on profile upserts. **Removed from `makeEntity` create/update on 2026-09-27**: a missing column there now throws, because silently dropping it is how data went unsaved for weeks. A field the app collects but deliberately does not store is dropped by name at its writer (`NOT_STORED` in `src/lib/data/nutrition.js`). |
 | Read strip-and-retry | `src/api/safeSelect.js` | Same, but for `supabase.from().select()` chains |
 | Per-region ErrorBoundary | Wrapped around each major card on Dashboard / Workout / Progress / Goals / Nutrition | Render-time throws inside the section |
 | Route-level ErrorBoundary | `src/App.jsx` on every route | Render-time throws in a whole page chunk |

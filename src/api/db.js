@@ -52,26 +52,12 @@ function parseSort(sort) {
 const OWNER_KEYS = ['user_id', 'created_by'];
 
 /* ── Build a reusable entity accessor ───────────────────────────────────── */
-// Per-table cache of columns the running DB schema doesn't have. The
-// write-path strip-and-retry (create/update below) drops any column that
-// 42703s / PGRST204s and records it here, so later writes to the same table
-// strip those columns UP FRONT instead of paying one failed round-trip per
-// unknown column every time. This matters for nutrition_logs: a full
-// nutrient+vitamin payload carries ~15 columns the table doesn't have
-// (the _g/_mg aliases, sugar, cholesterol, 8 vitamins), which used to blow
-// past the retry budget and fail the whole insert. Session-scoped — cleared
-// on reload, which is also when a freshly-applied migration takes effect.
-const _missingCols = new Map();
-const _rememberMissingCol = (table, col) => {
-  let set = _missingCols.get(table);
-  if (!set) { set = new Set(); _missingCols.set(table, set); }
-  set.add(col);
-};
-const _stripKnownMissing = (table, payload) => {
-  const set = _missingCols.get(table);
-  if (set) for (const col of set) delete payload[col];
-  return payload;
-};
+// Writes send exactly what the caller built. A column the table lacks is an
+// error, not something to drop and retry: the old strip-and-retry turned a
+// missing migration into data that saved "successfully" and was never stored,
+// which is how onboarding's training_equipment and session_minutes went
+// missing for weeks. Migrations now ship through the pipeline, so the schema
+// no longer lags the client and a 42703 / PGRST204 here is a real bug.
 
 // Product analytics for the handful of creates that mark a person actually
 // using the app (src/lib/analytics.js). Done here rather than at each call
@@ -161,13 +147,8 @@ function makeEntity(entityName) {
 
     /** create(data) — insert and return the new row.
      *  Auto-injects created_by (email) and user_id (uuid) so RLS passes
-     *  without every caller needing to set them manually.
-     *
-     *  Resilient retry: if Postgres returns error 42703 (undefined_column)
-     *  the unknown column is stripped from the payload and the insert is
-     *  retried automatically. This lets the app work even when migration 004
-     *  hasn't been applied yet — the extra fields are silently dropped rather
-     *  than crashing the entire feature. */
+     *  without every caller needing to set them manually. A column the
+     *  table lacks throws; see the note above makeEntity. */
     async create(data) {
       // Read local session first (no network). Caller-provided values
       // for OTHER fields are honored, but `created_by` and `user_id`
@@ -194,104 +175,43 @@ function makeEntity(entityName) {
         ...(authUser?.id     ? { user_id:    authUser.id    } : {}),
       };
 
-      // Drop columns already known to be missing on this table (from an
-      // earlier write this session) before the first attempt, so a rich
-      // payload doesn't re-discover all of them one failed insert at a time.
-      let payload = _stripKnownMissing(table, { ...enriched });
-      // Cap is generous enough to strip every unknown column in the widest
-      // payload (nutrition_logs micros → ~15) plus headroom, so a schema that
-      // lags the client never fails the whole write.
-      for (let attempt = 0; attempt < 48; attempt++) {
-        const { data: row, error } = await supabase.from(table).insert(payload).select().single();
-        if (!error) {
-          trackEntityCreated(entityName, row);
-          return row;
-        }
-
-        // PostgreSQL 23505 unique_violation on an idempotency key —
-        // a prior attempt of THIS save intent already landed. Fetch
-        // and return the existing row so the caller treats it as a
-        // successful save (mig 142, audit C-2). Tagged via
-        // `__duplicate = true` on the returned object so the caller
-        // can skip side-effects (XP/volume re-credit).
-        if (error.code === '23505' && payload.idempotency_key && payload.user_id) {
-          const isIdempotencyConflict = /idempotency/i.test(error.message || '')
-            || error.constraint === 'workout_logs_idempotency_idx';
-          if (isIdempotencyConflict) {
-            const { data: existing, error: fetchErr } = await supabase
-              .from(table)
-              .select('*')
-              .eq('user_id', payload.user_id)
-              .eq('idempotency_key', payload.idempotency_key)
-              .maybeSingle();
-            if (!fetchErr && existing) {
-              existing.__duplicate = true;
-              return existing;
-            }
-          }
-        }
-
-        // PostgreSQL 42703 undefined_column — strip and retry
-        if (error.code === '42703') {
-          const match = error.message?.match(/column "([^"]+)"/);
-          if (match?.[1] && match[1] in payload) {
-            console.warn(`[Supabase] column "${match[1]}" not in ${table} yet — skipping (run migration 004)`);
-            _rememberMissingCol(table, match[1]);
-            delete payload[match[1]];
-            continue;
-          }
-        }
-
-        // PostgREST PGRST204 schema-cache miss — same fix, different error shape.
-        // Happens when a column exists in the JS payload but not in PostgREST's
-        // cached schema (e.g. migration 006 not yet applied).
-        if (error.code === 'PGRST204') {
-          const match = error.message?.match(/the '([^']+)' column/);
-          if (match?.[1] && match[1] in payload) {
-            console.warn(`[Supabase] PGRST204: column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
-            _rememberMissingCol(table, match[1]);
-            delete payload[match[1]];
-            continue;
-          }
-        }
-
-        throw error; // any other error is real — propagate immediately
+      const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
+      if (!error) {
+        trackEntityCreated(entityName, row);
+        return row;
       }
-      throw new Error(`[Supabase] insert into ${table} failed after stripping unknown columns`);
+
+      // PostgreSQL 23505 unique_violation on an idempotency key —
+      // a prior attempt of THIS save intent already landed. Fetch
+      // and return the existing row so the caller treats it as a
+      // successful save (mig 142, audit C-2). Tagged via
+      // `__duplicate = true` on the returned object so the caller
+      // can skip side-effects (XP/volume re-credit).
+      if (error.code === '23505' && enriched.idempotency_key && enriched.user_id) {
+        const isIdempotencyConflict = /idempotency/i.test(error.message || '')
+          || error.constraint === 'workout_logs_idempotency_idx';
+        if (isIdempotencyConflict) {
+          const { data: existing, error: fetchErr } = await supabase
+            .from(table)
+            .select('*')
+            .eq('user_id', enriched.user_id)
+            .eq('idempotency_key', enriched.idempotency_key)
+            .maybeSingle();
+          if (!fetchErr && existing) {
+            existing.__duplicate = true;
+            return existing;
+          }
+        }
+      }
+
+      throw error;
     },
 
-    /** update(id, data) — patch and return the updated row.
-     *
-     * Mirrors create()'s strip-and-retry so unknown columns get
-     * dropped silently when the running schema lags the client (e.g.
-     * is_public_free landed in mig 143 — pre-143 hosts would 42703
-     * here without this loop). */
+    /** update(id, data) — patch and return the updated row. */
     async update(id, data) {
-      let payload = _stripKnownMissing(table, { ...data });
-      for (let attempt = 0; attempt < 48; attempt++) {
-        const { data: row, error } = await supabase.from(table).update(payload).eq('id', id).select().single();
-        if (!error) return row;
-        if (error.code === '42703') {
-          const match = error.message?.match(/column "([^"]+)"/);
-          if (match?.[1] && match[1] in payload) {
-            console.warn(`[Supabase] update column "${match[1]}" not in ${table} yet — skipping`);
-            _rememberMissingCol(table, match[1]);
-            delete payload[match[1]];
-            continue;
-          }
-        }
-        if (error.code === 'PGRST204') {
-          const match = error.message?.match(/the '([^']+)' column/);
-          if (match?.[1] && match[1] in payload) {
-            console.warn(`[Supabase] PGRST204: update column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
-            _rememberMissingCol(table, match[1]);
-            delete payload[match[1]];
-            continue;
-          }
-        }
-        throw error;
-      }
-      throw new Error(`[Supabase] update on ${table} failed after stripping unknown columns`);
+      const { data: row, error } = await supabase.from(table).update({ ...data }).eq('id', id).select().single();
+      if (error) throw error;
+      return row;
     },
 
     /** delete(id) — remove the row */
