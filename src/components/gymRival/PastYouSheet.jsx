@@ -16,7 +16,10 @@ import { X, Ghost, Dumbbell, Footprints, Trophy, Loader2, Check } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getPastYouState, getPastYouGoals, abandonPastYou, ghostBoostPct, pastYouBasis, PAST_YOU_GOAL_REWARD } from '@/lib/data/pastYou';
+import {
+  getPastYouState, getPastYouGoals, abandonPastYou, ghostBoostPct, pastYouBasis,
+  PAST_YOU_GOAL_REWARD, PAST_YOU_CHECKPOINT_REWARD, pastYouCheckpoints,
+} from '@/lib/data/pastYou';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -96,6 +99,7 @@ export default function PastYouSheet({ open, onClose, match }) {
   const level = state?.level ?? match.level;
   const weeks = state?.baselineWeeks ?? match.baseline_weeks;
   const boost = ghostBoostPct(level);
+  const checkpoints = pastYouCheckpoints(match);
 
   const gap = you != null && pace != null ? you - pace : null;
   // getPastYouState resolves null on an error, so a settled fetch with no
@@ -196,6 +200,46 @@ export default function PastYouSheet({ open, onClose, match }) {
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 {tFallback('pastYou.paceExplainer', 'Past You trains evenly all week and finishes on {target}.', { target: metricText(target) })}
+              </p>
+            </div>
+          )}
+
+          {checkpoints.some((c) => c.status !== 'skipped') && (
+            <div className="mb-6">
+              <p className="text-micro font-black uppercase tracking-wider text-muted-foreground mb-1">
+                {tFallback('pastYou.checkpointsTitle', 'Checkpoints')}
+              </p>
+              <ul>
+                {checkpoints.map((c) => (
+                  <li key={c.day} className="flex items-center gap-2 py-2.5 border-b border-border last:border-b-0">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${c.status === 'hit' ? 'bg-success text-white' : 'border border-border'}`}
+                      aria-hidden="true">
+                      {c.status === 'hit' && <Check className="w-3 h-3" />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className={`block text-sm ${c.status === 'upcoming' ? 'font-bold' : 'text-muted-foreground'}`}>
+                        {tFallback('pastYou.checkpointDay', 'Day {n}', { n: String(c.day) })}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {tFallback('pastYou.checkpointPace', 'On pace means {v}', { v: metricText(c.pace) })}
+                      </span>
+                    </span>
+                    <span className={`text-xs font-bold tabular-nums text-end ${c.status === 'hit' ? 'text-success' : 'text-muted-foreground'}`}>
+                      {c.status === 'hit'
+                        ? tFallback('pastYou.checkpointHit', 'On pace')
+                        : c.status === 'missed'
+                          ? tFallback('pastYou.checkpointMissed', 'Behind')
+                          : c.status === 'skipped'
+                            ? tFallback('pastYou.checkpointSkipped', 'Not checked')
+                            : fmtDate(c.at, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground mt-2">
+                {tFallback('pastYou.checkpointsReward', 'Be on pace at a checkpoint for {xp} XP and {coins} coins.', {
+                  xp: fmt(PAST_YOU_CHECKPOINT_REWARD.xp), coins: fmt(PAST_YOU_CHECKPOINT_REWARD.coins),
+                })}
               </p>
             </div>
           )}

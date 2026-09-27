@@ -125,3 +125,31 @@ export async function getPastYouGoals(id) {
     return { key, goal, progress, done: g.done === true };
   });
 }
+
+// Mid-week checkpoints (migration 20260927183000). On day 3 and day 5 the
+// cron checks whether the lifter is on Past You's pace, target x day / 7,
+// and pays PAST_YOU_CHECKPOINT_REWARD if so. The server appends one entry per
+// checkpoint to `checkpoints`; anything not there yet is upcoming.
+export const PAST_YOU_CHECKPOINT_DAYS = [3, 5];
+export const PAST_YOU_CHECKPOINT_REWARD = { xp: 100, coins: 10 };
+
+/**
+ * @returns {{ day: number, at: Date, pace: number, status: 'hit'|'missed'|'upcoming'|'skipped' }[]}
+ */
+export function pastYouCheckpoints(match) {
+  if (!match?.started_at) return [];
+  const start = new Date(match.started_at).getTime();
+  const done = Array.isArray(match.checkpoints) ? match.checkpoints : [];
+  const target = Number(match.target) || 0;
+  return PAST_YOU_CHECKPOINT_DAYS.map((day) => {
+    const row = done.find((c) => Number(c?.day) === day);
+    return {
+      day,
+      at: new Date(start + day * 86400_000),
+      pace: row ? Number(row.pace) || 0 : Math.round((target * day) / 7),
+      // A race that ended without this checkpoint (it started before
+      // checkpoints existed, or was ended early) never had it checked.
+      status: row ? (row.hit ? 'hit' : 'missed') : (match.status === 'active' ? 'upcoming' : 'skipped'),
+    };
+  });
+}

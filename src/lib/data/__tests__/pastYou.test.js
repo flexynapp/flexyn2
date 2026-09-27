@@ -24,7 +24,7 @@ vi.mock('@/api/supabaseClient', () => {
   };
 });
 
-const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct, pastYouBasis, getPastYouGoals } = await import('@/lib/data/pastYou');
+const { startPastYou, getPastYouState, getMyPastYou, withReason, ghostBoostPct, pastYouBasis, getPastYouGoals, pastYouCheckpoints } = await import('@/lib/data/pastYou');
 const { isGuestAccount } = await import('@/lib/guestIdentity');
 
 beforeEach(() => { rpc.mockReset(); row = null; });
@@ -149,5 +149,25 @@ describe('getPastYouGoals', () => {
     expect(await getPastYouGoals('m1')).toBeNull();
     rpc.mockResolvedValue({ data: null, error: null });
     expect(await getPastYouGoals('m1')).toBeNull();
+  });
+});
+
+describe('pastYouCheckpoints', () => {
+  const started = '2026-09-20T12:00:00Z';
+  it('fills upcoming checkpoints with the pace to hit', () => {
+    const cps = pastYouCheckpoints({ started_at: started, target: 7000, status: 'active', checkpoints: [] });
+    expect(cps.map((c) => [c.day, c.pace, c.status])).toEqual([[3, 3000, 'upcoming'], [5, 5000, 'upcoming']]);
+    expect(cps[0].at.toISOString()).toBe('2026-09-23T12:00:00.000Z');
+  });
+  it('reads recorded results from the server', () => {
+    const cps = pastYouCheckpoints({
+      started_at: started, target: 7000, status: 'active',
+      checkpoints: [{ day: 3, pace: 3000, hit: true }, { day: 5, pace: 5000, hit: false }],
+    });
+    expect(cps.map((c) => c.status)).toEqual(['hit', 'missed']);
+  });
+  it('marks a finished race without them as not checked', () => {
+    const cps = pastYouCheckpoints({ started_at: started, target: 7000, status: 'completed', checkpoints: [] });
+    expect(cps.map((c) => c.status)).toEqual(['skipped', 'skipped']);
   });
 });
