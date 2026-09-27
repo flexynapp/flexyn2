@@ -492,10 +492,11 @@ BEGIN
     IF s.baseline <> 2500 THEN RAISE EXCEPTION 'probe: cardio floor %', s.baseline; END IF;
 
     -- A client cannot place a session in the past, or move one later.
-    PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated',
+      'email', 'rivalfloor-probe-' || a || '@example.invalid')::text, true);
     SET LOCAL ROLE authenticated;
-    INSERT INTO public.workout_logs (user_id, exercises, created_at)
-    VALUES (a, tiny, now() - interval '30 days') RETURNING id INTO v_log;
+    INSERT INTO public.workout_logs (created_by, user_id, exercises, created_at)
+    VALUES ('rivalfloor-probe-' || a || '@example.invalid', a, tiny, now() - interval '30 days') RETURNING id INTO v_log;
     UPDATE public.workout_logs SET created_at = now() - interval '60 days' WHERE id = v_log;
     RESET ROLE;
     SELECT created_at INTO v_ts FROM public.workout_logs WHERE id = v_log;
