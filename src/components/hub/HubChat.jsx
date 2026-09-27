@@ -10,7 +10,8 @@ import DMStickerPicker from './DMStickerPicker';
 import GifPicker, { GIF_ENABLED } from './GifPicker';
 import VoiceMemoRecorder, { formatDuration as formatVoiceDuration } from './VoiceMemoRecorder';
 import { ITEMS as LOOT_ITEMS } from '@/lib/lootCatalog';
-import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
+import { format, parseISO, differenceInHours } from 'date-fns';
+import { formatDate, formatCompactAgo, relativeWord } from '@/lib/intlFormat';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import OneShotTooltip from '@/components/OneShotTooltip';
@@ -41,24 +42,22 @@ function shouldShowDivider(messages, index) {
   return differenceInHours(parseISO(curr), parseISO(prev)) >= 1;
 }
 
-function formatDivider(dateStr) {
+// Date-fns binds no locale, so these rendered "Today at 3:45 PM" and "5
+// hours" → "5h" (a string replace that only matched English) under every
+// language. Intl carries the day words and the units instead.
+function formatDivider(dateStr, language) {
   if (!dateStr) return '';
   const date = parseISO(dateStr);
   const diffH = differenceInHours(new Date(), date);
-  if (diffH < 24) return format(date, "'Today at' h:mm a");
-  if (diffH < 48) return format(date, "'Yesterday at' h:mm a");
-  return format(date, "MMM d 'at' h:mm a");
+  const time = formatDate(date, language, { hour: 'numeric', minute: '2-digit' });
+  if (diffH < 24) return `${relativeWord(0, 'day', language, { cap: true })}, ${time}`;
+  if (diffH < 48) return `${relativeWord(-1, 'day', language, { cap: true })}, ${time}`;
+  return formatDate(date, language, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function formatRelativeShort(dateStr) {
+function formatRelativeShort(dateStr, language) {
   if (!dateStr) return '';
-  try {
-    return formatDistanceToNowStrict(parseISO(dateStr), { addSuffix: false })
-      .replace(' seconds', 's').replace(' second', 's')
-      .replace(' minutes', 'm').replace(' minute', 'm')
-      .replace(' hours', 'h').replace(' hour', 'h')
-      .replace(' days', 'd').replace(' day', 'd');
-  } catch { return ''; }
+  try { return formatCompactAgo(parseISO(dateStr), language); } catch { return ''; }
 }
 
 // Dedupe optimistic messages once the server echoes them back.
@@ -158,7 +157,7 @@ function SwipeableDmMessage({ children, isMine, isOptimistic, onDelete }) {
 }
 
 export default function HubChat({ conversation, otherUser = null, onBack }) {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   // Declared before every read, including the deps arrays below.
   const readReceiptsEnabled = useReadReceiptsEnabled();
   const { user } = useAuth();
@@ -909,7 +908,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       setScheduleAt('');
       setScheduleOpen(false);
       queryClient.invalidateQueries({ queryKey: ['hubChatScheduled', conversation.id, user?.id] });
-      toast.success(`Scheduled for ${sendAt.toLocaleString()}`);
+      toast.success(tFallback('hub.chat.scheduledFor', 'Scheduled for {when}', { when: formatDate(sendAt, language, { dateStyle: 'medium', timeStyle: 'short' }) }));
     } catch (err) {
       toast.error(`Could not schedule: ${err?.message || 'try again'}`);
     }
@@ -1370,7 +1369,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               >
                 {showDivider && ts && (
                   <div className="flex justify-center my-4">
-                    <span className="text-micro text-muted-foreground">{formatDivider(ts)}</span>
+                    <span className="text-micro text-muted-foreground">{formatDivider(ts, language)}</span>
                   </div>
                 )}
                 {(() => {
@@ -1626,17 +1625,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         exit={{ opacity: 0 }}
                         className="text-micro text-primary font-medium transition-opacity duration-1000"
                       >
-                        Read
+                        {tFallback('hub.messages.status.read', 'Read')}
                         {lastSentMsg?.read_at && (
                           <span className="text-muted-foreground font-normal">
-                            {' · '}{formatRelativeShort(lastSentMsg.read_at) || 'just now'}
+                            {' · '}{formatRelativeShort(lastSentMsg.read_at, language) || relativeWord(0, 'second', language)}
                           </span>
                         )}
                       </motion.span>
                     ) : !isRead ? (
                       <span className="text-micro text-muted-foreground">
-                        Sent
-                        {ts && <span> · {formatRelativeShort(ts)}</span>}
+                        {tFallback('hub.messages.status.sent', 'Sent')}
+                        {ts && <span> · {formatRelativeShort(ts, language)}</span>}
                       </span>
                     ) : null}
                   </div>
@@ -1818,7 +1817,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-micro font-bold text-primary uppercase tracking-wide">
-                  Scheduled · {new Date(s.scheduled_at).toLocaleString()}
+                  {tFallback('hub.chat.scheduledLabel', 'Scheduled')} · {formatDate(new Date(s.scheduled_at), language, { dateStyle: 'medium', timeStyle: 'short' })}
                 </p>
                 <p className="text-xs text-foreground truncate">{s.content}</p>
               </div>

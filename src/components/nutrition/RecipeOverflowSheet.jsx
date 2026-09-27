@@ -96,7 +96,7 @@ export default function RecipeOverflowSheet({
                   className="flex-1 h-11 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Remove
+                  {tFallback('recipeOverflowSheet.remove', 'Remove')}
                 </button>
               </div>
             </div>

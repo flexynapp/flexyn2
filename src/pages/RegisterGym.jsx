@@ -313,7 +313,7 @@ export default function RegisterGym() {
               {geoLoading
                 ? <Loader2 className="w-3 h-3 animate-spin" />
                 : <MapPin className="w-3 h-3" />}
-              Use my location
+              {tFallback('registerGym.useMyLocation', 'Use my location')}
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
+import { formatDate } from '@/lib/intlFormat';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
@@ -1037,7 +1038,7 @@ export default function HubComposer({ onClose }) {
             {unlockedAchievements.map(a => (
               <PickCard key={a.id} kind="achievement" onClick={() => handlePick('achievement', a)}
                 title={a.name || a.achievement_id || 'Achievement'}
-                subtitle={a.unlocked_date ? format(parseISO(a.unlocked_date), 'MMM d, yyyy') : ''} />
+                subtitle={a.unlocked_date ? formatDate(parseISO(a.unlocked_date), language, { dateStyle: 'medium' }) : ''} />
             ))}
           </Section>
         )}
@@ -1603,7 +1604,7 @@ export default function HubComposer({ onClose }) {
             />
             {scheduledAt && (
               <p className="text-micro text-primary mt-1">
-                Will publish: {new Date(scheduledAt).toLocaleString()}
+                {tFallback('hub.composer.willPublish', 'Will publish: {when}', { when: formatDate(new Date(scheduledAt), language, { dateStyle: 'medium', timeStyle: 'short' }) })}
               </p>
             )}
           </div>

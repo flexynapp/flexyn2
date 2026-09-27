@@ -185,7 +185,7 @@ function PYMKCard({ candidate, isFollowed, delay, onFollow, onSelect }) {
           className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-micro font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity disabled:opacity-60 w-full justify-center"
         >
           {adding ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <UserPlus className="w-2.5 h-2.5" />}
-          Follow
+          {t('hub.profile.follow')}
         </button>
       ) : (
         <span className="text-micro text-primary font-semibold">✓ Following</span>

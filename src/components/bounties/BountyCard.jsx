@@ -29,7 +29,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
   // Days-and-hours rather than date-fns' single rounded unit: a bounty runs
   // 48 to 72 hours, so "2 days" on something with three hours left is the
   // only reading that matters and the wrong one.
-  const remaining = timeUntil(bounty.expires_at);
+  const remaining = timeUntil(bounty.expires_at, new Date(), language);
 
   // Pass weightUnit so weight-based bounties render their target in
   // the user's preferred unit. The helper signature gained the param

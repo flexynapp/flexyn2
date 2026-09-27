@@ -182,15 +182,58 @@ export function formatDuration(ms, language) {
   const d = Math.floor(totalMin / 1440);
   const h = Math.floor((totalMin % 1440) / 60);
   const m = totalMin % 60;
-  const locale = toBcp47(language);
-  const unit = (n, u) => {
-    try {
-      return new Intl.NumberFormat(locale, { style: 'unit', unit: u, unitDisplay: 'narrow' }).format(n);
-    } catch {
-      return `${n}${u[0]}`;
-    }
-  };
+  const unit = (n, u) => formatUnit(n, u, language);
   if (d > 0) return `${unit(d, 'day')} ${unit(h, 'hour')}`;
   if (h > 0) return `${unit(h, 'hour')} ${unit(m, 'minute')}`;
   return unit(m, 'minute');
+}
+
+/**
+ * One number with its unit in the viewer's language, narrow form:
+ * formatUnit(3, 'day', 'fr') → "3j", formatUnit(4, 'hour', 'es') → "4h".
+ * For countdowns that need a shape formatDuration does not give. Never
+ * append a hardcoded "d"/"h"/"m": French days are "j", German "T".
+ */
+export function formatUnit(n, unit, language) {
+  try {
+    return new Intl.NumberFormat(toBcp47(language), { style: 'unit', unit, unitDisplay: 'narrow' }).format(n);
+  } catch {
+    return `${n}${unit[0]}`;
+  }
+}
+
+/**
+ * Compact age for dense rows (DM inbox, read receipts): "now", "5m", "2h",
+ * "3d" in English; "ahora", "5min", "2h", "3d" in Spanish; "3j" in French.
+ * Replaces date-fns formatDistanceToNowStrict + `.replace(' hours', 'h')`,
+ * which only ever worked on English output.
+ *
+ * @param {Date|string|number} value
+ * @param {string} language
+ * @param {Date} [now]
+ */
+export function formatCompactAgo(value, language, now = new Date()) {
+  if (value == null || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const secs = Math.max(0, (now.getTime() - date.getTime()) / 1000);
+  if (secs < 60) return relativeWord(0, 'second', language);
+  if (secs < 3600) return formatUnit(Math.floor(secs / 60), 'minute', language);
+  if (secs < 86400) return formatUnit(Math.floor(secs / 3600), 'hour', language);
+  return formatUnit(Math.floor(secs / 86400), 'day', language);
+}
+
+/**
+ * "Today" / "Yesterday" / "Now" as one word in the viewer's language, from
+ * Intl.RelativeTimeFormat's numeric:'auto' data, capitalised when it opens a
+ * label. relativeWord(-1, 'day', 'fr') → "hier"; with cap → "Hier".
+ */
+export function relativeWord(n, unit, language, { cap = false } = {}) {
+  let s;
+  try {
+    s = new Intl.RelativeTimeFormat(toBcp47(language), { numeric: 'auto' }).format(n, unit);
+  } catch {
+    s = new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(n, unit);
+  }
+  return cap ? s.charAt(0).toLocaleUpperCase(toBcp47(language)) + s.slice(1) : s;
 }
