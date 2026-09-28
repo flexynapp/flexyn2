@@ -79,7 +79,10 @@ export default function StickerSet() {
               ? tFallback('stickerSet.yours', 'Yours. Tap one to see it')
               : tFallback('stickerSet.yoursTitle', 'Yours')}
           </span>
-          <div className="dark -mx-1 rounded-2xl bg-background text-foreground px-2 pt-4 pb-3 flex flex-col gap-2">
+          {/* The panel borrows the dark tokens so it reads as a dark sheet on the
+              light page. On the dark page those tokens ARE the page, so it
+              steps up to the card surface there, or it has no edge at all. */}
+          <div className="dark -mx-1 rounded-2xl bg-background dark:bg-card text-foreground px-2 pt-4 pb-3 flex flex-col gap-2">
             {mine.length > 0 ? (
               <>
                 <ul className="flex flex-wrap justify-center gap-1">
