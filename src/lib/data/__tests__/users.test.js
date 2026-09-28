@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const fromCalls = [];
+const inCalls = [];
 let resultForTable; // (table) => { data, error }
 
 function makeBuilder(table) {
@@ -22,6 +23,7 @@ function makeBuilder(table) {
   for (const op of ['select', 'eq', 'neq', 'in', 'not', 'is', 'ilike', 'order', 'limit', 'gt', 'gte', 'lte']) {
     builder[op] = chain;
   }
+  builder.in = (col, vals) => { inCalls.push([col, vals]); return builder; };
   builder.single = terminal;
   builder.maybeSingle = terminal;
   builder.then = (onF, onR) => terminal().then(onF, onR);
@@ -37,12 +39,13 @@ vi.mock('@/api/supabaseClient', () => ({
   },
 }));
 
-import { selectProfiles, list, __resetProfilesSourceForTests } from '@/lib/data/users';
+import { selectProfiles, list, listByIds, __resetProfilesSourceForTests } from '@/lib/data/users';
 
 const ROWS = [{ id: 'u1', email: 'a@b.c', username: 'alpha' }];
 
 beforeEach(() => {
   fromCalls.length = 0;
+  inCalls.length = 0;
   __resetProfilesSourceForTests();
   resultForTable = () => ({ data: ROWS, error: null });
 });
@@ -155,6 +158,33 @@ describe('list', () => {
   it('throws on a real error', async () => {
     resultForTable = () => ({ data: null, error: { code: '42501', message: 'permission denied' } });
     await expect(list()).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('listByIds', () => {
+  // The followers sheet used to list() every profile and filter in memory,
+  // which downloaded the whole table and dropped anyone past the row limit.
+  it('asks only for the ids it was given, once each', async () => {
+    const rows = await listByIds(['u1', 'u2', 'u1', null, undefined]);
+    expect(rows).toEqual(ROWS);
+    expect(inCalls).toEqual([['id', ['u1', 'u2']]]);
+  });
+
+  it('splits a long id list into requests of 100', async () => {
+    const ids = Array.from({ length: 250 }, (_, i) => `u${i}`);
+    await listByIds(ids);
+    expect(inCalls.map(([, v]) => v.length)).toEqual([100, 100, 50]);
+    expect(inCalls.flatMap(([, v]) => v)).toEqual(ids);
+  });
+
+  it('makes no request for an empty list', async () => {
+    expect(await listByIds([])).toEqual([]);
+    expect(fromCalls).toEqual([]);
+  });
+
+  it('throws on a real error', async () => {
+    resultForTable = () => ({ data: null, error: { code: '42501', message: 'permission denied' } });
+    await expect(listByIds(['u1'])).rejects.toMatchObject({ code: '42501' });
   });
 });
 

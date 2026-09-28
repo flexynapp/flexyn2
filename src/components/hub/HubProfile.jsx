@@ -2663,10 +2663,11 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
     queryKey: ['hubProfileUsers', ids],
     queryFn: async () => {
       if (!ids.length) return [];
-      const users = await usersData.list().catch(() => []);
       // Resolve the follower/following rows by user_id — never off the
-      // view's email column (which no longer exists).
-      return users.filter(u => ids.includes(u.id)).map(u => ({
+      // view's email column (which no longer exists). Only these ids: this
+      // used to fetch every profile in the app and filter here.
+      const users = await usersData.listByIds(ids).catch(() => []);
+      return users.map(u => ({
         ...u,
         username: u.username || 'athlete',
         levelData: calculateLevelFromXp(Number(u.total_xp) || 0),
