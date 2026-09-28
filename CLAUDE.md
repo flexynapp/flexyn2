@@ -1281,8 +1281,10 @@ govern hierarchy, which tokens can't encode.
   pick themselves (Serious, Casual, Pixel, Script), which are a user choice,
   not house type; their Normal style is the body token. **Canvas cannot read
   CSS variables**, so the four share cards (Workout, PR, Weekly recap,
-  Profile) still draw in the system stack. They are baselined, not
-  exempt: 53 literal `ctx.font` strings as of 2026-09-28, which may only go down.
+  Profile) set `ctx.font` through `canvasFont()` (`src/lib/canvasFont.js`),
+  which reads the token, and draw after `canvasFontsReady()`, which waits
+  (capped) for the face to load. The `hardcodedFont` baseline is 0 as of
+  2026-09-28; keep it there.
 - **Hierarchy by weight and colour before size.** Six type steps, 11px floor. If
   something needs to recede, change weight — do not invent a seventh size.
 - **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and

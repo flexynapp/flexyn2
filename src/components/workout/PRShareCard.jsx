@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
+import { canvasFont, canvasFontsReady } from '@/lib/canvasFont';
 import { formatNumber } from '@/lib/intl';
 import { track, EVENTS } from '@/lib/analytics';
 import { shareCardHost, shareCardLink } from '@/lib/appOrigin';
@@ -80,23 +81,23 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
 
   // Header band.
   ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.font = canvasFont('bold 28px');
   ctx.textAlign = 'left';
   ctx.fillText(tf('shareCard.newPr', 'FLEXYN · NEW PR'), 80, 110);
 
   // Username.
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
-  ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 64px');
   ctx.fillText(username || 'Athlete', 80, 220);
 
   // Exercise label.
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 30px');
   ctx.fillText(tf('shareCard.exercise', 'EXERCISE'), 80, 320);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 48px');
   // Truncate if longer than the canvas width allows.
   let exDisplay = exerciseName || 'PR';
   while (ctx.measureText(exDisplay).width > W - 160 && exDisplay.length > 4) {
@@ -109,20 +110,20 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
   const newStr = formatNumber(newRounded, language);
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 30px');
   ctx.fillText(tf('shareCard.newRecord', 'NEW RECORD'), 80, 480);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 220px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 220px');
   ctx.fillText(newStr, 80, 680);
 
   // Unit suffix.
   const newWidth = (() => {
-    ctx.font = 'bold 220px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 220px');
     return ctx.measureText(newStr).width;
   })();
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 60px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 60px');
   ctx.fillText(' ' + unit, 80 + newWidth, 680);
 
   // Delta box — the satisfying "+X" gain.
@@ -135,12 +136,12 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
     ctx.stroke();
 
     ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
-    ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 30px');
     ctx.textAlign = 'left';
     ctx.fillText(tf('shareCard.gain', 'GAIN'), 120, 800);
 
     ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 64px');
     ctx.textAlign = 'right';
     ctx.fillText(`${deltaStr} ${unit}`, W - 120, 838);
 
@@ -149,7 +150,7 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
 
   // Footer brand mark.
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 24px');
   ctx.textAlign = 'center';
   ctx.fillText(shareCardHost(), W / 2, H - 50);
 }
@@ -165,26 +166,31 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    drawCard(ctx, {
-      t:            tFallback,
-      username:     username || tFallback('shareCard.athlete', 'Athlete'),
-      exerciseName: pr.displayName,
-      newPR:        pr.newPR,
-      oldPR:        pr.oldPR,
-      delta:        pr.delta,
-      unit,
-      language,
-    });
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const nextUrl = URL.createObjectURL(blob);
-      // Revoke the previous URL before swapping to avoid blob-URL
-      // accumulation on rapid re-renders.
-      setImgUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return nextUrl;
+    let cancelled = false;
+    canvasFontsReady().then(() => {
+      if (cancelled) return;
+      drawCard(ctx, {
+        t:            tFallback,
+        username:     username || tFallback('shareCard.athlete', 'Athlete'),
+        exerciseName: pr.displayName,
+        newPR:        pr.newPR,
+        oldPR:        pr.oldPR,
+        delta:        pr.delta,
+        unit,
+        language,
       });
-    }, 'image/png');
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const nextUrl = URL.createObjectURL(blob);
+        // Revoke the previous URL before swapping to avoid blob-URL
+        // accumulation on rapid re-renders.
+        setImgUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return nextUrl;
+        });
+      }, 'image/png');
+    });
+    return () => { cancelled = true; };
   }, [open, pr, unit, username, language, tFallback]);
 
   useEffect(() => {

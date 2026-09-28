@@ -9,7 +9,7 @@
     "colouredShadow": 23,
     "offScaleRadius": 28,
     "subFloorText": 0,
-    "hardcodedFont": 53,
+    "hardcodedFont": 0,
     "hoverMotion": 54
   },
   "counts": {
@@ -220,12 +220,7 @@
       "src/pages/DuelInviteLanding.jsx": 1
     },
     "subFloorText": {},
-    "hardcodedFont": {
-      "src/components/dashboard/WeeklyRecapShareCard.jsx": 14,
-      "src/components/hub/ProfileShareCard.jsx": 15,
-      "src/components/workout/PRShareCard.jsx": 11,
-      "src/components/workout/WorkoutShareCard.jsx": 13
-    },
+    "hardcodedFont": {},
     "hoverMotion": {
       "src/components/cardio/CardioManualForm.jsx": 1,
       "src/components/cardio/CardioSection.jsx": 3,
