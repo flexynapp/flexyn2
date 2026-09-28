@@ -2,7 +2,7 @@
 //
 // Public-facing user profile page — accessible WITHOUT signing in.
 //
-// Route: /@:username  (bypasses the auth gate in App.jsx)
+// Route: /@username  (bypasses the auth gate in App.jsx)
 //
 // States handled:
 //   • unauthenticated visitor  — full profile content + "Join Flexyn to
@@ -22,7 +22,8 @@
 //     view (anon SELECT on that view is revoked in migration 207).
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { usernameFromPath } from '@/lib/profileLink';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Shield, Flame, Star, Trophy, Users,
@@ -77,7 +78,9 @@ function StatPill({ icon: Icon, value, label, className = '' }) {
 
 export default function PublicProfile() {
   const { tFallback } = useLanguage();
-  const { username } = useParams();
+  // Not useParams(): see src/lib/profileLink.js for why the router has none.
+  const { pathname } = useLocation();
+  const username = usernameFromPath(pathname);
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
 

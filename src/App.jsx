@@ -14,7 +14,7 @@ import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, useParams, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -72,7 +72,6 @@ import { PrivacyPolicy, TermsOfService } from './pages/Legal';
 import ComingSoon from './pages/ComingSoon';
 import { isEnabled } from '@/lib/featureFlags';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
-import { supabase } from '@/api/supabaseClient';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const LevelUpManager      = lazy(() => import('@/components/LevelUpManager'));
@@ -86,33 +85,6 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 //
 // Splash + SignIn + Onboarding are eagerly imported above (during auth
 // bootstrap — lazy-loading them would introduce a visible loading flash).
-
-// ── @username profile redirect ────────────────────────────────────────────────
-// Resolves a username to an email, then redirects to /hub?profile=EMAIL.
-// This is the shareable profile link surface: flexyn.app/@sean opens Sean's
-// profile without exposing the email in the shareable URL.
-function ProfileRedirect() {
-  const { username } = useParams();
-  const [target, setTarget] = React.useState(null); // null=loading, false=not found
-  useEffect(() => {
-    if (!username) { setTarget(false); return; }
-    const handle = username.replace(/^@/, '');
-    // Resolve username → user_id via get_public_profile_by_username (mig 206,
-    // anon-callable so shared /@username links resolve for logged-out
-    // visitors). Redirecting by id (not email) keeps email out of the URL and
-    // matches the id-keyed profile route — no email round-trip needed.
-    supabase
-      .rpc('get_public_profile_by_username', { p_username: handle })
-      .then(({ data }) => setTarget(data?.id || false));
-  }, [username]);
-  if (target === null) {
-    return <div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" /></div>;
-  }
-  if (!target) {
-    return <Navigate to="/hub" replace />;
-  }
-  return <Navigate to={`/hub?profile=${encodeURIComponent(target)}`} replace />;
-}
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
@@ -203,7 +175,7 @@ const AuthenticatedApp = () => {
   if (typeof window !== 'undefined' && /^\/@[^/]/.test(window.location.pathname)) {
     return (
       <Routes>
-        <Route path="/@:username" element={<PublicProfile />} />
+        {/* One route: the username is read from the path, see src/lib/profileLink.js. */}
         <Route path="*" element={<PublicProfile />} />
       </Routes>
     );
@@ -469,8 +441,6 @@ const AuthenticatedApp = () => {
           <Route path="/admin/gyms"   element={<ErrorBoundary label="AdminGyms"><Suspense fallback={<PageLoader />}><AdminGyms /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id/edit" element={<ErrorBoundary label="GymEdit"><Suspense fallback={<PageLoader />}><GymEdit /></Suspense></ErrorBoundary>} />
         </Route>
-        {/* Shareable profile link: flexyn.app/@username → resolves username to email → /hub?profile=EMAIL */}
-        <Route path="/@:username" element={<ProfileRedirect />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
       {/*
