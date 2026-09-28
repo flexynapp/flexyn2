@@ -18,6 +18,7 @@ import * as regimensData from '@/lib/data/regimens';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { runningTargets, formatPace, formatClock, repTime } from '@/lib/running/paces';
 import { classifyEquipment } from '@/lib/exerciseEquipment';
+import { getMaxRealisticSetsPerWorkout, getMaxSetsPerExercise, getMuscleGroupCap, countSetsPerMuscleGroup } from '@/lib/workoutFatigue';
 
 // Throw-on-typo lookup. Called at module init below for every exercise
 // the generator can ever pick.
@@ -565,10 +566,16 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // Half an hour does not fit four sets of four exercises with rest.
   if (Number.isFinite(sessionMinutes) && sessionMinutes <= 30) sets = Math.min(sets, 3);
   sets = Math.max(2, sets);
+  // The Workout page refuses to save a session past the lifter's realistic
+  // limits (detectImplausibleWorkout), so a plan finished exactly as written
+  // must stay inside them. Per exercise here; the session total is fitted
+  // once the cardio block is known, below.
+  const saveLimits = { age, gender, weight_lbs: Number.isFinite(weightKg) ? weightKg * 2.20462 : undefined };
+  sets = Math.min(sets, getMaxSetsPerExercise(saveLimits));
   const reps = setsReps.reps;
   const female = gender === 'female';
 
-  const strengthExercises = exerciseNames.map(name => {
+  let strengthExercises = exerciseNames.map(name => {
     const libEntry = EX(name);
     let targetReps = reps;
     if (CARDIO_NAMES.has(name)) targetReps = 30;
@@ -612,6 +619,36 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const cardioExercises = cardioWanted && cardioSafe
     ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel, targets: cardioTargets })
     : [];
+
+  // Session total. A consistent lifter on one day a week gets 5 x 5 = 25 sets,
+  // over a 26 year old woman's limit of 21, and the save was refused on the
+  // very first session. Drop trailing accessories first, down to three lifts,
+  // so each lift keeps its full scheme: fewer lifts done properly beats every
+  // lift cut short. Only then share what is left evenly.
+  const cardioSets = cardioExercises.reduce((n, e) => n + (e.target_sets || 0), 0);
+  const setBudget = getMaxRealisticSetsPerWorkout(saveLimits) - cardioSets;
+  // The conditioning move added for a high body fat lifter is the reason that
+  // lifter's plan differs, so it is the last thing to go.
+  while (strengthExercises.length > 3 && strengthExercises.length * sets > setBudget) {
+    const drop = strengthExercises.findLastIndex((e) => e.name !== 'Mountain Climbers');
+    strengthExercises = strengthExercises.filter((_, i) => i !== (drop < 0 ? strengthExercises.length - 1 : drop));
+  }
+  if (strengthExercises.length) {
+    const fit = Math.max(2, Math.floor(setBudget / strengthExercises.length));
+    strengthExercises = strengthExercises.map((e) => (e.target_sets > fit ? { ...e, target_sets: fit } : e));
+  }
+  // And per muscle group: three compound lifts at 6 sets all hit legs. Take a
+  // set at a time off the biggest lift on an over-limit group, never below 2.
+  for (let guard = 0; guard < 40; guard += 1) {
+    const asLogged = [...strengthExercises, ...cardioExercises].map((e) => ({ muscle_groups: e.muscle_groups, sets: { length: e.target_sets || 0 } }));
+    const counts = countSetsPerMuscleGroup(asLogged);
+    const over = Object.keys(counts).find((g) => counts[g] > getMuscleGroupCap(g, saveLimits));
+    if (!over) break;
+    const hits = strengthExercises.filter((e) => e.target_sets > 2 && e.muscle_groups?.includes(over));
+    if (!hits.length) break;
+    const biggest = hits.reduce((a, b) => (b.target_sets > a.target_sets ? b : a));
+    strengthExercises = strengthExercises.map((e) => (e === biggest ? { ...e, target_sets: e.target_sets - 1 } : e));
+  }
 
   // Cardio leads the plan for a runner; strength leads for a lifter.
   const exercises = cardioWanted && !strengthGoals.length

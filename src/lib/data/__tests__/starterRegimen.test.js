@@ -259,8 +259,10 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
 
 describe('buildStarterRegimen — training days → scope', () => {
   it('a 2-day plan is more compact than a 6-day plan', () => {
-    const two = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 2 });
-    const six = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 6 });
+    // Aged 26 so the session set limit (25) leaves the 2-day 5 x 5 whole; an
+    // older or unset profile has a lower limit and loses a lift to it.
+    const two = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 2, age: 26 });
+    const six = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 6, age: 26 });
     expect(two.exercises.length).toBeLessThan(six.exercises.length);
     expect(two.exercises.length).toBe(5);
     expect(six.exercises.length).toBeGreaterThanOrEqual(6);
