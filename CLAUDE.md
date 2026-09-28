@@ -1266,6 +1266,21 @@ govern hierarchy, which tokens can't encode.
   rather than state meaning, so they use the semantically-neutral chart ramp:
   protein `--chart-1`, carbs `--chart-2`, fat `--chart-3`. Routing them through
   the state hues would render a healthy protein figure as `destructive`.
+- **Type has ONE source: `--font-heading`, `--font-body` and `--font-mono` in
+  `src/index.css`** (Archivo and Figtree today). Reach them through Tailwind
+  (`font-heading`, `font-body`, `font-mono`, or nothing, because `sans` points at
+  the body face) or `var(--font-*)` in an inline style. Never type a face name
+  anywhere else, including SVG `font-family` strings and Tailwind `font-['X']`.
+  A face typed by hand does not move when the brand font does, and that is
+  exactly how three stacks came to coexist on `/workout`. The `hardcodedFont`
+  rule in `scripts/ui-ratchet.mjs` enforces it and `uiRatchet.test.js` fails
+  the suite on a new one. The exceptions are the Snake game's pixel face and
+  the logo wordmark on the splash screen, plus the story text styles people
+  pick themselves (Serious, Casual, Pixel, Script), which are a user choice,
+  not house type; their Normal style is the body token. **Canvas cannot read
+  CSS variables**, so the four share cards (Workout, PR, Weekly recap,
+  Profile) still draw in the system stack. They are baselined, not
+  exempt: 53 literal `ctx.font` strings as of 2026-09-28, which may only go down.
 - **Hierarchy by weight and colour before size.** Six type steps, 11px floor. If
   something needs to recede, change weight — do not invent a seventh size.
 - **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and

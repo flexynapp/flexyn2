@@ -33,3 +33,28 @@ describe('UI ratchet: banned patterns may only go down', () => {
     });
   }
 });
+
+// The font rule is the easiest to get wrong in the permissive direction:
+// a lookahead that backtracks past the space in `font-family: var(...)`
+// flagged the tokens themselves on its first draft. So it is pinned on
+// both sides, what it must catch and what it must leave alone.
+describe('hardcodedFont: what counts as typing a face by hand', () => {
+  const hits = (s) => (s.match(new RegExp(RULES.hardcodedFont.re.source, 'g')) || []).length;
+  it.each([
+    [`style={{ fontFamily: 'system-ui, sans-serif' }}`],
+    [`<text fontFamily="Inter">`],
+    [`.x { font-family: Arial, sans-serif; }`],
+    [`font-family:'Press Start 2P'`],
+    [`className="font-['Inter']"`],
+    [`ctx.font = 'bold 24px sans-serif';`],
+  ])('catches %s', (s) => expect(hits(s)).toBe(1));
+  it.each([
+    [`style={{ fontFamily: 'var(--font-body)' }}`],
+    [`.x { font-family: var(--font-heading); }`],
+    [`style="font-family: var(--font-heading); font-weight: 800"`],
+    [`fontFamily: FONT_MAP[style.font]`],
+    [`font: 'inherit'`],
+    [`className="font-[600]"`],
+    [`ctx.font = canvasFont('bold', 24);`],
+  ])('leaves %s alone', (s) => expect(hits(s)).toBe(0));
+});

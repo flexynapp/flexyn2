@@ -292,7 +292,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
         {attribOpen && (
           <div
             className="pointer-events-auto bg-white/85 dark:bg-black/70 backdrop-blur-sm text-micro leading-tight px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-200"
-            style={{ fontFamily: 'system-ui, sans-serif' }}
+            style={{ fontFamily: 'var(--font-body)' }}
           >
             {MAPTILER_KEY ? (
               <>
@@ -342,7 +342,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
           onClick={() => setAttribOpen((v) => !v)}
           aria-label={tFallback("routeMap.mapDataAttribution", "Map data attribution")}
           className="pointer-events-auto w-[18px] h-[18px] rounded-full bg-white/85 dark:bg-black/70 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-micro font-bold flex items-center justify-center hover:bg-white dark:hover:bg-black dark:active:bg-black transition-colors shadow-sm"
-          style={{ fontFamily: 'system-ui, sans-serif' }}
+          style={{ fontFamily: 'var(--font-body)' }}
         >
           ⓘ
         </button>

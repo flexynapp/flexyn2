@@ -227,7 +227,7 @@ export default function GauntletPath({
                 textAnchor="middle" dominantBaseline="central"
                 fontSize={11} fontWeight="800"
                 fill={isLocked ? '#9ca3af' : base}
-                style={{ fontFamily: 'system-ui, sans-serif' }}
+                style={{ fontFamily: 'var(--font-heading)' }}
               >
                 {status === 'completed' ? '✓' : seq}
               </text>
@@ -246,7 +246,7 @@ export default function GauntletPath({
                 : status === 'next' ? '#6b7280'
                 : '#9ca3af'
               }
-              style={{ fontFamily: 'system-ui, sans-serif' }}
+              style={{ fontFamily: 'var(--font-heading)' }}
             >
               {(() => {
                 // Slice by Unicode code points, not JS string units —
