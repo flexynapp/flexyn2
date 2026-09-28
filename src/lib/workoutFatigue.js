@@ -73,7 +73,15 @@ export const PER_MUSCLE_GROUP_SET_CAP = {
  * curves as the per-exercise and per-workout caps for consistency.
  */
 export function getMuscleGroupCap(muscleKey, userProfile) {
-  const base = PER_MUSCLE_GROUP_SET_CAP[muscleKey];
+  // Exercise records tag groups capitalised ('Legs', 'FullBody'), and the
+  // table above is keyed in camelCase, so every lookup used to miss and fall
+  // back to 12: legs got 12 instead of 16, forearms 12 instead of 8. Match on
+  // the lowered first letter. 'cardio' stays on the default: its 0 is a
+  // guard for strength sets, and Running or Mountain Climbers carry the tag.
+  const key = typeof muscleKey === 'string' && muscleKey
+    ? muscleKey[0].toLowerCase() + muscleKey.slice(1)
+    : muscleKey;
+  const base = key === 'cardio' ? null : PER_MUSCLE_GROUP_SET_CAP[key];
   if (base == null) return 12; // unknown group → conservative default
 
   const age = ageOf(userProfile);
