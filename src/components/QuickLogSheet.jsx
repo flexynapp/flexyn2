@@ -28,8 +28,7 @@
 // destinations under You and Social, and a search is the one route to
 // them that does not require knowing where they went.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -50,7 +49,7 @@ import { waterFoodName } from '@/lib/waterEntries';
 import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
 import { useTodayFuel } from '@/hooks/useTodayFuel';
 import useCountUp from '@/hooks/useCountUp';
-import DrawnCheck from '@/components/feedback/DrawnCheck';
+import { useButtonAnswer, answerClassName, AnswerLabel } from '@/components/feedback/buttonAnswer';
 import { requestOpenJournal } from '@/lib/journalOverlay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
@@ -132,51 +131,35 @@ function PanelHeader({ title, onBack, backLabel }) {
   );
 }
 
-// One +oz button. It answers for itself instead of raising a message: the
-// label turns into a drawn check and "Added" for DONE_MS, or into
+// One +oz button. It answers for itself instead of raising a message
+// (components/feedback/buttonAnswer.jsx): a drawn check and "Added", or
 // "Didn't save" if the write failed. Kegan's screenshot of the old
 // "Added 8 oz of water" box sitting on top of these two buttons is why.
-const DONE_MS = 1200;
 
 function WaterStepButton({ oz, label, disabled, onLog }) {
   const { tFallback } = useLanguage();
-  const [phase, setPhase] = useState('idle'); // idle | done | failed
-  const timer = useRef(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const answer = useButtonAnswer();
 
   const press = async () => {
-    clearTimeout(timer.current);
-    setPhase('idle');
+    answer.reset();
     const result = await onLog(oz);
-    if (result === 'ok') {
-      setPhase('done');
-      timer.current = setTimeout(() => setPhase('idle'), DONE_MS);
-    } else if (result === 'failed') {
-      setPhase('failed');
-    }
+    if (result === 'ok') answer.succeed();
+    else if (result === 'failed') answer.fail();
   };
 
   return (
     <Button
       type="button"
-      variant={phase === 'failed' ? 'outline' : 'default'}
-      className={`min-h-12 ${phase === 'done' ? 'bg-success text-success-foreground hover:bg-success active:bg-success' : ''} ${phase === 'failed' ? 'border-destructive text-destructive' : ''}`}
+      className={`min-h-12 ${answerClassName(answer.phase)}`}
       disabled={disabled}
       onClick={press}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={phase}
-          className="inline-flex items-center gap-2"
-          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.15 }}
-        >
-          {phase === 'done' && <DrawnCheck className="w-5 h-5" halo={false} />}
-          {phase === 'done' && tFallback('quickLog.waterAddedShort', 'Added')}
-          {phase === 'failed' && tFallback('quickLog.waterFailedShort', "Didn't save")}
-          {phase === 'idle' && label}
-        </motion.span>
-      </AnimatePresence>
+      <AnswerLabel
+        phase={answer.phase}
+        idle={label}
+        done={tFallback('quickLog.waterAddedShort', 'Added')}
+        failed={tFallback('quickLog.waterFailedShort', "Didn't save")}
+      />
     </Button>
   );
 }
@@ -223,10 +206,8 @@ function WaterPanel({ userProfile, onBack, onDone }) {
     triggerHaptic('light');
     try {
       await add.mutateAsync(oz);
-      triggerHaptic('success');
       return 'ok';
     } catch {
-      triggerHaptic('warning');
       setNote({ tone: 'error', text: tFallback('bodyMetrics.errors.saveFailed', 'Could not save. Try again.') });
       return 'failed';
     }

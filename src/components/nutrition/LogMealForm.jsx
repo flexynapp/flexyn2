@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import * as nutritionData from '@/lib/data/nutrition';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-import { toast } from '@/lib/toast';
+import { useButtonAnswer, answerClassName, AnswerLabel, AnswerReason } from '@/components/feedback/buttonAnswer';
 
 // TABS are built inside the component to support t()
 
@@ -187,6 +187,11 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
   // and clears once the parent confirms isLogging dropped back to
   // false. (Audit 11 #9.)
   const submittingRef = useRef(false);
+  // The Log Meal button answers for itself: "Logged" with a drawn check
+  // once the row is saved, "Didn't save" with the reason under it when it
+  // is not. The parent keeps its meal-logged message out of the pill for
+  // whichever outcome this button shows.
+  const answer = useButtonAnswer();
   useEffect(() => {
     if (!isLogging) submittingRef.current = false;
   }, [isLogging]);
@@ -194,9 +199,10 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
   const handleLog = () => {
     if (submittingRef.current || isLogging) return;
     if (hasAnyProfanity(newEntry.food_name)) {
-      toast.error(tFallback('common.profanity.foodName', 'Please remove inappropriate language from food name before saving.'));
+      answer.fail(tFallback('common.profanity.foodName', 'Please remove inappropriate language from food name before saving.'));
       return;
     }
+    answer.reset();
     submittingRef.current = true;
     try {
       // onLog returns FALSE when it bailed without starting a mutation
@@ -209,7 +215,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
       // `=== false` on purpose: a caller that returns undefined keeps the old
       // latch-and-wait-for-isLogging behaviour, so the barcode path is
       // unaffected by this contract.
-      if (onLog() === false) submittingRef.current = false;
+      if (onLog({ onSuccess: answer.succeed, onError: answer.fail }) === false) submittingRef.current = false;
     } catch (err) {
       // Reset the in-flight guard if onLog throws synchronously —
       // otherwise the user can never retry without remounting.
@@ -398,16 +404,28 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
               : <span className="me-2 text-base leading-none">📸</span>}
             {isRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </Button>
-          <Button onClick={handleLog} className="flex-1" disabled={isLogging}>
-            {/* Plate + plus reads as "add a meal" at a glance — the plate
-                says what's being logged, the plus says it's an addition. */}
-            <span className="inline-flex items-center gap-0.5 me-1.5">
-              <MealPlateIcon className="w-4 h-4" />
-              <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-            </span>
-            {t('nutrition.logMeal')}
+          <Button onClick={handleLog} className={`flex-1 transition-colors ${answerClassName(answer.phase)}`} disabled={isLogging}>
+            <AnswerLabel
+              phase={answer.phase}
+              idle={(
+                <>
+                  {/* Plate + plus reads as "add a meal" at a glance: the plate
+                      says what's being logged, the plus says it's an addition. */}
+                  <span className="inline-flex items-center gap-0.5">
+                    <MealPlateIcon className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </span>
+                  {t('nutrition.logMeal')}
+                </>
+              )}
+              done={tFallback('nutrition.logMealDone', 'Logged')}
+              failed={tFallback('nutrition.logMealFailed', "Didn't save")}
+            />
           </Button>
         </div>
+      )}
+      {activeTab !== 'history' && answer.phase === 'failed' && answer.reason && (
+        <AnswerReason>{answer.reason}</AnswerReason>
       )}
       <ProfanityWarningDialog open={foodNameGuard.open} onContinue={foodNameGuard.onContinue} />
       </div>

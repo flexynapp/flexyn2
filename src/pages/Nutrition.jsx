@@ -20,7 +20,7 @@ import { track, EVENTS } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChefHat, Calendar, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater, Camera, UtensilsCrossed } from 'lucide-react';
+import { Trash2, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Clock, ChefHat, Calendar, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater, Camera, UtensilsCrossed } from 'lucide-react';
 import { WaterBottleIcon } from '@/components/nutrition/NutrientIcon';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
@@ -31,6 +31,7 @@ import BarcodeResultModal from '@/components/nutrition/BarcodeResultModal';
 import BarcodeNotFoundModal from '@/components/nutrition/BarcodeNotFoundModal';
 import FoodSearchSheet from '@/components/nutrition/FoodSearchSheet';
 import LogMealForm from '@/components/nutrition/LogMealForm';
+import QuickLogButton from '@/components/nutrition/QuickLogButton';
 import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboardingModal';
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
@@ -495,12 +496,26 @@ export default function Nutrition() {
     setEntries(logs);
   }, [logs]);
 
+  // Surface the underlying error so beta testers can report something
+  // specific ("Cannot save any food item" in the screenshot was the
+  // catch-all message; the actual cause, a profanity hit, schema drift or a
+  // network timeout, was hidden). Shared by the toast and by a button that
+  // shows its own failure.
+  const saveErrorReason = (err) => (err?.code === 'PROFANITY'
+    ? tFallback('nutrition.toast.profanityBlocked', 'That name has a word our filter blocks. Try rephrasing.')
+    : err?.message
+      ? `${t('nutrition.toast.saveError')} (${err.message})`
+      : t('nutrition.toast.saveError'));
+
   const saveMutation = useMutation({
     // Strip non-DB fields (leading underscore) so they don't trigger
     // PostgREST strip-and-retry round-trips on save. `_planner_mirror` is a
     // food_snapshot consumed in onSuccess (needs the new row's id), not a
     // column.
-    mutationFn: ({ _via_barcode: _vb, _planner_mirror: _pm, ...data } = {}) => nutritionData.create(data),
+    // `_feedback` says which outcomes the calling button shows itself
+    // (components/feedback/buttonAnswer.jsx), so this mutation doesn't also
+    // raise a message for them.
+    mutationFn: ({ _via_barcode: _vb, _planner_mirror: _pm, _feedback: _fb, ...data } = {}) => nutritionData.create(data),
     onMutate: async (variables) => {
       if (!isWaterEntry(variables)) return;
       const qKey = ['nutritionLogs', user?.email, date];
@@ -583,7 +598,7 @@ export default function Nutrition() {
         } catch (countErr) {
           reportError(countErr, { feature: 'nutrition.first-meal-check', level: 'warning', userEmail: user?.email });
         }
-        if (!firedFirst) {
+        if (!firedFirst && !variables?._feedback?.success) {
           toast.success(t('nutrition.toast.mealLogged'));
         }
 
@@ -621,16 +636,7 @@ export default function Nutrition() {
         queryClient.setQueryData(['nutritionLogs', user?.email, date], context.previousLogs);
       }
       reportError(err, { feature: 'nutrition.save', userEmail: user?.email });
-      // Surface the underlying error so beta testers can report
-      // something specific ("Cannot save any food item" in the
-      // screenshot was the catch-all message; the actual cause —
-      // profanity hit, schema drift, network timeout — was hidden).
-      const reason = err?.code === 'PROFANITY'
-        ? 'That name has a word our filter blocks — try rephrasing.'
-        : err?.message
-          ? `${t('nutrition.toast.saveError')} (${err.message})`
-          : t('nutrition.toast.saveError');
-      toast.error(reason);
+      if (!variables?._feedback?.error) toast.error(saveErrorReason(err));
     },
     onSettled: () => {
       // Clear the synchronous double-submit guard regardless of
@@ -645,9 +651,22 @@ export default function Nutrition() {
   // the app's primary write path is testable without rendering this page.
   const acceptSubmitRef = useRef(null);
   if (!acceptSubmitRef.current) acceptSubmitRef.current = makeDuplicateFilter({ isExempt: isWaterEntry });
-  const submitEntry = (payload) => {
+  // `answer` is optional: { onSuccess(), onError(reason) } from a button
+  // that shows the outcome itself. Only the outcomes it handles are kept
+  // out of the toast.
+  const submitEntry = (payload, answer) => {
     if (!acceptSubmitRef.current(payload)) return false;
-    saveMutation.mutate(payload);
+    if (!answer) {
+      saveMutation.mutate(payload);
+      return true;
+    }
+    saveMutation.mutate(
+      { ...payload, _feedback: { success: !!answer.onSuccess, error: !!answer.onError } },
+      {
+        onSuccess: () => answer.onSuccess?.(),
+        onError: (err) => answer.onError?.(saveErrorReason(err)),
+      },
+    );
     return true;
   };
 
@@ -1046,10 +1065,10 @@ export default function Nutrition() {
 
   /* ========================================================= */
 
-  const logProduct = (product) => {
+  const logProduct = (product, answer) => {
     const n = product.nutrition;
     const v = product.vitamins || {};
-    submitEntry({
+    return submitEntry({
       date,
       food_name: product.name,
       calories:       n.calories ?? 0,
@@ -1069,7 +1088,7 @@ export default function Nutrition() {
       vitamin_d_iu:    v.vitamin_d_iu   ?? null,
       vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
       meal_type: mealType,
-    });
+    }, answer);
   };
 
   const handleLogScannedProduct = () => {
@@ -1114,7 +1133,7 @@ export default function Nutrition() {
   //
   // Reporting whether we started lets the form release its own guard. Any
   // new early return added here MUST return false.
-  const addEntry = () => {
+  const addEntry = (answer) => {
     if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return false; }
     // Parent-side guard against re-entrant mutation calls — the form's
     // submittingRef catches taps inside the form, but a programmatic
@@ -1150,7 +1169,7 @@ export default function Nutrition() {
       user_id: user?.id,
       meal_type: mealType,
       ...safeEntry,
-    })) return false;
+    }, answer)) return false;
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
     return true;
   };
@@ -1449,18 +1468,12 @@ export default function Nutrition() {
                         </div>
 
                         {/* Log button */}
-                        <motion.button
-                          whileTap={{ scale: 0.88 }}
-                          onClick={() => {
-                            logProduct(item);
-                            toast.success(`Logged ${item.name}!`);
-                          }}
+                        <QuickLogButton
+                          onLog={(answer) => logProduct(item, answer)}
                           disabled={saveMutation.isPending}
-                          className="shrink-0 w-8 h-8 rounded-full bg-primary/10 hover:bg-primary active:bg-primary text-primary hover:text-primary-foreground active:text-primary-foreground flex items-center justify-center transition-colors disabled:opacity-50"
-                          title={tFallback("nutrition.logToToday", "Log to today")}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </motion.button>
+                          label={tFallback('nutrition.logToToday', 'Log to today')}
+                          doneLabel={tFallback('nutrition.loggedItem', 'Logged {name}', { name: item.name })}
+                        />
                       </motion.div>
                     );
                   })}
