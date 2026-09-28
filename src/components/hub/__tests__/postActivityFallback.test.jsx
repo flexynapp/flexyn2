@@ -85,6 +85,19 @@ describe('share card fallback read', () => {
     expect(gets.workout).not.toHaveBeenCalled();
   });
 
+  it('reads nothing when neither the post nor the viewer has an email', async () => {
+    currentUser = { id: 'u2', email: undefined };
+    show(post('workout', { author_email: undefined, user_id: 'u1' }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(gets.workout).not.toHaveBeenCalled();
+  });
+
+  it('recognises the author by id when they have no email', async () => {
+    currentUser = { id: 'u1', email: undefined };
+    show(post('workout', { author_email: undefined, user_id: 'u1' }));
+    await waitFor(() => expect(gets.workout).toHaveBeenCalledWith('row1'));
+  });
+
   it('reads nothing when the post already carries a snapshot', async () => {
     show(post('workout', { linked_entity_snapshot: { regimen_name: 'Stored', exercises: [] } }));
     await new Promise((r) => setTimeout(r, 20));
