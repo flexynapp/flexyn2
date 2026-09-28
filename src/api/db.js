@@ -308,11 +308,16 @@ async function _invokeXp({ xp_gained = 0, action_type, log_id } = {}) {
       if (!action_type) {
         console.error(`[XP] grant skipped: ${xp_gained} XP with no action_type`);
       } else {
-        const { error } = await supabase.rpc('grant_action_xp', {
+        const { data, error } = await supabase.rpc('grant_action_xp', {
           p_action_type: action_type,
           p_xp: Math.round(xp_gained),
         });
         if (error) console.warn('[XP] rpc failed:', error.message);
+        // grant_action_xp returns what it actually credited: the server's
+        // own amount for the action, less anything the daily cap held back.
+        // Callers that tell the user what they earned must read this, not
+        // the number they asked for.
+        else credited = { xp_awarded: data };
       }
     }
 

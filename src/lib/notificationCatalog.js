@@ -132,3 +132,15 @@ export function matchesFilter(type, filterId) {
 }
 
 export const KNOWN_TYPES = Object.freeze(Object.keys(TYPE_CATEGORY));
+
+// The categories another person is behind. The bell's badge puts a number
+// only on these; everything else (achievements, reminders, unknown types)
+// shows as a dot. Unknown types take the dot on purpose: a number is a claim
+// that someone did something, and we can't make it about a type we've never
+// heard of.
+export const PEOPLE_CATEGORIES = Object.freeze([CATEGORY.SOCIAL, CATEGORY.COMPETITIVE]);
+
+/** Did another person cause this notification? */
+export function isFromPeople(type) {
+  return PEOPLE_CATEGORIES.includes(categoryFor(type));
+}

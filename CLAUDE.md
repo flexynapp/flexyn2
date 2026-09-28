@@ -2402,6 +2402,26 @@ time beyond the flag, and XP granted through `increment_user_xp` is a
 client-supplied (clamped) amount rather than something derived from
 `workout_logs`, so it is untouched by any of this.
 
+## Goals complete on the server (Sept 2026)
+
+A goal completes the moment it is hit, and the server decides both whether it
+was hit and what it pays. There is no "Mark done" button and no client XP path;
+don't add either back.
+
+- **`complete_goal(id)` is the only door.** It re-checks the goal against the
+  user's own logs with `goal_is_met` (internal, revoked from clients), pays
+  `goal_xp` (max 100 per goal) through `grant_action_xp_internal('goal_completed')`,
+  which caps goal XP at **100 a day**. `goals_guard_write` pins `created_date`,
+  `completed_at`, the completed status and `period_met_start` against client
+  writes. `useGoalAutoComplete` (Dashboard, Workout) only decides WHEN to ask.
+- **"225 x 5" is one set** of five at 225 or heavier, never a tally of reps.
+- **Week and month goals recur** (cardio only; strength goals are lifetime).
+  They count the CURRENT week (Monday) or month (the 1st) in the user's
+  timezone, not the stored `period_start_date`; meeting one sets
+  `period_met_start` and pays once for that period, and the goal stays active.
+  Client and server read the same floor (`periodStartDate` /
+  `goal_period_start`), so change both or neither.
+
 ## A guest's email: NULL is not the only wrong value (migration 376)
 
 `auth.users.email` is NULL for every `signInAnonymously()` account — 27 of

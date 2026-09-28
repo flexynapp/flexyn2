@@ -15,6 +15,7 @@ import { useJournalOverlay } from '@/lib/journalOverlay';
 // Lazy: the editor is a large chunk and most sessions never open it.
 const JournalView = lazy(() => import('./journal/JournalView'));
 import NotificationBell from './NotificationBell';
+import CountBadge from '@/components/ui/CountBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -86,21 +87,18 @@ function NavTab({ item, to, isActive, badge = 0, showDot = false, hasQuickAction
               header no longer links to would point nowhere. Primary, not
               destructive, for the reason given in Header.jsx: a message
               is not an error. */}
-          {badge > 0 ? (
-            <span
-              className="absolute top-0 -end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center pointer-events-none"
-              aria-label={tFallback('layout.unreadMessages', 'Unread messages')}
-            >
-              {badge > 9 ? '9+' : badge}
-            </span>
-          ) : showDot && !isActive && (
-            // New posts from people you follow. A dot, not a count: counts
-            // on a feed read as demanding. Being on Social clears it.
-            <span
-              className="absolute top-0.5 end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
-              aria-label={tFallback("layout.newPostsInHub", "New posts in Hub")}
-            />
-          )}
+          {/* New posts from people you follow show as a dot, not a count:
+              counts on a feed read as demanding. Being on Social clears it.
+              Unread messages take the number. */}
+          <CountBadge
+            count={badge}
+            dot={showDot && !isActive}
+            tone="primary"
+            className={badge > 0 ? '-top-0.5 -end-1' : 'top-0.5 end-0.5'}
+            label={badge > 0
+              ? tFallback('layout.unreadMessages', 'Unread messages')
+              : tFallback('layout.newPostsInHub', 'New posts in Hub')}
+          />
         </motion.div>
         <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
           {item.label}
@@ -384,18 +382,10 @@ export default function Layout() {
               }`}
             >
               <MessageCircle className="w-5 h-5" />
-              {hubUnreadCount > 0 && (
-                <motion.span
-                  key={hubUnreadCount}
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="absolute top-0.5 end-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
-                >
-                  {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
-                </motion.span>
-              )}
+              {/* Primary, as on the Social tab: a message is not an error. */}
+              <CountBadge count={hubUnreadCount} tone="primary" className="-top-0.5 -end-0.5" />
             </button>
-            <NotificationBell />
+            <NotificationBell surface="sidebar" />
             {/* Marketplace shortcut + daily chest badge */}
             <button
               type="button"
@@ -408,9 +398,9 @@ export default function Layout() {
               }`}
             >
               <ShoppingBag className="w-5 h-5" />
-              {chestReady && (
-                <span className="absolute top-0.5 end-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-card" />
-              )}
+              {/* Was a raw bg-red-500, a different red from the theme's in
+                  dark mode. A ready chest is good news, so it takes primary. */}
+              <CountBadge dot={chestReady} tone="primary" className="top-0.5 end-0.5" />
             </button>
           </div>
         </div>

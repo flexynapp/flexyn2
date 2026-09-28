@@ -34,8 +34,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 // other person, which with a handful of active users is most duels.
 const DUEL_TYPES = [
   { id: 'session', label: 'Session Duel', icon: Target, description: 'Starts now. Beat their last workout before time runs out. They do not need to accept.' },
-  { id: 'open',   label: 'Open Duel',   icon: Timer,    description: 'Train freely in the time window. Most total volume wins.' },
-  { id: 'mirror', label: 'Mirror Duel', icon: Dumbbell, description: 'Opponent completes your exact session. Scored on completion % + volume.' },
+  { id: 'open',   label: 'Open Duel',   icon: Timer,    description: 'Your best workout in the window counts. Most weight lifted wins.' },
+  { id: 'mirror', label: 'Mirror Duel', icon: Dumbbell, description: 'You both redo your last workout. Most sets finished and weight lifted wins.' },
 ];
 
 const WINDOWS = [12, 24, 48, 72];
@@ -236,6 +236,23 @@ export default function CreateDuelModal({
     }
   };
 
+  // A Session Duel needs a workout the challenger can see (a public profile or
+  // one they follow, with a plausible session logged). Search results carry
+  // session_ok; an opponent handed in from a profile or the recent list does
+  // not, so look them up once. Unknown means allowed: the server still checks.
+  const needsLookup = step === 'configure' && !!opponent?.id
+    && opponent.session_ok === undefined && (opponent.username?.length ?? 0) >= 2;
+  const { data: lookedUp } = useQuery({
+    queryKey:  ['duelCandidate', user?.id, opponent?.id],
+    queryFn:   async () => (await searchDuelOpponents(opponent.username)).find((c) => c.id === opponent.id) ?? null,
+    enabled:   needsLookup,
+    staleTime: 60_000,
+  });
+  const sessionOk = opponent?.session_ok ?? lookedUp?.session_ok ?? true;
+  useEffect(() => {
+    if (!sessionOk && selectedType === 'session') setSelectedType('open');
+  }, [sessionOk, selectedType]);
+
   const handleSelectOpponent = (profile) => {
     setOpponent(profile);
     setStep('configure');
@@ -410,21 +427,26 @@ export default function CreateDuelModal({
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tFallback('createDuelModal.duelType', 'Duel Type')}</p>
                 {DUEL_TYPES.map(({ id, label, icon: Icon, description }) => {
                   const active = selectedType === id;
+                  const unavailable = id === 'session' && !sessionOk;
                   return (
                     <motion.button
                       key={id}
                       type="button"
-                      whileTap={tap}
-                      onClick={() => { if (!active) haptic('subtle'); setSelectedType(id); }}
+                      whileTap={unavailable ? undefined : tap}
+                      onClick={() => { if (unavailable) return; if (!active) haptic('subtle'); setSelectedType(id); }}
                       aria-pressed={active}
-                      className={`relative w-full flex items-start gap-3 p-3 rounded-xl border text-start transition-colors ${
-                        active ? 'border-primary bg-primary/10' : 'border-border hover:bg-secondary/60 active:bg-secondary'
+                      disabled={unavailable}
+                      className={`relative w-full flex items-start gap-3 p-3 rounded-xl border text-start transition-colors disabled:opacity-50 ${
+                        active ? 'border-primary bg-primary/10' : 'border-border hover:bg-secondary/60 active:bg-secondary disabled:hover:bg-transparent'
                       }`}
                     >
                       <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold">{tFallback(`duel.type.${id}.name`, label)}</p>
                         <p className="text-xs mt-0.5 text-muted-foreground">{tFallback(`duel.type.${id}.rules`, description)}</p>
+                        {unavailable && (
+                          <p className="text-xs mt-1 text-muted-foreground font-medium">{tFallback('createDuelModal.sessionUnavailable', 'They have no workout you can take on.')}</p>
+                        )}
                         {id === 'mirror' && active && (
                           <p className="text-xs mt-1 text-primary font-medium">{tFallback('createDuelModal.mirrorCopies', 'Copies your last logged workout.')}</p>
                         )}

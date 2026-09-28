@@ -31,6 +31,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
+import { isFromPeople } from '@/lib/notificationCatalog';
 
 
 export const NOTIFICATION_TYPES = {
@@ -73,6 +74,26 @@ export const PUSH_ONLY_TYPES = ['dm_received'];
 
 const PUSH_ONLY_FILTER = `(${PUSH_ONLY_TYPES.join(',')})`;
 
+// ── Same-day reminders ───────────────────────────────────────────────────
+// These say "today" or "at midnight" in their own text: "3 quests left
+// today", "your streak ends at midnight". Once the user's day has rolled
+// over they describe a deadline that has already passed, and nothing can be
+// done about them. They used to keep the bell lit indefinitely anyway, so
+// someone who never opened the panel carried yesterday's "quests left" into
+// every following day (88 of 126 quest_expiry_warning rows in production
+// were still unread on 2026-09-28).
+//
+// They are excluded from the COUNT only. The panel still lists them, and
+// the exit flush still marks them read, because they are true history.
+export const SAME_DAY_TYPES = ['quest_expiry_warning', 'streak_break_warning'];
+
+/** Start of the viewer's local day, as an ISO instant. */
+export function startOfLocalDayIso(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 const DEFAULT_LIMIT = 50;
 
 // This module deliberately does NOT use safeSelect, and it used to carry
@@ -99,17 +120,35 @@ export async function listForUser(user, limit = DEFAULT_LIMIT) {
   return data ?? [];
 }
 
-/** Count of unread notifications — drives the bell-icon badge. */
-export async function unreadCount(user) {
-  if (!user?.id) return 0;
-  const { count, error } = await supabase
+// The bell reads at most this many unread rows to classify them. Past it
+// the badge would read "9+" anyway; `total` still comes from an exact count.
+const SUMMARY_SCAN = 200;
+
+/**
+ * What the bell shows. `total` is every unread row the bell owns; `people`
+ * is the subset another person caused (a follow, a gift, a duel), which is
+ * the only thing the badge puts a NUMBER on. When `people` is 0 and `total`
+ * is not, the bell shows a plain dot: the app reminding you of something is
+ * worth a mark, not a count (Kegan, 2026-09-28, option C).
+ */
+export async function unreadSummary(user) {
+  const none = { total: 0, people: 0 };
+  if (!user?.id) return none;
+  const { data, count, error } = await supabase
     .from('notifications')
-    .select('id', { count: 'exact', head: true })
+    .select('type', { count: 'exact' })
     .eq('user_id', user.id)
     .eq('is_read', false)
-    .not('type', 'in', PUSH_ONLY_FILTER);
-  if (error) return 0;
-  return count ?? 0;
+    .not('type', 'in', PUSH_ONLY_FILTER)
+    // A same-day reminder counts only while its day is still running.
+    .or(`type.not.in.(${SAME_DAY_TYPES.join(',')}),created_at.gte.${startOfLocalDayIso()}`)
+    .limit(SUMMARY_SCAN);
+  if (error) return none;
+  const rows = data ?? [];
+  return {
+    total: count ?? rows.length,
+    people: rows.filter(r => isFromPeople(r.type)).length,
+  };
 }
 
 /** Mark a single notification read. Returns `{ ok }` so the caller can

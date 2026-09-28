@@ -12,12 +12,13 @@
  * The tests that matter here are the two filters and the vocabulary,
  * because those are what the three copies disagreed about.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   computeCardioGoalProgress,
   matchesActivity,
   isCardioGoal,
   periodStartDate,
+  metThisPeriod,
   CARDIO_GOAL_TYPES,
 } from '@/lib/goalProgress';
 
@@ -105,6 +106,8 @@ describe('the three metrics', () => {
 });
 
 describe('the two filters — what the three copies disagreed about', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
   it('ignores logs from before the goal existed', () => {
     // Otherwise creating "run 10 km this month" on the 28th completes
     // instantly off runs the user did before they set the goal.
@@ -116,13 +119,40 @@ describe('the two filters — what the three copies disagreed about', () => {
     expect(r.currentValue).toBe(2000);
   });
 
-  it('ignores logs from before period_start_date on a non-lifetime goal', () => {
+  it('counts only the current week on a weekly goal', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 12, 12)); // Wednesday; the week began Monday the 10th
     const g = goal({ period: 'week', period_start_date: '2026-08-10', created_date: '2026-01-01T00:00:00Z' });
     const r = computeCardioGoalProgress(g, [
       log({ date: '2026-08-09', distance_meters: 8000 }),
       log({ date: '2026-08-11', distance_meters: 3000 }),
     ]);
     expect(r.currentValue).toBe(3000);
+  });
+
+  it('starts a weekly goal over the next Monday, whatever week it was set in', () => {
+    // period_start_date is the week the goal was made. Counting from it
+    // forever meant "10 km this week" became "10 km since that week".
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 19, 12)); // the Wednesday after
+    const g = goal({ period: 'week', period_start_date: '2026-08-10', created_date: '2026-01-01T00:00:00Z' });
+    const r = computeCardioGoalProgress(g, [
+      log({ date: '2026-08-11', distance_meters: 10000 }),
+      log({ date: '2026-08-18', distance_meters: 2000 }),
+    ]);
+    expect(r.currentValue).toBe(2000);
+    expect(r.progress).toBe(20);
+  });
+
+  it('starts a monthly goal over on the 1st', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 3, 12)); // 3 September
+    const g = goal({ period: 'month', period_start_date: '2026-08-01', created_date: '2026-01-01T00:00:00Z' });
+    const r = computeCardioGoalProgress(g, [
+      log({ date: '2026-08-30', distance_meters: 9000 }),
+      log({ date: '2026-09-02', distance_meters: 4000 }),
+    ]);
+    expect(r.currentValue).toBe(4000);
   });
 
   it('applies NO period floor to a lifetime goal', () => {
@@ -250,5 +280,23 @@ describe('periodStartDate', () => {
     const now = new Date();
     const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     expect(start <= todayLocal).toBe(true);
+  });
+});
+
+describe('metThisPeriod', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('is true only for a week or month goal met in the current period', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 12, 12)); // week of Monday 10 August
+    expect(metThisPeriod(goal({ period: 'week', period_met_start: '2026-08-10' }))).toBe(true);
+    expect(metThisPeriod(goal({ period: 'week', period_met_start: '2026-08-03' }))).toBe(false);
+    expect(metThisPeriod(goal({ period: 'week', period_met_start: null }))).toBe(false);
+    expect(metThisPeriod(goal({ period: 'month', period_met_start: '2026-08-01' }))).toBe(true);
+    expect(metThisPeriod(goal({ period: 'month', period_met_start: '2026-07-01' }))).toBe(false);
+  });
+
+  it('never applies to a lifetime goal', () => {
+    expect(metThisPeriod(goal({ period: 'lifetime', period_met_start: '2099-01-01' }))).toBe(false);
   });
 });
