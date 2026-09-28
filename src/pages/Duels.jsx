@@ -10,6 +10,8 @@ import { Swords, Trophy, Plus, Dumbbell, Timer, Target, Crown, ArrowLeft } from 
 import { toast } from '@/lib/toast';
 import { listMyDuels, cancelDuel, getDuel, duelErrorMessage, countsTowardRecord } from '@/lib/data/duels';
 import { duelTypeName, duelStatusName } from '@/components/duels/duelLabels';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 import { formatDuration, formatNumber } from '@/lib/intl';
 import { isGuestAccount } from '@/lib/guestIdentity';
 import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
@@ -37,6 +39,7 @@ const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
 function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
   const { tFallback, language } = useLanguage();
+  const { weightUnit } = useWeightUnit();
   const reduceMotion = useReducedMotion();
   const isChallenger = duel.challenger_id === currentUserId;
   // Someone took on your last workout. You never played, so it carries no
@@ -98,15 +101,30 @@ function DuelRow({ duel, currentUserId, opponent, onClick, index = 0 }) {
         {duel.status === 'completed' && (() => {
           const myResult   = isChallenger ? duel.challenger_result : duel.opponent_result;
           const theirResult = isChallenger ? duel.opponent_result  : duel.challenger_result;
+          // A Mirror is won on sets finished as well as weight, so its
+          // weight alone can sit beside a W that looks backwards.
+          if (duel.type === 'mirror') {
+            const mine   = myResult?.sets_completed;
+            const theirs = theirResult?.sets_completed;
+            if (mine == null && theirs == null) return <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeDate(duel.created_at, { variant: 'short' })}</p>;
+            return (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {tFallback('duels.setsScoreLine', '{mine} vs {theirs} sets', {
+                  mine:   mine != null ? formatNumber(mine, language) : '—',
+                  theirs: theirs != null ? formatNumber(theirs, language) : '—',
+                })}
+              </p>
+            );
+          }
           const myVol   = myResult?.volume    ?? myResult?.weight ?? myResult?.reps ?? null;
           const theirVol = theirResult?.volume ?? theirResult?.weight ?? theirResult?.reps ?? null;
           if (myVol == null && theirVol == null) return <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeDate(duel.created_at, { variant: 'short' })}</p>;
+          // Stored in pounds. A kilogram user read these as kilograms.
+          const unit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lbs';
+          const show = (v) => (v != null ? `${formatNumber(Math.round(fromLbs(Number(v), weightUnit)), language)} ${unit}` : '—');
           return (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {tFallback('duels.scoreLine', '{mine} vs {theirs}', {
-                mine:   myVol != null ? formatNumber(Math.round(myVol), language) : '—',
-                theirs: theirVol != null ? formatNumber(Math.round(theirVol), language) : '—',
-              })}
+              {tFallback('duels.scoreLine', '{mine} vs {theirs}', { mine: show(myVol), theirs: show(theirVol) })}
             </p>
           );
         })()}

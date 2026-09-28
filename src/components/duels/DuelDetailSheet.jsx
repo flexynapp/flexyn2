@@ -13,7 +13,7 @@ import { useNumberFormatter, formatDuration } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { acceptDuel, declineDuel, duelErrorMessage } from '@/lib/data/duels';
-import { duelTypeName, duelStatusName, templateSetCount } from '@/components/duels/duelLabels';
+import { duelTypeName, duelStatusName, templateSetCount, templateExercises } from '@/components/duels/duelLabels';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -60,6 +60,15 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const fmtVol = (v) => v != null
     ? `${fmt(Math.round(fromLbs(Number(v), weightUnit)))} ${unitSuffix}`
     : '—';
+  // A Mirror is won on sets finished as well as weight, so a lead shown as
+  // weight alone can read backwards. Show both.
+  const fmtSide = (r) => {
+    if (!r) return tFallback('duelDetailSheet.noWorkoutYet', 'No workout yet');
+    if (prescribed > 0 && r.sets_completed != null) {
+      return `${fmtVol(r.volume)} · ${tFallback('duelDetailSheet.setsOf', '{done} of {total} sets', { done: r.sets_completed, total: prescribed })}`;
+    }
+    return fmtVol(r.volume);
+  };
   const fmtVolDelta = (lbs) => `${fmt(Math.round(fromLbs(Number(lbs) || 0, weightUnit)))} ${unitSuffix}`;
 
   // Scores come from the server (a trigger on workout_logs keeps each side's
@@ -234,7 +243,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                   {duelStatusName(duel.status, tFallback)}
                 </span>
               </div>
-              {duel.status === 'active' && msLeft > 60_000 && (
+              {['active', 'pending'].includes(duel.status) && msLeft > 60_000 && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{tFallback('duelDetailSheet.timeLeft', 'Time left')}</span>
                   <span className="font-semibold tabular-nums">{formatDuration(msLeft, language)}</span>
@@ -244,13 +253,13 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <span className="text-muted-foreground">
                   {session && !isChallenger ? tFallback('duelDetailSheet.yourSession', 'Your session') : tFallback('duelDetailSheet.yourBest', 'Your best')}
                 </span>
-                <span className="font-semibold tabular-nums">{myResult ? fmtVol(myResult.volume) : tFallback('duelDetailSheet.noWorkoutYet', 'No workout yet')}</span>
+                <span className="font-semibold tabular-nums">{fmtSide(myResult)}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">
                   {session && isChallenger ? tFallback('duelDetailSheet.theirSession', 'Their session') : theirLabel}
                 </span>
-                <span className="font-semibold tabular-nums">{theirResult ? fmtVol(theirResult.volume) : tFallback('duelDetailSheet.noWorkoutYet', 'No workout yet')}</span>
+                <span className="font-semibold tabular-nums">{fmtSide(theirResult)}</span>
               </div>
               {duel.status === 'active' && lead && (
                 <motion.p
@@ -334,16 +343,16 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
           )}
 
           {/* Mirror — session template */}
-          {duel.type === 'mirror' && duel.session_template?.exercises?.length > 0 && (
+          {duel.type === 'mirror' && templateExercises(duel.session_template).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{session
                 ? tFallback('duelDetailSheet.sessionToBeat', 'Session to beat')
                 : tFallback("duelDetailSheet.sessionTemplate", "Session Template")}</p>
               <div className="space-y-1.5">
-                {duel.session_template.exercises.map((ex, i) => (
+                {templateExercises(duel.session_template).map((ex, i) => (
                   <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 text-xs">
                     <span className="font-medium">{ex.name}</span>
-                    <span className="text-muted-foreground">{tFallback('duelDetailSheet.setCount', '{n} sets', { n: ex.sets?.length || 0 })}</span>
+                    <span className="text-muted-foreground">{tFallback('duelDetailSheet.setCount', '{n} sets', { n: ex.sets })}</span>
                   </div>
                 ))}
               </div>

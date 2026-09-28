@@ -14,7 +14,7 @@ import {
   X, Swords, Dumbbell, Timer, Target, Loader2, Search, UserCircle2,
   ArrowLeft, SendHorizonal, Check, ChevronRight,
 } from 'lucide-react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   createDuel, createSessionDuel, getFrequentOpponents, sendDuelDM, duelErrorMessage, searchDuelOpponents,
 } from '@/lib/data/duels';
@@ -153,6 +153,7 @@ export default function CreateDuelModal({
 }) {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
+  const qc = useQueryClient();
   const reduceMotion = useReducedMotion();
   const tap = reduceMotion ? undefined : { scale: 0.97 };
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -225,6 +226,8 @@ export default function CreateDuelModal({
           { description: tFallback('createDuelModal.windowAfterAccept', 'The {n}h window starts when they accept.', { n: hours }) },
         );
       }
+      // A Session Duel starts at once, so the Workout page badge must see it.
+      qc.invalidateQueries({ queryKey: ['activeDuel'] });
       onCreated?.(duel);
       onClose();
     } catch (err) {

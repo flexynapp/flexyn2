@@ -288,9 +288,11 @@ export async function createSessionDuel({ opponentId, windowHours = 48 }) {
 // side from its best session in the window (20260927184500).
 
 /**
- * The live duel (if any) for the current user, shown as a workout banner.
- * A Session Duel someone started against you is left out: there is nothing
- * for you to do in it, so it must not badge your Workout page.
+ * The duel (if any) that needs the current user, shown as a workout banner:
+ * one that is running, or a challenge waiting for their answer. A challenge
+ * they sent and nobody has answered is left out, because training does
+ * nothing for it yet, and so is a Session Duel someone started against
+ * them, where there is nothing for them to do.
  */
 export async function getActiveDuel() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -300,8 +302,11 @@ export async function getActiveDuel() {
   const { data, error } = await supabase
     .from('duels')
     .select('*')
-    .or(`challenger_id.eq.${user.id},and(opponent_id.eq.${user.id},mode.eq.live)`)
-    .in('status', ['pending', 'active'])
+    .or(
+      `and(status.eq.active,challenger_id.eq.${user.id}),` +
+      `and(status.eq.active,opponent_id.eq.${user.id},mode.eq.live),` +
+      `and(status.eq.pending,opponent_id.eq.${user.id})`
+    )
     .gt('expires_at', nowISO)
     .order('created_at', { ascending: false })
     .limit(1)
