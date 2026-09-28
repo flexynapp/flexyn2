@@ -325,10 +325,10 @@ function ProgressSwoosh({ step, total }) {
 ═══════════════════════════════════════════════════════════════ */
 
 // Every question is set in the app's one display style (`.font-display`:
-// Archivo 800, condensed, uppercase), per the brand direction. It is a page
+// the condensed display face at 800, uppercase), per the brand direction. It is a page
 // title, which is what that style is reserved for. The size is the fluid
 // heading token scaled by 1.1: condensed capitals are narrower than the
-// mixed-case Archivo this replaced, so a question wraps to the same or fewer
+// mixed-case heading face this replaced, so a question wraps to the same or fewer
 // lines at 10% more size, and the step keeps its fit on a 667pt SE.
 function KineticHeading({ text, accentWord }) {
   const reduce = useReducedMotion();

@@ -205,7 +205,7 @@ export default function SignInToContinue({
           className="flex flex-col gap-2 shrink-0"
         >
           {/* Same display style and size as every onboarding question
-              (KineticHeading): Archivo 800, condensed, uppercase. */}
+              (KineticHeading): the condensed display face, 800, uppercase. */}
           <h1 className="font-display text-foreground m-0"
             style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
             {heading}
