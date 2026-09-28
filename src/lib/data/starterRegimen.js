@@ -7,7 +7,8 @@
 //  - All exercise names are pre-flight-checked against EXERCISE_LIBRARY at
 //    module load. A typo throws at import time so CI catches it before users.
 //  - Idempotent: ensureStarterRegimen() skips creation if the user already has
-//    any regimens, so account-reset re-onboarding never doubles up.
+//    any regimens, so account-reset re-onboarding never doubles up. If it
+//    cannot tell (the read fails) it throws rather than guessing.
 //  - Fire-and-forget at the caller: a regimen-table outage cannot block
 //    onboarding completion (Onboarding.jsx wraps the call in .catch()).
 //  - Payload shape mirrors RegimenForm exactly, so the regimen renders the
@@ -646,18 +647,15 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
  * @returns {Promise<Object|null>}
  */
 export async function ensureStarterRegimen({ user, profile } = {}) {
-  if (!user?.email) return null;
+  // The read below is keyed on the id, so gate on the id.
+  if (!user?.id) return null;
 
   // Idempotency: bail if anything is already in this user's regimen list.
-  // A failed read falls through to creation rather than silently
-  // no-op'ing; see the catch below.
-  let existing = [];
-  try {
-    existing = await regimensData.list(user.id, 1);
-  } catch {
-    // Treat read failure as "no regimens"; a failed create throws to the
-    // caller, which catches it.
-  }
+  // A failed read THROWS. It used to fall through to creation, so a
+  // returning user whose read hiccuped got a duplicate starter plan beside
+  // the ones they already had. The caller catches and reports it, and
+  // "no starter plan this time" is the recoverable outcome of the two.
+  const existing = await regimensData.list(user.id, 1);
   if (existing && existing.length > 0) return null;
 
   const payload = buildStarterRegimen(profile || {});
