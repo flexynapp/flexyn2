@@ -58,7 +58,7 @@ export const RULES = {
     re: /\btext-\[(?:[0-9]|10)(?:\.\d+)?px\]/g,
   },
   hardcodedFont: {
-    why: 'Type is Archivo for headings and Figtree for everything else, set ONCE as --font-heading / --font-body / --font-mono in src/index.css. A face typed anywhere else does not move when the brand font does, which is how three stacks came to coexist on one screen.',
+    why: 'Type is Sofia Sans, with Sofia Sans Extra Condensed for the one display style, set ONCE as --font-display / --font-heading / --font-body / --font-mono in src/index.css. A face typed anywhere else does not move when the brand font does, which is how three stacks came to coexist on one screen.',
     // An inline fontFamily / font-family that is not a token, a Tailwind
     // arbitrary face (font-['Inter']), or a literal canvas font string
     // (canvas cannot read CSS variables, so it goes through a helper).

@@ -1266,10 +1266,12 @@ govern hierarchy, which tokens can't encode.
   rather than state meaning, so they use the semantically-neutral chart ramp:
   protein `--chart-1`, carbs `--chart-2`, fat `--chart-3`. Routing them through
   the state hues would render a healthy protein figure as `destructive`.
-- **Type has ONE source: `--font-heading`, `--font-body` and `--font-mono` in
-  `src/index.css`** (Archivo and Figtree today). Reach them through Tailwind
+- **Type has ONE source: `--font-display`, `--font-heading`, `--font-body` and
+  `--font-mono` in `src/index.css`** (Sofia Sans, with Sofia Sans Extra
+  Condensed for `.font-display` and `.stamp` only; Kegan's pick 2026-09-28,
+  replacing Archivo and Figtree). Reach them through Tailwind
   (`font-heading`, `font-body`, `font-mono`, or nothing, because `sans` points at
-  the body face) or `var(--font-*)` in an inline style. Never type a face name
+  the body face), `.font-display`, or `var(--font-*)` in an inline style. Never type a face name
   anywhere else, including SVG `font-family` strings and Tailwind `font-['X']`.
   A face typed by hand does not move when the brand font does, and that is
   exactly how three stacks came to coexist on `/workout`. The `hardcodedFont`
@@ -2245,7 +2247,8 @@ stays alongside it (his call) — `template_key IS NULL` is the old kind.
   muted, `#F37616` primary, `#45C489` success, `#2A333C` border — plus
   `#FFD700`, which is `TROPHY_TIERS.gold` from `trophyDefinitions.js`
   rather than a new colour. Archivo for headings and numerals, Figtree
-  for everything else, matched to the Crew Manage page. **A trophy is a
+  for everything else (the app's faces then; it is Sofia Sans since
+  2026-09-28), matched to the Crew Manage page. **A trophy is a
   monogram chip, not an icon**: 44×44 at radius 14 with the title's two
   initials, which is the same mark the crew avatar already uses, so the
   shelf needed no new iconography invented for it.

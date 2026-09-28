@@ -20,20 +20,20 @@
       heading-font glyphs) briefly unpainted before the font arrived.
       display=swap keeps text visible in a fallback while the webfont loads.
 
-      Archivo (UI headings) + Figtree (body) replaced Space Grotesk + Inter.
-      That exact pairing is the single most over-represented combination in
-      AI-generated frontends and reads as "generated" before a user has
-      parsed a word of the copy. Archivo is a sturdier, slightly narrower
-      grotesque with tight apertures and strong tabular numerals, which is
-      what a stat-dense fitness UI actually needs; Figtree is a humanist
-      companion that stays legible at the 11px floor where Archivo's tight
-      spacing would start to close up.
+      Sofia Sans (headings and body) + Sofia Sans Extra Condensed (the one
+      display style) replaced Archivo + Figtree on 2026-09-28, Kegan's pick
+      (option D of four, compared on live screens). Figtree is one of the
+      most common faces in generated apps and was most of the "generated"
+      feel; Archivo + Figtree had in turn replaced Space Grotesk + Inter for
+      the same reason. One family at two widths keeps the app quiet and
+      consistent, and the narrow cut gives page titles and headline numbers
+      their own voice.
 
       Both are requested as VARIABLE ranges (`wght@a..b`), which Google
-      serves as ONE woff2 per family covering the whole axis. The old URL
-      pulled 7 static Inter weights + 4 static Space Grotesk weights = 11
-      files; this is 2. Ranges cover every weight the app actually uses
-      (audited: font-light 300 through font-black 900).
+      serves as ONE woff2 per family and script subset covering the whole
+      axis. Sofia Sans covers every weight the app uses (font-light 300
+      through font-black 900); the condensed cut is only ever set at 800,
+      so 700..900 covers it with room either side.
 
       SPLIT INTO TWO REQUESTS — critical and deferred.
 
@@ -43,20 +43,12 @@
       overlay editor and the Snake modal) and Caveat (story overlays only).
 
       Critical, below, stays render-blocking because first paint genuinely
-      needs it: Archivo is --font-heading, Figtree is --font-body, and
-      Leckerli One is the "Flexyn" wordmark drawn as live <text> on the
-      splash screen (SplashScreen.jsx) — deferring that would show the logo
-      in a fallback for a beat on every cold start, which is the one place
-      a font swap is unmissable.
-
-      Archivo loads its WIDTH axis (wdth 62..125) as well as weight, for
-      the one display style, .font-display in src/index.css, which sets it
-      condensed at 75%. Without the axis in this URL font-stretch still
-      COMPUTES to 75% while every title renders at normal width, so a
-      computed-style check cannot tell you it works; measure the glyphs.
-      Cost: the Latin woff2 goes from 35 KB to 90 KB (measured 2026-09-27),
-      and Google serves the same file for any sub-range of the axis, so
-      asking for a narrower range saves nothing.
+      needs it: Sofia Sans is --font-heading and --font-body, Sofia Sans
+      Extra Condensed is --font-display (page titles), and Leckerli One is
+      the "Flexyn" wordmark drawn as live <text> on the splash screen
+      (SplashScreen.jsx), deferring that would show the logo in a fallback
+      for a beat on every cold start, which is the one place a font swap is
+      unmissable.
 
       Deferred uses the media="print" swap: the browser fetches it at low
       priority without blocking render, then the onload flips it live. The
@@ -81,7 +73,7 @@
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Figtree:wght@300..900&family=Leckerli+One&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300..900&family=Sofia+Sans+Extra+Condensed:wght@700..900&family=Leckerli+One&display=swap" />
     <link rel="stylesheet" media="print" onload="this.media='all';this.onload=null"
           href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" />
     <noscript>
