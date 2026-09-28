@@ -7,7 +7,6 @@ import { readPendingWorkout, clearPendingWorkout } from '@/lib/pendingWorkout';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
-import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
@@ -1021,55 +1020,9 @@ export default function Workout() {
         }
       }
 
-      // Atomic volume accumulation via RPC (migration 023). The previous
-      // read-modify-write pattern raced against itself when a workout and
-      // cardio finished within ~200ms — both reads saw the same `prev`,
-      // and the second write overwrote the first, losing one session's
-      // volume from leaderboards. The increment_user_volume RPC adds the
-      // delta in a single SQL statement, so concurrent calls compose
-      // instead of overwriting. Falls back to read-modify-write only if
-      // the RPC isn't available (pre-migration).
-      if (sessionVolume > 0) {
-        let volumeCredited = false;
-        try {
-          const { error: rpcErr } = await supabase.rpc('increment_user_volume', {
-            p_delta: sessionVolume,
-          });
-          if (rpcErr) {
-            // Only fall back to read-modify-write when the RPC is
-            // confirmed-missing (function not found / table not found
-            // on pre-migration hosts). Falling back on ANY error — as
-            // we used to — re-introduces the lost-update race that
-            // mig 023's atomic UPDATE was designed to eliminate
-            // (audit A-12). Transient network/auth failures now
-            // surface as warnings instead of silently losing volume.
-            const isMissing = rpcErr.code === '42883' || rpcErr.code === '42P01';
-            reportError(rpcErr, { feature: 'workout.volume-rpc', level: 'warning', userEmail: user?.email, sessionVolume, isMissing });
-            if (isMissing) {
-              const me = await db.auth.me();
-              const prev = Number(me?.total_volume_lbs) || 0;
-              await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
-              volumeCredited = true;
-            }
-          } else {
-            volumeCredited = true;
-          }
-        } catch (volErr) {
-          reportError(volErr, { feature: 'workout.volume-accumulate', level: 'warning', userEmail: user?.email, sessionVolume });
-        }
-        // Audit D-4 — mark the row credited so the Dashboard's
-        // reconcile pass doesn't re-credit. If the network died
-        // between INSERT and this mark, volume_credited_at stays
-        // NULL and reconcile_my_workout_volume() will fix it up
-        // on next mount.
-        if (volumeCredited && workoutLog?.id) {
-          try {
-            await supabase.rpc('mark_workout_volume_credited', { p_workout_log_id: workoutLog.id });
-          } catch (markErr) {
-            reportError(markErr, { feature: 'workout.mark-credited', level: 'warning', userEmail: user?.email });
-          }
-        }
-      }
+      // Lifetime volume (total_volume_lbs) is credited by the database
+      // from this row's sets when it is saved, edited or deleted
+      // (workout_logs_volume_credit_tr). Nothing to send from here.
 
       // Return the CLAMPED data alongside the workoutLog so onSuccess can
       // show the correct XP / volume numbers in the success toast.
@@ -3029,47 +2982,23 @@ export default function Workout() {
             open={!!editingLog}
             onClose={() => setEditingLog(null)}
             onSave={async (id, data) => {
-              // Volume delta on edit. Without this, a user could log a heavy
-              // session (huge total_volume_lbs accrual for XP/leaderboards),
-              // then edit the same log down to 0 — keeping the volume credit
-              // even though the underlying log is empty.
-              const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
+              // The profile's lifetime volume follows this edit on the server
+              // (workout_logs_volume_credit_tr moves it by the difference).
               const newVolume = calculateTotalVolume(data?.exercises || []);
-              const delta = newVolume - oldVolume;
               // total_volume rides along with the exercises that produced it.
               // EditWorkoutModal's payload carries only the fields it edits,
               // so an edit used to rewrite `exercises` and leave the
               // denormalised column at its pre-edit value — and that column
               // is what get_gym_leaderboard ranks members on and what
               // get_gym_community_progress sums into the gym's "lbs moved".
-              // Same number as the delta above, so the row and the profile
-              // can't disagree about the same edit.
               await workouts.update(id, { ...data, total_volume: newVolume });
-              if (delta !== 0) {
-                try {
-                  // supabase-js returns { error } rather than throwing, so the catch
-                  // alone never saw a failed delta and total_volume_lbs drifted silently.
-                  const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: delta });
-                  if (rpcErr) throw rpcErr;
-                } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta', level: 'warning', userEmail: user?.email, delta }); }
-              }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
             }}
             onDelete={async (id) => {
-              // Same volume accumulator concern on delete — subtract the
-              // deleted log's contribution so leaderboards reflect reality.
-              const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
+              // The server takes back this log's share of lifetime volume.
               await workouts.remove(id);
-              if (deletedVolume > 0) {
-                try {
-                  // supabase-js returns { error } rather than throwing, so the catch
-                  // alone never saw a failed delta and total_volume_lbs drifted silently.
-                  const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
-                  if (rpcErr) throw rpcErr;
-                } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta', level: 'warning', userEmail: user?.email, deletedVolume }); }
-              }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
@@ -3632,42 +3561,18 @@ export default function Workout() {
           cardioLogs={cardioLogs}
           open={!!editingLog}
           onClose={() => setEditingLog(null)}
-          // Mirror the idle-view handlers EXACTLY so editing a workout
-          // from inside an active session applies the same volume
-          // delta math to total_volume_lbs / leaderboards. Previously
-          // this active-session copy of the modal skipped the delta,
-          // so the same edit produced different leaderboard outcomes
-          // depending on which view was open when the user tapped Edit.
-          // (Audit 09 #C-1, H-7.)
+          // Mirror the idle-view handlers exactly. Lifetime volume follows
+          // the edit or delete on the server either way.
           onSave={async (id, data) => {
-            const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
             const newVolume = calculateTotalVolume(data?.exercises || []);
-            const delta = newVolume - oldVolume;
             // Writes total_volume for the same reason the idle-view copy does.
             await workouts.update(id, { ...data, total_volume: newVolume });
-            if (delta !== 0) {
-              try {
-                // supabase-js returns { error } rather than throwing, so the catch
-                // alone never saw a failed delta and total_volume_lbs drifted silently.
-                const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: delta });
-                if (rpcErr) throw rpcErr;
-              } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta-active', level: 'warning', userEmail: user?.email, delta }); }
-            }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
             queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);
           }}
           onDelete={async (id) => {
-            const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
             await workouts.remove(id);
-            if (deletedVolume > 0) {
-              try {
-                // supabase-js returns { error } rather than throwing, so the catch
-                // alone never saw a failed delta and total_volume_lbs drifted silently.
-                const { error: rpcErr } = await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
-                if (rpcErr) throw rpcErr;
-              } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta-active', level: 'warning', userEmail: user?.email, deletedVolume }); }
-            }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
             queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);

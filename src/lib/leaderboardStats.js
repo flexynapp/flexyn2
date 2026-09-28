@@ -18,9 +18,9 @@ const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v3';
  * localStorage flag.
  *
  * total_volume_lbs / total_distance_meters are NOT touched here
- * anymore: they're RPC-maintained (increment_user_volume /
- * increment_user_distance since mig 023, reconcile_my_workout_volume
- * since 142) and the 142/173 trigger rejects direct client writes with
+ * anymore: the database maintains them from workout_logs and
+ * cardio_logs (triggers since 20260928040000) and the 142/173 trigger
+ * rejects direct client writes with
  * 42501. The old absolute-set was also lossy — it recomputed from the
  * most recent 1000 logs, so heavy users could have a correct server
  * total clobbered by a lower client recompute.

@@ -91,8 +91,9 @@ export const remove = (id) =>
 
 /**
  * Best-effort: reconcile any recent workout_logs that landed on the
- * server but never had increment_user_volume applied (e.g. the network
- * died between INSERT and the credit RPC). Audit D-4.
+ * server before volume was credited by trigger (20260928040000). Rows
+ * saved since then are credited on insert, so this only touches older
+ * uncredited rows. Audit D-4.
  *
  * Fail-closed on pre-mig-142 hosts so the Dashboard mount doesn't
  * thrash retry-loops on environments where the RPC isn't deployed.
