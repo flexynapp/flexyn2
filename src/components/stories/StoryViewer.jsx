@@ -39,7 +39,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 const STORY_DURATION_MS = 8000;
 
 const FONT_MAP = {
-  normal:  "'Figtree', system-ui, sans-serif",
+  normal:  'var(--font-body)',
   serious: "Georgia, 'Times New Roman', serif",
   casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
 };

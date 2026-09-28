@@ -57,6 +57,16 @@ export const RULES = {
     why: 'Text floors at 11px (text-micro).',
     re: /\btext-\[(?:[0-9]|10)(?:\.\d+)?px\]/g,
   },
+  hardcodedFont: {
+    why: 'Type is Archivo for headings and Figtree for everything else, set ONCE as --font-heading / --font-body / --font-mono in src/index.css. A face typed anywhere else does not move when the brand font does, which is how three stacks came to coexist on one screen.',
+    // An inline fontFamily / font-family that is not a token, a Tailwind
+    // arbitrary face (font-['Inter']), or a literal canvas font string
+    // (canvas cannot read CSS variables, so it goes through a helper).
+    re: /\bfontFamily\s*[:=]\s*\{?\s*['"`](?!var\(--font-|inherit)|font-family\s*[:=](?!\s*['"]?(?:var\(--font-|inherit))|\bfont-\[['"]?[A-Za-z]|\.font\s*=\s*['"`]/g,
+    // Deliberate, not drift: the Snake game's pixel face, and the logo
+    // wordmark, which is the brand mark rather than type.
+    allow: ['src/components/hub/SnakeGameModal.jsx', 'src/components/SplashScreen.jsx'],
+  },
   hoverMotion: {
     why: 'This app ships to phones. Hover motion does nothing on touch and jitters with a mouse.',
     re: /\bwhileHover\b|\bhover:(?:-?translate-[xy]|scale|rotate)-/g,

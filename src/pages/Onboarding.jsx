@@ -1633,7 +1633,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                     {isMajor && (
                       <span style={{
                         position: 'absolute', left: v * PX, top: '72%', transform: 'translateX(-50%)',
-                        fontFamily: 'ui-monospace,monospace', fontSize: 10, fontWeight: 600,
+                        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
                         color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                       }}>{v}</span>
                     )}
@@ -1955,7 +1955,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
               const pct = (rv - range[0]) / (range[1] - range[0]);
               return (
                 <div key={label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${pct * 88}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
-                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
+                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
                 </div>
               );
             })}
@@ -1992,7 +1992,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   return (
                     <span key={v}>
                       <span style={{ position: 'absolute', top: v * PX, left: '50%', transform: 'translate(-50%,-50%)', width: isMajor ? 28 : isMid ? 18 : 10, height: 1.5, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.3)', borderRadius: 1 }} />
-                      {isMajor && <span style={{ position: 'absolute', top: v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
+                      {isMajor && <span style={{ position: 'absolute', top: v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
                     </span>
                   );
                 })}
@@ -2021,7 +2021,7 @@ function WeightPlate({ kg, color, delay }) {
   const w = 7 + Math.min(kg, 25) * 0.18;
   return (
     <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0, position: 'relative' }}>
-      <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', fontFamily: 'ui-monospace,monospace', fontSize: 7, fontWeight: 700, color: kg === 5 ? 'hsl(0 0% 30%)' : 'white' }}>{kg}</span>
+      <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', fontFamily: 'var(--font-mono)', fontSize: 7, fontWeight: 700, color: kg === 5 ? 'hsl(0 0% 30%)' : 'white' }}>{kg}</span>
     </div>
   );
 }

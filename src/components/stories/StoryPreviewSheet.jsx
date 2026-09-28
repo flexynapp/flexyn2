@@ -59,7 +59,7 @@ const FILTERS = [
 // down to ~0.78 brings it back in line. The rendered overlay text uses its
 // own per-font scale via `renderScale` so the in-canvas text isn't penalized.
 const FONTS = [
-  { label: 'Normal',  family: "'Figtree', system-ui, sans-serif",            displayScale: 1,    renderScale: 1   },
+  { label: 'Normal',  family: 'var(--font-body)',                           displayScale: 1,    renderScale: 1   },
   { label: 'Serious', family: "Georgia, 'Times New Roman', serif",         displayScale: 1,    renderScale: 1   },
   { label: 'Casual',  family: "'Comic Sans MS', 'Chalkboard SE', cursive", displayScale: 1,    renderScale: 1   },
   { label: 'Pixel',   family: "'Press Start 2P', monospace",               displayScale: 0.7,  renderScale: 0.78 },
