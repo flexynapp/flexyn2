@@ -237,9 +237,14 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               {prize && (
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
                   <Package className={`w-4 h-4 shrink-0 ${prize.paid ? 'text-success' : 'text-muted-foreground'}`} />
-                  <p className={`flex-1 text-xs font-semibold ${prize.paid ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {prize.text}
-                  </p>
+                  <div className="flex-1">
+                    <p className={`text-xs font-semibold ${prize.paid ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {prize.text}
+                    </p>
+                    {prize.upset && (
+                      <p className="text-micro text-success mt-1">{prize.upset}</p>
+                    )}
+                  </div>
                   {prize.paid && (
                     <motion.button
                       type="button"
