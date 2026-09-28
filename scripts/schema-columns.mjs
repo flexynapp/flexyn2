@@ -178,6 +178,13 @@ export function extractPairs(root = SRC) {
         for (const col of columnsIn(chain)) add(m[1], col, rel);
       }
 
+      // Table specs written as data, e.g. dataExport.js's EXPORT_TABLES:
+      // `{ table: 'injury_logs', column: 'user_id' }` feeds `.from(spec.table)
+      // .eq(spec.column, ...)`, which the literal-only pass above cannot see.
+      for (const m of src.matchAll(/\btable:\s*'([a-z_][a-z0-9_]*)'\s*,\s*column:\s*'([a-z_][a-z0-9_]*)'/g)) {
+        add(m[1], m[2], rel);
+      }
+
       // selectProfiles((from) => from.select(...)) reads the public_profiles
       // VIEW. Attributed explicitly because this is the exact call shape that
       // shipped `public_profiles.email` — a column mig 220 had dropped.

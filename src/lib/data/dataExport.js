@@ -20,6 +20,14 @@ import { supabase } from '@/api/supabaseClient';
 import { asT } from '@/lib/translatorArg';
 
 // (table, owner-filter-column) pairs we know how to export.
+//
+// A wrong table or column here never throws: the section just reads
+// { error: 'fetch_failed' } inside the downloaded file, which nobody opens
+// to check. Five entries were wrong until 2026-09-28 (a missing
+// `achievements` table, and injury_logs, gym_feed_comments, crew_messages
+// and trainer_purchases keyed on email columns those tables do not have).
+// `npm run schema:columns` now reads the `table:` / `column:` pairs below,
+// so the production check covers them.
 // Belt + suspenders: RLS already restricts these reads, but the
 // explicit filter means the test-able call shape is clear.
 const EXPORT_TABLES = [
@@ -30,7 +38,10 @@ const EXPORT_TABLES = [
   { name: 'regimens',         table: 'regimens',       column: 'created_by',   via: 'email' },
   { name: 'nutrition',        table: 'nutrition_logs', column: 'created_by',   via: 'email' },
   { name: 'body_metrics',     table: 'body_metrics',   column: 'created_by',   via: 'email' },
-  { name: 'achievements',     table: 'achievements',   column: 'created_by',   via: 'email' },
+  // Achievements live on the profile row (exported above). There is no
+  // `achievements` table; this entry asked for one and every export carried
+  // { error: 'fetch_failed' } here. Trophies are their own table.
+  { name: 'trophies',         table: 'user_trophies',  column: 'user_id',      via: 'id' },
   { name: 'workout_templates',table: 'workout_templates', column: 'created_by', via: 'email' },
   { name: 'hub_posts',        table: 'hub_posts',      column: 'author_email', via: 'email' },
   { name: 'hub_comments',     table: 'hub_comments',   column: 'created_by',   via: 'email' },
@@ -38,7 +49,7 @@ const EXPORT_TABLES = [
   // Health / wellness logs — GDPR Article 20 (right to data portability)
   // covers ALL user-furnished data. The export previously omitted these
   // even though _invokeDeleteAccount knew about them. (Audit 14 #20.)
-  { name: 'injury_logs',      table: 'injury_logs',    column: 'created_by',   via: 'email' },
+  { name: 'injury_logs',      table: 'injury_logs',    column: 'user_id',      via: 'id' },
   { name: 'sleep_logs',       table: 'sleep_logs',     column: 'user_id',      via: 'id' },
   { name: 'mood_logs',        table: 'mood_logs',      column: 'user_id',      via: 'id' },
   { name: 'cycle_logs',       table: 'cycle_logs',     column: 'user_id',      via: 'id' },
@@ -54,8 +65,8 @@ const EXPORT_TABLES = [
   { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id' },
   { name: 'gym_event_rsvps',      table: 'gym_event_rsvps',      column: 'user_id',      via: 'id' },
   { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_email', via: 'email' },
-  { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'created_by',   via: 'email' },
-  { name: 'crew_messages_sent',   table: 'crew_messages',        column: 'sender_email', via: 'email' },
+  { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'author_id',    via: 'id' },
+  { name: 'crew_messages_sent',   table: 'crew_messages',        column: 'sender_id',    via: 'id' },
   // Mig 130 actually names the table `crew_message_reactions` (singular
   // "message") and the owning column is `user_id` (UUID), not user_email.
   // The previous entry's table name had an extra 's' and the column
@@ -65,7 +76,7 @@ const EXPORT_TABLES = [
   { name: 'crew_message_reactions', table: 'crew_message_reactions', column: 'user_id', via: 'id' },
   // Marketplace + trainer purchase history
   { name: 'marketplace_listings', table: 'marketplace_listings', column: 'seller_email', via: 'email' },
-  { name: 'trainer_purchases',    table: 'trainer_purchases',    column: 'buyer_email',  via: 'email' },
+  { name: 'trainer_purchases',    table: 'trainer_purchases',    column: 'user_id',      via: 'id' },
   { name: 'organization_members', table: 'organization_members', column: 'user_id',      via: 'id' },
   // Privacy-list and device subs
   { name: 'user_blocks',          table: 'user_blocks',          column: 'blocker_id',   via: 'id' },
