@@ -86,23 +86,25 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                 {members.map(m => {
                   const isOwner = m.user_id === gymOwnerId;
                   const handle = m.username || 'member';
-                  // Members who haven't set a username can't be linked
-                  // to via the /@:username route. Disable the button so
-                  // the row still shows the user's info but doesn't
-                  // look broken when tapped. (Audit 12 #46.)
-                  const hasUsername = !!m.username;
+                  // Open the member's profile inside the app, by id. It used
+                  // to navigate to /@username, which the signed-in router has
+                  // no route for (a dynamic segment must be a whole path
+                  // segment, see src/lib/profileLink.js), so every tap landed
+                  // on Page Not Found. An id also works for members who never
+                  // set a username.
+                  const canOpen = !!m.user_id;
                   return (
                     <li key={m.user_id}>
                       <button
                         type="button"
-                        disabled={!hasUsername}
+                        disabled={!canOpen}
                         onClick={() => {
-                          if (!hasUsername) return;
+                          if (!canOpen) return;
                           onClose();
-                          navigate(`/@${m.username}`);
+                          navigate(`/hub?profile=${encodeURIComponent(m.user_id)}`);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${hasUsername ? 'hover:bg-secondary/40 active:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
-                        title={hasUsername ? `Open @${m.username}` : 'This member hasn’t set a username yet'}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${canOpen ? 'hover:bg-secondary/40 active:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
+                        title={m.username ? `@${m.username}` : undefined}
                       >
                         {m.avatar_url
                           ? <img loading="lazy" src={m.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
