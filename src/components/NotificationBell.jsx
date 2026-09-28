@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -14,11 +14,27 @@ import * as notifications from '@/lib/data/notifications';
 import * as hubMessages from '@/lib/data/hubMessages';
 import NotificationPanel from './NotificationPanel';
 
-export default function NotificationBell() {
+// Layout mounts TWO bells: one in the desktop sidebar (`hidden lg:flex`) and
+// one in the phone header (`lg:hidden`). CSS hides one, but both are mounted,
+// and each owns a panel that renders through a portal, so a hidden bell's
+// panel is still visible. Anything a bell does on its own initiative (the
+// `?notifications=1` deep link) must therefore run in exactly one of them:
+// the one whose surface the current viewport actually shows.
+const DESKTOP_QUERY = '(min-width: 1024px)';
+function isDesktopViewport() {
+  try { return !!window.matchMedia?.(DESKTOP_QUERY).matches; } catch { return false; }
+}
+
+export default function NotificationBell({ surface = 'header' }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  // What the badge said when the sheet opened. The badge is cleared
+  // optimistically on open, so by the time the panel could look it is 0;
+  // the panel needs the real number to know there is something to mark
+  // read even if the user closes before the list has loaded.
+  const [unreadAtOpen, setUnreadAtOpen] = useState(0);
 
   const { data: count = 0 } = useQuery({
     queryKey: ['notificationsUnread', user?.id],
@@ -59,6 +75,7 @@ export default function NotificationBell() {
   }, [totalBadge]);
 
   const handleOpen = () => {
+    setUnreadAtOpen(count);
     setOpen(true);
     // Optimistically clear the badge — the actual mark-all-read happens inside
     // the panel (on EXIT, see the comment there), but the user expects the
@@ -77,9 +94,13 @@ export default function NotificationBell() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (!params.has('notifications')) return;
+    // Only the visible bell answers the deep link, or both sheets open
+    // stacked and closing one reveals the other (see DESKTOP_QUERY).
+    if ((surface === 'sidebar') !== isDesktopViewport()) return;
     params.delete('notifications');
     const rest = params.toString();
     navigate({ pathname: location.pathname, search: rest ? `?${rest}` : '' }, { replace: true });
+    setUnreadAtOpen(count);
     setOpen(true);
     if (count > 0) queryClient.setQueryData(['notificationsUnread', user?.id], 0);
     // `count` is read for the optimistic badge clear only — re-running this
@@ -89,15 +110,21 @@ export default function NotificationBell() {
 
   if (!user?.id) return null;
 
+  // While the sheet is open the badge stays down. The 30 s poll and the
+  // per-row mark-read both refetch the count, and the badge used to climb
+  // back behind the scrim with whatever had not been read yet, reading as
+  // "opening it did nothing". The real mark-all happens on exit.
+  const shown = open ? 0 : count;
+
   // Build a descriptive label so screen readers announce "12 unread
   // notifications" instead of a context-free "Notifications" button.
   // tFallback handles {count} interpolation in the localized template.
   const baseLabel = tFallback('notifications.title', 'Notifications');
-  const countLabel = count > 0
+  const countLabel = shown > 0
     ? tFallback(
-        count === 1 ? 'notifications.unreadBadge' : 'notifications.unreadBadgePlural',
-        count === 1 ? '{count} unread notification' : '{count} unread notifications',
-        { count }
+        shown === 1 ? 'notifications.unreadBadge' : 'notifications.unreadBadgePlural',
+        shown === 1 ? '{count} unread notification' : '{count} unread notifications',
+        { count: shown }
       )
     : null;
   const ariaLabel = countLabel ? `${baseLabel}, ${countLabel}` : baseLabel;
@@ -122,14 +149,16 @@ export default function NotificationBell() {
           would be silent until the user re-focused the button.
         */}
         <span aria-live="polite" aria-atomic="true" className="contents">
-          {count > 0 && (
+          <AnimatePresence>
+          {shown > 0 && (
             <motion.span
-              key={count}
+              key={shown}
               initial={{ scale: 0, opacity: 0 }}
               animate={{
                 scale: [0, 1.4, 0.85, 1.15, 0.95, 1],
                 opacity: 1,
               }}
+              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
               transition={{
                 duration: 0.5,
                 times: [0, 0.3, 0.5, 0.7, 0.85, 1],
@@ -138,12 +167,13 @@ export default function NotificationBell() {
               aria-hidden="true"
               className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
             >
-              {count > 9 ? '9+' : count}
+              {shown > 9 ? '9+' : shown}
             </motion.span>
           )}
+          </AnimatePresence>
         </span>
       </button>
-      <NotificationPanel open={open} onClose={() => setOpen(false)} />
+      <NotificationPanel open={open} unreadAtOpen={unreadAtOpen} onClose={() => setOpen(false)} />
     </>
   );
 }

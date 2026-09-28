@@ -70,7 +70,7 @@ function renderPanel(props = {}) {
   const onClose = props.onClose || vi.fn();
   const view = render(
     React.createElement(QueryClientProvider, { client: qc },
-      React.createElement(NotificationPanel, { open: true, onClose })),
+      React.createElement(NotificationPanel, { open: true, onClose, unreadAtOpen: props.unreadAtOpen ?? 0 })),
   );
   return { ...view, onClose, qc };
 }
@@ -127,6 +127,19 @@ describe('read is committed on exit, not on entry', () => {
     fireEvent.click(screen.getByLabelText('Close'));
     await act(async () => { await Promise.resolve(); });
     expect(markAllRead).not.toHaveBeenCalled();
+  });
+
+  // The bell clears its badge the moment it is tapped. Closing before the
+  // list arrives used to mark nothing, so the badge came back on the next
+  // poll for notifications the user had already dismissed.
+  it('marks read on a close that beats the list, when the badge was lit', async () => {
+    let release;
+    const { listForUser } = await import('@/lib/data/notifications');
+    listForUser.mockImplementationOnce(() => new Promise(r => { release = () => r(listRows); }));
+    renderPanel({ unreadAtOpen: 2 });
+    fireEvent.click(screen.getByLabelText('Close'));
+    await waitFor(() => expect(markAllRead).toHaveBeenCalledTimes(1));
+    release?.();
   });
 
   it('marks read exactly once even if close fires twice', async () => {

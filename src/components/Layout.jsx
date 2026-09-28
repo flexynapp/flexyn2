@@ -395,7 +395,7 @@ export default function Layout() {
                 </motion.span>
               )}
             </button>
-            <NotificationBell />
+            <NotificationBell surface="sidebar" />
             {/* Marketplace shortcut + daily chest badge */}
             <button
               type="button"

@@ -32,14 +32,14 @@ const TYPE_META = {
     icon:        Timer,
     color:       'text-primary',
     bg:          'bg-primary/10',
-    description: 'Most total volume wins',
+    description: 'Most weight in one workout wins',
   },
   mirror: {
     label:       'Mirror Duel',
     icon:        Dumbbell,
     color:       'text-primary',
     bg:          'bg-primary/10',
-    description: 'Complete the same session',
+    description: 'Both redo the same workout',
   },
   exercise: {
     label:       'Exercise Duel',

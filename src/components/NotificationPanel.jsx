@@ -59,7 +59,7 @@ const BUCKET_LABEL = {
   [BUCKET.EARLIER]:   ['notifications.group.earlier',   'Earlier'],
 };
 
-export default function NotificationPanel({ open, onClose }) {
+export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
   const { user } = useAuth();
   const { tFallback, language } = useLanguage();
   // The sheet is pinned to the inline-end edge. In RTL that edge is on the
@@ -101,9 +101,18 @@ export default function NotificationPanel({ open, onClose }) {
   // out — from `handleClose`, and from unmount for the cases that skip it
   // (the tab being closed, a hard navigation).
   const hasUnreadRef = useRef(false);
+  //
+  // `unreadAtOpen` is the badge the user tapped. Without it, a sheet closed
+  // before its list arrived had `rows = []`, so nothing was marked, while
+  // the bell had already cleared its badge optimistically: the badge came
+  // back on the next poll, up to 30 s later, for notifications the user
+  // had in effect dismissed. The badge's number wins until the list loads.
   useEffect(() => {
-    if (open) hasUnreadRef.current = rows.some(r => !r.is_read);
-  }, [open, rows]);
+    if (!open) return;
+    hasUnreadRef.current = rows.length > 0
+      ? rows.some(r => !r.is_read)
+      : unreadAtOpen > 0;
+  }, [open, rows, unreadAtOpen]);
 
   const flushRead = useCallback(() => {
     const uid = user?.id;
