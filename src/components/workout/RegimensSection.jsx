@@ -331,8 +331,8 @@ export default function RegimensSection({ onStartRegimen }) {
                   long names like "Your Starter Plan — Build Strength"
                   wrapped + truncated to "Your Starter Plan — Build
                   Strength re..." with the buttons covering the title
-                  area. (Screenshot feedback: "The automated built
-                  regimen looks like shit. It's all cut off.") */}
+                  area. (Screenshot feedback: the auto-built regimen's
+                  title was cut off.) */}
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
