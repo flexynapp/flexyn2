@@ -18,8 +18,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { track, EVENTS } from '@/lib/analytics';
 
 const TYPE_OPTIONS = [
-  { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
-  { id: 'mirror',   label: 'Mirror',   desc: 'Complete the same session' },
+  { id: 'open',     label: 'Open',     desc: 'Most weight in one workout wins' },
+  { id: 'mirror',   label: 'Mirror',   desc: 'Both redo the same workout' },
   // No Exercise option: nothing chose the exercise, so it could not be
   // scored fairly. The server refuses it (20260927161000_duels_lockdown).
 ];

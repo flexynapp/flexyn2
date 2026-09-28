@@ -42,7 +42,7 @@ import ConnectAccountSheet from '@/components/auth/ConnectAccountSheet';
 // An Exercise invite minted before the lockdown migration is played as an
 // Open duel when claimed, so it is described as one.
 const DUEL_TYPE_LABEL = {
-  open:     ['duelInviteLanding.type.open', 'Open duel. Most total volume wins.'],
+  open:     ['duelInviteLanding.type.open', 'Open duel. Most weight lifted in one workout wins.'],
   mirror:   ['duelInviteLanding.type.mirror', 'Mirror duel. Same workout, best completion wins.'],
 };
 
