@@ -662,7 +662,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const minutesNote = Number.isFinite(sessionMinutes) && sessionMinutes > 0 ? ` · ${sessionMinutes} min` : '';
   const kitNote = kit === 'gym' ? '' : ` · ${kit}`;
   return {
-    name: `Your Starter Plan — ${goalTitle}`,
+    name: `Your Starter Plan: ${goalTitle}`,
     description: `${effLevel} · ${safeDays}×/week${minutesNote}${kitNote}${recoveryNote}${scopeNote} · auto-generated from onboarding`,
     exercises,
     is_public: false,

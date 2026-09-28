@@ -136,7 +136,7 @@ describe('estimatedMinutes', () => {
   // data rather than as a synthetic case. A hand-built regimen carries no
   // rest anywhere, because RegimenForm has no per-exercise rest field.
   it('a rest-less hand-built regimen no longer reads as a third of its length', () => {
-    // "Your Starter Plan — Build Strength" shape: 6 exercises, 24 sets,
+    // "Your Starter Plan: Build Strength" shape: 6 exercises, 24 sets,
     // no rest_seconds on any of them. Production measured ~24 min under
     // the old default against a realistic ~78.
     const handBuilt = {

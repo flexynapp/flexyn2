@@ -58,7 +58,7 @@ export const WORK_SECONDS_PER_SET = 40;
 //
 // So a zero default did not shade the estimate, it broke it for 27 of 33
 // regimens: they rendered an average of 14.4 min for sessions that take
-// about 46.9. "Your Starter Plan — Build Strength" read ~24 min against a
+// about 46.9. "Your Starter Plan: Build Strength" read ~24 min against a
 // realistic ~78. A card confidently telling someone a 78-minute session
 // takes 24 minutes is worse than one that says nothing, and this module's
 // whole stated purpose is to stop the card rendering numbers that mean

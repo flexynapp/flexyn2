@@ -117,7 +117,7 @@ describe('reveal step', () => {
 
   it('puts no title over the plan sections', () => {
     // Three lines used to stack above the sections: a "YOUR STARTER PLAN"
-    // eyebrow, the regimen's own name ("Your Starter Plan — Build Strength"),
+    // eyebrow, the regimen's own name ("Your Starter Plan: Build Strength"),
     // and the meta line. The first two named the plan the heading directly
     // above them had just described, in the user's own numbers. Only the
     // line saying where it was saved survives.
