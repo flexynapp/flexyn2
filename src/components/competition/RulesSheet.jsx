@@ -9,7 +9,7 @@
 // Every line states what the SERVER does, so when a rule changes the copy
 // here changes with it:
 //   duels     — scored by the trigger on workout_logs (20260927184500);
-//               the prize is duels_pay_prize, tiered by 20260928080000
+//               the prize is duels_pay_prize, tiered by 20260928081000
 //   crewWars  — recompute_crew_war: top N lifters per side, N the smaller
 //               roster; starting a war is leader only (mig 358)
 //   rival     — gym_rival_score + gym_rival_settle_week; 48h AFK void;

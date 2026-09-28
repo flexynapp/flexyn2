@@ -222,9 +222,10 @@ END;
 $$;
 
 -- Attempt it: throwaway lifters play real duels through the RPCs and the
--- workout trigger, rolled back by the closing RAISE.
+-- workout trigger, rolled back by the closing RAISE. Sets carry numbers, as
+-- the app writes them: a Mirror or Session template needs numeric reps.
 --   1. Open duel, B (level 1) beats A (level 1): Premium, no upset.
---   2. Mirror duel between C (level 2) and D (level 9); C wins: an upset on
+--   2. Mirror duel between C (level 2) and E (level 9); C wins: an upset on
 --      a Mirror pays tier 4, Elite with 800 XP due.
 --   3. Session Duel, A beats B's session again inside the week: pair limit.
 DO $$
@@ -234,9 +235,9 @@ DECLARE
   c UUID := gen_random_uuid();
   e UUID := gen_random_uuid();
   d JSONB; v_id UUID; v_row public.duels%ROWTYPE;
-  small JSONB := '[{"name":"Bench Press","sets":[{"weight":"100","reps":"10"},{"weight":"100","reps":"8"}]}]';
-  mid   JSONB := '[{"name":"Bench Press","sets":[{"weight":"120","reps":"10"},{"weight":"120","reps":"10"}]}]';
-  big   JSONB := '[{"name":"Bench Press","sets":[{"weight":"150","reps":"10"},{"weight":"150","reps":"10"}]}]';
+  small JSONB := '[{"name":"Bench Press","sets":[{"weight":100,"reps":10},{"weight":100,"reps":8}]}]';
+  mid   JSONB := '[{"name":"Bench Press","sets":[{"weight":120,"reps":10},{"weight":120,"reps":10}]}]';
+  big   JSONB := '[{"name":"Bench Press","sets":[{"weight":150,"reps":10},{"weight":150,"reps":10}]}]';
 BEGIN
   BEGIN
     INSERT INTO auth.users (id, email, aud, role, is_anonymous)
