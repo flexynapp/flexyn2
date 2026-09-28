@@ -15,6 +15,7 @@ import { Download, Share2, Loader2, Trophy, Zap } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { formatDate } from '@/lib/intl';
 import { asT } from '@/lib/translatorArg';
+import { canvasFont, canvasFontsReady } from '@/lib/canvasFont';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
@@ -103,20 +104,20 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
 
   // ── Header ────────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.font = canvasFont('bold 28px');
   ctx.textAlign = 'left';
   ctx.fillText(tf('shareCard.workoutComplete', 'FLEXYN · WORKOUT COMPLETE'), 80, 110);
 
   // Date
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.font = '24px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('24px');
   ctx.textAlign = 'right';
   ctx.fillText(dateStr, W - 80, 110);
 
   // ── Username ──────────────────────────────────────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
-  ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 64px');
   ctx.fillText(username || 'Athlete', 80, 220);
 
   // ── Big primary stat: Total Volume ────────────────────────────────────
@@ -125,11 +126,11 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
     : '—';
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 30px');
   ctx.fillText(tf('shareCard.totalVolume', 'TOTAL VOLUME'), 80, 320);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 200px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 200px');
   ctx.fillText(volumeStr, 80, 490);
 
   // Weight-unit suffix (lb / kg / stone) — pulled from stats.unit so the
@@ -138,11 +139,11 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
                    : stats.unit === 'stone' ? ' st'
                    : ' lb';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = 'bold 60px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 60px');
   const volWidth = ctx.measureText(volumeStr).width;
-  ctx.font = 'bold 200px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 200px');
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 60px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 60px');
   ctx.fillText(unitSuffix, 80 + volWidth, 490);
 
   // ── Stat row: 3 secondary stats ───────────────────────────────────────
@@ -165,13 +166,13 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
 
     // Value
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 84px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 84px');
     ctx.textAlign = 'center';
     ctx.fillText(box.value, boxX + boxW / 2, boxY + 110);
 
     // Label
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = 'bold 22px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 22px');
     ctx.fillText(box.label, boxX + boxW / 2, boxY + 160);
 
     boxX += boxW + 20;
@@ -181,11 +182,11 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
   if (stats.topLift) {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = 'bold 28px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 28px');
     ctx.fillText(tf('shareCard.topLift', 'TOP LIFT'), 80, 850);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 56px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 56px');
     const liftUnit = stats.unit === 'kg' ? 'kg' : stats.unit === 'stone' ? 'st' : 'lb';
     const liftLine = `${stats.topLift.name}: ${stats.topLift.weight} ${liftUnit} × ${stats.topLift.reps}`;
     // Truncate if too wide
@@ -198,7 +199,7 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
 
   // ── Footer brand mark ─────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 24px');
   ctx.textAlign = 'center';
   ctx.fillText(shareCardHost(), W / 2, H - 60);
 }
@@ -290,17 +291,22 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
       try { return formatDate(workout.date || Date.now(), language, opts); }
       catch { return formatDate(new Date(), language, opts); }
     })();
-    drawCard(ctx, {
-      username: username || tFallback('shareCard.athlete', 'Athlete'),
-      dateStr,
-      stats,
-      language,
-      t: tFallback,
+    let cancelled = false;
+    canvasFontsReady().then(() => {
+      if (cancelled) return;
+      drawCard(ctx, {
+        username: username || tFallback('shareCard.athlete', 'Athlete'),
+        dateStr,
+        stats,
+        language,
+        t: tFallback,
+      });
+      // Convert to a stable preview URL
+      canvas.toBlob((blob) => {
+        if (blob) setImgUrl(URL.createObjectURL(blob));
+      }, 'image/png');
     });
-    // Convert to a stable preview URL
-    canvas.toBlob((blob) => {
-      if (blob) setImgUrl(URL.createObjectURL(blob));
-    }, 'image/png');
+    return () => { cancelled = true; };
   }, [open, workout, username, language, includeBarWeight, weightUnit, tFallback]);
 
   // Clean up object URL

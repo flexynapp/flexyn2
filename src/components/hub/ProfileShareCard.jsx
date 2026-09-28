@@ -19,6 +19,7 @@ import { loadTwemoji } from '@/lib/twemoji';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
+import { canvasFont, canvasFontsReady } from '@/lib/canvasFont';
 import { track, EVENTS } from '@/lib/analytics';
 import { shareCardHost, shareCardLink } from '@/lib/appOrigin';
 
@@ -67,20 +68,20 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
 
   // ── Header ─────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = 'bold 24px sans-serif';
+  ctx.font = canvasFont('bold 24px');
   ctx.fillText(tf('shareCard.athleteCard', 'FLEXYN · ATHLETE CARD'), 80, 90);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 72px sans-serif';
+  ctx.font = canvasFont('bold 72px');
   ctx.fillText(`@${username || 'athlete'}`, 80, 180);
 
   // ── Hero stat — tonnage ────────────────────────────────────────────
   ctx.fillStyle = 'rgba(16, 185, 129, 0.85)';
-  ctx.font = 'bold 28px sans-serif';
+  ctx.font = canvasFont('bold 28px');
   ctx.fillText(tf('shareCard.totalTonnage', 'TOTAL TONNAGE'), 80, 270);
 
   ctx.fillStyle = '#10b981';
-  ctx.font = 'bold 128px sans-serif';
+  ctx.font = canvasFont('bold 128px');
   const tonnageDisplay = tonnage >= 1_000_000
     ? `${(tonnage / 1_000_000).toFixed(1)}M`
     : tonnage >= 1_000
@@ -88,7 +89,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
       : `${Math.round(tonnage).toLocaleString()}`;
   ctx.fillText(tonnageDisplay, 80, 400);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 36px sans-serif';
+  ctx.font = canvasFont('bold 36px');
   ctx.fillText(` ${unit}`, 80 + ctx.measureText(tonnageDisplay).width + 12, 396);
 
   // ── Streak chip ────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     const chipX = 80;
     const chipY = 430;
     const chipH = 56;
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = canvasFont('bold 28px');
     // The chip was a fixed 280px, sized to "7-day streak" in English. Five of
     // the seven released locales overflow that — Portuguese needs 278px for
     // the TEXT alone — and so does English at a 3-digit streak. Measure and
@@ -108,7 +109,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     roundRect(ctx, chipX, chipY, chipW, chipH, 28);
     ctx.fill();
     ctx.fillStyle = '#fb923c';
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = canvasFont('bold 28px');
     // Draw the flame from BUNDLED Twemoji artwork rather than ctx.fillText('🔥').
     // fillText would bake the device's own emoji font — Apple Color Emoji on
     // iOS — into a PNG we then save and share, i.e. redistributing Apple's
@@ -124,7 +125,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
 
   // ── Top lifts ──────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = 'bold 24px sans-serif';
+  ctx.font = canvasFont('bold 24px');
   ctx.fillText(tf('shareCard.topLifts1rm', 'TOP LIFTS · ESTIMATED 1RM'), 80, 560);
 
   (topLifts || []).slice(0, 3).forEach((lift, i) => {
@@ -135,17 +136,17 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     ctx.arc(96, y + 12, 22, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#0a0a1a';
-    ctx.font = 'bold 26px sans-serif';
+    ctx.font = canvasFont('bold 26px');
     ctx.textAlign = 'center';
     ctx.fillText(`${i + 1}`, 96, y + 21);
     ctx.textAlign = 'start';
     // Name
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = canvasFont('bold 36px');
     ctx.fillText(lift.name, 140, y + 22);
     // Value
     ctx.fillStyle = '#a7f3d0';
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = canvasFont('bold 36px');
     const valText = `${Math.round(lift.value)} ${unit}`;
     ctx.textAlign = 'end';
     ctx.fillText(valText, W - 80, y + 22);
@@ -155,7 +156,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   // ── Recent workouts ────────────────────────────────────────────────
   if (recentWorkouts && recentWorkouts.length > 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = canvasFont('bold 24px');
     ctx.fillText(tf('shareCard.recentWorkouts', 'RECENT WORKOUTS'), 80, 870);
 
     recentWorkouts.slice(0, 3).forEach((w, i) => {
@@ -165,13 +166,13 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
       ctx.arc(96, y - 8, 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.font = '24px sans-serif';
+      ctx.font = canvasFont('24px');
       const title = w.title || 'Workout';
       const date  = w.date  || '';
       ctx.fillText(title.slice(0, 32), 120, y);
       if (date) {
         ctx.fillStyle = 'rgba(255,255,255,0.45)';
-        ctx.font = '20px sans-serif';
+        ctx.font = canvasFont('20px');
         ctx.textAlign = 'end';
         ctx.fillText(date, W - 80, y);
         ctx.textAlign = 'start';
@@ -181,7 +182,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
 
   // ── Footer ─────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '20px sans-serif';
+  ctx.font = canvasFont('20px');
   ctx.fillText(shareCardHost(), 80, H - 50);
 }
 
@@ -199,7 +200,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
     // Decode the bundled Twemoji flame first so the rasterized card never
     // contains the device's own emoji glyphs. Null on failure — drawCard then
     // renders the streak text without an icon.
-    loadTwemoji('fire').then((fireIcon) => {
+    Promise.all([loadTwemoji('fire'), canvasFontsReady()]).then(([fireIcon]) => {
       if (cancelled) return;
       drawCard(ctx, { ...profile, t: tFallback }, fireIcon);
       canvas.toBlob((blob) => {

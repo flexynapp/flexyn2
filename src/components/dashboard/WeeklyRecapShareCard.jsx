@@ -34,6 +34,7 @@ function formatDateRange(a, b, language) {
 }
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
+import { canvasFont, canvasFontsReady } from '@/lib/canvasFont';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
@@ -107,30 +108,30 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
 
   // ── Header band ────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.font = canvasFont('bold 28px');
   ctx.textAlign = 'left';
   ctx.fillText(tf('shareCard.weekInReview', 'FLEXYN · WEEK IN REVIEW'), 80, 110);
 
   // Week range, right-aligned.
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.font = '24px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('24px');
   ctx.textAlign = 'right';
   ctx.fillText(weekRangeStr, W - 80, 110);
 
   // ── Username ──────────────────────────────────────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
-  ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 64px');
   ctx.fillText(username || tf('shareCard.athlete', 'Athlete'), 80, 220);
 
   // ── Hero stat: workouts this week ─────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 30px');
   ctx.fillText(tf('shareCard.workoutsThisWeek', 'WORKOUTS THIS WEEK'), 80, 320);
 
   const workoutsStr = String(recap?.workouts ?? 0);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 220px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 220px');
   ctx.fillText(workoutsStr, 80, 510);
 
   // Workouts delta (vs last week) appended to the right of the big number.
@@ -139,12 +140,12 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
     const deltaStr = delta > 0 ? `+${delta}` : `${delta}`;
     const deltaColor = delta > 0 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(244, 63, 94, 0.85)';
     ctx.fillStyle = deltaColor;
-    ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 48px');
     const wStrW = (() => {
-      ctx.font = 'bold 220px ui-sans-serif, system-ui, sans-serif';
+      ctx.font = canvasFont('bold 220px');
       return ctx.measureText(workoutsStr).width;
     })();
-    ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 48px');
     ctx.fillText(tf('shareCard.vsLast', '{d} vs last', { d: deltaStr }), 80 + wStrW + 24, 510);
   }
 
@@ -181,20 +182,20 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
 
     // Value (centered)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 76px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 76px');
     ctx.textAlign = 'center';
     ctx.fillText(box.value, boxX + boxW / 2, boxY + 105);
 
     // Suffix (small, below value)
     if (box.suffix) {
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
+      ctx.font = canvasFont('bold 24px');
       ctx.fillText(box.suffix, boxX + boxW / 2, boxY + 135);
     }
 
     // Label
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = 'bold 22px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 22px');
     ctx.fillText(box.label, boxX + boxW / 2, boxY + 175);
 
     boxX += boxW + 20;
@@ -204,11 +205,11 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
   if (recap?.bestLift) {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = 'bold 28px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 28px');
     ctx.fillText(tf('shareCard.heaviestLift', 'HEAVIEST LIFT'), 80, 870);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = canvasFont('bold 48px');
     const liftWeight = Math.round(fromLbs(recap.bestLift.weight, weightUnit));
     const liftLine = `${recap.bestLift.name}: ${liftWeight} ${volumeUnit} × ${recap.bestLift.reps}`;
     // Truncate if too wide for the canvas.
@@ -221,7 +222,7 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t 
 
   // ── Footer brand mark ─────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = 'bold 24px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = canvasFont('bold 24px');
   ctx.textAlign = 'center';
   ctx.fillText(shareCardHost(), W / 2, H - 50);
 }
@@ -257,28 +258,35 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
     // is guaranteed to resolve the moment we've drawn. (Download / Share
     // still use toBlob below — those are user-gestured and fall back to a
     // download, so a null there degrades gracefully instead of hanging.)
-    try {
-      const ctx = canvas.getContext('2d');
-      drawCard(ctx, {
-        // Raw, not `username || 'Athlete'`: the fallback belongs inside
-        // drawCard, where it can be translated. Defaulting here made the
-        // keyed one unreachable.
-        username,
-        weekRangeStr,
-        recap,
-        weightUnit,
-        language,
-        t: tFallback,
-      });
-      setImgUrl(canvas.toDataURL('image/png'));
-      setDrawFailed(false);
-    } catch (err) {
-      setDrawFailed(true);
-      setImgUrl(null);
-      import('@/lib/reportError')
-        .then(({ reportError }) => reportError(err, { feature: 'recap.share.draw' }))
-        .catch(() => {});
-    }
+    // canvasFontsReady waits for the brand face (capped, never rejects), or
+    // the card is rasterised in the fallback for good.
+    let cancelled = false;
+    canvasFontsReady().then(() => {
+      if (cancelled) return;
+      try {
+        const ctx = canvas.getContext('2d');
+        drawCard(ctx, {
+          // Raw, not `username || 'Athlete'`: the fallback belongs inside
+          // drawCard, where it can be translated. Defaulting here made the
+          // keyed one unreachable.
+          username,
+          weekRangeStr,
+          recap,
+          weightUnit,
+          language,
+          t: tFallback,
+        });
+        setImgUrl(canvas.toDataURL('image/png'));
+        setDrawFailed(false);
+      } catch (err) {
+        setDrawFailed(true);
+        setImgUrl(null);
+        import('@/lib/reportError')
+          .then(({ reportError }) => reportError(err, { feature: 'recap.share.draw' }))
+          .catch(() => {});
+      }
+    });
+    return () => { cancelled = true; };
   }, [open, recap, username, weekRangeStr, weightUnit, language, tFallback]);
 
   const blobFromCanvas = () => new Promise((resolve) => {
