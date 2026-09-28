@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { Plus, History, Pencil, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { Plus, History, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import SetRow from './SetRow';
 import { getRecentSessionsDetailed, getLastImplementForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
@@ -481,7 +481,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
             <span className="flex-1 min-w-0 px-1 truncate">{tFallback('setRow.previous', 'Previous')}</span>
             <span className="w-16 shrink-0 text-center">{weightUnit}</span>
             <span className="w-12 shrink-0 text-center">{t('workout.repsLabel')}</span>
-            <span className="w-11 shrink-0 flex justify-center"><Check className="w-3.5 h-3.5" /></span>
+            {/* Holds the done column's width only. A check here repeated the
+                tick button right under it, so the column carries no label. */}
+            <span className="w-11 shrink-0" />
           </div>
         )}
         <AnimatePresence initial={false}>
