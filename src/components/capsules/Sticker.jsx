@@ -55,6 +55,11 @@ export function ensureStickerSprite() {
   document.body.appendChild(svg);
 }
 
+// Every <use> carries width and height 48. Without them a <use> of a
+// <symbol> fills the whole viewport (62 units from the origin), which scaled
+// each glyph up by 62/48 and pushed it 7 units down and right: glyphs spilled
+// past the bottom of their box and over the name printed under them. The
+// viewBox is the 48 grid plus the 5.5 unit bone border (stroke 11), no more.
 const solid = (c, w) => ({
   '--acc': c, '--ln': c, '--body': c, '--sil': c, '--ko': c, '--kos': c, '--lw': w, '--klw': w,
 });
@@ -80,7 +85,7 @@ export default function Sticker({
 
   return (
     <svg
-      viewBox="-7 -7 62 62"
+      viewBox="-5.5 -5.5 59 59"
       width={size}
       height={size}
       className={className}
@@ -92,11 +97,11 @@ export default function Sticker({
       {glyph ? (
         <>
           {shadow && (
-            <use href={`#${symbolId(glyph)}`} transform="translate(1.6 2.4)" style={solid(SHADOW, 11)} />
+            <use href={`#${symbolId(glyph)}`} width="48" height="48" transform="translate(1.6 2.4)" style={solid(SHADOW, 11)} />
           )}
-          <use href={`#${symbolId(glyph)}`} style={solid(BONE, 11)} />
-          <use href={`#${symbolId(glyph)}`} style={solid(CUT, 6.4)} />
-          <use href={`#${symbolId(glyph)}`} style={{ '--acc': accent, ...(dim ? { '--ln': '#89949F' } : null) }} />
+          <use href={`#${symbolId(glyph)}`} width="48" height="48" style={solid(BONE, 11)} />
+          <use href={`#${symbolId(glyph)}`} width="48" height="48" style={solid(CUT, 6.4)} />
+          <use href={`#${symbolId(glyph)}`} width="48" height="48" style={{ '--acc': accent, ...(dim ? { '--ln': '#89949F' } : null) }} />
         </>
       ) : (
         <>
