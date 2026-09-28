@@ -21,7 +21,6 @@ import {
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { db } from '@/api/db';
-import { supabase } from '@/api/supabaseClient';
 import { snapshot, readSnapshot, clearSnapshot } from '@/lib/cardioSession';
 import * as cardioData from '@/lib/data/cardio';
 import { bestVO2max } from '@/lib/cardioVO2max';
@@ -249,29 +248,8 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       const createdLog = await cardioData.create(payload);
       track(EVENTS.CARDIO_LOGGED, { mode: 'indoor' });
       clearSnapshot(user?.id);
-      // Atomic accumulation via increment_user_distance RPC (migration 023).
-      // See CardioManualForm for context on the race this fixes.
-      if (Number(payload.distance_meters) > 0) {
-        try {
-          const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
-            p_delta: Number(payload.distance_meters),
-          });
-          if (rpcErr) {
-            // RMW fallback only when the RPC is confirmed-missing
-            // (pre-023 host — those also predate the 142/173 trigger, so
-            // the direct write is still allowed there). Mig 173 rejects
-            // direct total_distance_meters writes with 42501 (audit A-12
-            // reasoning: transient-error fallback re-opened the race).
-            if (rpcErr.code === '42883' || rpcErr.code === '42P01') {
-              const me = await db.auth.me();
-              const prev = Number(me?.total_distance_meters) || 0;
-              await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
-            } else {
-              console.warn('[CardioIndoor] increment_user_distance failed:', rpcErr);
-            }
-          }
-        } catch (err) { console.warn('[CardioIndoor] distance accumulate failed:', err); }
-      }
+      // Lifetime distance is credited by the database from the saved row
+      // (zz_cardio_logs_distance_credit_tr), capped at a human pace.
       // Fire achievement check (non-blocking). Report on failure so
       // a broken cardio→achievements pipeline doesn't rot silently.
       db.functions.invoke('updateUserXpAndAchievements', {

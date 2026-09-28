@@ -341,28 +341,9 @@ export default function CardioManualForm({
       } else {
         const createdLog = await cardioData.create(payload);
         track(EVENTS.CARDIO_LOGGED, { mode: 'manual' });
-        if (Number(payload.distance_meters) > 0) {
-          try {
-            const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
-              p_delta: Number(payload.distance_meters),
-            });
-            if (rpcErr) {
-              // RMW fallback only when the RPC is confirmed-missing
-              // (pre-023 host — those also predate the 142/173 trigger,
-              // so the direct write is still allowed there). Mig 173
-              // rejects direct total_distance_meters writes with 42501,
-              // and falling back on transient errors re-introduced the
-              // lost-update race anyway (audit A-12 reasoning).
-              if (rpcErr.code === '42883' || rpcErr.code === '42P01') {
-                const me = await db.auth.me();
-                const prev = Number(me?.total_distance_meters) || 0;
-                await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
-              } else {
-                console.warn('[Cardio] increment_user_distance failed:', rpcErr);
-              }
-            }
-          } catch (err) { console.warn('[Cardio] distance accumulate failed:', err); }
-        }
+
+        // Lifetime distance is credited by the database from the saved row
+        // (zz_cardio_logs_distance_credit_tr), capped at a human pace.
         db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 0,
           action_type: 'cardio_completed',

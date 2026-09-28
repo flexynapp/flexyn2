@@ -905,10 +905,10 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Audit D-4 — best-effort reconcile pass. Fixes the case where a
-  // workout INSERT landed but the increment_user_volume RPC never
-  // ran (network died between the two). Idempotent server-side (RPC
-  // skips already-credited rows) so it's safe to fire on every mount.
+  // Audit D-4 — best-effort reconcile pass for workouts saved before the
+  // database credited volume itself (20260928040000). Idempotent
+  // server-side (it skips already-credited rows) so it's safe to fire on
+  // every mount.
   // Gated to fire once per session via sessionStorage.
   useEffect(() => {
     if (!user?.id) return;
