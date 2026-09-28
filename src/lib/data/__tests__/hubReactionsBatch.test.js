@@ -45,9 +45,7 @@ vi.mock('@/api/supabaseClient', () => ({
   },
 }));
 
-vi.mock('@/api/db', () => ({
-  db: { entities: { HubReaction: {} } },
-}));
+vi.mock('@/lib/data/ownedRows', () => ({ ownedRows: () => ({}) }));
 
 vi.mock('../hubPosts', () => ({
   incrementCounter: vi.fn(),
