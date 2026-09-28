@@ -1805,6 +1805,7 @@
   "duels.resultTie": "TIE",
   "duels.resultWin": "W",
   "duels.scoreLine": "{mine} contra {theirs}",
+  "duels.setsScoreLine": "{mine} contra {theirs} series",
   "duels.status.active": "Activo",
   "duels.status.completed": "Completado",
   "duels.status.declined": "Rechazado",

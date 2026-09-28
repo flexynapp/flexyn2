@@ -30,7 +30,23 @@ export function duelStatusName(status, tFallback) {
   return tFallback(`duels.status.${key}`, STATUS_NAME[key]);
 }
 
+/**
+ * A Mirror template's exercises as the server scores them: named exercises
+ * and the sets that carry reps (_duel_mirror_metrics, 20260928061000). An
+ * empty set row or an unnamed exercise is not something anyone can finish,
+ * so listing it would show a target nobody can reach.
+ */
+export function templateExercises(template) {
+  return (template?.exercises || [])
+    .map((ex) => ({
+      name: String(ex?.name ?? '').trim(),
+      sets: (Array.isArray(ex?.sets) ? ex.sets : [])
+        .filter((s) => typeof s?.reps === 'number' && s.reps > 0).length,
+    }))
+    .filter((ex) => ex.name && ex.sets > 0);
+}
+
 /** Total prescribed sets in a Mirror duel's template. */
 export function templateSetCount(template) {
-  return (template?.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
+  return templateExercises(template).reduce((n, ex) => n + ex.sets, 0);
 }

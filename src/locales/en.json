@@ -1808,6 +1808,7 @@
   "duels.resultTie": "TIE",
   "duels.resultWin": "W",
   "duels.scoreLine": "{mine} vs {theirs}",
+  "duels.setsScoreLine": "{mine} vs {theirs} sets",
   "duels.status.active": "Active",
   "duels.status.completed": "Complete",
   "duels.status.declined": "Declined",

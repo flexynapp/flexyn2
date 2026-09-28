@@ -2090,7 +2090,7 @@ export default function Workout() {
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.duels", "Duels")}</p>
-                {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">{tFallback("duels.status.active", "Active")}</span>}
+                {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">{activeDuel.status === 'pending' ? tFallback("duels.status.pending", "Pending") : tFallback("duels.status.active", "Active")}</span>}
               </div>
               <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.duels', 'Head to head battles')}</p>
             </div>

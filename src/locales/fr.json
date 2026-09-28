@@ -1805,6 +1805,7 @@
   "duels.resultTie": "TIE",
   "duels.resultWin": "W",
   "duels.scoreLine": "{mine} contre {theirs}",
+  "duels.setsScoreLine": "{mine} contre {theirs} séries",
   "duels.status.active": "En cours",
   "duels.status.completed": "Terminé",
   "duels.status.declined": "Refusé",

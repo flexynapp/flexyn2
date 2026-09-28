@@ -50,10 +50,17 @@ describe('countsTowardRecord', () => {
 });
 
 describe('getActiveDuel', () => {
-  it('leaves out session duels where the caller is the one taken on', async () => {
+  it('asks only for duels that need the caller', async () => {
     calls.length = 0;
     await getActiveDuel();
     const filter = calls.find(([k, t]) => k === 'or' && t === 'duels')?.[2];
-    expect(filter).toBe('challenger_id.eq.me,and(opponent_id.eq.me,mode.eq.live)');
+    // Running duels, except a Session Duel where the caller is taken on,
+    // plus challenges waiting for the caller's answer. A challenge the
+    // caller sent and nobody has answered does not badge the Workout page.
+    expect(filter).toBe(
+      'and(status.eq.active,challenger_id.eq.me),'
+      + 'and(status.eq.active,opponent_id.eq.me,mode.eq.live),'
+      + 'and(status.eq.pending,opponent_id.eq.me)',
+    );
   });
 });
