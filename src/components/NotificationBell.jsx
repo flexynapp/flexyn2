@@ -1,18 +1,27 @@
 // src/components/NotificationBell.jsx
 //
-// Lives in the global Header. Shows the unread count as a small red badge
-// and opens the NotificationPanel on tap. Polls every 30 s in the background.
+// Lives in the global Header. Opens the NotificationPanel on tap and polls
+// every 30 s in the background.
+//
+// The badge (option C, Kegan 2026-09-28): a NUMBER only for notifications
+// another person caused, a plain DOT when everything unread is the app
+// itself (reminders, achievements). The bell swings once when the unread
+// total goes up, and at no other time: not on load, not on a refresh that
+// finds the same thing.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as notifications from '@/lib/data/notifications';
 import * as hubMessages from '@/lib/data/hubMessages';
 import NotificationPanel from './NotificationPanel';
+import CountBadge from '@/components/ui/CountBadge';
+
+const CLEARED = Object.freeze({ total: 0, people: 0 });
 
 // Layout mounts TWO bells: one in the desktop sidebar (`hidden lg:flex`) and
 // one in the phone header (`lg:hidden`). CSS hides one, but both are mounted,
@@ -36,13 +45,14 @@ export default function NotificationBell({ surface = 'header' }) {
   // read even if the user closes before the list has loaded.
   const [unreadAtOpen, setUnreadAtOpen] = useState(0);
 
-  const { data: count = 0 } = useQuery({
+  const { data: summary = CLEARED, isFetched } = useQuery({
     queryKey: ['notificationsUnread', user?.id],
-    queryFn: () => notifications.unreadCount(user),
+    queryFn: () => notifications.unreadSummary(user),
     enabled: !!user?.id,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
+  const count = summary.total;
 
   // DM unread count for combined app-badge total
   const { data: dmUnread = 0 } = useQuery({
@@ -53,10 +63,11 @@ export default function NotificationBell({ surface = 'header' }) {
     staleTime: 15_000,
   });
 
-  // App icon badge (PWA Badging API). Combines notification + DM unread
-  // counts so the home-screen icon reflects the full "attention needed"
-  // total. Clears to 0 when both counts drop to zero. Gracefully no-ops
-  // on browsers that don't support the API (iOS Safari < 16.4, desktop).
+  // App icon badge (PWA Badging API). Same rule as the bell: the number is
+  // what people did (notifications from people plus unread DMs); when only
+  // the app itself has something, `setAppBadge()` with no argument shows
+  // the platform's plain mark instead of a count. Gracefully no-ops on
+  // browsers that don't support the API (iOS Safari < 16.4, desktop).
   //
   // This sum is only correct because `unreadCount` excludes PUSH_ONLY_TYPES.
   // Migration 181 inserts a `dm_received` notification for every DM, so
@@ -64,15 +75,32 @@ export default function NotificationBell({ surface = 'header' }) {
   // home-screen badge read 2. If you ever add a type here that another
   // surface also counts, add it to PUSH_ONLY_TYPES or this double-counts
   // again — and the home screen is where it is least visible.
-  const totalBadge = count + dmUnread;
+  const peopleBadge = summary.people + dmUnread;
+  const flagOnly = peopleBadge === 0 && count > 0;
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return;
-    if (totalBadge > 0) {
-      navigator.setAppBadge(totalBadge).catch(() => {});
+    if (peopleBadge > 0) {
+      navigator.setAppBadge(peopleBadge).catch(() => {});
+    } else if (flagOnly) {
+      navigator.setAppBadge().catch(() => {});
     } else {
       navigator.clearAppBadge?.().catch(() => {});
     }
-  }, [totalBadge]);
+  }, [peopleBadge, flagOnly]);
+
+  // Swing on a rise in the unread total. Nothing is tracked until the first
+  // fetch lands, or the placeholder 0 → first real count would read as a
+  // rise and every app launch would ring the bell. `swing` is a counter
+  // used as a key, so each rise replays the motion from rest.
+  const reduceMotion = useReducedMotion();
+  const prevTotal = useRef(null);
+  const [swing, setSwing] = useState(0);
+  useEffect(() => {
+    if (!isFetched) return;
+    const prev = prevTotal.current;
+    prevTotal.current = count;
+    if (prev !== null && count > prev && !open) setSwing(n => n + 1);
+  }, [count, open, isFetched]);
 
   const handleOpen = () => {
     setUnreadAtOpen(count);
@@ -81,7 +109,7 @@ export default function NotificationBell({ surface = 'header' }) {
     // the panel (on EXIT, see the comment there), but the user expects the
     // badge to drop the moment they open.
     if (count > 0) {
-      queryClient.setQueryData(['notificationsUnread', user?.id], 0);
+      queryClient.setQueryData(['notificationsUnread', user?.id], CLEARED);
     }
   };
 
@@ -102,7 +130,7 @@ export default function NotificationBell({ surface = 'header' }) {
     navigate({ pathname: location.pathname, search: rest ? `?${rest}` : '' }, { replace: true });
     setUnreadAtOpen(count);
     setOpen(true);
-    if (count > 0) queryClient.setQueryData(['notificationsUnread', user?.id], 0);
+    if (count > 0) queryClient.setQueryData(['notificationsUnread', user?.id], CLEARED);
     // `count` is read for the optimistic badge clear only — re-running this
     // when it changes would re-open the sheet on every poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,6 +143,7 @@ export default function NotificationBell({ surface = 'header' }) {
   // back behind the scrim with whatever had not been read yet, reading as
   // "opening it did nothing". The real mark-all happens on exit.
   const shown = open ? 0 : count;
+  const shownPeople = open ? 0 : summary.people;
 
   // Build a descriptive label so screen readers announce "12 unread
   // notifications" instead of a context-free "Notifications" button.
@@ -140,37 +169,31 @@ export default function NotificationBell({ surface = 'header' }) {
         {/* Inner pill highlight so the tightly-spaced header icons don't
             overlap on hover; tap target stays the full h-11 w-11. */}
         <span className="absolute inset-y-1.5 inset-x-2.5 rounded-lg group-hover:bg-secondary transition-colors" />
-        <Bell className="relative w-5 h-5 text-foreground" aria-hidden="true" />
+        <motion.span
+          key={swing}
+          data-swing={swing}
+          className="relative inline-flex"
+          style={{ transformOrigin: '50% 2px' }}
+          animate={swing && !reduceMotion ? { rotate: [0, 14, -10, 5, 0] } : { rotate: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        >
+          <Bell className="w-5 h-5 text-foreground" aria-hidden="true" />
+        </motion.span>
         {/*
-          aria-live="polite" on the badge so the count change is
-          announced WITHOUT interrupting the user's current screen
-          reader narration. The badge mounts/unmounts via AnimatePresence
-          when count crosses 0 — without aria-live the count change
-          would be silent until the user re-focused the button.
+          aria-live="polite" so a change in the label's count is announced
+          without interrupting the screen reader. The badge itself is
+          aria-hidden; the button's label carries the full unread total,
+          dot or number.
         */}
         <span aria-live="polite" aria-atomic="true" className="contents">
-          <AnimatePresence>
-          {shown > 0 && (
-            <motion.span
-              key={shown}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{
-                scale: [0, 1.4, 0.85, 1.15, 0.95, 1],
-                opacity: 1,
-              }}
-              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
-              transition={{
-                duration: 0.5,
-                times: [0, 0.3, 0.5, 0.7, 0.85, 1],
-                ease: 'easeOut',
-              }}
-              aria-hidden="true"
-              className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
-            >
-              {shown > 9 ? '9+' : shown}
-            </motion.span>
-          )}
-          </AnimatePresence>
+          {/* Sits on the bell's shoulder, not the button's corner: the
+              glyph spans 12 to 32px of the 44px button. */}
+          <CountBadge
+            count={shownPeople}
+            dot={shown > 0}
+            tone="alert"
+            className={shownPeople > 0 ? 'top-1.5 start-[23px]' : 'top-2.5 start-[25px]'}
+          />
         </span>
       </button>
       <NotificationPanel open={open} unreadAtOpen={unreadAtOpen} onClose={() => setOpen(false)} />

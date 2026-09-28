@@ -21,11 +21,14 @@ vi.mock('@/lib/LanguageContext', () => ({
       vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
   }),
 }));
-vi.mock('@/lib/data/notifications', () => ({ unreadCount: vi.fn(async () => 2) }));
+let summary = { total: 2, people: 0 };
+vi.mock('@/lib/data/notifications', () => ({ unreadSummary: vi.fn(async () => summary) }));
 vi.mock('@/lib/data/hubMessages', () => ({ unreadCountFor: vi.fn(async () => 0) }));
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
+  useReducedMotion: () => false,
   motion: new Proxy({}, {
+    // eslint-disable-next-line no-unused-vars
     get: (_t, tag) => ({ children, initial, animate, exit, transition, ...rest }) =>
       React.createElement(String(tag), rest, children),
   }),
@@ -53,6 +56,7 @@ function renderBells() {
 
 beforeEach(() => {
   search = '';
+  summary = { total: 2, people: 0 };
   vi.clearAllMocks();
 });
 
@@ -72,23 +76,56 @@ describe('the ?notifications=1 deep link', () => {
   });
 });
 
+const badges = () => [...document.querySelectorAll('[data-badge]')].map(b => b.dataset.badge + (b.textContent || ''));
+
 describe('the badge', () => {
-  it('shows the count, then stays down while the sheet is open', async () => {
+  it('shows a dot, not a number, when only the app has something', async () => {
+    setDesktop(false);
+    renderBells();
+    await waitFor(() => expect(badges()).toEqual(['dot', 'dot']));
+    // The label still carries the real total for a screen reader.
+    expect(screen.getAllByRole('button')[1].getAttribute('aria-label'))
+      .toBe('Notifications, 2 unread notifications');
+  });
+
+  it('numbers only what people did', async () => {
+    summary = { total: 5, people: 3 };
+    setDesktop(false);
+    renderBells();
+    await waitFor(() => expect(badges()).toEqual(['count3', 'count3']));
+  });
+
+  it('stays down while the sheet is open, even when a refresh lands', async () => {
     setDesktop(false);
     const { qc } = renderBells();
     const [, header] = await screen.findAllByRole('button', { name: /2 unread notifications/ });
     fireEvent.click(header);
     expect(screen.getByTestId('panel').textContent).toBe('opened with 2');
-    // Both bells share the query, so the optimistic clear drops both badges.
-    await waitFor(() => expect(screen.queryAllByText('2')).toHaveLength(0));
+    await waitFor(() => expect(badges()).toEqual([]));
 
     // The 30 s poll (or a row being marked read) lands while the sheet is
     // up and reports what is still unread. The open bell must not re-light.
-    act(() => { qc.setQueryData(['notificationsUnread', 'me'], 1); });
+    act(() => { qc.setQueryData(['notificationsUnread', 'me'], { total: 1, people: 1 }); });
     // The closed sidebar bell proves the new value arrived; the open one
     // must still read as clear.
     await waitFor(() => expect(screen.getAllByRole('button')[0].getAttribute('aria-label'))
       .toBe('Notifications, 1 unread notification'));
     expect(screen.getAllByRole('button')[1].getAttribute('aria-label')).toBe('Notifications');
+  });
+
+  it('swings the bell only when the unread total goes up', async () => {
+    setDesktop(false);
+    const { qc } = renderBells();
+    await waitFor(() => expect(badges()).toEqual(['dot', 'dot']));
+    const swings = () => [...document.querySelectorAll('[data-swing]')].map(e => e.dataset.swing);
+    expect(swings()).toEqual(['0', '0']); // the first load does not swing
+
+    act(() => { qc.setQueryData(['notificationsUnread', 'me'], { total: 3, people: 1 }); });
+    await waitFor(() => expect(swings()).toEqual(['1', '1']));
+
+    act(() => { qc.setQueryData(['notificationsUnread', 'me'], { total: 3, people: 1 }); });
+    act(() => { qc.setQueryData(['notificationsUnread', 'me'], { total: 2, people: 1 }); });
+    await waitFor(() => expect(badges()).toEqual(['count1', 'count1']));
+    expect(swings()).toEqual(['1', '1']);
   });
 });
