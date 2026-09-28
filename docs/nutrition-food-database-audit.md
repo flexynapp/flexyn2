@@ -197,7 +197,7 @@ returned FALSE — which reads exactly like an ungated SECURITY DEFINER function
 real non-admin authenticated user, and as an admin, in both directions.
 *Failure:* a call getting past the gate. **NO HOLE.** Every one opens with
 `IF NOT public.is_app_admin(auth.uid()) THEN RAISE EXCEPTION 'admin_only' USING
-ERRCODE='42501'`. Executed as `theerikvoelker@gmail.com`
+ERRCODE='42501'`. Executed as a non-admin test account
 (`7e92e7ff…`, asserted first: 0 rows in `admin_users`):
 `list_food_item_requests_for_admin` → `42501 admin_only`,
 `approve_food_item_request` → `42501 admin_only`,
@@ -575,7 +575,7 @@ wrong comparison user could not look like a broken policy:
 -- inside a DO block, per probe
 PERFORM set_config('role','authenticated',true);
 PERFORM set_config('request.jwt.claims',
-  '{"sub":"7e92e7ff-…","role":"authenticated","email":"theerikvoelker@gmail.com"}', true);
+  '{"sub":"<their user id>","role":"authenticated","email":"<a non-admin user>"}', true);
 -- … the thing that should fail …
 PERFORM set_config('role','postgres',true);   -- reset before bookkeeping
 INSERT INTO probe VALUES ('step', outcome);
