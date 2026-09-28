@@ -119,7 +119,9 @@ BEGIN
     v_key := lower(btrim(COALESCE(v_ex->>'name', '')));
     IF v_key = '' OR jsonb_typeof(v_ex->'sets') IS DISTINCT FROM 'array' THEN CONTINUE; END IF;
     SELECT count(*) INTO v_n FROM jsonb_array_elements(v_ex->'sets') s
-     WHERE jsonb_typeof(s->'reps') = 'number' AND (s->'reps')::NUMERIC > 0;
+     -- CASE, not AND: SQL does not promise to test the type before the
+     -- cast, and a JSON null reps would raise.
+     WHERE CASE WHEN jsonb_typeof(s->'reps') = 'number' THEN (s->>'reps')::NUMERIC > 0 ELSE FALSE END;
     IF v_n = 0 THEN CONTINUE; END IF;
     v_need := v_need || jsonb_build_object(v_key, COALESCE((v_need->>v_key)::INT, 0) + v_n);
   END LOOP;
@@ -196,8 +198,8 @@ AS $function$
                   WHERE btrim(COALESCE(e->>'name', '')) <> ''
                     AND jsonb_typeof(e->'sets') = 'array'
                     AND EXISTS (SELECT 1 FROM jsonb_array_elements(e->'sets') s
-                                 WHERE jsonb_typeof(s->'reps') = 'number'
-                                   AND (s->'reps')::NUMERIC > 0))
+                                 WHERE CASE WHEN jsonb_typeof(s->'reps') = 'number'
+                                            THEN (s->>'reps')::NUMERIC > 0 ELSE FALSE END))
    ORDER BY l.created_at DESC
    LIMIT 1;
 $function$;

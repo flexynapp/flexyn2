@@ -32,7 +32,7 @@ export function duelStatusName(status, tFallback) {
 
 /**
  * A Mirror template's exercises as the server scores them: named exercises
- * and the sets that carry reps (_duel_mirror_metrics, 20260928060000). An
+ * and the sets that carry reps (_duel_mirror_metrics, 20260928061000). An
  * empty set row or an unnamed exercise is not something anyone can finish,
  * so listing it would show a target nobody can reach.
  */
