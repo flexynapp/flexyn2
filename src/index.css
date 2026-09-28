@@ -658,6 +658,8 @@
     from { transform: translateY(34px); }
     to   { transform: none; }
   }
+  .canister-floor { opacity: 0.2; }
+  .dark .canister-floor { opacity: 1; }
   .canister-lid-lift { animation: canister-lid-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   @keyframes sticker-land {
     from { transform: translateY(18px) scale(0.72) rotate(-8deg); }

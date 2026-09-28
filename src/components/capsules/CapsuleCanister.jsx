@@ -89,7 +89,7 @@ function Lid({ f, clipId }) {
 
 /**
  * @param {'standard'|'premium'|'elite'} [tier]
- * @param {number|string} [height]  px (or any css length); width follows the 120:176 box
+ * @param {number|string} [height]  px (or any css length); width follows the 120:166 box
  * @param {boolean} [open]          lid lifted off, as on the spin screen
  * @param {boolean} [liftLid]       animate the lid coming up (open only)
  * @param {string} [label]          exposes the drawing to screen readers
@@ -105,16 +105,20 @@ export default function CapsuleCanister({
 
   return (
     <svg
-      viewBox="0 0 120 176"
+      viewBox="0 0 120 166"
       height={height}
-      style={{ overflow: 'visible', display: 'block', aspectRatio: '120 / 176', ...style }}
+      style={{ overflow: 'visible', display: 'block', aspectRatio: '120 / 166', ...style }}
       className={className}
       role={label ? 'img' : undefined}
       aria-label={label || undefined}
       aria-hidden={label ? undefined : 'true'}
       focusable="false"
     >
-      <ellipse cx="60" cy="165" rx={open ? 44 : 40} ry="5.5" fill={FLOOR} />
+      {/* The contact shadow, centred on the base so the canister stands on
+          it. It sat 5 units below the base and the box ran 11 units past
+          it, so on the shelf every canister floated over the plank. Soft on
+          a light ground, solid on a dark one (see .canister-floor). */}
+      <ellipse className="canister-floor" cx="60" cy="160" rx={open ? 42 : 39} ry="5" fill={FLOOR} />
 
       {/* Base */}
       <clipPath id={bodyClip}><path d={BODY} /></clipPath>

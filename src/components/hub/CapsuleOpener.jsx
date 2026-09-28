@@ -1038,6 +1038,11 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
 
   return (
     <div className="flex-1 flex flex-col" data-tier={tier}>
+      {/* Plate, name and set line sit centred in the space above the pinned
+          CTAs. Top-aligned, a Pro Max left ~480px of empty stage between the
+          set line and Collect. A batch list below keeps them top-aligned,
+          because then the list is what fills the space. */}
+      <div className={isBatch ? '' : 'flex-1 flex flex-col justify-center'}>
       <div className="flex flex-col items-center gap-4 px-5 pt-3">
         {/* key: a new plate lands each time a row is picked */}
         <div key={`${results[pick].capsuleId}`} className="sticker-land relative">
@@ -1098,6 +1103,8 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
             <b className="text-foreground font-semibold">{fmt(price)}</b>
           </span>
         </div>
+      </div>
+
       </div>
 
       {isBatch && (
