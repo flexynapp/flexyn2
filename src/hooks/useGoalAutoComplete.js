@@ -23,7 +23,7 @@ import { db } from '@/api/db';
 import * as goalsData from '@/lib/data/goals';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
-import { goalProgress } from '@/lib/goalProgress';
+import { goalProgress, metThisPeriod } from '@/lib/goalProgress';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
@@ -48,6 +48,9 @@ export default function useGoalAutoComplete({ user, goals, logs, cardioLogs, ena
       && g.status === 'active'
       && askedRef.current.get(g.id) !== 'done'
       && askedRef.current.get(g.id) !== seen
+      // A weekly or monthly goal stays active; once met this period it
+      // waits for the next one.
+      && !metThisPeriod(g)
       && goalProgress(g, realLogs, realCardio) >= 100);
     if (due.length === 0) return;
 
@@ -56,7 +59,7 @@ export default function useGoalAutoComplete({ user, goals, logs, cardioLogs, ena
       goalsData.complete(goal.id)
         .then(async (res) => {
           if (!res?.completed) return;
-          // Completed for good: never ask about it again on this mount.
+          // Completed (or met for this period): don't ask again on this mount.
           askedRef.current.set(goal.id, 'done');
           queryClient.invalidateQueries({ queryKey: ['goals', user.email] });
           const xp = Number(res.xp) || 0;

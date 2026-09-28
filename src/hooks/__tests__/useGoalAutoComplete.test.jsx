@@ -94,6 +94,21 @@ describe('useGoalAutoComplete', () => {
     expect(complete).toHaveBeenCalledTimes(2);
   });
 
+  it('does not ask again about a weekly goal already met this week', async () => {
+    complete.mockResolvedValue({ completed: false, already: true });
+    const monday = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    const weekly = { id: 'c2', status: 'active', goal_type: 'cardio_sessions', cardio_activity: 'any',
+      period: 'week', target_sessions: 1, created_date: CREATED, period_met_start: monday };
+    const cardio = [{ id: 'r1', created_date: new Date().toISOString(), date: monday, type: 'running_outside' }];
+    run({ user, goals: [weekly], logs: [], cardioLogs: cardio });
+    await new Promise(r => setTimeout(r, 20));
+    expect(complete).not.toHaveBeenCalled();
+    // Met in an earlier week: this week's session is new, so ask.
+    run({ user, goals: [{ ...weekly, period_met_start: '2000-01-03' }], logs: [], cardioLogs: cardio });
+    await waitFor(() => expect(complete).toHaveBeenCalledWith('c2'));
+  });
+
   it('names a cardio goal by its activity', async () => {
     complete.mockResolvedValue({ completed: true, xp: 20 });
     const run5k = { id: 'c1', status: 'active', goal_type: 'cardio_distance', cardio_activity: 'running',
