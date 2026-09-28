@@ -9,6 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  isFromPeople,
   CATEGORY, CATEGORY_HUE, FILTERS, KNOWN_TYPES,
   categoryFor, hueFor, isKnownType, matchesFilter,
 } from '@/lib/notificationCatalog';
@@ -94,5 +95,18 @@ describe('notificationCatalog', () => {
   it('matchesFilter treats a missing filter as no filter', () => {
     expect(matchesFilter('friend_post', undefined)).toBe(true);
     expect(matchesFilter('friend_post', null)).toBe(true);
+  });
+});
+
+describe('isFromPeople', () => {
+  it('is true for what another person did', () => {
+    for (const t of ['friend_follow', 'coin_gift', 'duel_invite', 'bounty_beaten']) {
+      expect(isFromPeople(t)).toBe(true);
+    }
+  });
+  it('is false for the app talking, and for types it has never seen', () => {
+    for (const t of ['quest_expiry_warning', 'welcome_back', 'quest_claimed', 'pr_set', 'mystery', null]) {
+      expect(isFromPeople(t)).toBe(false);
+    }
   });
 });

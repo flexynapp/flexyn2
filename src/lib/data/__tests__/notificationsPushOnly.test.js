@@ -65,12 +65,12 @@ describe('PUSH_ONLY_TYPES', () => {
   });
 });
 
-describe('unreadCount', () => {
+describe('unreadSummary', () => {
   it('excludes push-only types from the bell count', async () => {
     _state.nextCount = 7;
-    const n = await notifications.unreadCount(USER);
+    const n = await notifications.unreadSummary(USER);
 
-    expect(n).toBe(7);
+    expect(n.total).toBe(7);
     expect(notCalls()).toHaveLength(1);
     const [, col, op, val] = notCalls()[0];
     expect(col).toBe('type');
@@ -79,22 +79,40 @@ describe('unreadCount', () => {
   });
 
   it('still scopes to the user and to unread rows', async () => {
-    await notifications.unreadCount(USER);
+    await notifications.unreadSummary(USER);
     const eqs = Object.fromEntries(_calls.filter(c => c[0] === 'eq').map(c => [c[1], c[2]]));
     expect(eqs.user_id).toBe('u-1');
     expect(eqs.is_read).toBe(false);
   });
 
   it('does not query at all without a user id', async () => {
-    expect(await notifications.unreadCount({})).toBe(0);
+    expect(await notifications.unreadSummary({})).toEqual({ total: 0, people: 0 });
     expect(_calls).toHaveLength(0);
+  });
+
+  // Option C: the badge puts a number only on what another person did.
+  it('counts people-made rows separately from the app\'s own', async () => {
+    _state.nextCount = 4;
+    _state.nextData = [
+      { type: 'friend_follow' },         // social
+      { type: 'duel_invite' },           // competitive
+      { type: 'quest_expiry_warning' },  // reminder
+      { type: 'quest_claimed' },         // achievement
+    ];
+    expect(await notifications.unreadSummary(USER)).toEqual({ total: 4, people: 2 });
+  });
+
+  it('never numbers a type the catalog has not heard of', async () => {
+    _state.nextCount = 1;
+    _state.nextData = [{ type: 'something_new' }];
+    expect(await notifications.unreadSummary(USER)).toEqual({ total: 1, people: 0 });
   });
 });
 
 describe('same-day reminders', () => {
   // "3 quests left today" from yesterday used to keep the bell lit forever.
   it('counts a same-day reminder only while its local day is running', async () => {
-    await notifications.unreadCount(USER);
+    await notifications.unreadSummary(USER);
     const ors = _calls.filter(c => c[0] === 'or');
     expect(ors).toHaveLength(1);
     const [, expr] = ors[0];
