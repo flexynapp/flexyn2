@@ -32,9 +32,11 @@ const { chain, supabaseMock, filterMock } = vi.hoisted(() => {
 });
 
 vi.mock('@/api/supabaseClient', () => ({ supabase: supabaseMock }));
-vi.mock('@/api/db', () => ({
-  db: { entities: { HubPost: { filter: (...a) => filterMock(...a) } } },
+vi.mock('@/lib/data/ownedRows', () => ({
+  ownedRows: () => ({ filter: (...a) => filterMock(...a) }),
 }));
+// hubReactions.js still sits on the old client; nothing here reaches it.
+vi.mock('@/api/db', () => ({ db: { entities: {} } }));
 
 import { listMyLikedPostIds } from '@/lib/data/hubReactions';
 import { listByIds } from '@/lib/data/hubPosts';
