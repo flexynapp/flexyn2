@@ -7,12 +7,19 @@
 import { checkDailyHours } from './cardioLimits';
 import { formatNumber } from './intl';
 import { workoutDurationMin } from '@/lib/workoutDuration';
+import { profileAge } from '@/lib/profileAge';
+
+// Age for the ceilings below. These read only `birthday`, which onboarding
+// never writes (0 of 112 profiles carried one on 2026-09-28) while `age` is
+// set on most, so every lifter was scored as 36 whatever their real age.
+// profileAge prefers birthday and falls back to age; 36 stays the default
+// for a profile with neither, which is what an unknown age always got.
+function ageOf(userProfile) {
+  return profileAge(userProfile || {}) ?? 36;
+}
 
 export function getMaxRealisticSetsPerWorkout(userProfile) {
-  const birthYear = userProfile?.birthday
-    ? new Date(userProfile.birthday).getFullYear()
-    : 1990;
-  const age = new Date().getFullYear() - birthYear;
+  const age = ageOf(userProfile);
   const weightLbs = userProfile?.weight_lbs || 160;
   const gender = userProfile?.gender || 'male';
 
@@ -69,11 +76,7 @@ export function getMuscleGroupCap(muscleKey, userProfile) {
   const base = PER_MUSCLE_GROUP_SET_CAP[muscleKey];
   if (base == null) return 12; // unknown group → conservative default
 
-  const birthYear = userProfile?.birthday
-    ? new Date(userProfile.birthday).getFullYear()
-    : 1990;
-  const rawAge = new Date().getFullYear() - birthYear;
-  const age = Number.isFinite(rawAge) ? rawAge : 36;
+  const age = ageOf(userProfile);
   const gender = userProfile?.gender || 'male';
 
   let multiplier = 1.0;
@@ -123,11 +126,7 @@ export function countSetsPerMuscleGroup(exercises) {
  */
 export function getDailyVolumeBudget(userProfile, sameDateCardio = []) {
   const weightLbs = Number(userProfile?.weight_lbs) || 160;
-  const birthYear = userProfile?.birthday
-    ? new Date(userProfile.birthday).getFullYear()
-    : 1990;
-  const rawAge = new Date().getFullYear() - birthYear;
-  const age = Number.isFinite(rawAge) ? rawAge : 36;
+  const age = ageOf(userProfile);
   const gender = userProfile?.gender || 'male';
 
   // Base: 200× bodyweight in lbs of total volume per day (intermediate ceiling).
@@ -387,11 +386,7 @@ export function detectImplausibleWorkout(
  * for a single session of one movement.
  */
 export function getMaxSetsPerExercise(userProfile) {
-  const birthYear = userProfile?.birthday
-    ? new Date(userProfile.birthday).getFullYear()
-    : 1990;
-  const rawAge = new Date().getFullYear() - birthYear;
-  const age = Number.isFinite(rawAge) ? rawAge : 36;
+  const age = ageOf(userProfile);
   const gender = userProfile?.gender || 'male';
 
   let base = 6;
