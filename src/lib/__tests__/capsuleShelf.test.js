@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CAPSULE_TIERS, MAX_OPEN_AT_ONCE, tierShopItem, shelfByTier, defaultTier,
-  nextOnShelf, oddsSegments, punchSlots, stickerSet, setNumber, formatSetNo,
+  nextOnShelf, oddsSegments, setTiers, stickerSet, setNumber, formatSetNo,
   copiesOf, catalogValue, askMultiple,
 } from '@/lib/capsuleShelf';
 import { SELL_PRICE, sellPriceFor } from '@/lib/sellPrice';
@@ -114,16 +114,24 @@ describe('the tier blurbs say only what the odds support', () => {
   });
 });
 
-describe('punchSlots', () => {
-  it('fills one slot per owned sticker', () => {
-    expect(punchSlots(2, 4)).toEqual(['owned', 'owned', 'empty', 'empty']);
+describe('setTiers', () => {
+  it('lists every rarity the set has, in sheet order, adding up to the set', () => {
+    const tiers = setTiers(new Set());
+    expect(tiers.map(t => t.rarity)).toEqual([...new Set(stickerSet().map(s => s.rarity))]);
+    expect(tiers.reduce((n, t) => n + t.total, 0)).toBe(stickerSet().length);
+    expect(tiers.every(t => t.owned === 0)).toBe(true);
   });
-  it('marks the last owned slot as fresh when asked', () => {
-    expect(punchSlots(2, 4, true)).toEqual(['owned', 'fresh', 'empty', 'empty']);
+  it('counts owned stickers into their own rarity and ignores other items', () => {
+    const set = stickerSet();
+    const common = set.find(s => s.rarity === 'common');
+    const rarest = set[set.length - 1];
+    const tiers = setTiers(new Set([common.id, rarest.id, 'title_not_a_sticker']));
+    expect(tiers.find(t => t.rarity === 'common').owned).toBe(1);
+    expect(tiers.find(t => t.rarity === rarest.rarity).owned).toBe(1);
+    expect(tiers.reduce((n, t) => n + t.owned, 0)).toBe(2);
   });
-  it('clamps impossible counts', () => {
-    expect(punchSlots(9, 3)).toEqual(['owned', 'owned', 'owned']);
-    expect(punchSlots(-1, 2)).toEqual(['empty', 'empty']);
+  it('treats a missing set as nothing owned', () => {
+    expect(setTiers(undefined).every(t => t.owned === 0)).toBe(true);
   });
 });
 

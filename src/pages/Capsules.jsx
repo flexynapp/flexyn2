@@ -25,12 +25,12 @@ import * as inventory from '@/lib/data/inventory';
 import { getFlexCoins, purchaseItem } from '@/lib/data/coinShop';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
 import {
-  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, oddsSegments, shelfByTier, tierShopItem,
+  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, oddsSegments, setTiers, shelfByTier, tierShopItem,
 } from '@/lib/capsuleShelf';
 import { requestOpenCapsules } from '@/lib/inventoryFlow';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import PityMeter from '@/components/capsules/PityMeter';
-import { OddsBar, PunchStrip } from '@/components/capsules/parts';
+import { OddsBar, SetBar } from '@/components/capsules/parts';
 import { tierName, tierFinish, tierBlurb, rarityName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
@@ -70,10 +70,11 @@ export default function Capsules() {
   }, [tier, isLoading, shelf]);
   const current = tier ?? 'standard';
 
-  const set = useMemo(
-    () => (inv ? buildCollection('stickers', ownershipFrom(inv)) : null),
-    [inv],
-  );
+  const set = useMemo(() => {
+    if (!inv) return null;
+    const ownership = ownershipFrom(inv);
+    return { ...buildCollection('stickers', ownership), tiers: setTiers(ownership.owned) };
+  }, [inv]);
 
   const onShelf = shelf[current].length;
   const shopItem = tierShopItem(current);
@@ -219,7 +220,7 @@ export default function Capsules() {
                 {tFallback('capsules.set.stickersOf', '{owned} of {total} stickers', { owned: set.owned, total: set.total })}
               </span>
             </span>
-            <PunchStrip owned={set.owned} total={set.total} />
+            <SetBar tiers={set.tiers} />
           </Link>
         )}
         <PityMeter />

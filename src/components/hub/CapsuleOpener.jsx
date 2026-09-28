@@ -28,7 +28,7 @@ import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
-import { setNumber, formatSetNo } from '@/lib/capsuleShelf';
+import { setNumber, formatSetNo, setTiers } from '@/lib/capsuleShelf';
 import { sellPriceFor } from '@/lib/sellPrice';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -36,7 +36,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import Sticker from '@/components/capsules/Sticker';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import PityMeter from '@/components/capsules/PityMeter';
-import { PunchStrip, NotchedCorner } from '@/components/capsules/parts';
+import { SetBar, NotchedCorner } from '@/components/capsules/parts';
 import { tierName, tierFinish, rarityName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
@@ -653,8 +653,13 @@ function describeResult(item, results, inv) {
   const inThisOpen = results.filter(r => r.item.id === item.id).length;
   const isNew = copies - inThisOpen <= 0;
   const set = setNumber(item.id);
-  const stickers = inv ? buildCollection('stickers', ownershipFrom([...inv, ...pendingAll])) : null;
-  return { copies: Math.max(copies, 1), isNew, set, owned: stickers?.owned ?? null, total: stickers?.total ?? null };
+  const ownership = inv ? ownershipFrom([...inv, ...pendingAll]) : null;
+  const stickers = ownership ? buildCollection('stickers', ownership) : null;
+  return {
+    copies: Math.max(copies, 1), isNew, set,
+    owned: stickers?.owned ?? null, total: stickers?.total ?? null,
+    tiers: ownership ? setTiers(ownership.owned) : null,
+  };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1088,7 +1093,7 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
                   : tFallback('capsules.set.of', '{owned} of {total}', { owned: info.owned, total: info.total })}
               </span>
             </div>
-            <PunchStrip owned={info.owned} total={info.total} fresh={info.isNew} freshColor={tint.color} />
+            <SetBar tiers={info.tiers} />
           </>
         )}
         <div className="flex justify-between text-label text-muted-foreground">

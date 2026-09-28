@@ -114,26 +114,47 @@ describe('Capsules', () => {
 });
 
 describe('StickerSet', () => {
-  it('counts what the inventory actually holds', async () => {
+  it('counts what the inventory holds and shows only those up top', async () => {
     const set = stickerSet();
     listItems.mockResolvedValue([{ item_id: set[0].id }, { item_id: set[0].id }, { item_id: set[1].id }]);
     wrap(<StickerSet />);
     expect(await screen.findByText(`2 of ${set.length} stickers`)).toBeInTheDocument();
-    // One entry per sticker on the sheet, and the missing ones say so.
-    expect(screen.getAllByRole('listitem')).toHaveLength(set.length);
-    expect(screen.getAllByText(/Not collected yet/)).toHaveLength(set.length - 2);
+    // Two owned stickers on the panel, not the whole sheet.
+    const mine = screen.getAllByRole('button').filter(b => b.hasAttribute('aria-pressed'));
+    expect(mine.map(b => b.getAttribute('aria-label')).sort()).toEqual([set[0].name, set[1].name].sort());
+    // Nothing is laid out per sticker until a rarity is opened.
+    expect(screen.queryAllByText(/Not collected yet/)).toHaveLength(0);
   });
 
-  it('filters the sheet by rarity', async () => {
+  it('tapping a sticker names it', async () => {
     const set = stickerSet();
-    const rarest = set[set.length - 1].rarity;
-    const n = set.filter(s => s.rarity === rarest).length;
+    listItems.mockResolvedValue([{ item_id: set[0].id }, { item_id: set[1].id }]);
     wrap(<StickerSet />);
-    await screen.findAllByRole('listitem');
-    const chip = screen.getAllByRole('button').find(b => b.getAttribute('aria-pressed') === 'false'
-      && b.textContent.toLowerCase().includes(rarest));
-    fireEvent.click(chip);
-    expect(screen.getAllByRole('listitem')).toHaveLength(n);
+    const first = await screen.findByRole('button', { name: set[0].name });
+    fireEvent.click(first);
+    expect(first).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(set[0].name, { selector: 'span' })).toBeInTheDocument();
+  });
+
+  it('says so when nothing is owned', async () => {
+    listItems.mockResolvedValue([]);
+    wrap(<StickerSet />);
+    expect(await screen.findByText(/No stickers yet/)).toBeInTheDocument();
+  });
+
+  it('opens one rarity at a time, with the missing ones marked', async () => {
+    const set = stickerSet();
+    const common = set.filter(s => s.rarity === 'common');
+    listItems.mockResolvedValue([{ item_id: common[0].id }]);
+    wrap(<StickerSet />);
+    await screen.findByText(`1 of ${set.length} stickers`);
+    const row = screen.getByRole('button', { name: /Common/, expanded: false });
+    expect(row).toHaveTextContent(`1 of ${common.length}`);
+    fireEvent.click(row);
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByText(/Not collected yet/)).toHaveLength(common.length - 1);
+    fireEvent.click(row);
+    expect(screen.queryAllByText(/Not collected yet/)).toHaveLength(0);
   });
 });
 

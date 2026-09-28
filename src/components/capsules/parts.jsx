@@ -1,31 +1,32 @@
 // src/components/capsules/parts.jsx
 //
-// Small drawn pieces the capsule and market screens share: the set punch
-// strip, the notched plate corner, and the drop-rate bar.
+// Small drawn pieces the capsule and market screens share: the set bar,
+// the notched plate corner, and the drop-rate bar.
 
-import { punchSlots } from '@/lib/capsuleShelf';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 
 /**
- * One slot per sticker in the set, filled for each one owned. With `fresh`,
- * the last owned slot is drawn in `freshColor`: the sticker that just landed.
- * Decorative; the count beside it is the accessible reading.
+ * The set as one thin bar of rarity segments, each as wide as its share of
+ * the set and filled to how much of that rarity is owned. `tiers` comes from
+ * setTiers(). It replaced a strip of one box per sticker, which at 55 boxes
+ * read as a form to fill in rather than a collection. Decorative; the count
+ * beside it is the accessible reading.
  */
-export function PunchStrip({ owned, total, fresh = false, freshColor }) {
-  const slots = punchSlots(owned, total, fresh);
+export function SetBar({ tiers }) {
   return (
-    <div className="flex flex-wrap gap-[3px]" aria-hidden="true" data-testid="punch-strip">
-      {slots.map((s, i) => (
+    <div className="flex gap-0.5 h-1.5" aria-hidden="true" data-testid="set-bar">
+      {tiers.map(t => (
         <span
-          key={i}
-          data-slot={s}
-          className="block w-1.5 h-3 box-border border"
-          style={{
-            borderRadius: 2,
-            background: s === 'owned' ? 'hsl(var(--foreground))' : s === 'fresh' ? freshColor : 'transparent',
-            borderColor: s === 'owned' ? 'hsl(var(--foreground))' : s === 'fresh' ? freshColor : 'hsl(var(--border))',
-          }}
-        />
+          key={t.rarity}
+          data-rarity={t.rarity}
+          className="block h-full rounded-full overflow-hidden bg-border min-w-[6px]"
+          style={{ flexGrow: t.total, flexBasis: 0 }}
+        >
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${t.total ? (t.owned / t.total) * 100 : 0}%`, background: rarityTint(t.rarity).color }}
+          />
+        </span>
       ))}
     </div>
   );
