@@ -17,9 +17,10 @@
 // Data:
 //   • Reads via the get_public_profile_by_username RPC (migration 206), a
 //     SECURITY DEFINER function that returns just the public display fields
-//     for one username. It exposes email ONLY to authenticated callers, so
-//     the anon key cannot bulk-harvest emails through the public_profiles
-//     view (anon SELECT on that view is revoked in migration 207).
+//     for one username. It never returns an email, returns nothing to a
+//     viewer on either side of a block, and withholds bio and stats unless
+//     full_view is true (public profile, your own, or one you follow), the
+//     same rule public_profiles applies.
 
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -89,8 +90,8 @@ export default function PublicProfile() {
 
   const cleanUsername = (username || '').replace(/^@/, '');
 
-  // Fetch profile by username via the anon-safe RPC (returns only public
-  // display fields; email is included for authenticated callers only).
+  // Fetch profile by username via the anon-safe RPC (public display fields
+  // only; stats are withheld server-side when full_view is false).
   useEffect(() => {
     if (!cleanUsername) { setNotFound(true); return; }
     supabase
@@ -134,7 +135,11 @@ export default function PublicProfile() {
     );
   }
 
-  const isPrivate = profile.is_private && !isOwnProfile && !isAuthed;
+  // The server decides who sees stats. Before 20260928123000 it sent no
+  // full_view, so fall back to the old rule for that response shape.
+  const isPrivate = profile.full_view === undefined
+    ? profile.is_private && !isOwnProfile && !isAuthed
+    : !profile.full_view;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -173,11 +178,13 @@ export default function PublicProfile() {
             </div>
           )}
           {/* Level badge */}
-          <div className="absolute -bottom-1 -end-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
-            <span className="text-micro font-bold text-primary-foreground">
-              {profile.current_level ?? 1}
-            </span>
-          </div>
+          {!isPrivate && (
+            <div className="absolute -bottom-1 -end-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
+              <span className="text-micro font-bold text-primary-foreground">
+                {profile.current_level ?? 1}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Name + username */}
@@ -222,9 +229,18 @@ export default function PublicProfile() {
               Sign in and follow @{profile.username} to see their stats and workouts.
             </p>
           </div>
-          <Button onClick={() => window.location.href = '/'} className="w-full max-w-xs">
-            {tFallback("publicProfile.joinFlexynToFollow", "Join Flexyn to Follow")}
-          </Button>
+          {isAuthed ? (
+            <Button
+              onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
+              className="w-full max-w-xs"
+            >
+              {tFallback("publicProfile.viewFullProfile", "View full profile")}
+            </Button>
+          ) : (
+            <Button onClick={() => window.location.href = '/'} className="w-full max-w-xs">
+              {tFallback("publicProfile.joinFlexynToFollow", "Join Flexyn to Follow")}
+            </Button>
+          )}
         </motion.div>
       ) : (
         <>

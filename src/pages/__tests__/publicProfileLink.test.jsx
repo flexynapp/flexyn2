@@ -38,3 +38,27 @@ describe('PublicProfile on a shared /@username link', () => {
     expect((await findAllByText('@sean')).length).toBeGreaterThan(0);
   });
 });
+
+describe('PublicProfile privacy', () => {
+  beforeEach(() => rpc.mockReset());
+
+  it('shows the private gate when the server withholds stats', async () => {
+    rpc.mockResolvedValue({
+      data: { id: 'u2', username: 'kim', is_private: true, full_view: false, current_level: null },
+      error: null,
+    });
+    const { findByText, queryByText } = renderAt('/@kim');
+    expect(await findByText('This profile is private')).toBeTruthy();
+    expect(queryByText('Level')).toBeNull();
+  });
+
+  it('shows stats when the server grants full view', async () => {
+    rpc.mockResolvedValue({
+      data: { id: 'u3', username: 'ana', is_private: true, full_view: true, current_level: 7, workout_streak: 3 },
+      error: null,
+    });
+    const { findByText, queryByText } = renderAt('/@ana');
+    expect(await findByText('Level')).toBeTruthy();
+    expect(queryByText('This profile is private')).toBeNull();
+  });
+});
