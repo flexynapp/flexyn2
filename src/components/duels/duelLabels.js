@@ -51,24 +51,38 @@ export function templateSetCount(template) {
   return templateExercises(template).reduce((n, ex) => n + ex.sets, 0);
 }
 
-// What a finished duel paid its winner (20260928070000). The server records
-// either {capsule: 'elite'} or {withheld: <reason>} on the duel; this turns
-// that into the line the winner reads. Null when there is nothing to say:
-// no prize column yet (a duel finished before prizes existed) or a reason
-// this build does not know.
+// What a finished duel paid its winner (20260928070000, tiered by
+// 20260928080000). The server records either the prize that landed,
+// {tier, upset, capsule, xp, coins}, or {withheld: <reason>}; this turns that
+// into the line the winner reads. XP and coins are what actually arrived, so
+// a clamp shows as the smaller number rather than the nominal one. Null when
+// there is nothing to say: no prize column yet, or a reason this build does
+// not know.
 const WITHHELD = {
   walkover:    ['duels.prize.walkover',   'No prize this time. Your rival never trained.'],
   daily_limit: ['duels.prize.dailyLimit', 'No prize this time. You already won one today.'],
   pair_limit:  ['duels.prize.pairLimit',  'No prize this time. You already won one against this lifter this week.'],
-  session:     ['duels.prize.session',    'Session Duels pay no prize.'],
   error:       ['duels.prize.error',      'The prize could not be paid.'],
+};
+
+const CAPSULE_TIER = {
+  standard: 'Standard',
+  premium:  'Premium',
+  elite:    'Elite',
 };
 
 export function duelPrize(prize, tFallback) {
   if (!prize || typeof prize !== 'object') return null;
-  if (prize.capsule === 'elite') {
-    return { paid: true, text: tFallback('duels.prize.elite', 'Elite capsule earned') };
+  if (prize.capsule in CAPSULE_TIER) {
+    const capsule = tFallback(`capsules.tier.${prize.capsule}`, CAPSULE_TIER[prize.capsule]);
+    const text = Number.isFinite(prize.xp) && Number.isFinite(prize.coins)
+      ? tFallback('duels.prize.earned', '{capsule} capsule, {xp} XP and {coins} Flex Coins', { capsule, xp: prize.xp, coins: prize.coins })
+      : tFallback('duels.prize.capsuleOnly', '{capsule} capsule earned', { capsule });
+    const upset = prize.upset === true
+      ? tFallback('duels.prize.upset', 'Bonus: they were at least 5 levels above you.')
+      : null;
+    return { paid: true, text, upset };
   }
   const entry = WITHHELD[prize.withheld];
-  return entry ? { paid: false, text: tFallback(entry[0], entry[1]) } : null;
+  return entry ? { paid: false, text: tFallback(entry[0], entry[1]), upset: null } : null;
 }
