@@ -41,6 +41,13 @@ describe('fireGoalCelebration', () => {
     expect(opts).toMatchObject({ duration: expect.any(Number) });
   });
 
+  it('uses a localized title when one is passed, with the goal as the description', () => {
+    fireGoalCelebration({ title: '¡Objetivo completado! +40 XP', goalName: 'Dominadas', xpReward: 40 });
+    const [msg, opts] = toast.success.mock.calls[0];
+    expect(msg).toBe('¡Objetivo completado! +40 XP');
+    expect(opts).toMatchObject({ description: 'Dominadas' });
+  });
+
   it('omits the XP line when xpReward is 0', () => {
     fireGoalCelebration({ goalName: 'Squat', xpReward: 0 });
     const [msg] = toast.success.mock.calls[0];
