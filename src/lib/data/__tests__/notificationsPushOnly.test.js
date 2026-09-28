@@ -22,6 +22,7 @@ function chain(kind) {
     select: (cols, opts) => { _calls.push(['select', cols, opts]); return chain(kind); },
     eq: (col, val) => { _calls.push(['eq', col, val]); return chain(kind); },
     not: (col, op, val) => { _calls.push(['not', col, op, val]); return chain(kind); },
+    or: (expr) => { _calls.push(['or', expr]); return chain(kind); },
     order: (col, opts) => { _calls.push(['order', col, opts]); return chain(kind); },
     limit: (n) => { _calls.push(['limit', n]); return chain(kind); },
     then: (resolve) => resolve({
@@ -87,6 +88,35 @@ describe('unreadCount', () => {
   it('does not query at all without a user id', async () => {
     expect(await notifications.unreadCount({})).toBe(0);
     expect(_calls).toHaveLength(0);
+  });
+});
+
+describe('same-day reminders', () => {
+  // "3 quests left today" from yesterday used to keep the bell lit forever.
+  it('counts a same-day reminder only while its local day is running', async () => {
+    await notifications.unreadCount(USER);
+    const ors = _calls.filter(c => c[0] === 'or');
+    expect(ors).toHaveLength(1);
+    const [, expr] = ors[0];
+    const since = notifications.startOfLocalDayIso();
+    expect(expr).toBe(
+      `type.not.in.(${notifications.SAME_DAY_TYPES.join(',')}),created_at.gte.${since}`,
+    );
+  });
+
+  it('starts the day at local midnight', () => {
+    const now = new Date(2026, 8, 28, 21, 30);
+    expect(new Date(notifications.startOfLocalDayIso(now)).getTime())
+      .toBe(new Date(2026, 8, 28, 0, 0, 0, 0).getTime());
+  });
+
+  it('does not hide same-day reminders from the panel list', async () => {
+    await notifications.listForUser(USER);
+    expect(_calls.filter(c => c[0] === 'or')).toHaveLength(0);
+  });
+
+  it('holds only values safe for a PostgREST in() list', () => {
+    for (const t of notifications.SAME_DAY_TYPES) expect(t).toMatch(/^[a-z0-9_]+$/);
   });
 });
 
