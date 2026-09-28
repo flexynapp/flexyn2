@@ -188,7 +188,9 @@ export function AuthProvider({ children }) {
                 const pending = consumePendingReferralCode();
                 if (pending) {
                   const res = await claimReferral(pending);
-                  if (res?.ok) {
+                  // Paid only once the account is connected and has a
+                  // saved workout; a pending claim stays quiet here.
+                  if (res?.ok && res.rewarded !== false) {
                     const { toast } = await import('./toast');
                     toast.success(`Welcome! +200 coins and an Elite capsule are yours.`);
                   }

@@ -67,7 +67,11 @@ export default function ReferralSheet({
       if (res?.ok) {
         setClaimedOk(true);
         setEntry('');
-        toast.success(tFallback('referral.redeem.success', 'Code applied. You both got 200 coins + an Elite capsule.'));
+        // The server pays both sides only once this account is connected
+        // and has a saved workout, so most redemptions come back pending.
+        toast.success(res.rewarded === false
+          ? tFallback('referral.redeem.pending', 'Code applied. You both get 200 coins + an Elite capsule once you log a workout with a connected account.')
+          : tFallback('referral.redeem.success', 'Code applied. You both got 200 coins + an Elite capsule.'));
         // The claim mints coins and a capsule for both sides, so anything
         // reading the wallet or the referral counters is now stale.
         // First element only, so prefix matching catches the id/email-scoped
@@ -143,7 +147,7 @@ export default function ReferralSheet({
                 <p className="text-sm leading-snug mb-3">
                   {tFallback(
                     'referral.pitch',
-                    'Share your code. When a friend signs up, you both get 200 coins + an Elite capsule.',
+                    'Share your code. When a friend joins and logs a first workout, you both get 200 coins + an Elite capsule.',
                   )}
                 </p>
                 <div className="flex items-stretch gap-2">
@@ -200,7 +204,7 @@ export default function ReferralSheet({
                 ) : claimedOk ? (
                   <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm text-success dark:text-success">
                     <TicketCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    {tFallback('referral.redeem.done', 'Code applied. Rewards are on their way.')}
+                    {tFallback('referral.redeem.done', 'Code applied. Rewards unlock after your first workout.')}
                   </div>
                 ) : (
                   <>

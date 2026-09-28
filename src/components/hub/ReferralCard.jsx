@@ -6,8 +6,9 @@
 //
 // REWARD COPY
 // ───────────
-// Both parties get +200 coins + 1 Elite capsule on a successful
-// referral. The copy is calibrated to feel valuable without
+// Both parties get +200 coins + 1 Elite capsule once the friend has a
+// connected account and a saved workout (paid by the server, see
+// pay_referral_if_qualified). The copy is calibrated to feel valuable without
 // promising specific in-game equivalence — "Elite capsule" is the
 // loot terminology already in the app.
 
@@ -98,7 +99,7 @@ export default function ReferralCard() {
       title: tFallback('referral.shareTitle', 'Join me on Flexyn'),
       text: tFallback(
         'referral.shareText',
-        'Sign up with my code and we both get 200 coins + an Elite capsule.',
+        'Join with my code and log your first workout. We both get 200 coins + an Elite capsule.',
       ),
       url,
     };
@@ -196,7 +197,7 @@ export default function ReferralCard() {
         <p className="text-sm leading-snug">
           {tFallback(
             'referral.pitch',
-            'Share your code. When a friend signs up, you both get 200 coins + an Elite capsule.',
+            'Share your code. When a friend joins and logs a first workout, you both get 200 coins + an Elite capsule.',
           )}
         </p>
 
