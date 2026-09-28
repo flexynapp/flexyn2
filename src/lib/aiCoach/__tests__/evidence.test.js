@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Staged workout history — this is the "data behind the answer", so the tests
 // are about whether what the panel claims matches what was actually read.
@@ -17,7 +17,17 @@ const benchLog = (date = '2026-07-30') => ({
   exercises: [{ name: 'Bench Press', sets: [{ weight: 185, reps: 5 }, { weight: 175, reps: 8 }] }],
 });
 
-beforeEach(() => { logs.value = []; vi.clearAllMocks(); });
+// The staged logs carry fixed dates and the generator reads a 60 day window
+// back from today, so without a pinned clock these tests pass only until
+// 2026-07-30 ages out of the window (it did, on 2026-09-28). Only Date is
+// faked: the generator awaits real promises.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-01T12:00:00Z'));
+  logs.value = [];
+  vi.clearAllMocks();
+});
+afterEach(() => { vi.useRealTimers(); });
 
 describe('evidence reports what was actually read', () => {
   it('reports zero logs when the user has none', async () => {
