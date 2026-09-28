@@ -73,6 +73,26 @@ export const PUSH_ONLY_TYPES = ['dm_received'];
 
 const PUSH_ONLY_FILTER = `(${PUSH_ONLY_TYPES.join(',')})`;
 
+// ── Same-day reminders ───────────────────────────────────────────────────
+// These say "today" or "at midnight" in their own text: "3 quests left
+// today", "your streak ends at midnight". Once the user's day has rolled
+// over they describe a deadline that has already passed, and nothing can be
+// done about them. They used to keep the bell lit indefinitely anyway, so
+// someone who never opened the panel carried yesterday's "quests left" into
+// every following day (88 of 126 quest_expiry_warning rows in production
+// were still unread on 2026-09-28).
+//
+// They are excluded from the COUNT only. The panel still lists them, and
+// the exit flush still marks them read, because they are true history.
+export const SAME_DAY_TYPES = ['quest_expiry_warning', 'streak_break_warning'];
+
+/** Start of the viewer's local day, as an ISO instant. */
+export function startOfLocalDayIso(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 const DEFAULT_LIMIT = 50;
 
 // This module deliberately does NOT use safeSelect, and it used to carry
@@ -107,7 +127,9 @@ export async function unreadCount(user) {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('is_read', false)
-    .not('type', 'in', PUSH_ONLY_FILTER);
+    .not('type', 'in', PUSH_ONLY_FILTER)
+    // A same-day reminder counts only while its day is still running.
+    .or(`type.not.in.(${SAME_DAY_TYPES.join(',')}),created_at.gte.${startOfLocalDayIso()}`);
   if (error) return 0;
   return count ?? 0;
 }
