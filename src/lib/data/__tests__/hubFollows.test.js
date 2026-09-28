@@ -22,17 +22,20 @@ const _followState = {
   filterReturn: [],
 };
 
-vi.mock('@/api/db', () => ({
-  db: {
-    entities: {
-      HubFollow: {
-        filter: vi.fn(async (conditions, sort, limit) => {
-          _followState.filterCalls.push({ conditions, sort, limit });
-          return _followState.filterReturn;
-        }),
-      },
-    },
-  },
+// The statements ownedRows sends are proven identical to the old client's
+// in ownedRowsEquivalence.test.js; here each table's rows are faked.
+vi.mock('@/lib/data/ownedRows', () => ({
+  ownedRows: () => ({
+    filter: vi.fn(async (conditions, sort, limit) => {
+      _followState.filterCalls.push({ conditions, sort, limit });
+      if (_followState.filterError) {
+        const err = _followState.filterError;
+        _followState.filterError = null;
+        throw err;
+      }
+      return _followState.filterReturn;
+    }),
+  }),
 }));
 
 vi.mock('./notifications', () => ({ notifyFriendFollow: vi.fn() }));
@@ -118,8 +121,7 @@ describe('listFollowingPairs', () => {
   });
 
   it('returns [] rather than throwing when the query fails', async () => {
-    const { db } = await import('@/api/db');
-    db.entities.HubFollow.filter.mockRejectedValueOnce(new Error('network'));
+    _followState.filterError = new Error('network');
     expect(await hubFollows.listFollowingPairs('me@x.com')).toEqual([]);
   });
 });

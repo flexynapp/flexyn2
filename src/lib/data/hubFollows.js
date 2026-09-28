@@ -1,12 +1,12 @@
 // src/lib/data/hubFollows.js
-import { db } from '@/api/db';
+import { ownedRows } from './ownedRows';
 import { notifyFriendFollow } from './notifications';
 import { acceptPendingRequestsFrom } from './conversationRequests';
 import * as users from './users';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
-const e = () => db.entities.HubFollow;
+const e = () => ownedRows('hub_follows');
 
 // A follow participant may be passed as a user_id (uuid) or an email.
 // Callers on id-keyed surfaces pass ids so they never have to read another
@@ -245,7 +245,7 @@ export const unfollow = async (follower, followee) => {
   };
   const existing = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
   if (existing.length === 0) return;
-  await e().delete(existing[0].id).catch(() => {});
+  await e().remove(existing[0].id).catch(() => {});
 };
 
 /**
@@ -369,7 +369,7 @@ export const purgeForUser = async (email) => {
     e().filter({ followee_email: email }, '-created_date', 500).catch(() => []),
   ]);
   await Promise.all([
-    ...asFollower.map(r => e().delete(r.id).catch(() => {})),
-    ...asFollowing.map(r => e().delete(r.id).catch(() => {})),
+    ...asFollower.map(r => e().remove(r.id).catch(() => {})),
+    ...asFollowing.map(r => e().remove(r.id).catch(() => {})),
   ]);
 };
