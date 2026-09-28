@@ -165,6 +165,21 @@ function exerciseIsBodyweight(ex) {
   return isBodyweightExercise(name) || looksLikeBodyweight(name);
 }
 
+// The sets that will actually be stored: shouldKeepSet drops rows with no
+// real work in them, and exercises left with none go too. The save path
+// applies this on the way to the insert, and the plausibility checks in
+// saveWorkout must judge the same list, or empty rows the user never filled
+// count toward the "too many sets" ceiling of a session that would never
+// store them.
+function keepLoggedSets(exercises) {
+  return (exercises || [])
+    .map((ex) => {
+      const ctx = { isBodyweight: exerciseIsBodyweight(ex), isCardio: exerciseIsCardio(ex) };
+      return { ...ex, sets: (ex.sets || []).filter((s) => shouldKeepSet(s, ctx)) };
+    })
+    .filter((ex) => (ex.sets?.length || 0) > 0);
+}
+
 // Whitelist-spread per-set metadata the lifter tagged (warmup, failed,
 // RPE, RIR, feel emoji/note) through the normalize maps on save. The
 // maps used to reduce each set to {weight,reps}, silently dropping all
@@ -872,13 +887,9 @@ export default function Workout() {
       // task 4.)
       data = {
         ...data,
-        exercises: (data.exercises || []).map((ex) => {
-          const ctx = { isBodyweight: exerciseIsBodyweight(ex), isCardio: exerciseIsCardio(ex) };
-          const cleanedSets = (ex.sets || []).filter((s) => shouldKeepSet(s, ctx));
-          return { ...ex, sets: cleanedSets };
-        // After filtering, drop exercises that lost all their sets — they
-        // were noise that the missing-data dialog already flagged.
-        }).filter((ex) => (ex.sets?.length || 0) > 0),
+        // Exercises that lost all their sets go too: they were noise that
+        // the missing-data dialog already flagged.
+        exercises: keepLoggedSets(data.exercises),
       };
 
       // The Save button guards `exercises.length === 0` on the array as the
@@ -1925,8 +1936,13 @@ export default function Workout() {
     // workout milestone lands.
     triggerHaptic('primary');
 
+    // Judge what will be stored, not the rows on screen. A generated plan
+    // pre-loads every prescribed set, and "Save anyway" keeps only the ones
+    // the user filled, so counting the empty rows here refused a first
+    // workout of 2 real sets as "25 sets, max 21".
+    const loggedExercises = keepLoggedSets(pendingPayload.exercises);
     const maxSetsPerEx = getMaxSetsPerExercise(userProfile);
-    for (const ex of pendingPayload.exercises) {
+    for (const ex of loggedExercises) {
       if ((ex.sets?.length || 0) > maxSetsPerEx) {
         setImplausibleWarning(
           t('workout.warn.perExSetLimit', {
@@ -1940,7 +1956,7 @@ export default function Workout() {
     }
 
     const fatigueCheck = detectImplausibleWorkout(
-      { date, exercises: pendingPayload.exercises, [DURATION_COLUMN]: pendingPayload[DURATION_COLUMN] },
+      { date, exercises: loggedExercises, [DURATION_COLUMN]: pendingPayload[DURATION_COLUMN] },
       userProfile,
       logs,
       cardioLogs,
