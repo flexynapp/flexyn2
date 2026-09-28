@@ -23,8 +23,9 @@ const CONFETTI_COLORS = ['#22c55e', '#10b981', '#facc15', '#fb923c', '#a855f7'];
  * @param {number} opts.xpReward    - XP granted (0 disables the XP line).
  * @param {Object} [opts.profile]   - Reduced-motion check uses prefers-reduced-motion media query.
  * @param {string} [opts.userEmail] - For Sentry user tag.
+ * @param {string} [opts.title]     - Localized headline; goalName becomes the description.
  */
-export function fireGoalCelebration({ goalName, xpReward = 0, userEmail } = {}) {
+export function fireGoalCelebration({ goalName, xpReward = 0, userEmail, title } = {}) {
   // 1. Haptic — short triple buzz on phones that support it (iOS Safari
   //    in iframes throws on this call, so wrap it).
   try { navigator.vibrate?.([15, 50, 15]); } catch { /* ignore */ }
@@ -32,10 +33,17 @@ export function fireGoalCelebration({ goalName, xpReward = 0, userEmail } = {}) 
   // 2. Toast — clearly tells the user what just happened. Sonner stacks
   //    multiple toasts, so completing two goals in a row produces two
   //    visible cards rather than the second silently replacing the first.
-  const xpLine = xpReward > 0 ? ` · +${xpReward} XP` : '';
-  toast.success(`🏆 Goal completed: ${goalName || 'goal'}${xpLine}`, {
-    duration: 4500,
-  });
+  //    A caller with a translator passes `title` (the localized headline)
+  //    and the goal's name becomes the description; the English line below
+  //    is the fallback for callers without one.
+  if (title) {
+    toast.success(title, { description: goalName || undefined, duration: 4500 });
+  } else {
+    const xpLine = xpReward > 0 ? ` · +${xpReward} XP` : '';
+    toast.success(`🏆 Goal completed: ${goalName || 'goal'}${xpLine}`, {
+      duration: 4500,
+    });
+  }
 
   // 3. Confetti — same import-on-demand pattern as LevelUpOverlay so we
   //    don't pay the ~10 KB cost on every page load. Skip when the user
