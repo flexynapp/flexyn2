@@ -67,12 +67,13 @@ export default function RegimensSection({ onStartRegimen }) {
       // the server's 200/day cap, for typing. The XP is for planning a
       // session, so it's owed only when there is a session to plan.
       const exerciseCount = (data?.exercises || []).length;
+      let xpCredited = 0;
       // XP failure must NOT roll back the regimen — it was successfully created
       // server-side. Reverting the optimistic UI on XP failure causes the regimen
       // to "disappear" until the next refetch, which looks like a save bug.
       if (exerciseCount > 0) {
         try {
-          await db.functions.invoke('updateUserXpAndAchievements', {
+          const credited = await db.functions.invoke('updateUserXpAndAchievements', {
             // Was a hardcoded 100 while XP_REWARDS.regimenCreated said 60 and
             // nothing read it — the same mirrored-constant drift that put the
             // level curve out of sync with the database (migration 261).
@@ -80,11 +81,12 @@ export default function RegimensSection({ onStartRegimen }) {
             action_type: 'regimen_created',
             action_data: { exercise_count: exerciseCount },
           });
+          xpCredited = credited?.xp_awarded ?? 0;
         } catch (xpErr) {
           reportError(xpErr, { feature: 'regimens.xp-update', level: 'warning', userEmail: user?.email });
         }
       }
-      return regimen;
+      return { regimen, xpCredited };
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
@@ -101,7 +103,7 @@ export default function RegimensSection({ onStartRegimen }) {
       setShowForm(true);
       toast.error(saveErrorMessage(err));
     },
-    onSuccess: (result, _data, ctx) => {
+    onSuccess: ({ regimen: result, xpCredited }, _data, ctx) => {
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
 
@@ -118,18 +120,17 @@ export default function RegimensSection({ onStartRegimen }) {
         fireFirstRegimenCelebration({
           t: tFallback,
           regimenName: result?.name,
-          // Read the constant, do not restate it. This was a literal 100
-          // with a comment claiming it "matches the XP grant above" — it
-          // did not. The grant beside it was changed to
-          // XP_REWARDS.regimenCreated (60) and this line was left behind,
-          // so the one toast a user sees on their first regimen has been
-          // promising +100 XP against a 60 XP credit. The same mirrored-
-          // constant drift the grant itself was fixed for.
-          xpGained: XP_REWARDS.regimenCreated,
+          // What the server credited, not what was asked for. An empty
+          // regimen earns nothing and the daily cap can hold some back, so
+          // any constant here (it was 100, then XP_REWARDS.regimenCreated)
+          // promises XP the user did not get.
+          xpGained: xpCredited,
           userEmail: user?.email,
         });
       } else {
-        toast.success(t('regimens.toast.created'));
+        toast.success(xpCredited > 0
+          ? tFallback('regimens.toast.createdXp', 'Regimen created! +{xp} XP', { xp: xpCredited })
+          : tFallback('regimens.toast.created', 'Regimen created!'));
       }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] }),
