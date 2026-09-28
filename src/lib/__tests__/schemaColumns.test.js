@@ -81,6 +81,19 @@ describe('schema-columns extractor', () => {
     expect(pairsOf().sort()).toEqual(['public_profiles.email', 'public_profiles.id']);
   });
 
+  it('reads table specs written as data', () => {
+    // dataExport.js feeds `.from(spec.table).eq(spec.column, ...)` from a
+    // list like this. Five of its entries named a table or column that did
+    // not exist and the literal-only pass could not see any of them.
+    write('a.js', `
+      const EXPORT_TABLES = [
+        { name: 'injuries', table: 'injury_logs', column: 'user_id', via: 'id' },
+        { name: 'x',        table: 'achievements', column: 'created_by', via: 'email' },
+      ];
+    `);
+    expect(pairsOf().sort()).toEqual(['achievements.created_by', 'injury_logs.user_id']);
+  });
+
   it('ignores select("*") and relationship embeds', () => {
     // `*` names nothing checkable, and `user:public_profiles(...)` is a
     // relationship — neither is a column on this table.
