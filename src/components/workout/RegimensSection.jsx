@@ -328,8 +328,8 @@ export default function RegimensSection({ onStartRegimen }) {
                   the prominent Start button on the right), all the
                   ghost-button actions on row 2 below. Previously the 7
                   buttons sat next to the title in one squeezed row, so
-                  long names like "Your Starter Plan — Build Strength"
-                  wrapped + truncated to "Your Starter Plan — Build
+                  long names like "Your Starter Plan: Build Strength"
+                  wrapped + truncated to "Your Starter Plan: Build
                   Strength re..." with the buttons covering the title
                   area. (Screenshot feedback: the auto-built regimen's
                   title was cut off.) */}

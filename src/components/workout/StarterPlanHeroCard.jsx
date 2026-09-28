@@ -8,7 +8,7 @@
 //
 // Render condition (decided by the caller):
 //   • user has zero workout logs
-//   • a regimen named "Your Starter Plan — …" exists
+//   • a regimen named "Your Starter Plan: …" exists
 //
 // After the user starts (or skips into freestyle), this card unmounts
 // naturally because logs.length goes positive.

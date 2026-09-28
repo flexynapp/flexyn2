@@ -92,17 +92,17 @@ describe('buildStarterRegimen — cardio sessions', () => {
 describe('buildStarterRegimen — naming + description', () => {
   it('name includes the goal title', () => {
     expect(buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Build Strength');
+      .toBe('Your Starter Plan: Build Strength');
     expect(buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Add Muscle');
+      .toBe('Your Starter Plan: Add Muscle');
     expect(buildStarterRegimen({ goals: ['lose'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Lose Fat');
+      .toBe('Your Starter Plan: Lose Fat');
     expect(buildStarterRegimen({ goals: ['speed'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Run Faster');
+      .toBe('Your Starter Plan: Run Faster');
     expect(buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Run Further');
+      .toBe('Your Starter Plan: Run Further');
     expect(buildStarterRegimen({ goals: ['mobility'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Move Better');
+      .toBe('Your Starter Plan: Move Better');
   });
 
   it('description includes level + days × week', () => {
@@ -130,7 +130,7 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
 
   it('unknown goal falls through to strength', () => {
     const r = buildStarterRegimen({ goals: ['notarealgoal'], level: 'consistent', daysCount: 4 });
-    expect(r.name).toBe('Your Starter Plan — Build Strength');
+    expect(r.name).toBe('Your Starter Plan: Build Strength');
   });
 
   it('uses only the FIRST goal from a multi-goal selection (focused starter plan)', () => {

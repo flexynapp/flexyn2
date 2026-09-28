@@ -2962,7 +2962,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
 
             Nothing titles this block. It carried three lines of heading over
             the sections at one point — a "YOUR STARTER PLAN" eyebrow, the
-            regimen's own name ("Your Starter Plan — Build Strength"), and a
+            regimen's own name ("Your Starter Plan: Build Strength"), and a
             meta line — and all three said what the heading above already says
             and what the sections themselves show. The one survivor is the
             line telling the user where the plan was saved. */}
