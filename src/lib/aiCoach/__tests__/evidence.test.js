@@ -11,8 +11,17 @@ import { buildCoachPlan, withEditedWorkout, evidenceForExercises } from '../plan
 const PROFILE = { weight_lbs: 190, gender: 'male', birthday: '1995-01-01' };
 const USER = { id: 'u1', email: 'a@b.c' };
 
+// A date inside the generator's 60-day history window, computed from today.
+// This was the literal '2026-07-30', which fell out of the window on
+// 2026-09-28 and turned five tests red with no code change.
+const RECENT = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 3);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
+
 /** A log that gives Bench Press a real top set the generator can seed from. */
-const benchLog = (date = '2026-07-30') => ({
+const benchLog = (date = RECENT) => ({
   date,
   exercises: [{ name: 'Bench Press', sets: [{ weight: 185, reps: 5 }, { weight: 175, reps: 8 }] }],
 });
@@ -40,10 +49,10 @@ describe('evidence reports what was actually read', () => {
   it('counts only logs inside the history window', async () => {
     // One recent, one two years old. Claiming 2 would be a false statement
     // about data the generator never used.
-    logs.value = [benchLog('2026-07-30'), benchLog('2024-01-01')];
+    logs.value = [benchLog(RECENT), benchLog('2024-01-01')];
     const w = await generateWorkout({ user: USER });
     expect(w.evidence.logsRead).toBe(1);
-    expect(w.evidence.latestLogDate).toBe('2026-07-30');
+    expect(w.evidence.latestLogDate).toBe(RECENT);
     expect(w.evidence.historyWindowDays).toBe(60);
   });
 
