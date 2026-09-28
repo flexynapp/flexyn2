@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { haptic } from '@/lib/haptic';
-import { X, Swords, Dumbbell, Timer, Trophy, Target, Crown, Check, Loader2, Play } from 'lucide-react';
+import { X, Swords, Dumbbell, Timer, Trophy, Target, Crown, Check, Loader2, Play, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -13,7 +13,7 @@ import { useNumberFormatter, formatDuration } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { acceptDuel, declineDuel, duelErrorMessage } from '@/lib/data/duels';
-import { duelTypeName, duelStatusName, templateSetCount, templateExercises } from '@/components/duels/duelLabels';
+import { duelTypeName, duelStatusName, templateSetCount, templateExercises, duelPrize } from '@/components/duels/duelLabels';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -47,6 +47,8 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   // that side, so a completed duel with one result is a walkover.
   const walkover     = duel.status === 'completed' && (!myResult || !theirResult);
   const prescribed   = duel.type === 'mirror' ? templateSetCount(duel.session_template) : 0;
+  // Only the winner is paid, so only the winner reads what the win paid.
+  const prize        = won ? duelPrize(duel.prize, tFallback) : null;
   // When the opponent profile fails to load (deleted account, RLS
   // scoping, network blip) we previously rendered the literal string
   // "@Opponent Won" which read as a bug. Track whether the username is
@@ -230,6 +232,25 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <p className="text-center text-xs font-semibold text-success mt-3">
                   {tFallback('duelDetailSheet.wonBy', 'Won by {amount}', { amount: fmtVolDelta(myResult.volume - theirResult.volume) })}
                 </p>
+              )}
+
+              {prize && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+                  <Package className={`w-4 h-4 shrink-0 ${prize.paid ? 'text-success' : 'text-muted-foreground'}`} />
+                  <p className={`flex-1 text-xs font-semibold ${prize.paid ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {prize.text}
+                  </p>
+                  {prize.paid && (
+                    <motion.button
+                      type="button"
+                      whileTap={tap}
+                      onClick={() => { haptic('light'); onClose?.(); navigate('/market/capsules'); }}
+                      className="min-h-[44px] px-3 rounded-lg text-xs font-bold text-primary"
+                    >
+                      {tFallback('duels.prize.open', 'Open it')}
+                    </motion.button>
+                  )}
+                </div>
               )}
             </div>
           )}

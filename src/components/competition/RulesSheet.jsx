@@ -8,7 +8,8 @@
 //
 // Every line states what the SERVER does, so when a rule changes the copy
 // here changes with it:
-//   duels     — scored by the trigger on workout_logs (20260927184500)
+//   duels     — scored by the trigger on workout_logs (20260927184500);
+//               the prize is duels_pay_prize (20260928070000)
 //   crewWars  — recompute_crew_war: top N lifters per side, N the smaller
 //               roster; starting a war is leader only (mig 358)
 //   rival     — gym_rival_score + gym_rival_settle_week; 48h AFK void;
@@ -34,6 +35,7 @@ const RULESETS = {
       ['train', 'Just train', 'Your best workout inside the time window counts automatically. There is nothing to submit.'],
       ['win', 'How you win', 'Open: lift the most total weight. Mirror and Session: finish every set of the same workout and lift more in total.'],
       ['end', 'When time runs out', 'The better score wins. In an Open or Mirror Duel, if only one of you trained, they win. If nobody trained, the duel expires.'],
+      ['prize', 'The prize', 'Win an Open or Mirror Duel where you both trained to earn an Elite capsule. One prize a day, and one a week against the same person. Session Duels pay no prize.'],
     ],
   },
   crewWars: {

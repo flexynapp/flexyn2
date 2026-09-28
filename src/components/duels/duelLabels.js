@@ -50,3 +50,25 @@ export function templateExercises(template) {
 export function templateSetCount(template) {
   return templateExercises(template).reduce((n, ex) => n + ex.sets, 0);
 }
+
+// What a finished duel paid its winner (20260928070000). The server records
+// either {capsule: 'elite'} or {withheld: <reason>} on the duel; this turns
+// that into the line the winner reads. Null when there is nothing to say:
+// no prize column yet (a duel finished before prizes existed) or a reason
+// this build does not know.
+const WITHHELD = {
+  walkover:    ['duels.prize.walkover',   'No prize this time. Your rival never trained.'],
+  daily_limit: ['duels.prize.dailyLimit', 'No prize this time. You already won one today.'],
+  pair_limit:  ['duels.prize.pairLimit',  'No prize this time. You already won one against this lifter this week.'],
+  session:     ['duels.prize.session',    'Session Duels pay no prize.'],
+  error:       ['duels.prize.error',      'The prize could not be paid.'],
+};
+
+export function duelPrize(prize, tFallback) {
+  if (!prize || typeof prize !== 'object') return null;
+  if (prize.capsule === 'elite') {
+    return { paid: true, text: tFallback('duels.prize.elite', 'Elite capsule earned') };
+  }
+  const entry = WITHHELD[prize.withheld];
+  return entry ? { paid: false, text: tFallback(entry[0], entry[1]) } : null;
+}
