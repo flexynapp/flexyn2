@@ -160,6 +160,16 @@ function exerciseIsCardio(ex) {
     (g) => typeof g === 'string' && g.toLowerCase() === 'cardio'
   );
 }
+// English for the missing-data dialog's reasons; the keys live under
+// workout.missing.* in the catalogs.
+const MISSING_REASON_EN = {
+  emptySet: 'empty',
+  noWeight: 'no weight',
+  noReps: 'no reps',
+  noSets: 'no sets',
+  noCardio: 'no distance or time',
+};
+
 function exerciseIsBodyweight(ex) {
   const name = ex?.name || ex?.displayName || '';
   return isBodyweightExercise(name) || looksLikeBodyweight(name);
@@ -1783,13 +1793,13 @@ export default function Workout() {
         // only when BOTH are empty (never as "no sets").
         if (ex.kind === 'cardio') {
           if (!cardioHasData(ex)) {
-            missing.push({ exName: ex.displayName || ex.name || 'Cardio', reason: 'no distance or duration' });
+            missing.push({ exName: ex.displayName || ex.name || 'Cardio', reason: 'noCardio' });
           }
           return;
         }
         const sets = ex.sets || [];
         if (sets.length === 0) {
-          missing.push({ exName: ex.name || 'Unnamed exercise', reason: 'no sets' });
+          missing.push({ exName: ex.name || 'Unnamed exercise', reason: 'noSets' });
           return;
         }
         // Bodyweight/calisthenics + cardio exercises legitimately carry
@@ -1798,14 +1808,16 @@ export default function Workout() {
         const zeroWeightOk = exerciseIsCardio(ex) || exerciseIsBodyweight(ex);
         sets.forEach((s, i) => {
           const isBlank = (v) => v === null || v === undefined || v === '';
-          const wMissing = isBlank(s.weight) || (!zeroWeightOk && Number(s.weight) === 0);
+          // A blank weight on a bodyweight lift is the normal case (Push-Up
+          // has no weight to enter), not a gap to warn about.
+          const wMissing = !zeroWeightOk && (isBlank(s.weight) || Number(s.weight) === 0);
           const rMissing = isBlank(s.reps) || Number(s.reps) === 0;
           if (wMissing && rMissing) {
-            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'empty set' });
+            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'emptySet' });
           } else if (wMissing) {
-            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'no weight entered' });
+            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'noWeight' });
           } else if (rMissing) {
-            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'no reps entered' });
+            missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'noReps' });
           }
         });
       });
@@ -3460,16 +3472,17 @@ export default function Workout() {
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
-                <p>This workout has empty sets or missing weights/reps:</p>
+                <p>{tFallback('workout.missing.intro', 'Some sets are missing a weight or reps:')}</p>
                 <ul className="list-disc ps-5 text-sm space-y-0.5 max-h-40 overflow-y-auto">
                   {(missingDataWarning || []).slice(0, 8).map((m, i) => (
                     <li key={i}>
                       <span className="font-medium">{m.exName}</span>
-                      {m.setIndex ? ` — set ${m.setIndex}` : ''} ({m.reason})
+                      {m.setIndex ? `, ${tFallback('workout.missing.setN', 'set {n}', { n: m.setIndex })}` : ''}
+                      {': '}{tFallback(`workout.missing.${m.reason}`, MISSING_REASON_EN[m.reason] || m.reason)}
                     </li>
                   ))}
                   {(missingDataWarning || []).length > 8 && (
-                    <li className="text-muted-foreground">…and {missingDataWarning.length - 8} more</li>
+                    <li className="text-muted-foreground">{tFallback('workout.missing.more', '{n} more', { n: missingDataWarning.length - 8 })}</li>
                   )}
                 </ul>
                 <p className="pt-2">{tFallback("workout.saveTheWorkoutAnyway", "Save the workout anyway?")}</p>
