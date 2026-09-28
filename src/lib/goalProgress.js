@@ -198,9 +198,10 @@ function cardioAmountOf(goal, log) {
  *   • Logs from before the goal existed do not count. Otherwise creating
  *     "run 50 km this month" on the 28th completes it instantly off runs
  *     the user did before they set the goal, which is not a goal.
- *   • Logs from before `period_start_date` do not count, unless the goal
- *     is `lifetime`. This is what makes a weekly goal reset on Monday
- *     without anyone writing a reset job.
+ *   • For a `week` / `month` goal, logs from before the start of the
+ *     current week (Monday) or month do not count. That is what makes a
+ *     weekly goal reset on Monday without anyone writing a reset job; the
+ *     server's goal_is_met reads the same floor and pays once per period.
  *
  * A `lifetime` goal deliberately reads no period floor — that is the
  * whole meaning of the option, and it is what the two goals already in
@@ -211,9 +212,11 @@ export function computeCardioGoalProgress(goal, cardioLogs) {
   if (!goal || !isCardioGoal(goal)) return empty;
 
   const goalCreated = goal.created_date ? new Date(goal.created_date).getTime() : 0;
-  const periodFloor = (goal.period !== 'lifetime' && goal.period_start_date)
-    ? new Date(goal.period_start_date).getTime()
-    : null;
+  // The CURRENT week or month, not the stored period_start_date: that is the
+  // period the goal was made in, and counting from it forever is how "this
+  // week" came to mean "since the week I set it" (fixed 2026-09-28).
+  const periodStart = periodStartDate(goal.period);
+  const periodFloor = periodStart ? new Date(periodStart).getTime() : null;
 
   let total = 0;
   for (const log of (Array.isArray(cardioLogs) ? cardioLogs : [])) {
@@ -236,6 +239,16 @@ export function computeCardioGoalProgress(goal, cardioLogs) {
     return { currentValue: total, target: 0, progress: 0 };
   }
   return { currentValue: total, target, progress: clamp((total / target) * 100, 0, 100) };
+}
+
+/**
+ * True when a `week` / `month` goal was already met and paid this period.
+ * complete_goal records the period in `period_met_start`; asking again
+ * before Monday or the 1st only gets "already".
+ */
+export function metThisPeriod(goal) {
+  const start = periodStartDate(goal?.period);
+  return Boolean(start && goal?.period_met_start && goal.period_met_start >= start);
 }
 
 /**
