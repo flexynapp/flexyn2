@@ -87,21 +87,6 @@ export function oddsSegments(tier) {
     }));
 }
 
-/**
- * The punch strip: one slot per sticker in the set, filled for each owned.
- * `fresh` marks one slot as just earned, drawn in that item's rarity.
- *
- * @returns {Array<'owned'|'fresh'|'empty'>}
- */
-export function punchSlots(owned, total, fresh = false) {
-  const n = Math.max(0, total | 0);
-  const have = Math.min(n, Math.max(0, owned | 0));
-  return Array.from({ length: n }, (_, i) => {
-    if (fresh && i === have - 1) return 'fresh';
-    return i < have ? 'owned' : 'empty';
-  });
-}
-
 /** The sticker set, in sheet order: catalog stickers, common to rarest. */
 const LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
 export function stickerSet() {
@@ -117,6 +102,23 @@ export function setNumber(itemId) {
   const set = stickerSet();
   const i = set.findIndex(s => s.id === itemId);
   return i < 0 ? null : { no: i + 1, total: set.length };
+}
+
+/**
+ * The set as one line per rarity, in sheet order: `{ rarity, owned, total }`.
+ * `owned` is a Set of item ids (ownershipFrom().owned); anything in it that
+ * is not a sticker in the set is ignored. This is what the set bar draws and
+ * what the set page lists, so both count the same thing.
+ */
+export function setTiers(owned) {
+  const have = owned ?? new Set();
+  const set = stickerSet();
+  return LADDER
+    .map(rarity => {
+      const inTier = set.filter(s => s.rarity === rarity);
+      return { rarity, owned: inTier.filter(s => have.has(s.id)).length, total: inTier.length };
+    })
+    .filter(t => t.total > 0);
 }
 
 /** Two-digit sheet number, as stamped on the set. */
