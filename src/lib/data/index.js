@@ -2,13 +2,11 @@
 //
 // THE DATA-ACCESS SEAM.
 //
-// All code outside `src/lib/data/` must import from this module instead of
-// calling `db.entities.X` directly. The ESLint config enforces this with
-// no-restricted-syntax on `db.*`.
-//
-// On migration to a different backend (Firebase, custom Node, etc.):
-// rewrite the modules in this folder + the `src/api/db.js` adapter.
-// Components and pages don't need to change.
+// Screens reach tables through the modules in this folder, one per table,
+// importing either the module directly (`@/lib/data/workouts`) or the
+// namespaces below. The old `db.entities.X` client is gone, and
+// eslint.config.js makes any use of it a lint error. Nothing enforces the
+// wider rule that screens never call supabase themselves; some still do.
 
 export * as workouts from './workouts';
 export * as cardio from './cardio';

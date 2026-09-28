@@ -214,8 +214,8 @@ Across `src/lib/data/` alone: `user_id` 231 uses, `created_by` 71,
   `auth.uid()`.** Every new table gets this.
 - **`created_by TEXT` is an email and a base44 legacy** — migration 001 says so
   in a comment. Older tables carry BOTH and their policies read
-  `auth.email() = created_by OR auth.uid() = user_id`. `makeEntity().create` in
-  `src/api/db.js` auto-injects both so RLS passes either way. Don't add
+  `auth.email() = created_by OR auth.uid() = user_id`. `ownedRows().create` in
+  `src/lib/data/ownedRows.js` injects both so RLS passes either way. Don't add
   `created_by` to a new table.
 - **A denormalised `user_email` is for delivery, not identity.** It exists on
   tables the push fan-out reads (`scheduled_workouts`, `notifications`) so the
@@ -277,11 +277,15 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
 - New page → `src/pages/<Name>.jsx`, registered as a lazy import in
   `src/App.jsx`.
 - New data-layer function → `src/lib/data/<table>.js`. Export named
-  functions, use `supabase` from `@/api/supabaseClient`, wrap
+  functions, use `supabase` from `@/api/supabaseClient` (or, for plain
+  reads and writes of one person's rows, `ownedRows('<table>')` from
+  `./ownedRows`, which injects `user_id` and `created_by`), wrap
   column-named reads in `safeSelect`. If it writes `user_profiles`, read
   the "Profile cache" section above first — you almost certainly need a
   `patchProfile()` call, and you must import `@/api/profileCache` rather
-  than `@/api/db`.
+  than `@/api/db`. The old `db.entities.X` client was removed on
+  2026-09-27 and ESLint refuses it; don't bring back a string-named table
+  accessor (it hid a lookup of a table that never existed for months).
 - New component → `src/components/<area>/<Name>.jsx`. Components for
   Dashboard go in `dashboard/`, hub in `hub/`, etc.
 - A row of things whose COUNT comes from data → `tileRow()` from
@@ -2596,7 +2600,7 @@ The biggest user-facing additions this session:
     later. Date every claim of this kind.
   - **`updated_at` on `regimens` proves nothing, and this file nearly
     inherited a second wrong claim from it.** There are **zero triggers on
-    `public.regimens`** and `makeEntity().update()` sends only the caller's
+    `public.regimens`** and `ownedRows().update()` sends only the caller's
     payload, so *nothing anywhere stamps `updated_at` on a regimen*. It
     equals `created_at` on 33 of 33 rows because it has no writer — NOT
     because nobody has ever edited a regimen. Do not read that column as

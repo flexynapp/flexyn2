@@ -1,187 +1,20 @@
-// src/api/dbClient.js
+// src/api/db.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Supabase compatibility shim.
-// Exports `db` with the same surface area the rest of the app uses:
-//   db.entities.X  → .filter / .list / .get / .create / .update / .delete
+// The signed-in account and server functions:
 //   db.auth        → .me / .updateMe / .logout / .redirectToLogin
 //   db.functions   → .invoke
-// Nothing outside this file needs to change for the migration.
+//
+// Table reads and writes are NOT here. They live in src/lib/data/, one module
+// per table, most on the plain helper in src/lib/data/ownedRows.js. The
+// Base44-shaped `db.entities.X` client that used to sit in this file was
+// removed on 2026-09-27; eslint.config.js refuses `db.entities` so it cannot
+// come back.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabaseClient';
 import { getProfile, setProfile, patchProfile, clearProfile } from './profileCache';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
-import { selectProfiles } from '@/lib/data/users';
 import { accountEmail } from '@/lib/guestIdentity';
 import { isNative, NATIVE_AUTH_CALLBACK } from '@/lib/native';
-
-/* ── Entity name → Postgres table name ─────────────────────────────────── */
-const TABLE = {
-  WorkoutLog:       'workout_logs',
-  CardioLog:        'cardio_logs',
-  Goal:             'goals',
-  Regimen:          'regimens',
-  NutritionLog:     'nutrition_logs',
-  BodyMetric:       'body_metrics',
-  // `Achievement` is gone — migration 341 dropped `public.achievements`.
-  // Earned badges live in `user_trophies`, read through
-  // `src/lib/data/trophies.js`. Don't re-add an entity here for it: that
-  // table has no client INSERT policy on purpose (mig 189), so the
-  // generic entity factory's create/update would only ever 42501.
-  ExerciseForm:     'exercise_forms',
-  WorkoutTemplate:  'workout_templates',
-  FoodItem:         'food_items',
-  HubPost:          'hub_posts',
-  HubFollow:        'hub_follows',
-  HubComment:       'hub_comments',
-  HubCommentLike:   'hub_comment_likes',
-  HubReaction:      'hub_reactions',
-  HubConversation:  'hub_conversations',
-  HubMessage:       'hub_messages',
-  User:             'user_profiles',
-};
-
-/* ── Sort string parser: "-created_date" → { column, ascending } ─────── */
-function parseSort(sort) {
-  if (!sort) return null;
-  const desc = sort.startsWith('-');
-  return { column: desc ? sort.slice(1) : sort, ascending: !desc };
-}
-
-/* Columns that scope a read to one person (see filter() below). */
-const OWNER_KEYS = ['user_id', 'created_by'];
-
-/* ── Build a reusable entity accessor ───────────────────────────────────── */
-// Writes send exactly what the caller built. A column the table lacks is an
-// error, not something to drop and retry: the old strip-and-retry turned a
-// missing migration into data that saved "successfully" and was never stored,
-// which is how onboarding's training_equipment and session_minutes went
-// missing for weeks. Migrations now ship through the pipeline, so the schema
-// no longer lags the client and a 42703 / PGRST204 here is a real bug.
-
-function makeEntity(entityName) {
-  const table = TABLE[entityName];
-  if (!table) throw new Error(`[Supabase shim] Unknown entity: "${entityName}"`);
-
-  // Privacy (June 2026 audit): the User entity is read-only in practice
-  // (only .list() is called anywhere) and every caller is a CROSS-USER
-  // surface (leaderboards, search, PYMK, author resolution). Those reads
-  // go through the `public_profiles` view via selectProfiles(), which
-  // falls back to user_profiles while the view migration is pending.
-  // Writes (create/update/delete below) intentionally stay on the base
-  // table — but note own-profile writes flow through db.auth.updateMe,
-  // not this entity.
-  const readQuery = (build) =>
-    table === 'user_profiles'
-      ? selectProfiles(build)
-      : build(supabase.from(table));
-
-  return {
-    /** filter(conditions, sort, limit) — conditions is a plain equality map */
-    async filter(conditions = {}, sort, limit = 1000) {
-      // An owner key that arrives empty means "no user yet", never "anyone".
-      // The loop below skips nullish conditions, so without this a query for
-      // the signed-in user's rows would run unfiltered while auth loads and
-      // return every row the table's policies let the caller read.
-      for (const key of OWNER_KEYS) {
-        if (key in conditions && (conditions[key] === undefined || conditions[key] === null || conditions[key] === '')) {
-          return [];
-        }
-      }
-      const { data, error } = await readQuery((from) => {
-        let q = from.select('*');
-        Object.entries(conditions).forEach(([k, v]) => {
-          if (v === undefined || v === null) return;
-          Array.isArray(v) ? (q = q.in(k, v)) : (q = q.eq(k, v));
-        });
-        const s = parseSort(sort);
-        if (s) q = q.order(s.column, { ascending: s.ascending });
-        return q.limit(limit);
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-
-    /** list(sort, limit) — equivalent to filter({}, ...) */
-    async list(sort, limit = 1000) {
-      const { data, error } = await readQuery((from) => {
-        let q = from.select('*');
-        const s = parseSort(sort);
-        if (s) q = q.order(s.column, { ascending: s.ascending });
-        return q.limit(limit);
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-
-    /** get(id) — fetch single record by primary key */
-    async get(id) {
-      const { data, error } = await readQuery((from) =>
-        from.select('*').eq('id', id).maybeSingle()
-      );
-      if (error) throw error;
-      return data;
-    },
-
-    /** create(data) — insert and return the new row.
-     *  Auto-injects created_by (email) and user_id (uuid) so RLS passes
-     *  without every caller needing to set them manually. A column the
-     *  table lacks throws; see the note above makeEntity. */
-    async create(data) {
-      // Read local session first (no network). Caller-provided values
-      // for OTHER fields are honored, but `created_by` and `user_id`
-      // are FORCED to the authenticated user — letting the caller pass
-      // a different email/id was a privacy hole on any table that
-      // doesn't have a WITH CHECK column-level RLS guard. (Audit 17 #T1.)
-      //
-      // If a caller really needs to write a different created_by
-      // (e.g. an admin tool), they must go through a SECURITY DEFINER
-      // RPC, not the entity wrapper.
-      const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
-      const authUser = session?.user ?? null;
-      // Guest / anonymous users have authUser.email = null. Most
-      // tables in this app have `created_by text not null`, so a
-      // null email would 23502 every write the moment a guest tries
-      // to log anything. Synthesize the same placeholder the
-      // handle_new_user trigger writes to user_profiles.email
-      // (migration 172) so the value is consistent across the
-      // identity layer.
-      const effectiveEmail = accountEmail(authUser);
-      const enriched = {
-        ...data, // caller values for non-identity fields
-        ...(effectiveEmail   ? { created_by: effectiveEmail } : {}),
-        ...(authUser?.id     ? { user_id:    authUser.id    } : {}),
-      };
-
-      const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
-      if (error) throw error;
-      return row;
-    },
-
-    /** update(id, data) — patch and return the updated row. */
-    async update(id, data) {
-      const { data: row, error } = await supabase.from(table).update({ ...data }).eq('id', id).select().single();
-      if (error) throw error;
-      return row;
-    },
-
-    /** delete(id) — remove the row */
-    async delete(id) {
-      const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) throw error;
-      return true;
-    },
-  };
-}
-
-/* ── Lazy entity proxy — creates accessor on first access ────────────── */
-const _entityCache = {};
-const entities = new Proxy(_entityCache, {
-  get(cache, name) {
-    if (typeof name !== 'string') return undefined;
-    if (!cache[name]) cache[name] = makeEntity(name);
-    return cache[name];
-  },
-});
 
 /* ── Profile cache — avoids N+1 DB calls across components ─────────────── */
 // State lives in @/api/profileCache so data modules can patch it without
@@ -731,4 +564,4 @@ const integrations = {
 };
 
 /* ── Public export — same shape as the old db object ─────────────────── */
-export const db = { entities, auth, functions, storage: {}, integrations };
+export const db = { auth, functions, storage: {}, integrations };
