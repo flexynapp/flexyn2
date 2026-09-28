@@ -113,3 +113,31 @@ export async function list(limit = 1000, columns = '*') {
   if (error) throw error;
   return data ?? [];
 }
+
+// Ids per request. Each uuid is 36 characters in the query string, so a
+// follower list of a few thousand in one `.in()` would pass the URL limits
+// PostgREST's proxies enforce.
+const IDS_PER_REQUEST = 100;
+
+/**
+ * Profiles for exactly these ids, through the view. For a list of people
+ * the caller already knows (followers, following), rather than fetching
+ * everyone with list() and filtering: that downloads every profile in the
+ * app to show a handful, and past list()'s 1000-row limit it silently drops
+ * anyone who falls outside it.
+ * @param {string[]} ids
+ * @param {string} columns
+ */
+export async function listByIds(ids, columns = '*') {
+  const unique = [...new Set((ids || []).filter(Boolean))];
+  const rows = [];
+  for (let i = 0; i < unique.length; i += IDS_PER_REQUEST) {
+    const chunk = unique.slice(i, i + IDS_PER_REQUEST);
+    const { data, error } = await selectProfiles((from) =>
+      from.select(columns).in('id', chunk)
+    );
+    if (error) throw error;
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
