@@ -3,7 +3,7 @@ import { routerStateWithoutPayload } from '@/lib/goBack';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, CheckCheck, Eye, Trash2, Ban, Undo2, Search, X } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Mail, Check, CheckCheck, Eye, Trash2, Ban, Undo2, Search, X, SquarePen } from 'lucide-react';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import OneShotTooltip from '@/components/OneShotTooltip';
@@ -734,87 +734,38 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
 
   return (
     <div>
-      {/* Tab toggle */}
-      <div className="flex items-center gap-1 mb-4 bg-secondary/30 rounded-xl p-1">
-        <button
-          onClick={() => setTab('dms')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'dms' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
-          }`}
-        >
-          <MessageCircle className="w-4 h-4" />
-          {tFallback('hub.messages.tab.dms', 'Messages')}
-        </button>
-        <button
-          onClick={() => setTab('crews')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          {tFallback('hub.messages.tab.crews', 'Crews')}
-        </button>
-      </div>
-
-      {/* ── DMs tab ────────────────────────────────────────────────────────── */}
-      {tab === 'dms' && (
-        <>
-          <div className="flex items-center gap-2 mb-2">
-            <Lock className="w-3.5 h-3.5 text-muted-foreground" title={t('hub.messages.privateNote')} />
-            <p className="text-xs text-muted-foreground">{t('hub.messages.privateNote')}</p>
-          </div>
-
-          {/* Inbox / Requests / Archived view switcher — only renders
-              when there's actually content to switch between, so a
-              user with zero messages doesn't see clutter. */}
-          {(conversations.length > 0) && (
-            <div className="flex items-center gap-1 mb-3 text-xs">
-              <button
-                onClick={() => setDmView('inbox')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                  dmView === 'inbox' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
-                }`}
-              >
-                <Inbox className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.inbox', 'Inbox')}
-                {inboxConvs.length > 0 && <span className="opacity-70">({inboxConvs.length})</span>}
-              </button>
-              {/* Requests is always visible so message requests are never
-                  hidden behind a zero count — muted when empty, amber with a
-                  badge when someone is waiting. */}
-              <button
-                onClick={() => setDmView('requests')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                  dmView === 'requests'
-                    ? 'bg-primary text-primary-foreground'
-                    : requestConvs.length > 0
-                    ? 'text-primary hover:bg-secondary active:bg-secondary'
-                    : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
-                }`}
-              >
-                <Mail className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.requests', 'Requests')}
-                {requestConvs.length > 0 && (
-                  <span
-                    aria-label={`${requestConvs.length} pending message requests`}
-                    className={`min-w-[1.15rem] px-1 h-[1.15rem] inline-flex items-center justify-center rounded-full text-micro font-bold leading-none ${
-                      dmView === 'requests'
-                        ? 'bg-primary-foreground/25 text-primary-foreground'
-                        : 'bg-primary text-white'
-                    }`}
-                  >
-                    {requestConvs.length > 99 ? '99+' : requestConvs.length}
-                  </span>
-                )}
-              </button>
-              {archivedConvs.length > 0 && (
-                <button
-                  onClick={() => setDmView('archived')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                    dmView === 'archived' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
-                  }`}
-                >
-                  <Archive className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.archived', 'Archived')}
-                </button>
-              )}
+      {/* Chats / Crews. Plain text tabs with an underline, and the two
+          list actions on the same line. This replaced a boxed Messages /
+          Crews switch stacked over a second row of icon pills (Inbox,
+          Requests, Archived, search, New group): four layers of controls
+          before the first chat, with three oranges competing in one row.
+          Requests and Archived are folders of chats, not views of equal
+          rank, so they are rows in the list now (below). */}
+      <div className="flex items-center gap-6 mb-2 border-b border-border">
+        {[
+          ['dms', tFallback('hub.messages.tab.chats', 'Chats')],
+          ['crews', tFallback('hub.messages.tab.crews', 'Crews')],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            aria-pressed={tab === id}
+            className={`relative -mb-px py-3 text-base font-semibold transition-colors ${
+              tab === id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'
+            }`}
+          >
+            {label}
+            {tab === id && (
+              <motion.span
+                layoutId="dm-tab-underline"
+                className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground"
+              />
+            )}
+          </button>
+        ))}
+        {tab === 'dms' && (
+          <div className="ms-auto flex items-center">
+            {conversations.length > 0 && (
               <button
                 onClick={() => {
                   if (searchOpen) { closeSearch(); return; }
@@ -822,22 +773,40 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   // Focus after the field has mounted.
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
-                className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                  searchOpen ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
+                className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+                  searchOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground active:bg-secondary'
                 }`}
                 aria-label={tFallback('hub.messages.search.toggle', 'Search conversations')}
                 aria-expanded={searchOpen}
               >
-                <Search className="w-3.5 h-3.5" />
+                <Search className="w-[18px] h-[18px]" />
               </button>
-              <button
-                onClick={() => setNewGroupOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary active:bg-secondary"
-                aria-label={tFallback("hubMessages.startANewGroupConversation", "Start a new group conversation")}
-              >
-                <UserPlus className="w-3.5 h-3.5" /> {tFallback("hubMessages.newGroup", "New group")}
-              </button>
-            </div>
+            )}
+            <button
+              onClick={() => setNewGroupOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground active:bg-secondary transition-colors"
+              aria-label={tFallback("hubMessages.startANewGroupConversation", "Start a new group conversation")}
+            >
+              <SquarePen className="w-[18px] h-[18px]" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── DMs tab ────────────────────────────────────────────────────────── */}
+      {tab === 'dms' && (
+        <>
+          {/* Inside a folder (Requests, Archived): the way back to Chats. */}
+          {dmView !== 'inbox' && (
+            <button
+              onClick={() => setDmView('inbox')}
+              className="flex items-center gap-1 mb-2 -ms-1 py-1 text-sm font-semibold text-foreground"
+            >
+              <ChevronRight className="w-4 h-4 rotate-180 rtl:rotate-0" />
+              {dmView === 'requests'
+                ? tFallback('hub.messages.requests.title', 'Message requests')
+                : tFallback('hub.messages.view.archived', 'Archived')}
+            </button>
           )}
 
           {/* Search field — styling mirrors the All Workouts modal's
@@ -865,6 +834,36 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 <X className="w-4 h-4" />
               </button>
             </div>
+          )}
+
+          {/* Message requests as a row at the top of Chats. It sits outside
+              the list so it still shows when every chat is a request and
+              the inbox itself is empty. With nobody waiting there is no row:
+              an empty folder has nothing to open. */}
+          {dmView === 'inbox' && !isSearching && requestConvs.length > 0 && (
+            <button
+              onClick={() => setDmView('requests')}
+              className="w-full flex items-center gap-3 p-3 mb-1 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
+            >
+              <div className="w-14 h-14 rounded-full border border-border flex items-center justify-center shrink-0 text-foreground">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-heading text-sm font-bold text-foreground truncate">
+                  {tFallback('hub.messages.requests.title', 'Message requests')}
+                </p>
+                <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  {tFallback('hub.messages.requests.subtitle', 'From people you don’t follow')}
+                </p>
+              </div>
+              <span
+                aria-label={`${requestConvs.length} pending message requests`}
+                className="min-w-[1.4rem] h-[1.4rem] px-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold tabular-nums"
+              >
+                {requestConvs.length > 99 ? '99+' : requestConvs.length}
+              </span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground rtl:rotate-180" />
+            </button>
           )}
 
           {isLoading ? (
@@ -1216,6 +1215,29 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 );
               })}
             </div>
+          )}
+
+          {dmView === 'inbox' && !isSearching && !isLoading && (
+            <>
+              {archivedConvs.length > 0 && (
+                <button
+                  onClick={() => setDmView('archived')}
+                  className="w-full flex items-center justify-between p-3 text-sm font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                >
+                  <span>
+                    {tFallback('hub.messages.view.archived', 'Archived')}
+                    <span className="ms-1.5 tabular-nums">{archivedConvs.length}</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+                </button>
+              )}
+              {/* Moved from the top of the screen: it is true of every chat,
+                  so it does not need to sit above them on every visit. */}
+              <p className="flex items-center justify-center gap-1.5 pt-6 text-xs text-muted-foreground text-center">
+                <Lock className="w-3 h-3 shrink-0" />
+                {t('hub.messages.privateNote')}
+              </p>
+            </>
           )}
 
           {/* New group modal — anchored to the DMs tab so closing it
