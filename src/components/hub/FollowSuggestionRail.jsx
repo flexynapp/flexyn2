@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import * as hubFollows from '@/lib/data/hubFollows';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 
 const DISMISS_KEY = (userId) => `flexyn.followSuggestDismiss.${userId || 'anon'}`;
 const DISMISS_TTL_DAYS = 30;
@@ -210,6 +211,7 @@ export default function FollowSuggestionRail() {
       qc.invalidateQueries({ queryKey: ['onboardingFollowsCount', user.email] });
       qc.invalidateQueries({ queryKey: ['suggestedFollowees', user.id] });
       qc.invalidateQueries({ queryKey: ['hubFollowingIds', user.id] });
+      invalidateFollowGraph(qc);
     } catch (err) {
       console.warn('[followSuggest] follow failed:', err?.message || err);
       toast.error(tFallback('followSuggest.failed', 'Could not follow. Try again.'));

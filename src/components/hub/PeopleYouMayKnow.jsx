@@ -7,18 +7,20 @@
 // deliberately NO fallback — see the note on the query below.
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { UserPlus, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import * as hubFollows from '@/lib/data/hubFollows';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 
 export default function PeopleYouMayKnow({ onSelectUser }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { tFallback, t } = useLanguage();
   const [localFollowed, setLocalFollowed] = useState(new Set());
 
@@ -123,13 +125,15 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
             delay={i * 0.05}
             onFollow={async () => {
               setLocalFollowed(prev => new Set([...prev, candidate.id]));
-              await hubFollows.follow(user.id, candidate.id, { t }).catch(() => {
-                setLocalFollowed(prev => {
-                  const next = new Set(prev);
-                  next.delete(candidate.id);
-                  return next;
+              await hubFollows.follow(user.id, candidate.id, { t })
+                .then(() => invalidateFollowGraph(queryClient))
+                .catch(() => {
+                  setLocalFollowed(prev => {
+                    const next = new Set(prev);
+                    next.delete(candidate.id);
+                    return next;
+                  });
                 });
-              });
             }}
             onSelect={() => onSelectUser?.({ id: candidate.id, username: candidate.username })}
           />

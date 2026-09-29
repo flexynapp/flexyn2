@@ -32,7 +32,7 @@ vi.mock('@/lib/LanguageContext', async () => {
 });
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/hubPostsRealtime', () => ({ onHubPostInsert: () => () => {} }));
-vi.mock('@/lib/data/hubFollows', () => ({ listFollowing: async () => [] }));
+vi.mock('@/lib/data/hubFollows', () => ({ listFollowingIds: async () => [] }));
 vi.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: [] }) }));
 
 import { __test__ } from '../FollowerActivityBanner';

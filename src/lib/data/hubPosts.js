@@ -28,28 +28,6 @@ export const listPublicFeed = async (limit = 50) => {
 };
 
 /**
- * List posts visible to the current user from people they follow ("Squad").
- * Includes both public and followers-only posts from followed users.
- *
- * Single batched query via .in() — used to be one query per follow which
- * was 50+ round-trips for an active user. ownedRows.filter turns an
- * array value into a `.in()` clause.
- *
- * @param {string[]} followingEmails — emails the current user follows
- */
-export const listSquadFeed = async (followingEmails = [], limit = 50) => {
-  if (!followingEmails || followingEmails.length === 0) return [];
-  // Cap at 100 follows to keep the .in() list bounded; power-followers
-  // beyond that lose visibility into the tail (acceptable trade-off vs
-  // letting the IN clause grow unbounded).
-  const emails = followingEmails.slice(0, 100);
-  const rows = await e()
-    .filter({ author_email: emails }, '-created_date', limit)
-    .catch(() => []);
-  return rows;
-};
-
-/**
  * List a single user's posts. Honors privacy: if the viewer doesn't follow
  * the author, only public posts are returned.
  *
@@ -151,26 +129,30 @@ export const purgeForUser = async (email) => {
 // On migration to a real backend, replace these with cursor-based pagination
 // queries (e.g. WHERE created_date < $cursor LIMIT 8).
 //
-// Already-defined: listPublicFeed(limit), listSquadFeed(emails, limit)
+// Already-defined: listPublicFeed(limit)
 
 const FETCH_WINDOW = 100; // server-side cap per fetch
 
 /**
- * The author set for the Following feed: everyone you follow, plus you.
+ * The author set for the Following feed: everyone you follow, plus you, as
+ * user ids.
  *
- * Case-insensitive de-dupe, because a follow row and the session email can
- * differ in case and the same address twice in an IN clause is a wasted slot
+ * Ids rather than emails: the feed used to select on `author_email`, which
+ * meant reading every followed person's email off hub_follows. Those emails
+ * are on their way out of reach of other users, and `user_id` is on every
+ * post (pinned to the author by the write policy), so nothing is lost.
+ * De-duped because the same id twice in an IN clause is a wasted slot
  * against the 100 cap.
  */
-function withSelf(followingEmails = [], selfEmail = null) {
+function withSelf(followingIds = [], selfId = null) {
   const seen = new Set();
   const out = [];
-  for (const e of [...(followingEmails || []), selfEmail]) {
-    if (!e) continue;
-    const k = String(e).toLowerCase();
+  for (const id of [...(followingIds || []), selfId]) {
+    if (!id) continue;
+    const k = String(id).toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push(e);
+    out.push(id);
   }
   return out.slice(0, 100);
 }
@@ -183,27 +165,26 @@ export const fetchGlobalWindow = () =>
   e().filter({ privacy: 'public' }, '-created_date', FETCH_WINDOW).catch(() => []);
 
 /**
- * Fetch the Following feed window — posts authored by users in
- * `followingEmails`, both public AND followers-only privacy.
+ * Fetch the Following feed window: posts by the users in `followingIds`,
+ * public AND followers-only (RLS decides which of those you may see), plus
+ * your own.
  *
- * Single batched query via .in('author_email', emails). Replaces the
- * old per-author fan-out (1 query per follow = 50+ round-trips for
- * active users) with a single bounded query. ownedRows.filter turns an
- * array value into a `.in()` clause.
+ * One batched `.in('user_id', ids)` query. It replaced a per-author fan-out
+ * (one query per follow, 50+ round trips for an active user).
  */
-export const fetchFollowingWindow = async (followingEmails = [], selfEmail = null) => {
+export const fetchFollowingWindow = async (followingIds = [], selfId = null) => {
   // Your own posts belong in Following. "In a weird way it's as if you follow
   // yourself" — and without this the feed you curated never shows you what you
   // put into it, so there is no way to see your own post in the context
   // everyone else sees it in.
   //
   // It also fixes the cold-start case: the old guard returned [] the moment
-  // followingEmails was empty, so a brand-new account's Following tab was
+  // the follow list was empty, so a brand-new account's Following tab was
   // blank even after they had posted. Now the floor is your own content.
-  const emails = withSelf(followingEmails, selfEmail);
-  if (emails.length === 0) return [];
+  const ids = withSelf(followingIds, selfId);
+  if (ids.length === 0) return [];
   const rows = await e()
-    .filter({ author_email: emails }, '-created_date', FETCH_WINDOW)
+    .filter({ user_id: ids }, '-created_date', FETCH_WINDOW)
     .catch(() => []);
   return rows;
 };
@@ -211,7 +192,7 @@ export const fetchFollowingWindow = async (followingEmails = [], selfEmail = nul
 /**
  * Fetch the crew-only posts addressed to any of `crewIds`.
  *
- * The Following window is keyed on `author_email`, so a crew post only
+ * The Following window is keyed on the author, so a crew post only
  * reached crew mates who ALSO follow the author — which is not what "Only
  * crew members will see this post" promises. This is the other half: the
  * posts addressed to your crews, whoever wrote them.
@@ -254,15 +235,15 @@ export const fetchOlderGlobal = async (cursorIso, pageSize = 50) => {
   return data || [];
 };
 
-export const fetchOlderFollowing = async (followingEmails = [], cursorIso, pageSize = 50, selfEmail = null) => {
+export const fetchOlderFollowing = async (followingIds = [], cursorIso, pageSize = 50, selfId = null) => {
   // Same membership as fetchFollowingWindow, or page 2 silently drops the
   // viewer's own posts and the feed appears to lose them on scroll.
-  const emails = withSelf(followingEmails, selfEmail);
-  if (!cursorIso || emails.length === 0) return [];
+  const ids = withSelf(followingIds, selfId);
+  if (!cursorIso || ids.length === 0) return [];
   const { data, error } = await supabase
     .from('hub_posts')
     .select('*')
-    .in('author_email', emails)
+    .in('user_id', ids)
     .lt('created_date', cursorIso)
     .order('created_date', { ascending: false })
     .limit(pageSize);

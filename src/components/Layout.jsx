@@ -195,7 +195,7 @@ export default function Layout() {
   // No counts on purpose — counts feel TikTok-y and demanding. A single
   // dot is the universal "something new here" social-app convention.
   // Clears when the user lands on /hub.
-  const hubHasNewFollowingPost = useHubUnreadDot(user?.email);
+  const hubHasNewFollowingPost = useHubUnreadDot(user?.email, user?.id);
 
   // Bag flow lives at the layout level so only one instance exists
   // (ProfileMenu is rendered twice — sidebar + header — so hosting bag

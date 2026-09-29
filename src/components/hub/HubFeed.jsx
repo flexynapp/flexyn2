@@ -82,7 +82,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   // `following` is read via the canonical useQuery cache key
-  // ['hubFollowing', user?.email] — declared below alongside the feed
+  // ['hubFollowing', user?.id] — declared below alongside the feed
   // query so they share the same invalidation cycle. The previous
   // implementation hydrated a useState once on mount which never
   // refreshed after follow/unfollow taps elsewhere, so the Squad feed
@@ -116,24 +116,24 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // mute/block/follow/privacy).
   const realtimeFilterRef = useRef({
     feedTab: 'pump',
-    followingLc: new Set(),
+    followingIds: new Set(),
     mutedLc: new Set(),
     blockedLc: new Set(),
     crewIds: new Set(),
   });
 
   useEffect(() => {
-    if (!user?.email) return;
-    const myEmailLc = user.email.toLowerCase();
+    if (!user?.id) return;
+    const myId = user.id;
     // Shared hub_posts INSERT subscription (one Realtime channel per
     // client, multiplexed with FollowerActivityBanner — see
     // src/lib/hubPostsRealtime.js).
     return onHubPostInsert((row) => {
+      if (!row.user_id || row.user_id === myId) return;
       const authorLc = row.author_email?.toLowerCase();
-      if (!authorLc || authorLc === myEmailLc) return;
       const f = realtimeFilterRef.current;
-      if (f.blockedLc.has(authorLc)) return;
-      if (f.mutedLc.has(authorLc))   return;
+      if (authorLc && f.blockedLc.has(authorLc)) return;
+      if (authorLc && f.mutedLc.has(authorLc))   return;
       // A crew post counts when it is addressed to one of MY crews. Before
       // mig 379 there was no crew_id to test, so every crew row was dropped
       // here and the "N new posts" pill never counted one.
@@ -142,10 +142,10 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return;
       // Squad is a follow feed, EXCEPT for your crews — a crew mate you do not
       // follow is exactly who this is for.
-      if (f.feedTab === 'squad' && !f.followingLc.has(authorLc) && !isMyCrewPost) return;
+      if (f.feedTab === 'squad' && !f.followingIds.has(row.user_id) && !isMyCrewPost) return;
       setPendingNewCount(c => c + 1);
     });
-  }, [user?.email]);
+  }, [user?.id]);
 
   // Reset visible count when switching tabs — start fresh at 8.
   useEffect(() => {
@@ -156,10 +156,13 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // useHubUnreadDot. When the user follows/unfollows anyone, those code
   // paths invalidate this same key, so the Squad feed automatically
   // refetches with the new follow set.
+  //
+  // User ids, the same list HubProfile registers under ['hubFollowing', <id>],
+  // so its follow and unfollow invalidations reach this feed too.
   const { data: following = [], error: followingError } = useQuery({
-    queryKey: ['hubFollowing', user?.email],
-    queryFn:  () => hubFollows.listFollowing(user.email),
-    enabled:  !!user?.email,
+    queryKey: ['hubFollowing', user?.id],
+    queryFn:  () => hubFollows.listFollowingIds(user.id),
+    enabled:  !!user?.id,
     staleTime: 60_000,
   });
 
@@ -188,7 +191,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       if (feedTab === 'pump') {
         return hubPosts.fetchGlobalWindow();
       } else {
-        return hubPosts.fetchFollowingWindow(following, user?.email);
+        return hubPosts.fetchFollowingWindow(following, user?.id);
       }
     },
     enabled: !!user?.email,
@@ -235,12 +238,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         queryKey: ['hubFeed', sibling, user.email, followingKey],
         queryFn: () => (sibling === 'pump'
           ? hubPosts.fetchGlobalWindow()
-          : hubPosts.fetchFollowingWindow(following, user.email)),
+          : hubPosts.fetchFollowingWindow(following, user.id)),
         staleTime: 30_000,
       }).catch(() => { /* a warm cache is an optimisation, never an error */ });
     }, 400);
     return () => clearTimeout(id);
-  }, [feedTab, user?.email, following, isLoading, queryClient]);
+  }, [feedTab, user?.email, user?.id, following, isLoading, queryClient]);
 
   // ── Older-than-cursor pagination (audit B-9) ─────────────────────────
   // FETCH_WINDOW caps the live query at 100 rows. When the user scrolls
@@ -282,14 +285,14 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     try {
       const more = feedTab === 'pump'
         ? await hubPosts.fetchOlderGlobal(cursor, 50)
-        : await hubPosts.fetchOlderFollowing(following, cursor, 50, user?.email);
+        : await hubPosts.fetchOlderFollowing(following, cursor, 50, user?.id);
       if (more.length === 0) setOlderExhausted(true);
       else setOlderPosts(prev => [...prev, ...more]);
     } finally {
       setLoadingOlder(false);
       loadOlderInFlightRef.current = false;
     }
-  }, [feedTab, following, loadingOlder, olderExhausted, olderPosts, windowPosts]);
+  }, [feedTab, following, loadingOlder, olderExhausted, olderPosts, windowPosts, user?.id]);
 
   // Stable callback identity so memo(HubPostCard) actually holds — previously
   // a fresh arrow was created per card per render, re-rendering every card on
@@ -354,7 +357,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   useEffect(() => {
     realtimeFilterRef.current = {
       feedTab,
-      followingLc: new Set((following || []).map(e => e?.toLowerCase()).filter(Boolean)),
+      followingIds: new Set((following || []).filter(Boolean)),
       mutedLc:     new Set(mutedEmails),
       blockedLc:   new Set(blockedEmails),
       crewIds:     new Set(myCrewIds),

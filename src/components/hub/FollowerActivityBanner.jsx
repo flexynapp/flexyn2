@@ -80,12 +80,12 @@ export default function FollowerActivityBanner() {
   const { user } = useAuth();
   const [banners, setBanners] = useState([]); // [{ id, post }]
 
-  // Need the viewer's follow list to filter incoming events. Shares
-  // the same query key the Hub feed uses so we hit the same cache.
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['hubFollowing', user?.email],
-    queryFn: () => hubFollows.listFollowing(user.email),
-    enabled: !!user?.email,
+  // Need the viewer's follow list (user ids) to filter incoming events.
+  // Shares the same query key the Hub feed uses so we hit the same cache.
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['hubFollowing', user?.id],
+    queryFn: () => hubFollows.listFollowingIds(user.id),
+    enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
 
@@ -99,18 +99,18 @@ export default function FollowerActivityBanner() {
   // WITHOUT tearing down and re-subscribing the channel every time.
   const followingSetRef = useRef(new Set());
   useEffect(() => {
-    followingSetRef.current = new Set((followingEmails || []).map((e) => e.toLowerCase()));
-  }, [followingEmails]);
+    followingSetRef.current = new Set((followingIds || []).filter(Boolean));
+  }, [followingIds]);
 
   useEffect(() => {
-    if (!user?.email) return;
-    const myEmailLc = user.email.toLowerCase();
+    if (!user?.id) return;
+    const myId = user.id;
 
     // Shared hub_posts INSERT subscription (one Realtime channel per
     // client, multiplexed with HubFeed — see src/lib/hubPostsRealtime.js).
     return onHubPostInsert((post) => {
-      const author = (post.author_email || '').toLowerCase();
-      if (author === myEmailLc) return; // skip own
+      const author = post.user_id;
+      if (!author || author === myId) return; // skip own
       if (!followingSetRef.current.has(author)) return; // not followed (read live from ref)
       const id = post.id || `${author}-${Date.now()}`;
       setBanners((prev) => {
@@ -120,7 +120,7 @@ export default function FollowerActivityBanner() {
         return [{ id, post }, ...prev].slice(0, MAX_VISIBLE);
       });
     });
-  }, [user?.email]);
+  }, [user?.id]);
 
   // Auto-dismiss each banner after AUTO_DISMISS_MS. Per-banner timer
   // is set up in the banner's own effect (so manually dismissing one

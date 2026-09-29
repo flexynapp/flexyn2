@@ -1,5 +1,6 @@
 // src/components/hub/HubSearchOverlay.jsx
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare, Hash } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -11,6 +12,7 @@ import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 import { filterSearchable } from '@/lib/privacy';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -58,6 +60,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
   useBodyScrollLock(open);
   const { t, tFallback } = useLanguage();
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -409,6 +412,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                           setLocalAdded(prev => new Set([...prev, user.id]));
                           try {
                             await hubFollows.follow(currentUser.id, user.id, { t });
+                            invalidateFollowGraph(queryClient);
                           } catch (err) {
                             // Revert the optimistic check AND surface
                             // an error toast so the user understands
