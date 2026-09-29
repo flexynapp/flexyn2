@@ -661,7 +661,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
       {/* ── Live session cards ─────────────────────────────────────────── */}
       <Suspense fallback={null}>
-        {liveSessions.filter(s => s.host_email !== user?.email).map(session => (
+        {liveSessions.filter(s => s.host_user_id !== user?.id).map(session => (
           <LiveSessionCard
             key={session.id}
             session={session}

@@ -97,7 +97,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
         })
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
-            await channel.track({ host: user.email, role: 'host' });
+            await channel.track({ host: user.id, role: 'host' });
           }
         });
       channelRef.current = channel;

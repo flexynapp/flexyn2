@@ -60,11 +60,15 @@ export const updateActivity = async (sessionId, { currentExercise, currentSet, c
     .eq('id', sessionId);
 };
 
+// Everything the rail renders, and not host_email: the rail is shown to
+// every signed-in user, and the host is identified by host_user_id.
+const LIVE_COLUMNS = 'id, host_user_id, title, started_at, is_active, viewer_count, current_exercise, current_set, current_reps';
+
 /** List all currently active sessions (for the LiveSessionCard rail in feeds). */
 export const listActiveSessions = async () => {
   const { data } = await supabase
     .from('hub_live_sessions')
-    .select('*')
+    .select(LIVE_COLUMNS)
     .eq('is_active', true)
     .gt('started_at', liveSince())
     .order('started_at', { ascending: false })
@@ -84,12 +88,12 @@ export const listActiveSessions = async () => {
  * for does not exist yet. Kept in step with `listActiveSessions` so it does not
  * become a second, staler definition of "live" the day something calls it.
  */
-export const getMyActiveSession = async (hostEmail) => {
-  if (!hostEmail) return null;
+export const getMyActiveSession = async (hostUserId) => {
+  if (!hostUserId) return null;
   const { data } = await supabase
     .from('hub_live_sessions')
-    .select('*')
-    .eq('host_email', hostEmail)
+    .select(LIVE_COLUMNS)
+    .eq('host_user_id', hostUserId)
     .eq('is_active', true)
     .gt('started_at', liveSince())
     .order('started_at', { ascending: false })
