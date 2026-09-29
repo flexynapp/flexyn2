@@ -26,7 +26,7 @@ import StatsHubModal from '@/components/StatsHubModal';
 // the tree; re-surface them from StatsHubModal once location capture ships.
 
 export default function LevelBar({ totalXp = 0, compact = false }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const levelData = calculateLevelFromXp(totalXp);
   const { level, xpInLevel, xpNeeded, progressPercent } = levelData;
@@ -50,8 +50,8 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
         <motion.button
           onClick={() => setStatsHubOpen(true)}
           aria-label={rank != null
-            ? `Open Stats Hub — level ${level}, ranked ${rank} globally`
-            : `Open Stats Hub — level ${level}`}
+            ? tFallback('levelBar.openStatsRank', 'Open your stats. Lv. {n}, ranked {rank} globally', { n: level, rank: fmt(rank) })
+            : tFallback('levelBar.openStats', 'Open your stats. Lv. {n}', { n: level })}
           className={`relative flex items-center gap-2 px-3 py-2 rounded-xl overflow-hidden ${tier.bg} cursor-pointer`}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.93 }}
@@ -134,7 +134,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
       </div>
 
       {level === 100 && (
-        <div className="flex-shrink-0 text-xs font-bold text-yellow-500 ms-1">MAX</div>
+        <div className="flex-shrink-0 text-xs font-bold text-yellow-500 ms-1">{tFallback('levelBar.max', 'MAX')}</div>
       )}
 
       <ChevronRight className="relative flex-shrink-0 w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />

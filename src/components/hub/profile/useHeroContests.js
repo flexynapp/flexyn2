@@ -37,7 +37,7 @@ export function useHeroContests({ user, isSelf }) {
       try {
         const res = await getMyLeague(user);
         if (!res?.myRank) return null;
-        return { rank: res.myRank, total: res.totalMembers, tierLabel: res.tier?.label ?? null };
+        return { rank: res.myRank, total: res.totalMembers, tierId: res.tier?.id ?? null, tierLabel: res.tier?.label ?? null };
       } catch { return null; }
     },
     enabled,
