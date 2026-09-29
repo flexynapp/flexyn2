@@ -602,25 +602,36 @@
   }
 
   /* ── Display type ────────────────────────────────────────────────
-     ONE display style, for page titles and headline numerals only. It is
-     what gives those two things a voice of their own; everything else in
-     the app stays in plain Sofia Sans, and body copy, buttons, labels and
-     captions never take it. A face used everywhere is not a display face.
+     TWO display styles, and the difference between them is the point.
 
-     Sofia Sans Extra Condensed at weight 800 (Kegan's pick, option D,
-     2026-09-28: one family at two widths). It is its own family on Google
-     Fonts rather than a width axis, so it is --font-display, loaded in
-     index.html beside Sofia Sans. Uppercase through text-transform only:
-     the translated strings stay as written.
+     .font-display is the in-app title: page titles, headline numerals and
+     the big capsule and market actions. Sofia Sans at 750, tracked slightly
+     tight, sentence case (Kegan's pick, option C, 2026-09-29). It used to
+     be condensed capitals on every page, and caps on every title read as a
+     template rather than a voice.
 
-     This sets NO size. The call site keeps its own, including the fluid
+     .font-hero is the "glimpse of what's coming" voice: Sofia Sans Extra
+     Condensed at 800, uppercase. Onboarding (the welcome line and every
+     question) and the sign in screen that mirrors it, nowhere else. It
+     only reads as a big moment while it stays rare, so do not reach for it
+     on an in-app screen. Uppercase through text-transform only: the
+     translated strings stay as written.
+
+     Neither sets a size. The call site keeps its own, including the fluid
      and short-screen clamps, so a converted title keeps its box. Do not
-     combine it with font-heading, font-bold/black, tracking-* or leading-*
-     on the same element: they fight over the same properties. A title
-     that truncates to one line takes `!leading-tight`, because 0.95
-     clips an accent above a capital (the O in NUTRICIÓN) under the
-     overflow that `truncate` sets. Add tabular-nums where it is a number. */
+     combine them with font-heading, font-bold/black, tracking-* or
+     leading-* on the same element: they fight over the same properties. A
+     title that truncates to one line takes `!leading-tight`, because a
+     tight line height clips an accent above a capital (the O in
+     NUTRICIÓN) under the overflow that `truncate` sets. Add tabular-nums
+     where it is a number. */
   .font-display {
+    font-family: var(--font-heading);
+    font-weight: 750;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .font-hero {
     font-family: var(--font-display);
     font-weight: 800;
     text-transform: uppercase;

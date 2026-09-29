@@ -1268,10 +1268,14 @@ govern hierarchy, which tokens can't encode.
   the state hues would render a healthy protein figure as `destructive`.
 - **Type has ONE source: `--font-display`, `--font-heading`, `--font-body` and
   `--font-mono` in `src/index.css`** (Sofia Sans, with Sofia Sans Extra
-  Condensed for `.font-display` and `.stamp` only; Kegan's pick 2026-09-28,
+  Condensed for `.font-hero` and `.stamp` only; Kegan's pick 2026-09-28,
   replacing Archivo and Figtree). Reach them through Tailwind
   (`font-heading`, `font-body`, `font-mono`, or nothing, because `sans` points at
-  the body face), `.font-display`, or `var(--font-*)` in an inline style. Never type a face name
+  the body face), `.font-display`, or `var(--font-*)` in an inline style.
+  **In-app titles are sentence case** (`.font-display`, Kegan 2026-09-29):
+  condensed capitals on every page read as generated. `.font-hero` keeps
+  them for onboarding and sign in only, and `displayType.test.js` fails if
+  it spreads. Never type a face name
   anywhere else, including SVG `font-family` strings and Tailwind `font-['X']`.
   A face typed by hand does not move when the brand font does, and that is
   exactly how three stacks came to coexist on `/workout`. The `hardcodedFont`

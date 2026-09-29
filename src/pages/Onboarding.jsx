@@ -324,9 +324,9 @@ function ProgressSwoosh({ step, total }) {
    SHARED: KINETIC HEADING
 ═══════════════════════════════════════════════════════════════ */
 
-// Every question is set in the app's one display style (`.font-display`:
-// the condensed display face at 800, uppercase), per the brand direction. It is a page
-// title, which is what that style is reserved for. The size is the fluid
+// Every question is set in the hero style (`.font-hero`: the condensed
+// display face at 800, uppercase). Onboarding is the one place that voice
+// lives, as a glimpse of what the app is about to be. The size is the fluid
 // heading token scaled by 1.1: condensed capitals are narrower than the
 // mixed-case heading face this replaced, so a question wraps to the same or fewer
 // lines at 10% more size, and the step keeps its fit on a 667pt SE.
@@ -335,7 +335,7 @@ function KineticHeading({ text, accentWord }) {
   const words = text.split(' ');
   return (
     <div className="mb-2">
-      <h1 className="font-display text-foreground m-0"
+      <h1 className="font-hero text-foreground m-0"
         style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
         {/* A real space between the word spans, not a margin: with only a
             margin the heading's text was "Whatareyouherefor?", which is what
@@ -541,7 +541,7 @@ function WelcomeStep({ onNext, onSignIn }) {
               matcher KineticHeading uses cannot express, and in Spanish and
               French the phrase moves anyway. Each locale writes the sentence
               in two halves and the second half is orange. */}
-          <h1 className="font-display m-0" style={{ fontSize: WELCOME_HEADLINE_SIZE, lineHeight: 0.9 }}>
+          <h1 className="font-hero m-0" style={{ fontSize: WELCOME_HEADLINE_SIZE, lineHeight: 0.9 }}>
             {tFallback('onboarding.welcome.brandHeadline', 'Train with a plan that')}{' '}
             <span className="text-primary">{tFallback('onboarding.welcome.brandAccent', 'learns you.')}</span>
           </h1>
