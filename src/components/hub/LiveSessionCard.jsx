@@ -38,8 +38,10 @@ export default function LiveSessionCard({ session, onViewProfile }) {
         setViewers(Object.keys(channel.presenceState()).length);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && user?.email) {
-          await channel.track({ viewer: user.email, role: 'viewer' });
+        // Presence state is visible to everyone on the channel, so it
+        // carries the viewer's id, never their email.
+        if (status === 'SUBSCRIBED' && user?.id) {
+          await channel.track({ viewer: user.id, role: 'viewer' });
           hubLiveSessions.joinSession(session.id).catch(() => {});
         }
       });
@@ -49,7 +51,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
     // the client registry — otherwise each card mount/unmount leaks a
     // zombie `live-session-<id>` channel.
     return () => { supabase.removeChannel(channel); };
-  }, [session.id, user?.email]);
+  }, [session.id, user?.id]);
 
   return (
     <motion.div
@@ -74,7 +76,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => onViewProfile?.({ id: session.host_user_id, email: session.host_email })}
+              onClick={() => onViewProfile?.({ id: session.host_user_id })}
               className="text-sm font-bold hover:underline"
             >
               @{handle}

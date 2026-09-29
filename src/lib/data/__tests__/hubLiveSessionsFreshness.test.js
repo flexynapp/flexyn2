@@ -19,11 +19,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const _state = { filters: [], table: null, rows: [] };
+const _state = { filters: [], table: null, rows: [], select: null };
 
 function builder() {
   const chain = {
-    select: () => chain,
+    select: (cols) => { _state.select = cols; return chain; },
     eq:  (col, val) => { _state.filters.push(['eq', col, val]); return chain; },
     gt:  (col, val) => { _state.filters.push(['gt', col, val]); return chain; },
     order: () => chain,
@@ -48,6 +48,7 @@ beforeEach(() => {
   _state.filters = [];
   _state.table = null;
   _state.rows = [];
+  _state.select = null;
 });
 
 describe('live session freshness', () => {
@@ -72,13 +73,24 @@ describe('live session freshness', () => {
   it('applies the same floor to the host own-session lookup', async () => {
     // Otherwise a host whose app was killed is told they are still live and
     // cannot start a new session, forever.
-    await live.getMyActiveSession('host@example.com');
-    expect(_state.filters).toContainEqual(['eq', 'host_email', 'host@example.com']);
+    await live.getMyActiveSession('host-uuid');
+    expect(_state.filters).toContainEqual(['eq', 'host_user_id', 'host-uuid']);
     expect(gtFor('started_at')).toBeTruthy();
   });
 
   it('getMyActiveSession returns null rather than throwing with no host', async () => {
     expect(await live.getMyActiveSession(null)).toBeNull();
     expect(_state.table).toBeNull();
+  });
+});
+
+describe('the live rail does not hand out the host email', () => {
+  // Every signed-in user sees the rail. It identifies the host by
+  // host_user_id, so host_email has no reason to leave the server.
+  it('lists explicit columns without host_email', async () => {
+    await live.listActiveSessions();
+    expect(_state.select).not.toBe('*');
+    expect(_state.select).toContain('host_user_id');
+    expect(_state.select).not.toContain('host_email');
   });
 });
