@@ -55,8 +55,8 @@ describe('Hub consumes the param', () => {
 });
 
 describe('HubProfile lands on the post', () => {
-  it('switches to the Posts tab before trying to scroll', () => {
-    expect(PROFILE).toMatch(/setActiveTab\('posts'\)/);
+  it('switches to the Posts section before trying to scroll', () => {
+    expect(PROFILE).toMatch(/setSection\('posts'\)/);
   });
 
   it('scrolls the row into view', () => {

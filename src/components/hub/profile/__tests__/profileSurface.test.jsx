@@ -10,10 +10,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProfileMetrics from '../ProfileMetrics';
-import ProfileTierBanner from '../ProfileTierBanner';
 import ProfileActions from '../ProfileActions';
 import ProfileTrophies from '../ProfileTrophies';
-import ProfileTabs, { ProfileTabPanel } from '../ProfileTabs';
+import ProfileScoreboard from '../ProfileScoreboard';
+import ProfileSummaryList, { SummaryRow } from '../ProfileSummaryList';
+import { prCounts } from '../ProfileRecentWorkouts';
+import { Trophy } from 'lucide-react';
 import { TROPHIES } from '@/lib/trophyDefinitions';
 
 // These components now read tFallback, and useLanguage() throws outside a
@@ -29,15 +31,6 @@ const FORMS = {
   posts:     { one: 'post', other: 'posts' },
   followers: { one: 'follower', other: 'followers' },
   following: { other: 'following' },
-};
-const TIER = {
-  name: 'Ruby',
-  badge: 'from-red-400 via-rose-500 to-pink-500',
-  bar: 'from-red-400 to-pink-500',
-  bg: 'bg-rose-500/10',
-  text: 'text-rose-400',
-  glow: 'shadow-rose-500/40',
-  particles: 'pulse',
 };
 const t = (k) => k;
 const tFallback = (_k, fb) => fb;
@@ -141,91 +134,6 @@ describe('ProfileMetrics', () => {
     expect(onFollowers).toHaveBeenCalled();
   });
 });
-
-describe('ProfileTierBanner', () => {
-  it('states the remaining XP and the level it unlocks', () => {
-    render(
-      <ProfileTierBanner
-        tier={TIER}
-        level={54}
-        levelLabel="Lv 54"
-        levelWord="Lv"
-        xpInLevel={1240}
-        xpNeeded={2000}
-        progressPercent={62}
-        isAdminProfile={false}
-      />
-    );
-    // Exactly one. The XP used to render twice — a hairline along the
-    // banner's bottom edge AND a floating caption — which is two renderings
-    // of one number inviting the reader to check whether they agree.
-    const bars = screen.getAllByRole('progressbar');
-    expect(bars).toHaveLength(1);
-
-    const bar = bars[0];
-    expect(bar.getAttribute('aria-valuenow')).toBe('62');
-    // The remaining XP (2000 - 1240) and the level it buys, not the raw
-    // position in the level — "760 to go" is the actionable half.
-    expect(bar.getAttribute('aria-label')).toContain('760');
-    expect(bar.getAttribute('aria-label')).toContain('55');
-    expect(screen.getByText('Ruby')).toBeTruthy();
-    expect(screen.getByText('54')).toBeTruthy();
-  });
-
-  it('renders the primary trophy as a crest, and nothing when there is none', () => {
-    const base = {
-      tier: TIER, level: 54, levelLabel: 'Lv 54', levelWord: 'Lv',
-      xpInLevel: 1240, xpNeeded: 2000, progressPercent: 62,
-    };
-    const { container, rerender } = render(<ProfileTierBanner {...base} />);
-    expect(container.textContent).not.toContain('👑');
-
-    rerender(<ProfileTierBanner {...base} primaryTrophy="👑" />);
-    expect(container.textContent).toContain('👑');
-  });
-
-  it('draws no week strip at all when it has no week, rather than seven blanks', () => {
-    // `workout_logs` is owner-only, so a viewer looking at somebody else's
-    // profile gets [] — and `buildTrainingWeek` turns [] into seven days with
-    // `trained: false`, not into nothing. HubProfile therefore has to pass []
-    // itself; this is the half of the contract the banner owns. Seven grey
-    // squares captioned "Trained 0 of the last 7 days" is a claim about a
-    // person the viewer has no data on, and it is usually false.
-    const base = {
-      tier: TIER, level: 54, levelLabel: 'Lv 54', levelWord: 'Lv',
-      xpInLevel: 1240, xpNeeded: 2000, progressPercent: 62,
-    };
-    const { rerender } = render(<ProfileTierBanner {...base} week={[]} />);
-    expect(screen.queryByRole('img', { name: /Trained/ })).toBeNull();
-
-    // And it does render once there is a week to render — otherwise the
-    // assertion above would pass on a banner that had lost the strip.
-    const week = [0, 1, 2, 3, 4, 5, 6].map((i) => ({
-      key: `2026-08-0${i + 1}`, label: 'M', trained: i < 3, isToday: i === 3, isFuture: i > 3,
-    }));
-    rerender(<ProfileTierBanner {...base} week={week} />);
-    const strip = screen.getByRole('img', { name: /Trained/ });
-    expect(strip.getAttribute('aria-label')).toContain('3');
-  });
-
-  it('labels the level so the numeral is not left to be guessed at', () => {
-    // It rendered "Ruby 54" — a bare numeral beside a tier name reads just
-    // as easily as a rank, a position, or a badge count.
-    render(
-      <ProfileTierBanner
-        tier={TIER}
-        level={54}
-        levelLabel="Lv 54"
-        levelWord="Lv"
-        xpInLevel={1240}
-        xpNeeded={2000}
-        progressPercent={62}
-      />
-    );
-    expect(screen.getByText('Lv')).toBeTruthy();
-  });
-});
-
 describe('ProfileActions', () => {
   const base = {
     isSelf: false,
@@ -391,32 +299,55 @@ describe('ProfileTrophies', () => {
   });
 });
 
-describe('ProfileTabs', () => {
-  const TABS = [
-    { id: 'stats', label: 'Stats' },
-    { id: 'trophies', label: 'Trophies', count: 8 },
-    { id: 'posts', label: 'Posts', count: 47 },
-  ];
-
-  it('marks exactly one tab selected and renders only its panel', () => {
+describe('ProfileScoreboard', () => {
+  it('drops a cell with nothing behind it instead of drawing a zero', () => {
     render(
-      <>
-        <ProfileTabs tabs={TABS} active="stats" onChange={vi.fn()} />
-        <ProfileTabPanel id="stats" active="stats">lifts</ProfileTabPanel>
-        <ProfileTabPanel id="posts" active="stats">posts</ProfileTabPanel>
-      </>
+      <ProfileScoreboard
+        cells={[
+          { id: 'level', value: 'Lv. 3', label: 'Bronze' },
+          false,
+          { id: 'trophies', value: '18', label: 'trophies' },
+        ]}
+      />
     );
-    expect(screen.getAllByRole('tab', { selected: true })).toHaveLength(1);
-    expect(screen.getByText('lifts')).toBeTruthy();
-    expect(screen.queryByText('posts')).toBeNull();
+    expect(screen.getByText('Lv. 3')).toBeTruthy();
+    expect(screen.getByText('18')).toBeTruthy();
+    expect(screen.queryByText('day streak')).toBeNull();
   });
 
-  it('moves between tabs with the arrow keys', () => {
-    const onChange = vi.fn();
-    render(<ProfileTabs tabs={TABS} active="stats" onChange={onChange} />);
-    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
-    expect(onChange).toHaveBeenCalledWith('trophies');
-    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowLeft' });
-    expect(onChange).toHaveBeenCalledWith('posts'); // wraps
+  it('renders nothing at all when every cell is empty', () => {
+    const { container } = render(<ProfileScoreboard cells={[false, null]} />);
+    expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('ProfileSummaryList', () => {
+  it('makes a row a button only when it goes somewhere', () => {
+    const onClick = vi.fn();
+    render(
+      <ProfileSummaryList>
+        <SummaryRow icon={Trophy} label="Trophies" value="18" onClick={onClick} />
+        <SummaryRow icon={Trophy} label="Static" />
+      </ProfileSummaryList>
+    );
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(onClick).toHaveBeenCalled();
+  });
+});
+
+describe('prCounts', () => {
+  const log = (date, weight) => ({ date, exercises: [{ name: 'Bench', sets: [{ weight, reps: 5 }] }] });
+
+  it('counts a lift only when it beats an EARLIER session, never the first attempt', () => {
+    const first = log('2026-09-01', 135);
+    const heavier = log('2026-09-08', 155);
+    const lighter = log('2026-09-15', 145);
+    // Newest first, the order the page receives them in.
+    const counts = prCounts([lighter, heavier, first]);
+    expect(counts.get(first)).toBe(0);
+    expect(counts.get(heavier)).toBe(1);
+    expect(counts.get(lighter)).toBe(0);
   });
 });

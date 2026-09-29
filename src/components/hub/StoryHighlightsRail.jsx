@@ -90,7 +90,11 @@ export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
   // Don't render at all if a non-own profile has zero highlights —
   // empty rail is wasted real estate. Own profile still shows the
   // "+ New" tile even when empty so the user can create their first.
-  if (!isOwn && highlights.length === 0) return null;
+  // Nothing until there is an album, for the owner too. The empty dashed
+  // "New" circle sat on the public page as a to-do. The first album is
+  // made from a story (Add to highlight in the viewer); after that the
+  // rail offers "New" here.
+  if (highlights.length === 0) return null;
 
   const handleDelete = async (id) => {
     if (!confirm(tFallback("storyHighlightsRail.deleteThisHighlightAlbum", "Delete this highlight album?"))) return;
@@ -107,7 +111,7 @@ export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="mb-4"
+      className="mb-6"
     >
       <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
         {isOwn && (
@@ -138,7 +142,9 @@ export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
               {h.cover_url ? (
                 <img src={h.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <span className="text-2xl" aria-hidden="true">✨</span>
+                <span className="font-heading font-bold text-lg text-muted-foreground" aria-hidden="true">
+                  {(h.title || '?').trim().charAt(0).toUpperCase()}
+                </span>
               )}
             </div>
             {/* leading-normal, not text-micro's own 1.25. `truncate` sets
