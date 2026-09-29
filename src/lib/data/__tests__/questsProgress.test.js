@@ -20,6 +20,7 @@ const _db = {
   crewRows: [],      // crew_members rows
   crewSelects: 0,
   insertedRows: null,
+  failIds: new Set(), // row ids whose update the "database" refuses
 };
 
 function chainable(table) {
@@ -58,6 +59,9 @@ function chainable(table) {
       if (pendingUpdate && col === 'id') {
         const patch = pendingUpdate;
         pendingUpdate = null;
+        if (_db.failIds.has(val)) {
+          return Promise.resolve({ error: { code: '42501', message: 'refused' } });
+        }
         const target = _db.rows.find(r => r.id === val);
         if (target) Object.assign(target, patch);
         _db.updates.push({ id: val, patch });
@@ -81,6 +85,7 @@ vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 const { recordActions, recordAction, ensureTodaysQuests, listTodaysQuests, todayDateString } =
   await import('../quests');
 const { ACTION_TYPES } = await import('@/lib/questCatalog');
+const { subscribeQuestCompleted, _resetQuestCompletion } = await import('@/lib/questCompletion');
 
 const user = { id: 'uid', email: 'u@e.com' };
 
@@ -100,6 +105,8 @@ beforeEach(() => {
   _db.crewRows = [];
   _db.crewSelects = 0;
   _db.insertedRows = null;
+  _db.failIds = new Set();
+  _resetQuestCompletion();
 });
 
 describe('recordActions — batching', () => {
@@ -185,6 +192,54 @@ describe('recordActions — batching', () => {
     await recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1);
     expect(_db.updates).toHaveLength(1);
     expect(_db.updates[0].patch.progress).toBe(1);
+  });
+});
+
+// The completion cue used to live in the Today card, so a quest finished on
+// the Hub said nothing until the user went back to Today. recordActions is
+// the one writer of completed_at, so it is where the app learns of it.
+describe('recordActions — announces completions app-wide', () => {
+  const listen = () => {
+    const heard = [];
+    subscribeQuestCompleted((r) => heard.push(r));
+    return heard;
+  };
+
+  it('announces the quest this write completed, with its new state', async () => {
+    const heard = listen();
+    _db.rows = [row('a', 'log_meal', 'easy', 0, 1)];
+    await recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1);
+    expect(heard).toHaveLength(1);
+    expect(heard[0].id).toBe('a');
+    expect(heard[0].completed_at).toBeTruthy();
+    expect(heard[0].progress).toBe(1);
+  });
+
+  it('says nothing while the quest is still short', async () => {
+    const heard = listen();
+    _db.rows = [row('a', 'steps_10k', 'medium', 0, 10000)];
+    await recordActions(user, [{ type: ACTION_TYPES.STEPS_LOGGED, amount: 4000 }]);
+    expect(heard).toHaveLength(0);
+  });
+
+  it('does not announce a completion the database refused', async () => {
+    const heard = listen();
+    _db.rows = [row('a', 'log_meal', 'easy', 0, 1)];
+    _db.failIds.add('a');
+    await recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1);
+    expect(heard).toHaveLength(0);
+  });
+
+  it('announces a row once even if two racing writes both complete it', async () => {
+    const heard = listen();
+    // Two reactions on two cards in quick succession both read progress 2
+    // of 3 and both write the completing update.
+    _db.rows = [row('a', 'log_meal', 'easy', 0, 1)];
+    await Promise.all([
+      recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1),
+      recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1),
+    ]);
+    expect(heard).toHaveLength(1);
   });
 });
 

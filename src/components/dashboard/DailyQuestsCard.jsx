@@ -12,34 +12,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { CheckCircle2, ChevronRight, Users } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
-import * as notifications from '@/lib/data/notifications';
-import { getQuestDefinition, questDestinationRoute } from '@/lib/questCatalog';
+import { questDestinationRoute } from '@/lib/questCatalog';
+import { announceQuestCompleted, markQuestsSeen } from '@/lib/questCompletion';
+import { claimQuestWithFeedback } from '@/lib/questClaim';
 import { QuestProgress } from '@/components/dashboard/questVisuals';
 import useCountUp from '@/hooks/useCountUp';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
-import { reportError } from '@/lib/reportError';
 
 // Lazy — the sheet is a modal that only mounts on tap, per the lazy-loading
 // rule in CLAUDE.md. It pulls in the stats RPC and the streak strip, none of
 // which the resting card needs.
 const QuestsSheet = React.lazy(() => import('@/components/dashboard/QuestsSheet'));
-
-// Confetti burst when all of the day's quests are complete. Lazy-imports
-// canvas-confetti (its own chunk) and honors reduced-motion.
-function fireAllQuestsConfetti() {
-  if (typeof window !== 'undefined' && window.matchMedia
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const colors = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#ffffff'];
-  import('canvas-confetti').then(({ default: confetti }) => {
-    confetti({ particleCount: 130, spread: 100, origin: { x: 0.5, y: 0.5 }, colors });
-    setTimeout(() => confetti({ particleCount: 80, spread: 75, origin: { x: 0.15, y: 0.5 }, colors }), 120);
-    setTimeout(() => confetti({ particleCount: 80, spread: 75, origin: { x: 0.85, y: 0.5 }, colors }), 240);
-  }).catch(() => {});
-}
 
 // `title` and `goalSlot` are how Today makes this its "To do" block: the
 // goal row sits above the quests so the two read as one list to finish.
@@ -123,195 +109,32 @@ export default function DailyQuestsCard({ onNavigated, title, goalSlot = null })
     }]);
   };
 
-  // Per-quest in-flight guard. claim_quest_atomic IS server-side
-  // idempotent (the second call returns success=false with
-  // already_claimed=true), but a rapid double-tap would still flash
-  // an error toast on the second click. Using a Set in a ref so we
-  // don't trigger a re-render on every claim — just block the
-  // duplicate before it leaves the client.
-  const claimingRef = useRef(new Set());
-
+  // Claiming, its feedback and the perfect-day bonus live in lib/questClaim,
+  // shared with the app-wide completion cue so a Claim pressed in the pill on
+  // any page behaves exactly like one pressed here. The card adds only its
+  // own flourish: the XP rising into the header total.
   const handleClaim = async (questRow) => {
-    if (questRow.claimed_at) return;
-    if (!questRow.completed_at) return;
-    if (claimingRef.current.has(questRow.id)) return; // already claiming this row
-    claimingRef.current.add(questRow.id);
-    try {
-      const result = await quests.claimQuest(user, questRow.id);
-      // Fire haptic AFTER the RPC succeeds, not before — the previous
-      // order vibrated the device on tap regardless of outcome, so a
-      // failed claim still buzzed and felt like a successful reward.
-      if (result?.success) {
-        triggerHaptic('success');
-        launchXpFloat(questRow.id, result.xpAwarded > 0 ? result.xpAwarded : (questRow.xp_reward ?? 0));
-      }
-      await handleClaimResult(result, questRow);
-    } catch (err) {
-      // Catch the promise rejection so a network blip or RPC throw
-      // doesn't surface as an unhandled-rejection in the console
-      // (which then becomes a Sentry noise event with no context).
-      // The user toast keeps the error visible; reportError tags it
-      // with feature + quest id for ops.
-      reportError(err, {
-        feature: 'dashboard.quest-claim',
-        level: 'warning',
-        userEmail: user?.email,
-        questId: questRow.id,
-      });
-      toast.error(t('dashboard.claimError'));
-    } finally {
-      claimingRef.current.delete(questRow.id);
+    const result = await claimQuestWithFeedback({ user, row: questRow, t, tFallback, queryClient });
+    if (result) {
+      launchXpFloat(questRow.id, result.xpAwarded > 0 ? result.xpAwarded : (questRow.xp_reward ?? 0));
     }
   };
 
-  const handleClaimResult = async (result, questRow) => {
-    if (!result.success) {
-      toast.error(t('dashboard.claimError'));
-      return;
-    }
-
-    // One toast, all three currencies. Every number here came back from the
-    // server — xpAwarded in particular is what the daily quest cap actually
-    // credited, not the catalog's nominal figure, so a capped claim reports
-    // the truth instead of promising 120 XP it didn't grant.
-    const parts = [`+${result.coinsAwarded} ${tFallback('hub.coins', 'coins')}`];
-    if (result.xpAwarded > 0) parts.push(`+${result.xpAwarded} XP`);
-    toast.success(
-      tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: result.coinsAwarded }),
-      {
-        icon: '🪙',
-        description: result.crewXpAwarded > 0
-          ? tFallback('quests.crewShareToast', '{rewards} · your crew banks {crewXp} XP', {
-              rewards: parts.join(' · '), crewXp: result.crewXpAwarded,
-            })
-          : parts.join(' · '),
-      }
-    );
-    queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
-    queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });
-    queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-    // Also invalidate the coin-balance queries that surface in the
-    // Coin Shop modal + Stats Hub hero — the previous list only
-    // refreshed userProfile (which a few surfaces read) but missed
-    // coinShopProfile + statsHubProfile, leaving stale balances
-    // visible right after claim.
-    queryClient.invalidateQueries({ queryKey: ['coinShopProfile', user?.id] });
-    queryClient.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
-    // The crew's own level moved if this quest fed it — the crew card and
-    // the crew list both read that number.
-    if (result.crewXpAwarded > 0) {
-      queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
-    }
-    // In-app notification — non-blocking
-    const def = getQuestDefinition(questRow.quest_id);
-    const labelKey = `quest.${questRow.quest_id}.label`;
-    const translatedLabel = t(labelKey);
-    const label = translatedLabel === labelKey ? (def?.label || 'Quest') : translatedLabel;
-    notifications.notifyQuestClaimed({
-      user,
-      questLabel: label,
-      coinsAwarded: result.coinsAwarded,
-      t,
-    })
-      .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
-      .catch(err => reportError(err, {
-        feature: 'dashboard.quest-claim-notification',
-        level: 'warning',
-        userEmail: user?.email,
-      }));
-  };
-
-  // Perfect day: fired after a claim lands, when every quest is claimed.
-  // Called speculatively — the RPC answers `not_complete` / `already_claimed`
-  // rather than raising, so the card doesn't need to prove the day is done
-  // before asking. The ref stops a re-render from asking twice in a row; the
-  // server's per-day idempotence is what actually guarantees one payment.
-  const bonusAskedRef = useRef(false);
-  const askForPerfectDayBonus = async () => {
-    if (bonusAskedRef.current) return;
-    bonusAskedRef.current = true;
-    try {
-      const bonus = await quests.claimPerfectDayBonus(user);
-      if (!bonus.success) return;
-      triggerHaptic('buzz');
-      fireAllQuestsConfetti();
-      const extras = [`+${bonus.coinsAwarded} ${tFallback('hub.coins', 'coins')}`];
-      if (bonus.xpAwarded > 0) extras.push(`+${bonus.xpAwarded} XP`);
-      if (bonus.crewXpAwarded > 0) {
-        extras.push(tFallback('quests.crewBanked', '{n} XP to your crew', { n: bonus.crewXpAwarded }));
-      }
-      toast.success(
-        tFallback('quests.perfectDayToast', 'Perfect day, {n} day streak', { n: bonus.streak }),
-        { icon: '🔥', description: extras.join(' · '), duration: 7000 },
-      );
-      queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['coinShopProfile', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
-      if (bonus.crewXpAwarded > 0) {
-        queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
-      }
-    } catch (err) {
-      reportError(err, { feature: 'dashboard.quest-perfect-day', level: 'warning', userEmail: user?.email });
-    } finally {
-      // Re-arm. A failed or not-yet-eligible ask must be retryable when the
-      // next claim lands, or a user who claims their last quest during a
-      // network blip never gets the bonus that day.
-      bonusAskedRef.current = false;
-    }
-  };
-
-  // Completion effects: a top-of-screen "quest complete — tap to claim"
-  // toast the moment a quest crosses into completed, and the perfect-day
-  // bonus when every quest is claimed. Refs seed on first render so we
-  // don't retroactively fire for quests already completed earlier today.
+  // Completions this card sees on a refetch. A quest completed on THIS device
+  // was already announced by recordActions, wherever the user was, and the
+  // shared de-dup means announcing it again here is a no-op. What this still
+  // catches is progress made on another device. The first set of rows only
+  // seeds the de-dup: a quest completed before the card mounted must not
+  // announce retroactively.
   const hydratedRef = useRef(false);
-  const announcedRef = useRef(new Set());
-  const allClaimedRef = useRef(false);
   useEffect(() => {
     if (!rows || rows.length === 0) return;
-    const total = rows.length;
-    const claimedCount = rows.filter((r) => r.claimed_at).length;
-
     if (!hydratedRef.current) {
       hydratedRef.current = true;
-      rows.forEach((r) => { if (r.completed_at) announcedRef.current.add(r.id); });
-      if (total > 0 && claimedCount === total) allClaimedRef.current = true;
+      markQuestsSeen(rows);
       return;
     }
-
-    rows.forEach((r) => {
-      if (!r.completed_at || announcedRef.current.has(r.id)) return;
-      announcedRef.current.add(r.id);
-      if (r.claimed_at) return; // already claimed elsewhere — no prompt
-      const def = getQuestDefinition(r.quest_id);
-      const k = `quest.${r.quest_id}.label`;
-      const tl = t(k);
-      const label = tl === k ? (def?.label || 'Quest') : tl;
-      triggerHaptic('primary');
-      toast.success(
-        tFallback('dashboard.questCompleteToast', 'Quest complete: {label}', { label }),
-        {
-          icon: '🎯',
-          description: tFallback('dashboard.questCompleteClaimHint', 'Tap to claim your reward'),
-          duration: 8000,
-          action: { label: t('dashboard.claim'), onClick: () => handleClaim(r) },
-        },
-      );
-    });
-
-    // The celebration hangs off CLAIMED, not completed. It used to fire when
-    // the last quest crossed into complete — which is one tap before the day
-    // is actually finished, so the confetti landed while a Claim button was
-    // still sitting there unpressed.
-    if (total > 0 && claimedCount === total && !allClaimedRef.current) {
-      allClaimedRef.current = true;
-      askForPerfectDayBonus();
-    }
-    if (claimedCount < total) allClaimedRef.current = false;
-    // Keyed on `rows` — the meaningful trigger. handleClaim/t are captured
-    // from the render where rows changed, which is current.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    rows.forEach((r) => { if (r.completed_at) announceQuestCompleted(r); });
   }, [rows]);
 
   // The XP today's claims banked, from the rows the server stamped. Counted

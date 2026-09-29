@@ -10,6 +10,7 @@ getWasFirstLaunchThisSession();
 // top of the Header and eating taps on the messages / bell / profile
 // buttons. Sonner is the only toaster.
 import FeedbackPill from "@/components/feedback/FeedbackPill"
+import QuestCompletionWatcher from "@/components/feedback/QuestCompletionWatcher"
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -498,6 +499,9 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <FeedbackPill />
+        {/* Quest completions announce in the pill on every page, not only
+            on Today where the quest card lives. */}
+        <QuestCompletionWatcher />
       </QueryClientProvider>
     </RestTimerProvider>
     </AuthProvider>
