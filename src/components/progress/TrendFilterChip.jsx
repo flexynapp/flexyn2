@@ -31,7 +31,7 @@ export default function TrendFilterChip({ label, value, items, onChange }) {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex items-center gap-1 min-h-[36px] ps-3 pe-2 rounded-full border border-border text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors max-w-full"
+        className="flex items-center gap-1 min-h-[44px] ps-3 pe-2 rounded-full border border-border text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors max-w-full"
       >
         <span className="truncate">{selected?.label ?? label}</span>
         <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

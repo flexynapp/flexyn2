@@ -9,7 +9,7 @@
 // Self-hides when the user has no logs in the window — empty grid is
 // worse than no grid.
 
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { format, subDays, startOfDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -45,6 +45,12 @@ function volumeToBucket(volumeLbs) {
   }
   return bucket;
 }
+
+// A day with a logged session but no load (push-ups, planks, a bodyweight
+// circuit) still counts as a trained day. It takes the lightest bucket: the
+// grid measures volume, and zero load is the least of it, but a session is
+// never drawn as an empty square.
+const TRAINED_MIN_BUCKET = 1;
 
 // Tailwind-safe class names per bucket. Kept inline so the production
 // CSS bundle keeps them (dynamic class strings are tree-shaken).
@@ -140,6 +146,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
       const lbs = volMap[key] || 0;
       const userUnitVol = Math.round(fromLbs(lbs, weightUnit));
       const isFuture = d > today;
+      const trained = Object.prototype.hasOwnProperty.call(volMap, key);
       out.push({
         date: d,
         key,
@@ -147,7 +154,8 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
         // Bucket by LBS (stored unit) so the heatmap looks identical
         // for lbs and kg users — the underlying intensity is the
         // same, only the displayed number changes.
-        bucket: isFuture ? -1 : volumeToBucket(lbs),
+        bucket: isFuture ? -1 : Math.max(volumeToBucket(lbs), trained ? TRAINED_MIN_BUCKET : 0),
+        trained,
         isFuture,
       });
     }
@@ -155,11 +163,28 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
   }, [logs, weightUnit]);
 
   // Hide when the window has zero workouts — an empty grid wastes
-  // screen real estate.
+  // screen real estate. Counted by LOGGED days, not by days with load: it
+  // used to be `volume > 0`, so a bodyweight-only lifter never saw the grid
+  // at all and anyone else had their bodyweight days left out of the count.
   const totalWorkouts = useMemo(
-    () => days.filter(d => d.volume > 0).length,
+    () => days.filter(d => d.trained && !d.isFuture).length,
     [days]
   );
+
+  // 26 columns are ~395px, wider than the card on every phone, and the
+  // scroller starts at its left edge, which is the OLDEST week. So the
+  // weeks that matter most, this one included, sat off-screen behind a
+  // swipe nothing advertised (78px hidden on an SE, 23px on a Pro Max).
+  // Open it scrolled to the newest week instead. `scrollLeft` is negative
+  // toward the end in a right-to-left layout, hence the direction check.
+  const scrollerRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const rtl = getComputedStyle(el).direction === 'rtl';
+    el.scrollLeft = rtl ? -el.scrollWidth : el.scrollWidth;
+  }, [totalWorkouts]);
+
   if (totalWorkouts === 0) return null;
 
   // Group days into columns of 7 (each column = one week).
@@ -182,12 +207,14 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
             {tFallback('calendar.title', 'Activity')}
           </h3>
           <p className="text-micro text-muted-foreground tabular-nums">
-            {tFallback('calendar.daysTrained', '{count} days in last 6 months', { count: totalWorkouts })}
+            {totalWorkouts === 1
+              ? tFallback('calendar.daysTrained_one', '{count} day in last 6 months', { count: totalWorkouts })
+              : tFallback('calendar.daysTrained', '{count} days in last 6 months', { count: totalWorkouts })}
           </p>
         </div>
 
         {/* Grid — horizontally scrolls on narrow screens */}
-        <div className="overflow-x-auto -mx-1 px-1">
+        <div ref={scrollerRef} className="overflow-x-auto -mx-1 px-1">
           {/* The grid is one `role="img"`, so this label is the ONLY thing a
               screen reader gets for it — the per-day titles below are on
               children it never reaches. It was the one string on this
@@ -226,7 +253,9 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                         ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.future', 'future')}`
                         : day.volume > 0
                           ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${fmt(day.volume)} ${unitSuffix}`
-                          : `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.noWorkout', 'no workout')}`
+                          : day.trained
+                            ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.logged', 'workout logged')}`
+                            : `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.noWorkout', 'no workout')}`
                     }
                     className={[
                       'w-3 h-3 rounded-[3px] transition-transform',
@@ -252,7 +281,9 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                 {' · '}
                 {tooltip.volume > 0
                   ? `${fmt(tooltip.volume)} ${unitSuffix}`
-                  : tFallback('calendar.noWorkout', 'no workout')}
+                  : tooltip.trained
+                    ? tFallback('calendar.logged', 'workout logged')
+                    : tFallback('calendar.noWorkout', 'no workout')}
               </span>
             )}
           </div>
