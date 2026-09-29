@@ -79,7 +79,7 @@ describe('global feed refresh policy', () => {
   it('realtime increments a counter rather than inserting rows', () => {
     const handler = SRC.slice(
       SRC.indexOf('return onHubPostInsert('),
-      SRC.indexOf('}, [user?.email]);'),
+      SRC.indexOf('}, [user?.id]);'),
     );
     expect(handler).toMatch(/setPendingNewCount\(c => c \+ 1\)/);
     // No cache surgery: these would put a post on screen without a tap.

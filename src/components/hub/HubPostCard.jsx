@@ -36,6 +36,7 @@ import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 
 // ── Hashtag renderer ──────────────────────────────────────────────────────────
 // Splits post body on #word tokens and renders each as a tappable chip.
@@ -761,6 +762,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
+      invalidateFollowGraph(queryClient);
     } catch (err) {
       reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
       toast.error(tFallback('hub.post.blockError', 'Could not block. Try again.'));

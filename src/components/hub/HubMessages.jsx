@@ -36,6 +36,7 @@ import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 import { filterConversationsByQuery } from '@/lib/dmSearch';
 import { reportError } from '@/lib/reportError';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 
 // A row that opens on tap and offers its quick actions on hold.
 //
@@ -413,6 +414,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     setRequestBusyId(convId);
     try {
       await blockUserFull(otherEmail);
+      // block_user_full severs follows in both directions.
+      invalidateFollowGraph(queryClient);
       // Best-effort — the block already stops delivery, so a purge
       // failure here shouldn't read as "block failed".
       await purgeMessageRequest(convId).catch(() => {});
@@ -424,7 +427,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     } finally {
       setRequestBusyId(null);
     }
-  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback, queryClient]);
 
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.

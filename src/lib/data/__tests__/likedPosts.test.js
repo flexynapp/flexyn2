@@ -157,13 +157,13 @@ import { fetchFollowingWindow, fetchOlderFollowing } from '@/lib/data/hubPosts';
 describe('Following feed membership', () => {
   it('adds the viewer to the author set', async () => {
     filterMock.mockResolvedValue([]);
-    await fetchFollowingWindow(['a@x.com'], 'me@x.com');
-    expect(filterMock.mock.calls[0][0].author_email).toContain('me@x.com');
+    await fetchFollowingWindow(['id-a'], 'id-me');
+    expect(filterMock.mock.calls[0][0].user_id).toContain('id-me');
   });
 
   it('returns your own posts even when you follow nobody', async () => {
     filterMock.mockResolvedValue([{ id: 'mine' }]);
-    const out = await fetchFollowingWindow([], 'me@x.com');
+    const out = await fetchFollowingWindow([], 'id-me');
     expect(filterMock).toHaveBeenCalled();
     expect(out).toEqual([{ id: 'mine' }]);
   });
@@ -177,9 +177,9 @@ describe('Following feed membership', () => {
   it('does not list the viewer twice when they somehow follow themselves', async () => {
     // A duplicate in an IN clause is a wasted slot against the 100 cap.
     filterMock.mockResolvedValue([]);
-    await fetchFollowingWindow(['ME@x.com', 'a@x.com'], 'me@x.com');
-    const emails = filterMock.mock.calls[0][0].author_email;
-    expect(emails.filter(e => e.toLowerCase() === 'me@x.com')).toHaveLength(1);
+    await fetchFollowingWindow(['id-me', 'id-a'], 'id-me');
+    const ids = filterMock.mock.calls[0][0].user_id;
+    expect(ids.filter(id => id === 'id-me')).toHaveLength(1);
   });
 
   it('pagination uses the same membership, so page 2 keeps your posts', async () => {
@@ -187,15 +187,17 @@ describe('Following feed membership', () => {
     // which reads as the feed losing them rather than as a different query.
     const { supabase } = await import('@/api/supabaseClient');
     const calls = [];
+    const cols = [];
     const chain2 = {
       select: () => chain2,
-      in: (col, vals) => { calls.push(vals); return chain2; },
+      in: (col, vals) => { calls.push(vals); cols.push(col); return chain2; },
       lt: () => chain2,
       order: () => chain2,
       limit: async () => ({ data: [], error: null }),
     };
     supabase.from.mockReturnValueOnce(chain2);
-    await fetchOlderFollowing(['a@x.com'], '2026-08-12T00:00:00Z', 50, 'me@x.com');
-    expect(calls[0]).toContain('me@x.com');
+    await fetchOlderFollowing(['id-a'], '2026-08-12T00:00:00Z', 50, 'id-me');
+    expect(cols[0]).toBe('user_id');
+    expect(calls[0]).toContain('id-me');
   });
 });

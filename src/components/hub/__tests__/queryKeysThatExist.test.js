@@ -149,6 +149,6 @@ describe('the specific five', () => {
     // useHubUnreadDot hit this and documented it. If that precedent changes
     // shape, HubFeed should be re-read rather than left diverged.
     expect(read('src/hooks/useHubUnreadDot.js'))
-      .toMatch(/\[\.\.\.followingEmails\]\.sort\(\)\.join\('\|'\)/);
+      .toMatch(/\[\.\.\.followingIds\]\.sort\(\)\.join\('\|'\)/);
   });
 });

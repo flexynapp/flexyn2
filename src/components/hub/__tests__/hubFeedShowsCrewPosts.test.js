@@ -53,7 +53,7 @@ describe('realtime counts crew posts', () => {
 
   it('lets it past the privacy gate and the Squad follow gate', () => {
     expect(FEED).toMatch(/row\.privacy !== 'followers' && !isMyCrewPost\) return;/);
-    expect(FEED).toMatch(/!f\.followingLc\.has\(authorLc\) && !isMyCrewPost\) return;/);
+    expect(FEED).toMatch(/!f\.followingIds\.has\(row\.user_id\) && !isMyCrewPost\) return;/);
   });
 
   it('keeps the scheduled-post embargo in front of it', () => {

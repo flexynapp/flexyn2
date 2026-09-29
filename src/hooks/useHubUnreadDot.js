@@ -38,7 +38,7 @@ export function markHubVisited(userEmail) {
   } catch { /* Safari private mode etc — best-effort */ }
 }
 
-export function useHubUnreadDot(userEmail) {
+export function useHubUnreadDot(userEmail, userId) {
   const [lastVisited, setLastVisited] = useState(() => getLastVisitedHub(userEmail));
 
   // Refresh the "last visited" snapshot whenever the user identity
@@ -56,10 +56,13 @@ export function useHubUnreadDot(userEmail) {
   // just the timestamp of the newest post. The fetchFollowingWindow
   // query is already cached if the user is currently on Hub, so this
   // hook re-uses cache via the same queryKey shape.
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['hubFollowing', userEmail],
-    queryFn: () => hubFollows.listFollowing(userEmail),
-    enabled: !!userEmail,
+  //
+  // User ids, not emails: the same list HubFeed and HubProfile register
+  // under ['hubFollowing', <id>], so a follow tap anywhere refreshes it.
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['hubFollowing', userId],
+    queryFn: () => hubFollows.listFollowingIds(userId),
+    enabled: !!userId,
     staleTime: 5 * 60_000,
   });
 
@@ -70,18 +73,18 @@ export function useHubUnreadDot(userEmail) {
   // (count=1) → cache still served Alice's posts as the "newest from
   // friends" signal, so the unread dot never fired for Bob's posts
   // until the 60s stale-time elapsed.
-  const followingKey = [...followingEmails].sort().join('|');
+  const followingKey = [...followingIds].sort().join('|');
   const { data: latestFollowingPosts = [] } = useQuery({
-    queryKey: ['hubFollowingLatest', userEmail, followingKey],
-    queryFn: () => hubPosts.fetchFollowingWindow(followingEmails),
-    enabled: !!userEmail && followingEmails.length > 0,
+    queryKey: ['hubFollowingLatest', userId, followingKey],
+    queryFn: () => hubPosts.fetchFollowingWindow(followingIds),
+    enabled: !!userId && followingIds.length > 0,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   // Filter out self-posts (defensive — the server-side follow filter
   // already excludes self by definition).
-  const newestPost = latestFollowingPosts.find(p => p.author_email !== userEmail);
+  const newestPost = latestFollowingPosts.find(p => p.user_id !== userId);
   if (!newestPost) return false;
 
   const newestTs = new Date(newestPost.created_date).getTime();
