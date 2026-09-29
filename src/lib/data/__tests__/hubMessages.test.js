@@ -166,6 +166,32 @@ describe('findOrCreateConversation', () => {
     expect(_convState.createCalls).toHaveLength(0);
   });
 
+  it('sends a peer named by user id as p_other_id and never looks up an email', async () => {
+    const peerId = '0c1f8a10-6a37-4bf4-8392-645827d366ca';
+    _sbState.rpcByName.start_dm_conversation = { data: 'conv-7', error: null };
+    _convState.filterByConditions = (conditions) =>
+      (conditions.id === 'conv-7' ? [{ id: 'conv-7' }] : []);
+
+    const row = await hubMessages.findOrCreateConversation(me, peerId);
+
+    expect(row).toMatchObject({ id: 'conv-7' });
+    expect(_sbState.rpcCalls.find(c => c.name === 'start_dm_conversation').args)
+      .toEqual({ p_other_id: peerId });
+    expect(_sbState.rpcCalls.some(c => c.name === 'resolve_profile_email')).toBe(false);
+    expect(_convState.createCalls).toHaveLength(0);
+  });
+
+  it('throws a refusal on the id path rather than inserting client-side', async () => {
+    const peerId = '0c1f8a10-6a37-4bf4-8392-645827d366ca';
+    _sbState.rpcByName.start_dm_conversation = {
+      data: null,
+      error: { code: '42501', message: 'conversation_unavailable' },
+    };
+    await expect(hubMessages.findOrCreateConversation(me, peerId))
+      .rejects.toMatchObject({ code: '42501' });
+    expect(_convState.createCalls).toHaveLength(0);
+  });
+
   it('lower-cases the peer email before handing it to the RPC', async () => {
     _sbState.rpcByName.start_dm_conversation = { data: 'conv-99', error: null };
     _convState.filterByConditions = () => [{ id: 'conv-99' }];

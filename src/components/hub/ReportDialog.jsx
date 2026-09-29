@@ -26,9 +26,11 @@ const REASONS = [
  * @param {()=>void}          onClose
  * @param {'post'|'comment'}  reportedType
  * @param {string}            reportedId       — post.id or comment.id
- * @param {string}            reportedAuthorEmail
+ *
+ * Who the report is about is not passed: the database takes the author
+ * from the reported post, comment or story.
  */
-export default function ReportDialog({ open, onClose, reportedType, reportedId, reportedAuthorEmail }) {
+export default function ReportDialog({ open, onClose, reportedType, reportedId }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { t } = useLanguage();
@@ -70,7 +72,6 @@ export default function ReportDialog({ open, onClose, reportedType, reportedId, 
         reporterUserId:      user.id,
         reportedType,
         reportedId,
-        reportedAuthorEmail,
         reason,
         detail,
       });

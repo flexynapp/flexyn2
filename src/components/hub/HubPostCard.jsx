@@ -1473,7 +1473,6 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           onClose={() => setReportOpen(false)}
           reportedType="post"
           reportedId={post.id}
-          reportedAuthorEmail={post.author_email}
         />
       )}
 

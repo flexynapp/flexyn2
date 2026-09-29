@@ -117,9 +117,8 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
 
     if (!myProfile?.email) return;
 
-    // Pass the opponent by id — findOrCreateConversation resolves it to an
-    // email server-side (resolve_profile_email), so we never read the
-    // opponent's email off the public_profiles view here.
+    // Pass the opponent by id; start_dm_conversation looks the email up
+    // server-side, so the opponent's address never reaches this client.
     const conv = await findOrCreateConversation(myProfile.email, opponentId);
     if (!conv?.id) return;
 

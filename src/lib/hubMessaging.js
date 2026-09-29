@@ -45,14 +45,10 @@ export function useStartConversation() {
       toast.error(tFallback('hub.messages.authNotReady', 'Still signing you in. Try again in a moment.'));
       return;
     }
-    // Accept an id OR an email. Preferring the id removes a whole class of
-    // race: HubProfile resolves a target's email through an async
-    // resolve_profile_email query (email left the public_profiles view in
-    // mig 220), and its Message button was enabled BEFORE that query even
-    // started — so an early tap arrived with email still null and this
-    // guard returned in silence. findOrCreateConversation already accepts
-    // a uuid and resolves it server-side, so the id is the better key: it
-    // is present synchronously on every nav target.
+    // Accept an id OR an email. The id is present synchronously on every
+    // nav target, and findOrCreateConversation hands it to the server, which
+    // looks the email up itself, so the app never holds the other person's
+    // address. An email is only passed by the marketplace.
     const targetKey = targetUserObj?.id ?? targetUserObj?.email ?? null;
     if (!targetKey) {
       // Previously a bare console.error + return. A user-initiated tap

@@ -448,9 +448,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // crash the Hub. Existing `?.` / `??` fallback patterns on
       // these fields downstream still render correctly when a
       // column is absent. NOTE: no `email` column — it was removed from
-      // the public_profiles view; the target's email (for the still
-      // email-keyed follow/DM/post queries) is resolved separately via
-      // the resolve_profile_email RPC below.
+      // the public_profiles view, and nothing on this page needs it.
       const { data } = await safeSelect({
         columns: [
           'id', 'username', 'display_name', 'avatar_url', 'total_xp',
@@ -485,26 +483,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     initialDataUpdatedAt: 0,
   });
 
-  // For an id-only target we still need the target's email for the parts of
-  // this component that remain email-keyed: the story report and the DM
-  // starter. Follow state, posts, stories, notes, highlights, mute and block
-  // go by id. It is resolved through resolve_profile_email, which hands
-  // any signed-in caller any user's email; that RPC is being retired, so do
-  // not add a new reader of `email` here.
-  const { data: resolvedTargetEmail } = useQuery({
-    queryKey: ['resolveProfileEmail', targetId],
-    queryFn: async () => {
-      const { data } = await supabase.rpc('resolve_profile_email', { p_id: targetId });
-      return data || null;
-    },
-    enabled: !isSelf && !!targetId && !targetEmailProp,
-    staleTime: 5 * 60_000,
-  });
-
-  // Resolved target email for the rest of this component. Prefer the nav
-  // prop (email-link targets carry it); otherwise the RPC-resolved value.
-  // Declared post-query so the lookups above stay id-first.
-  const email = isSelf ? user?.email : (targetEmailProp || resolvedTargetEmail || null);
+  // Everything on this page is keyed by user id. `email` is only ever the
+  // viewer's own (or whatever a legacy email link carried); the page never
+  // looks up anyone else's address.
+  const email = isSelf ? user?.email : (targetEmailProp || null);
 
   // Profile stories (for clickable avatar → StoryViewer)
   // Crew stories are scoped to crew_id and must never appear here.
@@ -769,11 +751,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     },
   });
 
-  // The target key handed to the conversation starter. `targetId` is
-  // available synchronously from the nav target; `email` is not — it comes
-  // from an async resolve_profile_email query, because email left the
-  // public_profiles view in mig 220. Preferring the id is what stops the
-  // Message button from depending on that round-trip at all.
+  // The target key handed to the conversation starter: the id, which is
+  // present synchronously on every nav target. The server resolves it.
   const messageTargetKey = targetId || email || null;
 
   const startConversationMutation = useMutation({
@@ -2052,16 +2031,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
       {/* Story highlights rail (mig 099). Own profile shows a
           "+ New" tile + their albums; non-own only shows albums
-          (hides entirely if empty).
-
-          `email` — the RESOLVED value — not `targetUser?.email`. Since mig
-          220 dropped email from public_profiles, in-app navigation is
-          id-only, so the nav prop carries no email and these three
-          components were being handed undefined on every other-user
-          profile. Their queries sat disabled and the sections silently
-          rendered nothing, which reads as "this person has no data"
-          rather than as the bug it is. `email` falls back to the
-          resolve_profile_email RPC that this component already runs. */}
+          (hides entirely if empty). Keyed by user id: in-app navigation
+          carries no email for anyone else. */}
       <StoryHighlightsRail
         userId={targetId}
         isOwn={isSelf}
