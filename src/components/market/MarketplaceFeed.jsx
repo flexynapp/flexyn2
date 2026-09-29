@@ -751,13 +751,13 @@ export default function MarketplaceFeed({ onStartConversation, onOpenCollection 
   // five queries settling. Each of those re-rendered all 60 tiles, and when
   // one lands mid-filter it re-renders them while framer is animating them.
   const handleTradeClick = useCallback((l) => {
-    if (user?.email) addRecentlyViewed(user.email, l);
+    if (user?.email) addRecentlyViewed(user.email, l, user.id);
     setTradeTarget(l);
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
   const handleOpenDetail = useCallback((l) => {
-    if (user?.email) addRecentlyViewed(user.email, l);
+    if (user?.email) addRecentlyViewed(user.email, l, user.id);
     setDetailTarget(l);
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
 
   const cardProps = useMemo(() => ({
     currentUser: user,

@@ -103,7 +103,8 @@ export const findOrCreateConversation = async (myEmail, other) => {
   // The peer may be passed as a user_id (uuid) or an email. An id goes
   // straight to start_dm_conversation(p_other_id), which looks the email up
   // server-side, so the caller never holds the other person's address.
-  // Only the marketplace still passes an email (listing.seller_email).
+  // Every in-app caller passes an id now; the email path below stays for
+  // anything older still holding only an address.
   if (UUID_RE.test(String(other))) {
     const { data: convId, error } = await supabase
       .rpc('start_dm_conversation', { p_other_id: other });
