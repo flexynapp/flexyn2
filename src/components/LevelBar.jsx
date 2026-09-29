@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 import useCountUp from '@/hooks/useCountUp';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
@@ -94,7 +95,21 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
     // No tier glow: a coloured shadow is banned by the UI rules, and the tier
     // already speaks through its border, badge and bar. The tier hues stay,
     // because XP tiers are one of the two places purple is allowed.
-    <div className={`relative flex items-center gap-3 px-5 py-3 rounded-xl overflow-hidden ${tier.bg}`}>
+    //
+    // The full bar is a button too. On You it was the one level surface you
+    // could not tap: the compact badge in the profile menu opened the Stats
+    // Hub (level, leaderboards, weekly league, quests) and this larger card,
+    // the one people actually see, did nothing. Same destination, same
+    // spring as the compact badge's press, and a chevron so it reads as
+    // tappable before anyone tries.
+    <>
+    <motion.button
+      type="button"
+      onClick={() => setStatsHubOpen(true)}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+      className={`relative w-full text-start flex items-center gap-3 ps-5 pe-3 py-3 rounded-xl overflow-hidden cursor-pointer ${tier.bg}`}
+    >
       <Particles type={tier.particles} />
 
       {/* Level Badge */}
@@ -121,6 +136,10 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
       {level === 100 && (
         <div className="flex-shrink-0 text-xs font-bold text-yellow-500 ms-1">MAX</div>
       )}
-    </div>
+
+      <ChevronRight className="relative flex-shrink-0 w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+    </motion.button>
+    <StatsHubModal open={statsHubOpen} onClose={() => setStatsHubOpen(false)} />
+    </>
   );
 }
