@@ -1,8 +1,8 @@
 {
   "$comment": "Per-file counts of patterns CLAUDE.md bans. They may SHRINK, never grow. See scripts/ui-ratchet.mjs and src/test/__tests__/uiRatchet.test.js. After a cleanup, re-baseline with `npm run ui:ratchet -- --write` so the lower number is the new ceiling.",
   "$totals": {
-    "purple": 67,
-    "gradient": 27,
+    "purple": 65,
+    "gradient": 26,
     "backdropBlur": 72,
     "sparkles": 72,
     "heavyShadow": 52,
@@ -15,7 +15,6 @@
   "counts": {
     "purple": {
       "src/components/cardio/CardioLiveTrackerOutside.jsx": 3,
-      "src/components/coach/CoachPlanCard.jsx": 2,
       "src/components/gauntlet/GauntletStatsModal.jsx": 2,
       "src/components/gauntlet/WeeklyGauntletCard.jsx": 3,
       "src/components/hub/SnakeGameModal.jsx": 1,
@@ -37,7 +36,6 @@
       "src/pages/PublicProfile.jsx": 4
     },
     "gradient": {
-      "src/components/coach/CoachPlanCard.jsx": 1,
       "src/components/dashboard/LeagueStandingsModal.jsx": 1,
       "src/components/hub/FollowSuggestionRail.jsx": 2,
       "src/components/hub/HubProfile.jsx": 1,
