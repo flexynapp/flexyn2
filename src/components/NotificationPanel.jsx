@@ -40,6 +40,7 @@ import {
   FILTERS, hueFor, isKnownType, matchesFilter,
 } from '@/lib/notificationCatalog';
 import { formatNotificationTime, groupByDay, BUCKET } from '@/lib/notificationTime';
+import { actorKey, actorRefOf, collectActorRefs } from '@/lib/notificationActor';
 
 const PAGE_SIZE = 50;
 
@@ -83,6 +84,18 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     queryFn: () => notifications.listForUser(user, limit),
     enabled: !!user?.id && open,
     staleTime: 5_000,
+  });
+
+  // Faces for the rows another person is behind. One read per page of
+  // rows, keyed on the ids themselves so a new row asks again and an old
+  // one reuses the cache. Until it resolves (or if it fails) a row shows
+  // its type icon, which is what it showed before this existed.
+  const actorRefs = useMemo(() => collectActorRefs(rows), [rows]);
+  const { data: actors = {} } = useQuery({
+    queryKey: ['notificationActors', actorRefs.ids.join(','), actorRefs.usernames.join(',')],
+    queryFn: () => notifications.listActorProfiles(actorRefs),
+    enabled: open && (actorRefs.ids.length > 0 || actorRefs.usernames.length > 0),
+    staleTime: 5 * 60_000,
   });
 
   useBodyScrollLock(open);
@@ -484,6 +497,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                             <NotificationRow
                               key={n.id}
                               n={n}
+                              actor={actors[actorKey(actorRefOf(n))]}
                               rtl={rtl}
                               language={language}
                               onClick={() => handleRowClick(n)}
@@ -685,7 +699,7 @@ function EmptyBlock({ Icon, title, desc, action, tone }) {
 //
 // The row's own delete button is gone. It was a 26px target pinned
 // bottom-end, inside the region a thumb uses to tap the row itself.
-function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, deleteLabel }) {
+function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting, deleteLabel }) {
   const { tFallback } = useLanguage();
   // Rebuilt from `type` + `metadata` in the READER's language where we can,
   // falling back to the stored text otherwise. See src/lib/notificationText.js
@@ -746,9 +760,7 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
           {!n.is_read && (
             <span aria-hidden="true" className="absolute inset-y-0 start-0 w-[3px] bg-primary" />
           )}
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${HUE_TILE[hueFor(n.type)]}`}>
-            <span aria-hidden="true">{n.icon || '🔔'}</span>
-          </div>
+          <NotificationAvatar n={n} actor={actor} />
           <div className="flex-1 min-w-0 ms-2">
             <p className={`text-body leading-tight ${n.is_read ? '' : 'font-semibold'}`}>{text.title}</p>
             {text.body && (
@@ -783,5 +795,50 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
       </motion.div>
       <div className="h-px bg-border/60 ms-[68px]" />
     </motion.li>
+  );
+}
+
+// The row's leading tile. When another person is behind the row it is them:
+// their picture, or their initial when they have none, with the type's icon
+// as a small badge on the corner so "liked" and "commented" still read at a
+// glance. Round, because every other picture of a person in the app is
+// round; the square tinted tile stays for rows no person is behind, and for
+// a person row until the lookup answers (or if it fails).
+function NotificationAvatar({ n, actor }) {
+  const [failed, setFailed] = useState(false);
+  const glyph = n.icon || '🔔';
+  if (!actor) {
+    return (
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${HUE_TILE[hueFor(n.type)]}`}>
+        <span aria-hidden="true">{glyph}</span>
+      </div>
+    );
+  }
+  const initial = (actor.username || '?').charAt(0).toUpperCase();
+  return (
+    <div className="relative w-10 h-10 shrink-0">
+      {actor.avatar_url && !failed ? (
+        <img
+          src={actor.avatar_url}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="w-10 h-10 rounded-full object-cover bg-secondary"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-heading font-bold text-body text-foreground"
+        >
+          {initial}
+        </div>
+      )}
+      <span
+        aria-hidden="true"
+        className="absolute -bottom-1 -end-1 w-5 h-5 rounded-full bg-card ring-2 ring-card flex items-center justify-center text-[11px] leading-none"
+      >
+        {glyph}
+      </span>
+    </div>
   );
 }
