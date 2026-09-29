@@ -416,17 +416,29 @@ export async function equipRegimen(regimenId, user) {
     .single();
   if (error || !source) throw new Error('Regimen not found');
 
+  // Credit the author by username. This used to fall back to the start of
+  // the author's email (created_by), which then showed as "Copied from
+  // @<their email name>" to anyone the copy is shared with.
+  let authorUsername = source.original_author_username || null;
+  if (!authorUsername && source.user_id) {
+    const { data: author } = await selectProfiles((from) => from
+      .select('username')
+      .eq('id', source.user_id)
+      .maybeSingle());
+    authorUsername = author?.username || null;
+  }
+
   const { data: copy, error: copyError } = await supabase
     .from('regimens')
     .insert({
       created_by:              user.email,
+      user_id:                 user.id,
       name:                    source.name,
       description:             source.description ?? null,
       exercises:               source.exercises ?? [],
       is_public:               false,
       original_template_id:    source.id,
-      original_author_username:
-        source.original_author_username || source.created_by?.split('@')[0],
+      original_author_username: authorUsername,
     })
     .select()
     .single();
