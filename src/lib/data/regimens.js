@@ -2,6 +2,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { ownedRows } from './ownedRows';
+import { selectProfiles } from './users';
 
 const rows = ownedRows('regimens');
 
@@ -46,10 +47,15 @@ export const remove = (id) => rows.remove(id);
  * a strict filter on either column missed regimens published under the
  * other flag. We OR them with a single raw .or() call.
  */
+// Public templates are read by everyone, so the owner's email (created_by)
+// and a copied author's email (original_author_email) are left out. The
+// owner is user_id.
+const PUBLIC_COLUMNS = 'id, user_id, name, description, days, created_at, created_date, is_public, is_public_free, copy_count, original_template_id, original_author_username, exercises, is_template, template_id, difficulty';
+
 export const listPublic = async (limit = 100) => {
   const { data, error } = await supabase
     .from('regimens')
-    .select('*')
+    .select(PUBLIC_COLUMNS)
     .or('is_public.eq.true,is_public_free.eq.true')
     .order('copy_count', { ascending: false })
     .limit(limit);
@@ -71,6 +77,15 @@ export const listPublic = async (limit = 100) => {
  * Copy a public template into the current user's regimen library.
  * Increments the original's copy_count and records authorship on the copy.
  */
+async function ownerUsername(original) {
+  if (!original?.user_id) return null;
+  const res = await selectProfiles((from) => from
+    .select('username')
+    .eq('id', original.user_id)
+    .maybeSingle());
+  return res?.data?.username || null;
+}
+
 export const copyTemplate = async (original, user) => {
   const copy = await rows.create({
     created_by: user.email,
@@ -80,11 +95,11 @@ export const copyTemplate = async (original, user) => {
     is_public: false,
     copy_count: 0,
     original_template_id: original.id,
-    // Prefer the original's explicit username; only fall back to
-    // "Unknown" if it's missing. The previous email-prefix fallback
-    // leaked the original user's email local-part as the author
-    // attribution on every copy. (Audit 17 #F28.)
-    original_author_username: original.author_username || 'Unknown',
+    // The author is the template's owner. `original.author_username` was
+    // never a column on regimens, so every copy was credited to "Unknown".
+    // (The email-prefix fallback before that leaked the owner's address,
+    // Audit 17 #F28.)
+    original_author_username: (await ownerUsername(original)) || 'Unknown',
   });
   // Bump the source template's copy count via a security-definer RPC that
   // bypasses RLS (direct cross-user update is rejected by Postgres policies).

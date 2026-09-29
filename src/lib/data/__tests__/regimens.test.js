@@ -155,8 +155,13 @@ describe('public templates', () => {
     results = [{ data: { id: 'c1' }, error: null }];
     const { supabase } = await import('@/api/supabaseClient');
     supabase.rpc.mockReturnValue(Promise.resolve({ error: null }));
+    // The template's owner is credited by looking up their username by id.
+    const { selectProfiles } = await import('@/lib/data/users');
+    selectProfiles.mockResolvedValueOnce({ data: { username: 'sam' }, error: null });
     await regimens.copyTemplate(
-      { id: 'o1', name: 'PPL', description: 'd', exercises: [{ name: 'Row' }], author_username: 'sam' },
+      // No author_username: that was never a column, so every copy used to
+      // be credited to "Unknown". The owner is found through user_id.
+      { id: 'o1', user_id: 'owner1', name: 'PPL', description: 'd', exercises: [{ name: 'Row' }] },
       { email: 'a@b.co' },
     );
     expect(calls.filter((c) => c[1] === 'insert')).toEqual([[T, 'insert', {

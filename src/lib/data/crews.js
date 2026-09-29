@@ -411,7 +411,7 @@ export async function notifyCrewRollCall(crewId, question, senderName) {
 export async function equipRegimen(regimenId, user) {
   const { data: source, error } = await supabase
     .from('regimens')
-    .select('*')
+    .select('id, user_id, name, description, exercises, original_author_username')
     .eq('id', regimenId)
     .single();
   if (error || !source) throw new Error('Regimen not found');
@@ -475,7 +475,7 @@ export async function equipRegimen(regimenId, user) {
   // `copy_count`) and left the mechanism broken, so the badge kept
   // reading 0 for a different reason than before. `regimens.js`
   // two files away has always called the RPC.
-  if (user.email !== source.created_by) {
+  if (user.id !== source.user_id) {
     const { error: bumpError } = await supabase.rpc('increment_copy_count', {
       p_table: 'regimens',
       p_id:    source.id,

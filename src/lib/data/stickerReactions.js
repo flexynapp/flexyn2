@@ -6,6 +6,10 @@ import { createBatcher } from '@/lib/microBatcher';
 
 const PER_POST_LIMIT = 50;
 
+// Every column but user_email: reactions render on posts everyone can see,
+// and the reactor is identified by user_id / user_name.
+const REACTION_COLUMNS = 'id, post_id, user_id, item_id, item_name, item_emoji, item_rarity, variant, created_at, user_avatar_url, user_name';
+
 // Feed cards each fetch a post's sticker reactions on mount — one query
 // per card. Coalesce same-tick calls into a single `post_id IN (…)`
 // fetch. The global row cap scales with the batch size so the worst
@@ -14,7 +18,7 @@ const PER_POST_LIMIT = 50;
 const postReactionsBatcher = createBatcher(async (postIds) => {
   const { data, error } = await supabase
     .from('post_sticker_reactions')
-    .select('*')
+    .select(REACTION_COLUMNS)
     .in('post_id', postIds)
     .order('created_at', { ascending: false })
     .limit(postIds.length * PER_POST_LIMIT);
@@ -43,7 +47,7 @@ export async function getPostReactions(postId, limit = PER_POST_LIMIT) {
   // Non-default limit — rare path, keep the exact single-post query.
   const { data, error } = await supabase
     .from('post_sticker_reactions')
-    .select('*')
+    .select(REACTION_COLUMNS)
     .eq('post_id', postId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -57,7 +61,7 @@ export async function getMyReaction(postId, userId) {
   if (!postId || !userId) return null;
   const { data, error } = await supabase
     .from('post_sticker_reactions')
-    .select('*')
+    .select(REACTION_COLUMNS)
     .eq('post_id', postId)
     .eq('user_id', userId)
     .maybeSingle();

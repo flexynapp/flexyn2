@@ -656,7 +656,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
                 /* Still needed: PopularityBadge gives "Top" to rank 0.
                    It no longer staggers the entrance — see listItemMotion. */
                 index={i}
-                isMine={tmpl.created_by === user?.email}
+                isMine={!!user?.id && tmpl.user_id === user.id}
                 user={user}
               />
             ))}

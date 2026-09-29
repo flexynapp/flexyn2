@@ -176,6 +176,10 @@ export async function syncMonthlyLeague(user) {
   }
 }
 
+// Every column but user_email. Standings are read by every member of the
+// bracket, and nothing renders an address; rows are keyed by user_id.
+const MEMBER_COLUMNS = 'id, league_id, user_id, weekly_xp, rank, joined_at, active_days, qualified, outcome, coins_awarded';
+
 /**
  * List all members of a league, ranked by weekly_xp desc.
  */
@@ -207,7 +211,7 @@ export async function listLeagueMembers(leagueId) {
   const { data, error } = await supabase
     .from('league_members')
     .select(`
-      *,
+      ${MEMBER_COLUMNS},
       user:public_profiles ( username, avatar_url )
     `)
     .eq('league_id', leagueId)
@@ -217,7 +221,7 @@ export async function listLeagueMembers(leagueId) {
     // plain select so the standings still render.
     const { data: fallback } = await supabase
       .from('league_members')
-      .select('*')
+      .select(MEMBER_COLUMNS)
       .eq('league_id', leagueId)
       .order('weekly_xp', { ascending: false });
     return fallback ?? [];
@@ -329,7 +333,7 @@ export async function getLastResolvedLeague(user) {
   if (!user?.id) return null;
   const { data, error } = await supabase
     .from('league_members')
-    .select('*, leagues!inner(*)')
+    .select(`${MEMBER_COLUMNS}, leagues!inner(*)`)
     .eq('user_id', user.id)
     .eq('leagues.is_resolved', true)
     .order('joined_at', { ascending: false })
