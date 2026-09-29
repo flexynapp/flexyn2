@@ -10,10 +10,16 @@
 // things (feed, crews, competing, messages) live in Social.
 //
 // Rows NAVIGATE where the destination is a page and OPEN an overlay where
-// it is one. The overlays are still owned by ProfileMenu, which stays
-// mounted in the header with its trigger hidden; see profilePanels.js.
+// it is one. The overlays are owned by ProfileMenu (the account menu on the
+// header avatar and the sidebar foot); see profilePanels.js.
+//
+// The rows are grouped under headings. Eleven rows in five unlabelled boxes
+// read as one long list; the headings say what each box is for, and they are
+// where the account menu's old rows (Bag, Gym, Journal, Reviews, Injuries,
+// Achievements) now live, so they have to be findable at a glance.
 
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight, TrendingUp, Apple, ShoppingBag, Trophy, Dumbbell, Book,
@@ -33,8 +39,9 @@ import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SkinToggle from '@/components/skins/SkinToggle';
 import { useSkin } from '@/components/skins/useSkin';
+import * as capsules from '@/lib/data/capsules';
 
-function Row({ icon: Icon, label, hint, onClick, tone }) {
+function Row({ icon: Icon, label, hint, count = 0, onClick, tone }) {
   return (
     <button
       type="button"
@@ -46,16 +53,28 @@ function Row({ icon: Icon, label, hint, onClick, tone }) {
         <span className="block font-medium">{label}</span>
         {hint && <span className="block text-label text-muted-foreground">{hint}</span>}
       </span>
+      {count > 0 && (
+        <span className="min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center tabular-nums shrink-0">
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
       {tone !== 'danger' && <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />}
     </button>
   );
 }
 
-function Group({ children }) {
-  return (
+function Group({ title, children }) {
+  const box = (
     <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
       {children}
     </div>
+  );
+  if (!title) return box;
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="px-1 text-label font-semibold text-muted-foreground">{title}</h2>
+      {box}
+    </section>
   );
 }
 
@@ -65,6 +84,14 @@ export default function You() {
   const { tFallback } = useLanguage();
   const { skin } = useSkin();
   const name = user?.full_name || handle(user) || tFallback('you.title', 'You');
+
+  // Same query key as the account menu's badge, so this is one request.
+  const { data: capsuleCount = 0 } = useQuery({
+    queryKey: ['userCapsulesCount', user?.email],
+    queryFn: async () => (await capsules.listUnopenedCapsules(user.email)).length,
+    enabled: !!user?.email,
+    staleTime: 30_000,
+  });
 
   const openAchievements = () => {
     try { window.dispatchEvent(new CustomEvent(OPEN_ACHIEVEMENTS_EVENT)); } catch { /* ignore */ }
@@ -111,33 +138,30 @@ export default function You() {
         </Group>
       )}
 
-      <Group>
+      <Group title={tFallback('you.section.training', 'Training')}>
         <Row icon={TrendingUp} label={tFallback('nav.progress', 'Progress')} onClick={() => navigate('/progress')} />
         <Row icon={Apple} label={tFallback('nav.nutrition', 'Nutrition')} onClick={() => navigate('/nutrition')} />
-      </Group>
-
-      <Group>
-        <Row icon={ShoppingBag} label={tFallback('you.rewards', 'Rewards')} hint={tFallback('you.rewardsHint', 'Market and daily chest')}
-          onClick={() => navigate('/market')} />
-        <Row icon={Backpack} label={tFallback('profile.myBag', 'My Bag')} onClick={requestOpenBag} />
-        <Row icon={Trophy} label={tFallback('profile.achievements', 'Achievements')} onClick={openAchievements} />
         <Row icon={Dumbbell} label={tFallback('profile.myGym', 'My Gym')} onClick={() => navigate('/my-gym')} />
       </Group>
 
-      <Group>
+      <Group title={tFallback('you.section.records', 'Records')}>
         <Row icon={Book} label={tFallback('profile.myJournal', 'My Journal')} onClick={requestOpenJournal} />
         <Row icon={CalendarCheck} label={tFallback('profile.debriefVault', 'Weekly Reviews')} onClick={() => requestProfilePanel('reviews')} />
         <Row icon={ShieldAlert} label={tFallback('profile.myInjuries', 'My Injuries')} onClick={() => requestProfilePanel('injuries')} />
       </Group>
 
-      <Group>
+      <Group title={tFallback('you.section.rewards', 'Rewards')}>
+        <Row icon={ShoppingBag} label={tFallback('layout.marketplace', 'Marketplace')} hint={tFallback('you.marketHint', 'Daily chest and trades')}
+          onClick={() => navigate('/market')} />
+        <Row icon={Backpack} label={tFallback('profile.myBag', 'My Bag')} count={capsuleCount} onClick={requestOpenBag} />
+        <Row icon={Trophy} label={tFallback('profile.achievements', 'Achievements')} onClick={openAchievements} />
+      </Group>
+
+      <Group title={tFallback('you.section.account', 'Account')}>
         <Row icon={Settings} label={tFallback('profile.settings', 'Settings')} onClick={() => navigate('/settings')} />
         {isEnabled('corporatePortal') && (
           <Row icon={Building2} label={tFallback('profile.corporate', 'Corporate Wellness')} onClick={() => navigate('/corporate')} />
         )}
-      </Group>
-
-      <Group>
         <Row icon={LogOut} label={tFallback('profile.signOut', 'Sign out')} onClick={() => requestProfilePanel('signOut')} tone="danger" />
       </Group>
     </div>

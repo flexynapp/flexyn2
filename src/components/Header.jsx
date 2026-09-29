@@ -211,11 +211,12 @@ export default function Header() {
           <div>
             <NotificationBell />
           </div>
-          {/* The profile menu's trigger is hidden: the You tab replaced it
-              (navigation redesign, phase 2). It stays mounted because it
-              still owns the Weekly Reviews, Injuries, Achievements and
-              account dialogs, which You opens through profilePanels.js. */}
-          <ProfileMenu compact hideTrigger />
+          {/* Your account: View profile, You, Settings, Language, Sign out,
+              in a sheet. Everything else personal is on the You tab. This
+              copy also owns the Weekly Reviews, Injuries, Achievements and
+              account dialogs on phones, which You opens through
+              profilePanels.js; the sidebar's copy owns them on desktop. */}
+          <ProfileMenu placement="header" />
         </div>
       </div>
 
