@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBoldSegments } from '../markdownLite';
+import { parseBoldSegments, cleanCoachText, parseCoachBlocks } from '../markdownLite';
 import { SUGGESTED_PROMPTS } from '../coach';
 
 describe('parseBoldSegments', () => {
@@ -73,5 +73,66 @@ describe('parseBoldSegments', () => {
     for (const p of SUGGESTED_PROMPTS) {
       expect(parseBoldSegments(p.text)).toEqual([{ text: p.text, bold: false }]);
     }
+  });
+});
+
+// Real replies from the live coach-chat function, 2026-09-29.
+describe('cleanCoachText', () => {
+  it('turns a clause dash into two sentences', () => {
+    expect(cleanCoachText("You've got solid pressing strength — let's use it."))
+      .toBe("You've got solid pressing strength. Let's use it.");
+  });
+
+  it('turns a dash before a conjunction into a comma', () => {
+    expect(cleanCoachText('Vous progressez—mais lentement.')).toBe('Vous progressez, mais lentement.');
+  });
+
+  it('turns two dashes around an aside into two commas', () => {
+    expect(cleanCoachText('Add 5 lb next session — so 190×5 — and hold it.'))
+      .toBe('Add 5 lb next session, so 190×5, and hold it.');
+  });
+
+  it('keeps the dash in a number range', () => {
+    expect(cleanCoachText('Eat 2,700–2,800 calories at 160–180 g protein.'))
+      .toBe('Eat 2,700–2,800 calories at 160–180 g protein.');
+  });
+
+  it('capitalises bullets and converts markdown list markers', () => {
+    expect(cleanCoachText('• first\n- second\n* third')).toBe('• First\n• Second\n• Third');
+  });
+
+  it('drops single-asterisk italics but keeps bold', () => {
+    expect(cleanCoachText('**Head.** The key is *small and consistent*.'))
+      .toBe('**Head.** The key is small and consistent.');
+  });
+
+  it('turns a markdown heading into the bold headline', () => {
+    expect(cleanCoachText('## Train today\nLightly.')).toBe('**Train today**\nLightly.');
+  });
+
+  it('leaves arithmetic alone', () => {
+    expect(cleanCoachText('2 * 3 is 6')).toBe('2 * 3 is 6');
+  });
+});
+
+describe('parseCoachBlocks', () => {
+  it('groups a headline, a list and a closing line', () => {
+    const text = '**Train, but dial it back.**\n\n• One\n• Two\n\nWhere is it sore?';
+    expect(parseCoachBlocks(text)).toEqual([
+      { type: 'p', text: '**Train, but dial it back.**' },
+      { type: 'list', items: ['One', 'Two'] },
+      { type: 'p', text: 'Where is it sore?' },
+    ]);
+  });
+
+  it('splits a paragraph that runs straight into bullets', () => {
+    expect(parseCoachBlocks('Intro\n• A\n• B')).toEqual([
+      { type: 'p', text: 'Intro' },
+      { type: 'list', items: ['A', 'B'] },
+    ]);
+  });
+
+  it('returns nothing for empty input', () => {
+    expect(parseCoachBlocks('')).toEqual([]);
   });
 });

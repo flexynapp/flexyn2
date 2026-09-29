@@ -6,7 +6,7 @@
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Sparkles, Loader2, Trash2, Mic, MicOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, Loader2, Trash2, Mic, MicOff, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
@@ -17,7 +17,7 @@ import { db } from '@/api/db';
 import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
 import { buildCoachContext } from '@/lib/aiCoach/responders';
 import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
-import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
+import { parseBoldSegments, cleanCoachText, parseCoachBlocks } from '@/lib/aiCoach/markdownLite';
 import { followUpsFor } from '@/lib/aiCoach/followUps';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
 import { toast } from '@/lib/toast';
@@ -66,6 +66,19 @@ const SPEECH_LANG_BY_APP_LANG = {
   it: 'it-IT', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN', ar: 'ar-SA',
   hi: 'hi-IN', ru: 'ru-RU', tr: 'tr-TR', pl: 'pl-PL', nl: 'nl-NL',
 };
+
+// Prompt chips are English data: the rules engine that answers when the model
+// is unavailable matches English phrasing, so the English string is what gets
+// SENT. Only the label is translated, which is also what the user's bubble
+// shows. They rendered in English on the es and fr apps until 2026-09-29.
+function promptLabel(p, tFallback, generateMode) {
+  if (p.send) {
+    const dur = /^dur_(\d+)$/.exec(p.id);
+    if (dur) return tFallback('coach.followUp.minutes', '{n} min', { n: dur[1] });
+    return tFallback(`coach.followUp.${p.id}`, p.text);
+  }
+  return tFallback(`${generateMode ? 'coach.generatePrompt' : 'coach.prompt'}.${p.id}`, p.text);
+}
 
 export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   const { user } = useAuth();
@@ -215,9 +228,32 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       el.scrollTop = el.scrollHeight;
     }
   }, []);
-  useLayoutEffect(() => { scrollToBottom(false); }, [scrollToBottom]);
+  // Only a thread starts at the bottom. The welcome is read from the top, and
+  // on a 667px phone it is taller than the frame, so scrolling it to the
+  // bottom on mount cut its heading off before anyone had scrolled at all.
+  useLayoutEffect(() => {
+    if (messages.length > 0) scrollToBottom(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToBottom, messages.length > 0]);
+  // A long reply lands with its first line in view, not its last. Scrolled to
+  // the bottom, a five-bullet answer opened on its closing line and the
+  // headline that carries the answer sat above the fold.
   useEffect(() => {
-    if (stickToBottomRef.current) scrollToBottom(true);
+    if (!stickToBottomRef.current || messages.length === 0) return;
+    const el = scrollerRef.current;
+    const last = messages[messages.length - 1];
+    if (el && !thinking && last?.role !== 'user') {
+      const nodes = el.querySelectorAll('[data-coach-msg]');
+      const node = nodes[nodes.length - 1];
+      if (node && node.offsetHeight > el.clientHeight * 0.6) {
+        const top = el.scrollTop + node.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+        if ('scrollTo' in el) el.scrollTo({ top, behavior: 'smooth' });
+        else el.scrollTop = top;
+        return;
+      }
+    }
+    scrollToBottom(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, thinking, scrollToBottom]);
 
   // `displayAs` lets a follow-up chip send the full re-stated request while the
@@ -255,12 +291,8 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       // The daily cap is the one degradation worth naming. The reply below is
       // the rule-based one and still useful, but a coach that silently gets
       // simpler mid-conversation reads as the app breaking.
-      if (result.capped) {
-        toast.info(tFallback(
-          'coach.capped',
-          "You've hit today's limit for detailed answers. Back to the basics until tomorrow.",
-        ));
-      }
+      // It rides on the reply itself rather than a toast: the note belongs to
+      // this answer, and a toast is gone before the answer is read.
       const reply = {
         role: 'coach',
         text: result.reply,
@@ -269,6 +301,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
         // A generated workout/plan rides along as a structured payload the
         // chat renders as an interactive, saveable card.
         plan: result.plan || null,
+        capped: !!result.capped,
       };
       setMessages(prev => [...prev, reply]);
     } catch (err) {
@@ -333,17 +366,6 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           one subtitle, and this row now exists only to hold Clear chat once
           there is a chat to clear. The name stays for screen readers. */}
       <h2 className="sr-only">{tFallback('coach.title', 'Coach')}</h2>
-      {messages.length > 0 && (
-        <div className="flex items-center justify-end pb-2 border-b border-border mb-3 shrink-0">
-          <button
-            onClick={handleClear}
-            aria-label={tFallback("coachChat.clearChat", "Clear chat")}
-            className="p-2.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors touch-manipulation"
-          >
-            <Trash2 className="w-6 h-6" />
-          </button>
-        </div>
-      )}
 
       {/* Messages */}
       <div
@@ -355,9 +377,29 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           <CoachWelcome onPick={handleSend} tFallback={tFallback} generateMode={generateMode} />
         ) : (
           <>
+            {/* Clear chat used to own a bordered row above the thread, a 24px
+                trash can in 60px of chrome that never scrolled away. It is a
+                quiet text button at the top of the thread now, so it scrolls
+                off with the history it clears. */}
+            <div className="flex justify-end mb-1">
+              <button
+                type="button"
+                onClick={handleClear}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-micro font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors touch-manipulation"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {tFallback('coachChat.clearChat', 'Clear chat')}
+              </button>
+            </div>
             {messages.map((m, i) => (
               <React.Fragment key={i}>
                 <MessageBubble m={m} />
+                {m.capped && (
+                  <p className="-mt-1 mb-2 ps-1 text-micro text-muted-foreground">
+                    {tFallback('coach.capped',
+                      "You've hit today's limit for detailed answers. Back to the basics until tomorrow.")}
+                  </p>
+                )}
                 {m.plan && (
                   <CoachPlanCard
                     plan={m.plan}
@@ -398,6 +440,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       {!isEmpty && (
         <PromptStrip
           prompts={[...followUps, ...basePrompts.filter(p => !followUps.some(f => f.id === p.id))]}
+          generateMode={generateMode}
           onPick={handleSend}
           disabled={thinking}
         />
@@ -434,7 +477,9 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
               type="button"
               onClick={handleVoiceTap}
               disabled={thinking}
-              aria-label={voiceListening ? 'Stop listening' : 'Dictate your question'}
+              aria-label={voiceListening
+                ? tFallback('coach.voice.stopAria', 'Stop listening')
+                : tFallback('coach.voice.startAria', 'Dictate your question')}
               aria-pressed={voiceListening}
               className={[
                 // 32px drawn; the before: box makes the tap target 44px tall
@@ -442,7 +487,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
                 // halos do not overlap.
                 "relative p-2 rounded-xl transition-colors shrink-0 before:absolute before:content-[''] before:-inset-y-1.5 before:-inset-x-0.5",
                 voiceListening
-                  ? 'bg-rose-500/15 text-rose-500'
+                  ? 'bg-destructive/15 text-destructive'
                   : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-background/60 active:bg-background/60',
               ].join(' ')}
             >
@@ -483,30 +528,58 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   );
 }
 
+function BoldText({ text }) {
+  return parseBoldSegments(text).map((seg, i) => (
+    seg.bold
+      ? <strong key={i} className="font-semibold">{seg.text}</strong>
+      : <React.Fragment key={i}>{seg.text}</React.Fragment>
+  ));
+}
+
+// A coach reply is drawn as paragraphs and a real list rather than one
+// pre-wrapped string: under pre-wrap a bullet that wrapped ran its second
+// line back under the "•", so a four-bullet answer read as one block of
+// text. The text is tidied first (cleanCoachText): no clause dashes, no
+// stray markdown markers, bullets that start with a capital.
+function CoachReply({ text }) {
+  const blocks = useMemo(() => parseCoachBlocks(cleanCoachText(text)), [text]);
+  return (
+    <div className="flex flex-col gap-2">
+      {blocks.map((b, i) => (b.type === 'list' ? (
+        <ul key={i} className="flex flex-col gap-1">
+          {b.items.map((item, j) => (
+            <li key={j} className="flex gap-2">
+              <span aria-hidden="true" className="text-muted-foreground">•</span>
+              <span className="min-w-0"><BoldText text={item} /></span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p key={i} className="whitespace-pre-line"><BoldText text={b.text} /></p>
+      )))}
+    </div>
+  );
+}
+
 function MessageBubble({ m }) {
   const isUser = m.role === 'user';
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
+      data-coach-msg={isUser ? undefined : ''}
       className={`flex mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm break-words ${
           isUser
-            ? 'bg-primary text-primary-foreground rounded-br-sm'
+            ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap'
             : 'bg-secondary text-foreground rounded-bl-sm'
         }`}
       >
-        {/* The coach writes **bold** for the headline of each reply. Rendered
-            as raw text those markers were pure noise on the one line that
-            most needed to stand out. User messages are echoed verbatim — they
-            are the user's own words, not our copy. */}
-        {isUser ? m.text : parseBoldSegments(m.text).map((seg, i) => (
-          seg.bold
-            ? <strong key={i} className="font-semibold">{seg.text}</strong>
-            : <React.Fragment key={i}>{seg.text}</React.Fragment>
-        ))}
+        {/* User messages are echoed verbatim: they are the user's own words,
+            not our copy. */}
+        {isUser ? m.text : <CoachReply text={m.text} />}
       </div>
     </motion.div>
   );
@@ -514,7 +587,7 @@ function MessageBubble({ m }) {
 
 // Horizontally-scrollable suggested-prompt chips with left/right arrow
 // controls. Arrows hide at the respective scroll extremes.
-function PromptStrip({ prompts, onPick, disabled }) {
+function PromptStrip({ prompts, onPick, disabled, generateMode }) {
   const { tFallback } = useLanguage();
   const ref = useRef(null);
   const [atStart, setAtStart] = useState(true);
@@ -556,7 +629,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
             // carries the full re-stated request, because each message is
             // parsed with no memory of the last one. Static prompts have no
             // `send` and are already complete sentences.
-            onClick={() => onPick(p.send ?? p.text, p.send ? p.text : undefined)}
+            onClick={() => onPick(p.send ?? p.text, promptLabel(p, tFallback, generateMode))}
             disabled={disabled}
             className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full border text-xs font-medium transition-colors disabled:opacity-50 ${
               p.send
@@ -564,7 +637,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
                 : 'bg-secondary/60 hover:bg-secondary active:bg-secondary border-border/50'
             }`}
           >
-            {p.text}
+            {promptLabel(p, tFallback, generateMode)}
           </button>
         ))}
       </div>
@@ -590,24 +663,31 @@ function CoachWelcome({ onPick, tFallback, generateMode }) {
   const desc = generateMode
     ? tFallback('coach.generate.desc', 'Tell me your goal and I’ll build a workout or a full plan you can save. Try "train for a faster 5K" or "help me PR my bench."')
     : tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.");
+  // Read from the top, left aligned like the thread that replaces it. The
+  // centred Sparkles tile went: the header already carries the Coach mark,
+  // and a big icon in a rounded square is the stock AI empty state. The six
+  // prompts are one list split by hairlines rather than six boxed buttons.
   return (
-    <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 px-2">
-      <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
-        <Sparkles className="w-7 h-7 text-foreground" />
-      </div>
-      <h2 className="font-heading font-bold text-lg mb-1">{title}</h2>
-      <p className="text-sm text-muted-foreground mb-5 max-w-xs">{desc}</p>
-      <div className="space-y-1.5 w-full max-w-sm">
-        {prompts.map(p => (
-          <button
-            key={p.id}
-            onClick={() => onPick(p.text)}
-            className="w-full text-start px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary active:bg-secondary border border-border/50 text-sm transition-colors"
-          >
-            {p.text}
-          </button>
-        ))}
-      </div>
+    <div className="pt-2 pb-4">
+      <h2 className="font-heading font-bold text-lg leading-tight">{title}</h2>
+      <p className="mt-1 text-sm text-muted-foreground max-w-sm">{desc}</p>
+      <ul className="mt-6 divide-y divide-border border-y border-border">
+        {prompts.map(p => {
+          const label = promptLabel(p, tFallback, generateMode);
+          return (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => onPick(p.text, label)}
+                className="w-full flex items-center gap-2 py-3 text-start text-sm transition-colors hover:text-primary active:text-primary"
+              >
+                <span className="flex-1 min-w-0">{label}</span>
+                <ArrowUpRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

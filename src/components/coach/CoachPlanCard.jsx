@@ -147,7 +147,10 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
       await onSaveRegimen(activePlan.regimenPayload);
       setSaved(true);
     } catch (err) {
-      toast.error(`Couldn't save — ${err?.message || 'try again'}`);
+      // The raw error message went into the toast, untranslated and behind a
+      // dash. It goes to Sentry now; the user gets a sentence they can act on.
+      reportError(err, { feature: 'coach.save-regimen' });
+      toast.error(tFallback('coach.plan.saveFailed', "Couldn't save the regimen. Try again."));
     } finally {
       setSaving(false);
     }
@@ -157,7 +160,10 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/10 p-3"
+      // A hairline card, no wash. It was a primary to fuchsia to violet
+      // gradient: purple is reserved for rarity tiers, and a decorative
+      // gradient is one of the generated-UI tells CLAUDE.md bans.
+      className="mb-3 rounded-2xl border border-border bg-card p-3"
     >
       <div className="mb-2.5 px-0.5 flex items-start gap-2">
         <div className="flex-1 min-w-0">

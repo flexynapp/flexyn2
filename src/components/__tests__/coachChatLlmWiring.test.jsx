@@ -158,8 +158,11 @@ describe('CoachChat — language-model wiring', () => {
 
     await send('how am I doing?');
 
-    await waitFor(() => expect(toastInfo).toHaveBeenCalledWith(expect.stringMatching(/limit for detailed answers/i)));
+    // In place, under the reply it explains, not in a toast that is gone
+    // before the answer has been read.
+    await waitFor(() => expect(screen.getByText(/limit for detailed answers/i)).toBeInTheDocument());
     expect(screen.getByText('RULES_REPLY')).toBeInTheDocument();
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 
   it('says nothing about the cap on a normal turn', async () => {
@@ -169,6 +172,6 @@ describe('CoachChat — language-model wiring', () => {
     await send('how am I doing?');
 
     await waitFor(() => expect(screen.getByText('LLM_REPLY')).toBeInTheDocument());
-    expect(toastInfo).not.toHaveBeenCalled();
+    expect(screen.queryByText(/limit for detailed answers/i)).not.toBeInTheDocument();
   });
 });

@@ -160,6 +160,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "min" is the minute abbreviation Spanish uses too.
+    'coach.followUp.minutes',
     // Duels: "Rival" and "VS" are the words Spanish uses on a scoreboard.
     'duelDetailSheet.rival',
     'duelDetailSheet.vs',
@@ -233,6 +235,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'stickerSet.count',
   ]),
   fr: new Set([
+    // "min" is the minute abbreviation French uses too.
+    'coach.followUp.minutes',
     // Duels: \"Rival\" and \"VS\" are the words French uses on a scoreboard.
     'duelDetailSheet.rival',
     'duelDetailSheet.vs',
