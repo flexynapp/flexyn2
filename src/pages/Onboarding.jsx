@@ -7,7 +7,7 @@ import { Fragment, createContext, useContext, useState, useEffect, useRef, useCa
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, useAnimationControls } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -21,6 +21,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen, TRAINING_EQUIPMENT, SESSION_MINUTES } from '@/lib/data/starterRegimen';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
+import { translateExerciseName } from '@/lib/exerciseTranslations';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
 import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
 import GoalIcon from '@/components/onboarding/GoalIcon';
@@ -134,17 +135,6 @@ const AGE_MAX = PROFILE_RANGES.age.max;
 // 20-character ceiling is enforced by the field's maxLength and by
 // handleUsernameChange.
 
-const LOADING_TASKS = [
-  'Reading your goals',
-  'Mapping training volume',
-  'Calibrating progression',
-  'Pairing exercises to equipment',
-  'Stress-testing recovery',
-  // Last, and the only one that names something happening off the device:
-  // this step now waits on a real request to the Coach (see LoadingStep), so
-  // it is the line that can genuinely take a moment.
-  'Asking your AI Coach',
-];
 
 /* ═══════════════════════════════════════════════════════════════
    ICON HELPER
@@ -2770,96 +2760,284 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
 ═══════════════════════════════════════════════════════════════ */
 
 // Hard ceiling on how long the Coach may hold up the reveal, on top of the
-// ~4.3 s the task list already takes. askStarterPlanCoach has its own 8 s
+// ~4.4 s the loader's beats already take. askStarterPlanCoach has its own 8 s
 // timeout; this is the belt to that braces, because the one thing onboarding
-// must never do is strand somebody on a spinner at the last step.
+// must never do is strand somebody on a loader at the last step.
 const COACH_WAIT_CEILING_MS = 4_000;
 
+// Dumbbell rack by Jason Grant on Unsplash, desaturated and cropped to
+// 780x1688. Credited in ATTRIBUTIONS.md.
+const LOADER_PHOTO = '/onboarding/loader-dumbbells.jpg';
+
+// One beat per pair of plates. The last one is the only line that names
+// something happening off the device: it holds until the Coach request
+// settles, so a wait there is the thing it says rather than a stall.
+const LOADER_BEATS = [
+  { key: 'onboarding.loading.beat.1', en: 'Reading your answers' },
+  { key: 'onboarding.loading.beat.2', en: 'Setting your level' },
+  { key: 'onboarding.loading.beat.3', en: 'Spacing your rest days' },
+  { key: 'onboarding.loading.beat.4', en: 'Asking your AI Coach' },
+];
+const LOADER_BEAT_MS = 1100;
+const LOADER_FIRST_BEAT_MS = 900;
+const LOADER_HOLD_READY_MS = 800;   // "Your plan is ready." on screen, alone
+const LOADER_CLEAR_MS = 250;        // text leaves before the bar moves
+const LOADER_LIFT_MS = 420;
+
+// Plate heights in the bar's 90-unit viewBox, inside collar outwards. The
+// bar is drawn in a 375-wide box with its centre at 187.5, and every plate's
+// x is mirrored from that centre, so the two sides cannot drift apart.
+const PLATE_H = [58, 50, 42, 34];
+const BAR_CX = 187.5;
+const COLLAR_OUTER = 91.5;          // centre to the collar face the plates sit against
+const PLATE_W = 10;
+const PLATE_STEP = 12;
+
 /**
- * @param {function} onDone   advance to the reveal
- * @param {function} onCoach  receives { reply, model } if the Coach answered.
- *                            Never called on failure — the reveal simply
- *                            renders the plan on its own, as it always did.
+ * The plan loader. Four beats; each slams a pair of plates onto the bar and
+ * prints one real answer underneath, so the wait reads as work being done.
+ * At the end the text clears, the bar dips and launches off the top of the
+ * screen, and the parent flashes into the reveal.
+ *
+ * @param {object}   data            onboarding draft, for the printed answers
+ * @param {object}   previewRegimen  the plan the reveal will show
+ * @param {function} onDone          advance to the reveal
+ * @param {function} onCoach         asks the Coach; resolves either way
  */
-function LoadingStep({ onDone, onCoach }) {
-  const { tFallback } = useLanguage();
-  const [step, setStep] = useState(0);
-  // The request is in flight while the task list plays, so in the common case
-  // it has already landed by the time the list finishes and costs nothing.
+function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
+  const { tFallback, language } = useLanguage();
+  const fmtDate = useDateFormatter();
+  const reduce = useReducedMotion();
+  const shake = useAnimationControls();
+  const barRef = useRef(null);
+  const [beat, setBeat] = useState(0);            // beats completed, 0..4
+  const [phase, setPhase] = useState('build');    // build | clear | lift
+  const [liftY, setLiftY] = useState(-700);
+  // The request is in flight while the beats play, so in the common case it
+  // has landed long before the last beat and costs nothing.
   const [coachPending, setCoachPending] = useState(true);
 
   // Kicked off exactly once. `onCoach` is a fresh closure on every parent
-  // render, so it is deliberately not a dependency — re-running this would
+  // render, so it is deliberately not a dependency: re-running this would
   // spend another turn of the user's daily Coach quota per render.
   useEffect(() => {
     let cancelled = false;
     const settle = () => { if (!cancelled) setCoachPending(false); };
-
     const ceiling = setTimeout(settle, COACH_WAIT_CEILING_MS);
     onCoach?.().finally(() => { clearTimeout(ceiling); settle(); });
-
     return () => { cancelled = true; clearTimeout(ceiling); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The beats. The last one waits for the Coach before its plates land.
   useEffect(() => {
-    if (step >= LOADING_TASKS.length) { const t = setTimeout(onDone, 600); return () => clearTimeout(t); }
-    // Hold ON the last line, with its spinner still turning, rather than
-    // completing the list and freezing on a screen of ticks. That row reads
-    // "Asking your AI Coach", so a beat of waiting there is the thing it
-    // names rather than a stall.
-    if (step === LOADING_TASKS.length - 1 && coachPending) return undefined;
-    const t = setTimeout(() => setStep(s => s + 1), 720);
+    if (beat >= LOADER_BEATS.length) return undefined;
+    if (beat === LOADER_BEATS.length - 1 && coachPending) return undefined;
+    const t = setTimeout(() => {
+      setBeat(b => b + 1);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12);
+      if (!reduce) shake.start({ x: [0, -4, 4, -2, 2, 0], transition: { duration: 0.28 } });
+    }, beat === 0 ? LOADER_FIRST_BEAT_MS : LOADER_BEAT_MS);
     return () => clearTimeout(t);
-  }, [step, onDone, coachPending]);
+  }, [beat, coachPending, reduce, shake]);
+
+  // The finish: hold the ready line, clear the text, launch the bar.
+  useEffect(() => {
+    if (beat < LOADER_BEATS.length) return undefined;
+    const timers = [];
+    timers.push(setTimeout(() => {
+      setPhase('clear');
+      timers.push(setTimeout(() => {
+        // Far enough to clear the TOP OF THE SCREEN, not just the step:
+        // the shell's overflow edge is the viewport, so measuring the bar's
+        // own bottom edge is exactly the distance it has to travel.
+        const r = barRef.current?.getBoundingClientRect();
+        setLiftY(-((r?.bottom ?? 700) + 24));
+        setPhase('lift');
+        timers.push(setTimeout(onDone, reduce ? 200 : LOADER_LIFT_MS));
+      }, LOADER_CLEAR_MS));
+    }, LOADER_HOLD_READY_MS));
+    return () => timers.forEach(clearTimeout);
+    // `onDone` is the parent's fresh closure; the finish runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beat, reduce]);
+
+  // The counter lands on 25, 50, 75 and 100 with each pair of plates and
+  // creeps between them, so the number and the bar never disagree.
+  const [shown, setShown] = useState(0);
+  const shownRef = useRef(0);
+  useEffect(() => {
+    const floor = beat * 25;
+    shownRef.current = Math.max(shownRef.current, floor);
+    setShown(Math.round(shownRef.current));
+    if (beat >= LOADER_BEATS.length) return undefined;
+    const ceiling = floor + 20;
+    const id = setInterval(() => {
+      shownRef.current += (ceiling - shownRef.current) * 0.05;
+      setShown(Math.round(shownRef.current));
+    }, 40);
+    return () => clearInterval(id);
+  }, [beat]);
+
+  // The answers it prints. Only what the user actually gave, never a sample.
+  const rows = useMemo(() => {
+    const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
+    const goal = GOALS.find(g => g.id === goalIds[0]);
+    const level = LEVELS.find(l => l.id === data.level);
+    const days = [...(Array.isArray(data.days) ? data.days : [])].sort((a, b) => a - b);
+    const first = previewRegimen?.exercises?.[0];
+    const firstName = first ? (first.displayName || translateExerciseName(first.name, language)) : null;
+    const firstDose = first?.kind === 'strength' && first.target_sets && first.target_reps
+      ? `${first.target_sets} × ${first.target_reps}` : null;
+    return [
+      goal && {
+        label: tFallback('onboarding.loading.row.goal', 'Goal'),
+        value: tFallback(`onboarding.goal.${goal.id}.title`, goal.title) + (goalIds.length > 1 ? ` +${goalIds.length - 1}` : ''),
+      },
+      level && {
+        label: tFallback('onboarding.loading.row.level', 'Level'),
+        value: tFallback(`onboarding.level.${level.id}.label`, level.label),
+      },
+      days.length > 0 && {
+        label: tFallback('onboarding.loading.row.days', 'Training days'),
+        value: days.map(i => fmtDate(WEEKDAY_SEED[i], { weekday: 'short', timeZone: 'UTC' })).join(', '),
+      },
+      firstName && {
+        label: tFallback('onboarding.loading.row.firstLift', 'First lift'),
+        value: firstDose ? `${firstName}, ${firstDose}` : firstName,
+      },
+    ].filter(Boolean);
+  }, [data.goal, data.level, data.days, previewRegimen, language, tFallback, fmtDate]);
+
+  const done = beat >= LOADER_BEATS.length;
+  const clearing = phase !== 'build';
+  const headline = done
+    ? null
+    : tFallback(LOADER_BEATS[beat].key, LOADER_BEATS[beat].en);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      {/* Logo animation — real Flexyn lockup, gently pulsing */}
-      <motion.div className="relative w-40 h-24 flex items-center justify-center mb-2"
-        animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>
-        {[0, 1, 2].map(i => (
-          <motion.div key={i} className="absolute rounded-full border border-primary/20"
-            style={{ inset: -10 - i * 14 }}
-            animate={{ opacity: [0.4, 0.08, 0.4], scale: [1, 1.06, 1] }}
-            transition={{ duration: 2.2, delay: i * 0.4, repeat: Infinity, ease: 'easeInOut' }} />
-        ))}
-        <FlexynLogo className="h-11 relative" />
-      </motion.div>
+    <motion.div animate={shake} className="dark relative flex flex-col h-full text-foreground">
+      <div className="flex items-center shrink-0 h-11">
+        <FlexynLogo className="h-8" />
+      </div>
 
-      <h2 className="font-heading font-bold text-2xl tracking-tight text-foreground text-center">
-        {tFallback('onboarding.loading.heading', 'Building your plan')}
-      </h2>
-      <p className="text-sm text-muted-foreground text-center">
-        {tFallback('onboarding.loading.sub', 'Tuned to your goal · experience · schedule')}
+      {/* Screen readers get the beat as a sentence; the numbers and the bar
+          are the same information drawn, so they are hidden from them. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {done ? tFallback('onboarding.loading.readyLead', 'Your plan is') + ' ' + tFallback('onboarding.loading.readyAccent', 'ready.') : headline}
       </p>
 
-      <div className="w-full max-w-xs space-y-3 mt-4">
-        {LOADING_TASKS.map((task, i) => {
-          const done = i < step;
-          const active = i === step;
-          return (
-            <div key={task} className="flex items-center gap-3 transition-opacity duration-300"
-              style={{ opacity: i <= step ? 1 : 0.35 }}>
-              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 relative"
-                style={{
-                  background: done ? 'hsl(var(--primary))' : 'transparent',
-                  border: done ? 'none' : `1.5px solid hsl(var(--${active ? 'primary' : 'border'}))`,
-                }}>
-                {done && <Icon name="check" size={11} strokeWidth={3.5} color="white" />}
-                {active && (
-                  <motion.span className="absolute inset-0.5 rounded-full border border-primary border-t-transparent"
-                    animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }} />
-                )}
-              </div>
-              <span className="text-sm transition-all" style={{ color: done ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))', fontWeight: active ? 600 : 400 }}>
-                {tFallback(`onboarding.loading.task.${i + 1}`, task)}
-              </span>
-            </div>
-          );
-        })}
+      <motion.div aria-hidden="true"
+        className="font-hero shrink-0 tabular-nums mt-6"
+        style={{ fontSize: 'clamp(104px, 34vw, 150px)', lineHeight: 0.8 }}
+        animate={{ opacity: clearing ? 0 : 1, y: clearing ? -12 : 0 }}
+        transition={{ duration: 0.2 }}>
+        {shown}<span className="text-primary" style={{ fontSize: '0.3em', marginInlineStart: 4 }}>%</span>
+      </motion.div>
+
+      <motion.div ref={barRef} aria-hidden="true" className="shrink-0 mt-8 -mx-1"
+        animate={phase === 'lift'
+          ? (reduce ? { opacity: 0 } : { y: [0, 14, liftY] })
+          : { y: 0, opacity: 1 }}
+        transition={phase === 'lift' && !reduce
+          ? { duration: LOADER_LIFT_MS / 1000, times: [0, 0.18, 1], ease: [0.55, 0, 0.9, 0.4] }
+          : { duration: 0.2 }}>
+        <svg viewBox="0 0 375 90" className="block w-full h-auto overflow-visible">
+          <rect x="10" y="42" width="355" height="6" rx="3" fill="hsl(var(--muted-foreground))" />
+          {[-1, 1].map(side => (
+            <rect key={side} x={side < 0 ? BAR_CX - COLLAR_OUTER : BAR_CX + COLLAR_OUTER - 6}
+              y="36" width="6" height="18" rx="2" fill="hsl(var(--muted-foreground))" />
+          ))}
+          {PLATE_H.map((h, i) => [-1, 1].map(side => {
+            const inner = COLLAR_OUTER + i * PLATE_STEP;
+            const x = side < 0 ? BAR_CX - inner - PLATE_W : BAR_CX + inner;
+            const on = beat > i;
+            return (
+              <motion.rect key={`${i}${side}`} x={x} y={45 - h / 2} width={PLATE_W} height={h} rx="2"
+                fill={i === PLATE_H.length - 1 ? 'hsl(var(--primary))' : 'hsl(var(--foreground))'}
+                style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                initial={false}
+                animate={on
+                  ? { opacity: 1, x: 0, scaleY: 1 }
+                  : { opacity: 0, x: reduce ? 0 : side * 40, scaleY: reduce ? 1 : 1.25 }}
+                transition={on && !reduce
+                  ? { type: 'spring', stiffness: 700, damping: 22 }
+                  : { duration: 0.15 }} />
+            );
+          }))}
+        </svg>
+      </motion.div>
+
+      <div className="relative shrink-0 mt-5" style={{ minHeight: '2.2em', fontSize: 42 }} aria-hidden="true">
+        {/* mode="wait": the old line leaves before the new one lands, so two
+            condensed headlines never overprint mid swap. */}
+        <AnimatePresence initial={false} mode="wait">
+          {!clearing && (
+            <motion.h2 key={beat} className="font-hero absolute inset-x-0 top-0 m-0"
+              style={{ fontSize: 42, lineHeight: 0.92 }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 18, scale: 1.08 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduce ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 0, y: -12, transition: { duration: 0.12 } }}
+              transition={{ type: 'spring', stiffness: 520, damping: 26 }}>
+              {done ? (
+                <>
+                  {tFallback('onboarding.loading.readyLead', 'Your plan is')}{' '}
+                  <span className="text-primary">{tFallback('onboarding.loading.readyAccent', 'ready.')}</span>
+                </>
+              ) : (
+                <span className={beat === LOADER_BEATS.length - 1 ? 'text-primary' : undefined}>{headline}</span>
+              )}
+            </motion.h2>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+
+      <div className="flex-1 min-h-0" />
+
+      <motion.div className="shrink-0" aria-hidden="true"
+        animate={{ opacity: clearing ? 0 : 1 }} transition={{ duration: 0.2 }}>
+        {rows.map((row, i) => (
+          <motion.div key={row.label}
+            className="flex items-center justify-between gap-4 min-h-[30px] border-t border-border text-label"
+            initial={false}
+            animate={beat > i ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+            transition={{ duration: 0.3 }}>
+            <span className="text-muted-foreground">{row.label}</span>
+            <span className="font-semibold text-foreground text-end truncate">{row.value}</span>
+          </motion.div>
+        ))}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/** Full-bleed photo behind the loader, pushing in the whole time. */
+function LoaderBackdrop() {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div className="dark absolute inset-0 overflow-hidden bg-background" aria-hidden="true"
+      initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduce ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}>
+      <motion.img src={LOADER_PHOTO} alt="" width={780} height={1688} decoding="async"
+        className="absolute inset-0 w-full h-full object-cover"
+        initial={{ scale: 1.02 }} animate={{ scale: reduce ? 1.02 : 1.22 }}
+        transition={{ duration: 6.4, ease: [0.2, 0.6, 0.2, 1] }} />
+      {/* Legibility, not decoration: the counter sits on the top of the
+          photo and the answers on the bottom, and both need the photo held
+          down. Same single-scrim approach as WelcomeBackdrop. */}
+      <div className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, hsl(var(--background) / 0.7) 0%, hsl(var(--background) / 0.55) 35%, hsl(var(--background) / 0.92) 70%, hsl(var(--background)) 100%)' }} />
+    </motion.div>
+  );
+}
+
+/** The orange hit between the bar leaving and the plan arriving. */
+function LoaderFlash({ onEnd }) {
+  return (
+    <motion.div aria-hidden="true" className="absolute inset-0 z-20 pointer-events-none bg-primary"
+      initial={{ opacity: 0 }} animate={{ opacity: [0, 0.85, 0] }}
+      transition={{ duration: 0.5, times: [0, 0.15, 1], ease: 'easeOut' }}
+      onAnimationComplete={onEnd} />
   );
 }
 
@@ -3100,6 +3278,10 @@ export default function Onboarding() {
 
   const [stepIdx, setStepIdx] = useState(0);
   const [direction, setDirection] = useState(1);
+  // The loader's exit flash lives here, not in the step, because it has to
+  // outlive the step it belongs to and cover the reveal's first frame.
+  const [loaderFlash, setLoaderFlash] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [saving, setSaving] = useState(false);
   // New users sign in from the welcome screen via the full SignInToContinue
   // gate (Google + Apple + email magic-link, all with error handling) rather
@@ -3786,7 +3968,9 @@ export default function Onboarding() {
           for why it is mounted here rather than inside WelcomeStep. */}
       <AnimatePresence>
         {stepName === 'welcome' && <WelcomeBackdrop key="welcome-backdrop" />}
+        {stepName === 'loading' && <LoaderBackdrop key="loader-backdrop" />}
       </AnimatePresence>
+      {loaderFlash && <LoaderFlash onEnd={() => setLoaderFlash(false)} />}
 
       {/* Mounted at the root rather than inside the step, so the sheet
           survives the AnimatePresence step transition — applying a
@@ -3940,7 +4124,11 @@ export default function Onboarding() {
                 />
               )}
 
-              {stepName === 'loading' && <LoadingStep onDone={next} onCoach={requestCoachIntro} />}
+              {stepName === 'loading' && (
+                <LoadingStep data={data} previewRegimen={previewRegimen}
+                  onDone={() => { if (!reduceMotion) setLoaderFlash(true); next(); }}
+                  onCoach={requestCoachIntro} />
+              )}
 
               {stepName === 'reveal' && (
                 <RevealStep

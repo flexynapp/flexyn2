@@ -132,3 +132,14 @@ Unsplash+ one. Cropped to 780x1688 (2x a 390x844 phone) and re-encoded as a
 JPEG under 150 KB. It is lifestyle photography of a person training, not
 product imagery, so the "no manufacturer photography" rule above does not
 apply to it.
+
+## Onboarding plan loader photo
+
+`public/onboarding/loader-dumbbells.jpg` — a row of dumbbells on a rack, by
+**Jason Grant** (@jgrant1) on Unsplash:
+https://unsplash.com/photos/a-row-of-dumbs-in-a-gym-m4Jqyv5VwqY
+
+Used under the **Unsplash License** (free for commercial use, no attribution
+required; credited here anyway). It is a standard Unsplash photo, not an
+Unsplash+ one. Cropped to a 780x1688 portrait, converted to greyscale and
+re-encoded as a JPEG under 90 KB. The dumbbells carry no readable brand.
