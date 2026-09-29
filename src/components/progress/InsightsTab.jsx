@@ -510,7 +510,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
     // is piped into, but this cell is a human-readable label the app made up
     // about the user's own session. `progress.lastWorkout.freestyle` already
     // names this exact concept — don't add a second key for it.
-    const freestyle = tFallback('progress.lastWorkout.freestyle', 'Freestyle Session');
+    const freestyle = tFallback('progress.lastWorkout.freestyle', 'Freestyle session');
     const rows = [['Date', 'Workout', 'Exercise', 'Set', `Weight (${weightUnit})`, 'Reps', 'Volume']];
     for (const log of logs || []) {
       for (const ex of log.exercises || []) {

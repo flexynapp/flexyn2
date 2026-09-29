@@ -19,15 +19,17 @@ import { workoutTitle } from '@/lib/workoutTitle';
 import ExerciseTrendRow from './ExerciseTrendRow';
 import TrendFilterChip from './TrendFilterChip';
 
-// Mirrors FRAME_DAYS in Progress.jsx. The tab used to carry its OWN time
-// range — 7 / 30 / 90 / 365 in a dropdown, defaulting to 90 — while the
-// hero card three screens up carried Wk / Mo / Yr / All defaulting to
-// week. One page, two answers to "what period am I looking at", neither
-// aware of the other. The frame now comes from the page, so there is one
-// answer; this map only turns it into a cutoff.
-const FRAME_DAYS = { week: 7, month: 30, year: 365, all: Infinity };
-const FRAME_FALLBACK = {
-  week: 'Last 7 Days', month: 'Last 30 Days', year: 'Last 365 Days', all: 'All Time',
+// The tab's own range, defaulting to all time. For a while it followed the
+// page's period control instead, which defaulted to the week: a lifter who
+// had not trained yet this week opened Trends and found it empty, with
+// nothing on screen saying why (Progress audit, 2026-09-29). A trend is a
+// long view, so it starts long, and the range sits with the other filters
+// where its effect is visible. These are rolling windows and say so; the
+// page's period section is the calendar one.
+const RANGES = ['all', 'year', 'month', 'week'];
+const RANGE_DAYS = { week: 7, month: 30, year: 365, all: Infinity };
+const RANGE_FALLBACK = {
+  all: 'All time', year: 'Last 12 months', month: 'Last 30 days', week: 'Last 7 days',
 };
 
 /**
@@ -66,8 +68,9 @@ function groupLabelFor(sessions) {
  * appears away from the labels — build it deliberately with a palette
  * chosen for discriminability and validated, not restored from that map.
  */
-export default function ExerciseTrendsTab({ logs, frame }) {
+export default function ExerciseTrendsTab({ logs }) {
   const { t, tFallback } = useLanguage();
+  const [frame, setFrame] = useState('all');
 
   const [muscle, setMuscle] = useState('all');
   const [workout, setWorkout] = useState('all');
@@ -80,7 +83,7 @@ export default function ExerciseTrendsTab({ logs, frame }) {
   const [collapsed, setCollapsed] = useState(() => new Set());
 
   const sinceMs = useMemo(() => {
-    const days = FRAME_DAYS[frame] ?? Infinity;
+    const days = RANGE_DAYS[frame] ?? Infinity;
     if (!Number.isFinite(days)) return -Infinity;
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -191,7 +194,7 @@ export default function ExerciseTrendsTab({ logs, frame }) {
 
   return (
     <div>
-      <h2 className="font-heading font-bold">{t('progress.exerciseTrends')}</h2>
+      <h2 className="sr-only">{t('progress.exerciseTrends')}</h2>
       {exerciseCount > 0 && (
         <p className="text-micro text-muted-foreground mt-0.5">
           {tFallback(
@@ -200,14 +203,22 @@ export default function ExerciseTrendsTab({ logs, frame }) {
             { n: exerciseCount },
           )}
           {' · '}
-          {tFallback(`progress.frame.${frame}`, FRAME_FALLBACK[frame] ?? FRAME_FALLBACK.all)}
+          {tFallback(`trends.range.${frame}`, RANGE_FALLBACK[frame])}
         </p>
       )}
 
       {/* Controls sit UNDER the heading they qualify. The old filter
           button rendered above it. */}
-      {(muscleItems.length > 1 || workoutNames.length > 0) && (
+      {!neverLogged && (
         <div className="flex flex-wrap gap-2 mt-2">
+          {/* Always shown once anything is logged, so a short range that
+              filters to nothing can be widened again from the same place. */}
+          <TrendFilterChip
+            label={tFallback('trends.rangeLabel', 'Range')}
+            value={frame}
+            onChange={setFrame}
+            items={RANGES.map((r) => ({ value: r, label: tFallback(`trends.range.${r}`, RANGE_FALLBACK[r]) }))}
+          />
           {muscleItems.length > 1 && (
             <TrendFilterChip
               label={tFallback('trends.muscleLabel', 'Muscle group')}

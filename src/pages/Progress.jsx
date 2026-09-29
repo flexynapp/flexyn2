@@ -5,23 +5,23 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
-import { muscleKey } from '@/lib/exerciseTranslations';
+import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
-import { format, subDays, eachDayOfInterval, startOfDay, differenceInDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
+import { splitByPeriod, PERIODS } from '@/lib/progressPeriod';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { workoutTitle } from '@/lib/workoutTitle';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { fadeUp } from '@/lib/motion';
 import {
-  TrendingUp, BarChart2, Camera, Ruler, ChevronRight, RefreshCw, Lightbulb,
+  TrendingUp, BarChart2, Camera, Ruler, ChevronRight, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
@@ -69,26 +69,11 @@ const CHART_STYLE = {
 // now interpunct-separated text. See the ledger on the Penpot page
 // "Progress — proposed layout", board C.
 
-// Timeframe constants (used by the stats-frame toggle in the hero card).
-//
-// These windows are ROLLING — `week` is seven days back from now, not the
-// current calendar week — so the labels say so. They used to read "This
-// Week" / "This Month" / "This Year", which disagreed with the Weekly
-// Review card lower down the same screen: that one is a real ISO week and
-// prints "Week 32, 2026". Two things on one page called "this week" and
-// meant different spans. The behaviour is the right one to keep (a Monday
-// morning reading "This Week: 0 workouts" is demoralising and true of
-// nobody's training), so the copy moved to match the code rather than the
-// other way around.
-const FRAME_DAYS   = { week: 7, month: 30, year: 365, all: Infinity };
-const FRAME_PREV   = { week: 7, month: 30, year: 365, all: null };
-const FRAME_LABEL_FALLBACK = {
-  week:  'Last 7 Days',
-  month: 'Last 30 Days',
-  year:  'Last 365 Days',
-  all:   'All Time',
-};
-const FRAME_SHORT_FALLBACK = { week: 'Wk', month: 'Mo', year: 'Yr', all: 'All' };
+// Period labels. The windows are calendar periods now (see
+// src/lib/progressPeriod.js), so "This week" is true again: it is the same
+// week the hero ring counts.
+const PERIOD_LABEL_FALLBACK = { week: 'This week', month: 'This month', year: 'This year', all: 'All time' };
+const PERIOD_SHORT_FALLBACK = { week: 'Week', month: 'Month', year: 'Year', all: 'All' };
 
 // Achievements removed from this strip — it lives in ProfileMenu now.
 // See src/components/achievements/AchievementsVault.jsx.
@@ -327,10 +312,9 @@ export default function Progress() {
   // distance and formats no date. Both were read and never used — the
   // sub-components that DO format dates (PersonalBestsTab, AnalyticsTab)
   // derive their own dateLocale, so those stay.
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
 
-  const location = useLocation();
   const navigate = useNavigate();
 
   // The tab lives in the URL (?tab=), kept in step as it changes. It used to
@@ -406,7 +390,7 @@ export default function Progress() {
   const isLoading    = logsLoading || profileLoading;
 
   // Weekly summary — auto-generate on first load, then cache for 5 min
-  const { data: latestDebriefData, refetch: refetchDebrief } = useQuery({
+  const { data: latestDebriefData } = useQuery({
     queryKey: ['latestDebrief', user?.id],
     queryFn:  async () => {
       await generateWeeklyDebrief(currentWeekStart());
@@ -418,20 +402,16 @@ export default function Progress() {
 
   // ── Derived stats (timeframe-aware) ───────────────────────────────────────
 
-  const frameLogs = useMemo(() => {
-    const days = FRAME_DAYS[statsFrame];
-    if (!isFinite(days)) return logs;
-    const cutoff = subDays(new Date(), days);
-    return logs.filter(l => l.date && parseLocalDate(l.date) >= cutoff);
-  }, [logs, statsFrame]);
-
-  const prevFrameLogs = useMemo(() => {
-    const days = FRAME_PREV[statsFrame];
-    if (!days) return [];
-    const end   = subDays(new Date(), days);
-    const start = subDays(new Date(), days * 2);
-    return logs.filter(l => l.date && parseLocalDate(l.date) >= start && parseLocalDate(l.date) < end);
-  }, [logs, statsFrame]);
+  // Calendar periods, the same week the hero ring counts. See
+  // src/lib/progressPeriod.js for why, and for how the previous window is
+  // cut to the same number of days so a Monday is not measured against a
+  // whole week.
+  const { current: frameLogs, prev: prevLogsOrNull } = useMemo(
+    () => splitByPeriod(logs, statsFrame),
+    [logs, statsFrame],
+  );
+  const prevFrameLogs = useMemo(() => prevLogsOrNull || [], [prevLogsOrNull]);
+  const cardioSplit = useMemo(() => splitByPeriod(cardioLogs, statsFrame), [cardioLogs, statsFrame]);
 
   const frameVolume    = useMemo(() => calcVolume(frameLogs),    [frameLogs]);
   const prevVolume     = useMemo(() => calcVolume(prevFrameLogs), [prevFrameLogs]);
@@ -443,18 +423,8 @@ export default function Progress() {
   // the card header; a figure with nothing to compare against is decoration.
   // `null` where the frame is All Time — there is no prior period to a
   // lifetime, and "same as prev" would be a claim about nothing.
-  const prevFrameWorkouts = FRAME_PREV[statsFrame] === null ? null : prevFrameLogs.length;
-  const prevFrameCardio = useMemo(() => {
-    const days = FRAME_PREV[statsFrame];
-    if (!days) return null;
-    const end   = subDays(new Date(), days);
-    const start = subDays(new Date(), days * 2);
-    return cardioLogs.filter(l => {
-      if (!l.date) return false;
-      const d = parseLocalDate(l.date);
-      return d && d >= start && d < end;
-    }).length;
-  }, [cardioLogs, statsFrame]);
+  const prevFrameWorkouts = prevLogsOrNull ? prevLogsOrNull.length : null;
+  const prevFrameCardio = cardioSplit.prev ? cardioSplit.prev.length : null;
 
   // A session COUNT, not a stats object. It also summed distance, duration
   // and calories on every frame change and nothing ever read any of the
@@ -462,12 +432,7 @@ export default function Progress() {
   // cardio history is not free on a phone, and worse, an unused aggregate
   // reads as a feature someone forgot to finish. If a distance or duration
   // stat is wanted here, add it to the card and the sum with it.
-  const frameCardioSessions = useMemo(() => {
-    const days = FRAME_DAYS[statsFrame];
-    if (!isFinite(days)) return cardioLogs.length;
-    const cutoff = subDays(new Date(), days);
-    return cardioLogs.filter(l => l.date && parseLocalDate(l.date) >= cutoff).length;
-  }, [cardioLogs, statsFrame]);
+  const frameCardioSessions = cardioSplit.current.length;
 
   // (muscleGroupsThisWeek removed — muscle pills now computed inline
   //  from frameLogs inside the timeframe-aware stats card)
@@ -478,9 +443,16 @@ export default function Progress() {
       (log.exercises || []).forEach(ex => {
         if (!ex.name) return;
         if (!map[ex.name]) map[ex.name] = { name: ex.name, weight: 0, reps: 0 };
+        // Reps are the reps AT the heaviest weight, because the row prints
+        // them as one set ("225 lbs × 5"). The best weight and the most reps
+        // came from different sets before, which was fine while they were
+        // printed as separate facts and would be a set nobody lifted as one.
+        // With no load at all, reps is simply the most reps.
         (ex.sets || []).forEach(s => {
-          if ((s.weight || 0) > map[ex.name].weight) map[ex.name].weight = s.weight;
-          if ((s.reps   || 0) > map[ex.name].reps)   map[ex.name].reps   = s.reps;
+          const w = Number(s.weight) || 0;
+          const r = Number(s.reps) || 0;
+          const cur = map[ex.name];
+          if (w > cur.weight || (w === cur.weight && r > cur.reps)) { cur.weight = w; cur.reps = r; }
         });
       });
     });
@@ -501,11 +473,8 @@ export default function Progress() {
         if (aLoaded) return b.weight - a.weight || a.name.localeCompare(b.name);
         return b.reps - a.reps || a.name.localeCompare(b.name);
       })
-      .slice(0, 5);
+      .slice(0, 3);
   }, [logs]);
-
-  const lastWorkout     = logs[0] || null;
-  const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), parseLocalDate(lastWorkout.date)) : null;
 
 
   // ── Tab switch helper ─────────────────────────────────────────────────────
@@ -540,7 +509,7 @@ export default function Progress() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="px-4 md:px-6 lg:pb-6 max-w-5xl mx-auto"
+      className="px-4 md:px-6 lg:pb-6 max-w-2xl mx-auto"
       style={{ paddingTop: 'var(--fluid-pad-y)' }}
     >
       {/* The top bar already titles this page "Progress", so a visible
@@ -608,360 +577,149 @@ export default function Progress() {
             />
           </motion.div>
 
-          {/* ── Frame Stats (rolling 7 / 30 / 365 days, or all time) ───── */}
-          <motion.div
-            {...fadeUp(3)}
-            style={{ marginBottom: 'var(--fluid-section)' }}
-          >
-            {/* No shadow and no blur blob. "Resting = hairline border, no
-                shadow; shadow-sm adds nothing a hairline doesn't", and the
-                blurred radial gradient behind the corner was decoration of
-                exactly the kind the composition rules name. */}
-            <Card className="p-5 border border-border shadow-none overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading font-black text-base">
-                  {tFallback(`progress.frame.${statsFrame}`, FRAME_LABEL_FALLBACK[statsFrame])}
-                </h2>
-              </div>
-
-              {/* Each figure states its own change against the previous
-                  window. The single "vs prev" pill that used to sit in the
-                  header spoke only for volume, so two of the three numbers
-                  were bare — and a number with nothing to compare against is
-                  decoration, not a stat. "vs prev" is said once, on the
-                  first column, rather than three times across the row. */}
-              {/* An empty window with an empty previous window has nothing
-                  to compare, so the row is dropped and the line below says
-                  so. It used to draw a blue 0 beside two dashes. When the
-                  previous window had sessions the row stays, because "0,
-                  down 3" is a real stat. The figures are foreground: colour
-                  is for state, and a count is not a state. */}
-              {(frameLogs.length > 0 || frameCardioSessions > 0 || prevFrameWorkouts > 0 || prevFrameCardio > 0) && (
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-foreground tabular-nums">
-                    {/* Counts up on first paint and rolls between values when
-                        the timeframe toggle below changes, so switching
-                        week to month reads as the number moving. */}
-                    <AnimatedNumber value={frameLogs.length} animateOnMount duration={500} />
-                  </p>
-                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.workouts', 'Workouts')}</p>
-                  {(() => {
-                    const d = countDelta(frameLogs.length, prevFrameWorkouts, tFallback);
-                    return d ? <p className={`text-micro font-bold mt-0.5 ${d.tone}`}>{d.text}</p> : null;
-                  })()}
-                </div>
-                <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-foreground">
-                    {frameVolume > 0
-                      ? <AnimatedNumber value={Math.round(fromLbs(frameVolume, weightUnit))} animateOnMount duration={500} format={(n) => formatBigNumber(Math.round(n))} />
-                      : '—'}
-                  </p>
-                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit })}</p>
-                  {volumeDelta !== null && (
-                    <p className={`text-micro font-bold mt-0.5 ${volumeDelta >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {tFallback(
-                        volumeDelta >= 0 ? 'progress.frame.deltaPctUp' : 'progress.frame.deltaPctDown',
-                        volumeDelta >= 0 ? '+{pct}%' : '−{pct}%',
-                        { pct: Math.abs(Math.round(volumeDelta)) },
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-foreground tabular-nums">
-                    {frameCardioSessions
-                      ? <AnimatedNumber value={frameCardioSessions} animateOnMount duration={500} />
-                      : '—'}
-                  </p>
-                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
-                  {(() => {
-                    const d = countDelta(frameCardioSessions, prevFrameCardio, tFallback);
-                    return d ? <p className={`text-micro font-bold mt-0.5 ${d.tone}`}>{d.text}</p> : null;
-                  })()}
-                </div>
-              </div>
-              )}
-
-              {/* Muscle group pills — derived from the selected frame's logs */}
-              {(() => {
-                // Deduped by muscleKey(), not by the raw string: the column
-                // carries whatever the exercise row was written with, so
-                // 'Chest' and 'chest' used to render as two pills for one
-                // muscle. The key is also what the label and the colour are
-                // looked up by, so both agree per pill.
-                const frameMusclePills = (() => {
-                  const byKey = new Map();
-                  frameLogs.forEach(log => {
-                    (log.exercises || []).forEach(ex => {
-                      const arr = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
-                      arr.forEach(g => {
-                        if (!g) return;
-                        const key = muscleKey(g);
-                        if (!byKey.has(key)) byKey.set(key, g);
-                      });
-                    });
-                  });
-                  return [...byKey.entries()].map(([key, raw]) => ({ key, raw }));
-                })();
-                return (
-                  <>
-                    {frameMusclePills.length > 0 ? (
-                      // Plain text, interpunct-separated, not chips. Three
-                      // bordered pills read as filters you can tap; this is a
-                      // list of what you trained. Losing the borders also
-                      // loses the per-muscle hue, which was decorative — the
-                      // hue said nothing the word didn't.
-                      //
-                      // Same lookup the charts and the filter dropdown already
-                      // use (see volumeByMuscle / muscleGroupItems); these were
-                      // printing the raw English column value in all 15
-                      // languages until audit 20 finding 4.
-                      <p className="text-micro text-muted-foreground mb-3 leading-relaxed">
-                        {frameMusclePills
-                          .map(({ key, raw }) => tFallback(`muscleGroups.${key}`, raw))
-                          .join('  ·  ')}
-                      </p>
-                    ) : frameLogs.length === 0 ? (
-                      // Gated on frameLogs, NOT on the pill set. It used to
-                      // fire whenever the pills were empty, so a session whose
-                      // exercises carry no muscle_group rendered "1 Workout"
-                      // and "No workouts logged this week" in the same card,
-                      // one above the other. With workouts but no muscle data
-                      // there is simply nothing to say, so it says nothing.
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {tFallback('progress.frame.noWorkouts', 'No workouts logged in this period.')}
-                      </p>
-                    ) : null}
-                    {/* Timeframe toggle — below muscle pills, centered */}
-                    <div className="flex justify-center">
-                      <div className="flex gap-1 bg-secondary/50 rounded-xl p-1">
-                        {(['week', 'month', 'year', 'all']).map((f) => (
-                          <button
-                            key={f}
-                            onClick={() => setStatsFrame(f)}
-                            className={`min-h-[44px] min-w-[44px] px-3 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
-                              statsFrame === f
-                                ? 'bg-foreground text-background'
-                                : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
-                            }`}
-                          >
-                            {tFallback(`progress.frameShort.${f}`, FRAME_SHORT_FALLBACK[f])}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* ── Weekly Review, folded in ──────────────────────────────
-                    This was a full stats card lower down, inside the Trends
-                    tab — Volume / Sessions / Streak / PR. So the page had
-                    two period summaries a scroll apart, one a rolling
-                    window and one a real ISO week, and audit 20 finding 7
-                    was the labels disagreeing about which "week" they meant.
-                    Making the labels honest was the code half; this is the
-                    design half — one period section, one place.
-
-                    Only the week label and the insight survive here. The
-                    four figures were the same quantities the row directly
-                    above already shows for the selected frame, and the full
-                    week-by-week vault is still one tap away in
-                    ProfileMenu → Weekly Reviews (DebriefVault), so nothing
-                    is lost — it stops being said twice. */}
-              {latestDebriefData && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-bold text-foreground">
-                      {latestDebriefData.week_label}
-                    </p>
-                    {/* The icon is 14px; the negative margin grows the hit
-                        area to 44px without moving the icon or the row. */}
-                    <button
-                      onClick={() => refetchDebrief()}
-                      className="-m-[15px] min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors shrink-0"
-                      title={tFallback('progress.review.refresh', 'Refresh summary')}
-                      aria-label={tFallback('progress.review.refresh', 'Refresh summary')}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {latestDebriefData.data?.ai_insight && (
-                    <p className="text-micro text-muted-foreground leading-relaxed mt-1">
-                      {latestDebriefData.data.ai_insight}
-                    </p>
-                  )}
-                </div>
-              )}
-            </Card>
-          </motion.div>
-
-          {/* ── Recent ──────────────────────────────────────────────────────
-                The last-workout callout and the Top PRs rail were two cards
-                and a horizontal scroller holding four facts between them.
-                Both are read-only and neither is user-arranged, so per
-                CLAUDE.md they get no surface: "cards mark discrete,
-                user-arranged objects — read-only data that is not a widget
-                gets hairline dividers instead."
-
-                Three things came off with the surfaces. The PR cards' own
-                `bg-gradient-to-br` (gradient as decoration). The horizontal
-                scroller, which hid PRs 3–5 off-screen behind a gesture
-                nothing advertised. And the "All ›" affordance, which is now
-                the "Personal Bests" link at the foot of the same list —
-                one way in rather than two.
-
-                Design: Penpot "Progress — proposed layout", board B. ──── */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.24, type: 'spring', stiffness: 260, damping: 22 }}
-            style={{ marginBottom: 'var(--fluid-section)' }}
-          >
-            {/* The heading and rows are conditional; the two links below are
-                NOT. Nesting them inside the same guard is a regression this
-                change introduced and a browser check caught: on an account
-                with no workouts there is no last session and no PR, so the
-                whole section vanished — and with it the only route to
-                Personal Bests and Advanced Analytics, which the old layout
-                kept above the fold. Both modals carry their own empty
-                states; being unreachable is not one of them. */}
-            {(lastWorkout || topPRs.length > 0) && (
-              <h2 className="font-heading font-black text-micro uppercase tracking-wider text-muted-foreground mb-2">
-                {tFallback('progress.recent.title', 'RECENT')}
+          {/* ── The period: one section, no card. Its control sits in its own
+                header so the thing it filters is the thing beside it; it used
+                to live in the hero card and silently filter Trends as well. */}
+          <section aria-labelledby="progress-period" style={{ marginBottom: 'var(--fluid-section)' }}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h2 id="progress-period" className="font-heading font-bold text-base">
+                {tFallback(`progress.period.${statsFrame}`, PERIOD_LABEL_FALLBACK[statsFrame])}
               </h2>
-            )}
-
-            {lastWorkout && (
-              <div className="flex items-baseline justify-between gap-2 py-2 border-b border-border">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold leading-tight truncate">
-                    {workoutTitle(lastWorkout) || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
-                  </p>
-                  <p className="text-micro text-muted-foreground mt-0.5">
-                    {/* progress.today / progress.yesterday already ship in
-                        all 15 languages — this line had been hardcoding
-                        the same two words in English. Only the N-days
-                        case needed a new key, and it needs a whole
-                        template rather than progress.ago ("ago"): gluing
-                        a count onto a bare preposition puts the words in
-                        English order in every language. */}
-                    {daysSinceLast === 0
-                      ? t('progress.today')
-                      : daysSinceLast === 1
-                        ? t('progress.yesterday')
-                        : tFallback('progress.lastWorkout.daysAgo', '{n} days ago', { n: daysSinceLast })}
-                    {lastWorkout.exercises?.length
-                      ? ` · ${tFallback(
-                          lastWorkout.exercises.length === 1
-                            ? 'progress.lastWorkout.exercises_one'
-                            : 'progress.lastWorkout.exercises_other',
-                          lastWorkout.exercises.length === 1 ? '{n} exercise' : '{n} exercises',
-                          { n: lastWorkout.exercises.length },
-                        )}`
-                      : ''}
-                  </p>
-                </div>
-                <span className="text-micro text-muted-foreground shrink-0">
-                  {tFallback('progress.lastWorkout.label', 'Last workout')}
-                </span>
-              </div>
-            )}
-
-            {topPRs.map(pr => (
-              <button
-                key={pr.name}
-                onClick={() => setPRHistoryExercise(pr.name)}
-                className="w-full flex items-baseline justify-between gap-2 py-2 border-b border-border text-start hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold leading-tight truncate">{pr.name}</p>
-                  <p className="text-micro text-muted-foreground mt-0.5">
-                    {/* Same rule as the sheet: with no load the headline
-                        IS the rep count, so the secondary line says what
-                        kind of best it is rather than repeating it. */}
-                    {pr.weight > 0
-                      ? tFallback('progress.recent.personalBest', 'personal best')
-                      : tFallback('pbSheet.bodyweight', 'bodyweight')}
-                    {pr.weight > 0 && pr.reps > 0
-                      ? ` · ${tFallback(
-                          pr.reps === 1 ? 'progress.topPRs.repsBest_one' : 'progress.topPRs.repsBest_other',
-                          pr.reps === 1 ? '{n} rep best' : '{n} reps best',
-                          { n: pr.reps },
-                        )}`
-                      : ''}
-                  </p>
-                </div>
-                <span className="font-heading font-black text-sm text-primary shrink-0 tabular-nums">
-                  {pr.weight > 0
-                    ? formatWeight(pr.weight, weightUnit)
-                    : tFallback(
-                        pr.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',
-                        pr.reps === 1 ? '{n} rep' : '{n} reps',
-                        { n: pr.reps },
-                      )}
-                </span>
-              </button>
-            ))}
-
-            {/* The two CTAs that used to sit above the carousel, as links
-                at the end of the list they belong to. No gradient, no
-                shimmer sweep, and they no longer ask for a tap before the
-                page has shown anything worth tapping about. */}
-            {/* min-h-[44px]: these were 16px-tall text links, the only
-                way into both sheets, and well under the 44px floor. */}
-            <div className="flex flex-wrap gap-x-6">
-              <button
-                onClick={() => setPersonalBestsModalOpen(true)}
-                className="min-h-[44px] inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
-              >
-                {t('progress.personalBests')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
-              </button>
-              <button
-                onClick={() => setAdvancedAnalyticsOpen(true)}
-                className="min-h-[44px] inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
-              >
-                {t('progress.advancedAnalytics')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
-              </button>
-            </div>
-          </motion.div>
-
-          {/* ── Tab Navigation ──────────────────────────────────────────────
-              Sized for proper touch targets (min-h ~48px, the Apple HIG
-              floor + Material baseline). A 2×2 grid, so all four tabs are
-              on screen at once at any width and none of them scrolls out
-              of reach — this app ships to phones only.
-
-              The comment that used to sit here described a flex-1 row that
-              overflow-scrolled on mobile. That layout is gone; it was
-              replaced by this grid and the note was left behind, which is
-              worse than no comment because it reads as the intent. `grid`
-              is right here per CLAUDE.md's rule — the count is a fixed 4
-              from TAB_META, not decided by data, so there is no partial
-              row for tileRow() to centre. */}
-          <div style={{ marginBottom: 'var(--fluid-section)' }}>
-            <div className="grid grid-cols-2 gap-2.5">
-              {TAB_META.map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => switchTab(tab.id)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] w-full rounded-xl text-body font-bold whitespace-nowrap transition-all border ${
-                      isActive
-                        ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-md`
-                        : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground`
-                    }`}
+              <div className="flex rounded-lg bg-secondary/60 p-0.5" role="group" aria-label={tFallback('progress.period.pick', 'Period')}>
+                {PERIODS.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    aria-pressed={statsFrame === f}
+                    onClick={() => setStatsFrame(f)}
+                    className={`min-h-[44px] px-2.5 rounded-md text-label font-semibold transition-colors ${statsFrame === f ? 'bg-background text-foreground' : 'text-muted-foreground'}`}
                   >
-                    <tab.Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? '' : tab.iconColor}`} />
-                    {tFallback(tab.labelKey, tab.label)}
-                  </motion.button>
-                );
-              })}
+                    {tFallback(`progress.periodShort.${f}`, PERIOD_SHORT_FALLBACK[f])}
+                  </button>
+                ))}
+              </div>
             </div>
+            {(frameLogs.length > 0 || frameCardioSessions > 0 || prevFrameWorkouts > 0 || prevFrameCardio > 0) ? (
+              <div className="grid grid-cols-3 border-y border-border divide-x divide-border rtl:divide-x-reverse">
+                {[
+                  {
+                    key: 'workouts',
+                    value: frameLogs.length,
+                    label: tFallback('progress.frame.workouts', 'Workouts'),
+                    delta: countDelta(frameLogs.length, prevFrameWorkouts, tFallback),
+                  },
+                  {
+                    key: 'volume',
+                    value: frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—',
+                    label: tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit }),
+                    delta: volumeDelta !== null && prevVolume > 0 ? {
+                      text: volumeDelta >= 0
+                        ? tFallback('progress.frame.deltaPctUp', '+{pct}%', { pct: Math.round(volumeDelta) })
+                        : tFallback('progress.frame.deltaPctDown', '−{pct}%', { pct: Math.abs(Math.round(volumeDelta)) }),
+                      tone: volumeDelta >= 0 ? 'text-success' : 'text-destructive',
+                    } : null,
+                  },
+                  {
+                    key: 'cardio',
+                    value: frameCardioSessions || '—',
+                    label: tFallback('progress.frame.cardio', 'Cardio'),
+                    delta: countDelta(frameCardioSessions, prevFrameCardio, tFallback),
+                  },
+                ].map((c) => (
+                  <div key={c.key} className="py-3 ps-3 first:ps-0">
+                    <p className="text-micro text-muted-foreground">{c.label}</p>
+                    <p className="font-heading font-bold text-xl tabular-nums leading-tight mt-0.5">
+                      {typeof c.value === 'number' ? <AnimatedNumber value={c.value} duration={500} /> : c.value}
+                    </p>
+                    {c.delta && <p className={`text-micro font-semibold ${c.delta.tone}`}>{c.delta.text}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-3 border-y border-border">
+                {statsFrame === 'week'
+                  ? tFallback('progress.period.emptyWeek', 'Nothing logged yet this week.')
+                  : tFallback('progress.period.empty', 'Nothing logged in this period.')}
+              </p>
+            )}
+            {statsFrame === 'week' && latestDebriefData?.data?.ai_insight && (
+              <p className="text-sm text-muted-foreground leading-relaxed mt-3">{latestDebriefData.data.ai_insight}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdvancedAnalyticsOpen(true)}
+              className="mt-1 min-h-[44px] w-full flex items-center justify-between text-sm font-semibold text-foreground border-b border-border"
+            >
+              {tFallback('progress.period.analytics', 'Charts and analytics')}
+              <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" />
+            </button>
+          </section>
+
+          {/* ── Personal bests, the top three. "Recent" used to sit here and
+                repeated the grid above it; a best is the one number on this
+                page that only ever goes up. The full list is the sheet. */}
+          {topPRs.length > 0 && (
+            <section aria-labelledby="progress-bests" style={{ marginBottom: 'var(--fluid-section)' }}>
+              <div className="flex items-center justify-between mb-1">
+                <h2 id="progress-bests" className="font-heading font-bold text-base">
+                  {tFallback('progress.bests.title', 'Personal bests')}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setPersonalBestsModalOpen(true)}
+                  className="min-h-[44px] text-sm font-semibold text-primary"
+                >
+                  {tFallback('progress.bests.seeAll', 'See all')}
+                </button>
+              </div>
+              {topPRs.map(pr => (
+                <button
+                  key={pr.name}
+                  type="button"
+                  onClick={() => setPRHistoryExercise(pr.name)}
+                  className="w-full min-h-[52px] flex items-center justify-between gap-2 border-t border-border text-start"
+                >
+                  <span className="text-sm font-semibold truncate">{translateExerciseName(pr.name, language)}</span>
+                  <span className="text-sm tabular-nums shrink-0">
+                    {pr.weight > 0 ? (
+                      <>
+                        <span className="font-heading font-bold">{formatWeight(pr.weight, weightUnit)}</span>
+                        {pr.reps > 0 && <span className="text-muted-foreground">{' × '}{pr.reps}</span>}
+                      </>
+                    ) : (
+                      <span className="font-heading font-bold">
+                        {tFallback(pr.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other', pr.reps === 1 ? '{n} rep' : '{n} reps', { n: pr.reps })}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </section>
+          )}
+
+          {/* ── Tabs: one row of text with an underline. They were a 2×2 grid
+                of filled pills with icons, heavier than the hero above them. */}
+          <div
+            className="flex border-b border-border mb-4"
+            role="tablist"
+            aria-label={tFallback('progress.tabs.label', 'Progress sections')}
+            style={{ marginTop: 'var(--fluid-section)' }}
+          >
+            {TAB_META.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => switchTab(tab.id)}
+                  className={`flex-1 min-h-[44px] text-sm font-semibold -mb-px border-b-2 transition-colors ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'}`}
+                >
+                  {tFallback(tab.labelKey, tab.label)}
+                </button>
+              );
+            })}
           </div>
 
           {/* ── Tab Content ───────────────────────────────────────────────── */}
@@ -1006,7 +764,7 @@ export default function Progress() {
                         week — one page, two answers to "what period am I
                         looking at". Same reasoning as the Weekly Review
                         fold-in above: one period section, one place. */}
-                    <ExerciseTrendsTab logs={logs} frame={statsFrame} />
+                    <ExerciseTrendsTab logs={logs} />
                   </ErrorBoundary>
                 )}
               </motion.div>
