@@ -84,9 +84,7 @@ export default function You() {
             : initialsFor(user) || <UserCircle className="w-6 h-6" />}
         </div>
         <div className="flex-1 min-w-0">
-          {/* Condensed display face, but NOT uppercase: this is the user's
-              @handle, and capitals would show a handle they do not have. */}
-          <h1 className="font-display !normal-case text-2xl !leading-tight truncate">{name}</h1>
+          <h1 className="font-display text-2xl !leading-tight truncate">{name}</h1>
           <span className="text-label text-muted-foreground">{tFallback('you.viewProfile', 'View your profile')}</span>
         </div>
         <ChevronRight className="w-5 h-5 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
