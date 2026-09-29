@@ -486,9 +486,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   });
 
   // For an id-only target we still need the target's email for the parts of
-  // this component that remain email-keyed: mute, block, the story report
-  // and the DM starter. Follow state, posts, stories, notes and highlights
-  // read by id. It is resolved through resolve_profile_email, which hands
+  // this component that remain email-keyed: the story report and the DM
+  // starter. Follow state, posts, stories, notes, highlights, mute and block
+  // go by id. It is resolved through resolve_profile_email, which hands
   // any signed-in caller any user's email; that RPC is being retired, so do
   // not add a new reader of `email` here.
   const { data: resolvedTargetEmail } = useQuery({
@@ -1134,19 +1134,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryFn: () => userMutes.listMutes(user.id),
     enabled: !isSelf && !!user?.id,
   });
-  const isMutedTarget = !!email && myMutes.some(
-    m => (m.muted_email || '').toLowerCase() === email.toLowerCase()
-  );
+  const isMutedTarget = !!targetId && myMutes.some(m => m.muted_id === targetId);
 
   const handleMute = async () => {
     setMenuOpen(false);
     try {
-      await userMutes.muteUser(user, email);
+      await userMutes.muteUser(user, targetId);
       toast.success(tFallback('hub.profile.mutedToast', 'Muted {handle}.', { handle: displayHandle }));
       queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
     } catch (err) {
-      reportError(err, { feature: 'hub.profile-mute', level: 'warning', userEmail: user?.email, target: email });
+      reportError(err, { feature: 'hub.profile-mute', level: 'warning', userEmail: user?.email, target: targetId });
       toast.error(tFallback('hub.profile.muteError', 'Could not mute. Try again.'));
     }
   };
@@ -1154,12 +1152,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const handleUnmute = async () => {
     setMenuOpen(false);
     try {
-      await userMutes.unmuteUser(user.id, email);
+      await userMutes.unmuteUser(user.id, targetId);
       toast.success(tFallback('hub.profile.unmutedToast', 'Unmuted {handle}.', { handle: displayHandle }));
       queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
     } catch (err) {
-      reportError(err, { feature: 'hub.profile-unmute', level: 'warning', userEmail: user?.email, target: email });
+      reportError(err, { feature: 'hub.profile-unmute', level: 'warning', userEmail: user?.email, target: targetId });
       toast.error(tFallback('hub.profile.unmuteError', 'Could not unmute. Try again.'));
     }
   };
@@ -1167,7 +1165,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const handleConfirmBlock = async () => {
     setConfirmBlockOpen(false);
     try {
-      await blockUserFull(email);
+      await blockUserFull(targetId);
       toast.success(tFallback('hub.profile.blockedToast', 'Blocked {handle}.', { handle: displayHandle }));
       // block_user_full severs mutual follows too, so the follow-graph caches
       // have to go with it — same set HubPostCard invalidates.
@@ -1177,7 +1175,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
     } catch (err) {
-      reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: email });
+      reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: targetId });
       toast.error(tFallback('hub.profile.blockError', 'Could not block. Try again.'));
     }
   };
@@ -1629,9 +1627,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             onOpenQr={() => setQrOpen(true)}
             onOpenDuel={() => setDuelOpen(true)}
             onOpenGift={() => setGiftOpen(true)}
-            onMute={!isSelf && email ? handleMute : undefined}
-            onUnmute={!isSelf && email ? handleUnmute : undefined}
-            onBlock={!isSelf && email ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
+            onMute={!isSelf && targetId ? handleMute : undefined}
+            onUnmute={!isSelf && targetId ? handleUnmute : undefined}
+            onBlock={!isSelf && targetId ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
             isMuted={isMutedTarget}
             onToggleTrophyVisibility={handleTrophyVisibility}
             trophyVisible={trophyVisible}

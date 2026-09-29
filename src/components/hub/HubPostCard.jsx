@@ -506,7 +506,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   // initialization` (only visible after minification in production —
   // dev mode masks it). This was the cause of the 2026-05-23 prod
   // Hub crash; previously declared at line 473 below.
-  const isMine = post.author_email === user?.email;
+  const isMine = !!user?.id && post.user_id === user.id;
 
   // ── View tracking (IntersectionObserver, 2-second dwell) ─────────────────────
   const cardRef = useRef(null);
@@ -734,7 +734,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
 
   const handleMuteAuthor = async () => {
     try {
-      await muteUser(user, post.author_email);
+      await muteUser(user, post.user_id);
       toast.success(tFallback(
         'hub.post.mutedToast',
         "Muted @{name}. Their posts won't appear in your feed.",
@@ -742,7 +742,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       ));
       queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
     } catch (err) {
-      reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+      reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.user_id });
       toast.error(tFallback('hub.post.muteError', 'Could not mute. Try again.'));
     }
   };
@@ -750,7 +750,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   const confirmBlockAuthor = async () => {
     setConfirmBlockOpen(false);
     try {
-      await blockUserFull(post.author_email);
+      await blockUserFull(post.user_id);
       toast.success(tFallback('hub.post.blockedToast', 'Blocked @{name}.', { name: authorHandle }));
       queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
@@ -759,12 +759,10 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       // from the viewer's following list AND the followers
       // list immediately, instead of waiting for the next
       // 30s feed refetch. (Audit 10 #12.)
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
       invalidateFollowGraph(queryClient);
     } catch (err) {
-      reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+      reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.user_id });
       toast.error(tFallback('hub.post.blockError', 'Could not block. Try again.'));
     }
   };

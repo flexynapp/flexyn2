@@ -52,36 +52,36 @@ describe('listBlocks', () => {
 });
 
 describe('blockUserFull', () => {
-  it('throws when email is missing', async () => {
-    await expect(blockUserFull(null)).rejects.toThrow(/email/);
-    await expect(blockUserFull('')).rejects.toThrow(/email/);
+  it('throws when the user id is missing', async () => {
+    await expect(blockUserFull(null)).rejects.toThrow(/targetId/);
+    await expect(blockUserFull('')).rejects.toThrow(/targetId/);
   });
 
-  it('calls the block_user_full RPC with the email', async () => {
+  it('calls the block_user_full RPC with the user id', async () => {
     rpcSpy.mockResolvedValueOnce({ error: null });
-    await blockUserFull('foe@x.com');
-    expect(rpcSpy).toHaveBeenCalledWith('block_user_full', { p_blocked_email: 'foe@x.com' });
+    await blockUserFull('foe-id');
+    expect(rpcSpy).toHaveBeenCalledWith('block_user_full', { p_blocked_id: 'foe-id' });
   });
 
   it('throws when the RPC returns an error', async () => {
     rpcSpy.mockResolvedValueOnce({ error: { code: '22023', message: 'cannot_block_self' } });
-    await expect(blockUserFull('me@x.com')).rejects.toMatchObject({ code: '22023' });
+    await expect(blockUserFull('me-id')).rejects.toMatchObject({ code: '22023' });
   });
 });
 
 describe('unblockUserFull', () => {
-  it('throws when email is missing', async () => {
-    await expect(unblockUserFull(null)).rejects.toThrow(/email/);
+  it('throws when the user id is missing', async () => {
+    await expect(unblockUserFull(null)).rejects.toThrow(/targetId/);
   });
 
-  it('calls the unblock_user_full RPC with the email', async () => {
+  it('calls the unblock_user_full RPC with the user id', async () => {
     rpcSpy.mockResolvedValueOnce({ error: null });
-    await unblockUserFull('foe@x.com');
-    expect(rpcSpy).toHaveBeenCalledWith('unblock_user_full', { p_blocked_email: 'foe@x.com' });
+    await unblockUserFull('foe-id');
+    expect(rpcSpy).toHaveBeenCalledWith('unblock_user_full', { p_blocked_id: 'foe-id' });
   });
 
   it('throws when the RPC returns an error', async () => {
     rpcSpy.mockResolvedValueOnce({ error: { code: 'XX', message: 'fail' } });
-    await expect(unblockUserFull('foe@x.com')).rejects.toMatchObject({ code: 'XX' });
+    await expect(unblockUserFull('foe-id')).rejects.toMatchObject({ code: 'XX' });
   });
 });

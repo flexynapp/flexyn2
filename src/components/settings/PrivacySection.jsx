@@ -273,9 +273,9 @@ export default function PrivacySection() {
     }
   };
 
-  const handleUnblockFull = async (email) => {
+  const handleUnblockFull = async (targetId) => {
     try {
-      await userBlocksData.unblockUserFull(email);
+      await userBlocksData.unblockUserFull(targetId);
       queryClient.invalidateQueries({ queryKey: ['userBlocks', user.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       // No address in the toast — the list below it updates, which is the
@@ -287,9 +287,9 @@ export default function PrivacySection() {
     }
   };
 
-  const handleUnmute = async (email) => {
+  const handleUnmute = async (targetId) => {
     try {
-      await userMutesData.unmuteUser(user.id, email);
+      await userMutesData.unmuteUser(user.id, targetId);
       queryClient.invalidateQueries({ queryKey: ['userMutes', user.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       toast.success(tFallback('settings.mute.removedPlain', 'Unmuted.'));
@@ -492,7 +492,7 @@ export default function PrivacySection() {
             icon={Ban}
             title={tFallback('settings.blockedUsers.title', 'Blocked users')}
             rows={myBlocks}
-            keyOf={b => b.blocked_email}
+            keyOf={b => b.blocked_id || b.blocked_email}
             labelOf={b => blockedLabel(authorsById, b.blocked_id, b.blocked_username)}
             actionLabel={tFallback('settings.block.undo', 'Unblock')}
             onAction={handleUnblockFull}
@@ -514,7 +514,7 @@ export default function PrivacySection() {
             icon={VolumeX}
             title={tFallback('settings.mutedUsers.title', 'Muted users')}
             rows={myMutes}
-            keyOf={m => m.muted_email}
+            keyOf={m => m.muted_id || m.muted_email}
             labelOf={m => blockedLabel(authorsById, m.muted_id, m.muted_username)}
             actionLabel={tFallback('settings.mute.undo', 'Unmute')}
             onAction={handleUnmute}

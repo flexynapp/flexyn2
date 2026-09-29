@@ -23,7 +23,7 @@ describe('listMutes', () => {
 
   it('selects muted_email + created_at scoped to the user', async () => {
     const order = vi.fn().mockResolvedValue({
-      data: [{ muted_email: 'noisy@x.com', created_at: '2025-01-01' }],
+      data: [{ muted_email: 'noisy-id', created_at: '2025-01-01' }],
       error: null,
     });
     const eq = vi.fn().mockReturnValue({ order });
@@ -42,10 +42,10 @@ describe('listMutes', () => {
 });
 
 describe('muteUser', () => {
-  it('throws when user or email is missing', async () => {
-    await expect(muteUser(null, 'x@y.com')).rejects.toThrow();
+  it('throws when user or target id is missing', async () => {
+    await expect(muteUser(null, 'x-id')).rejects.toThrow();
     await expect(muteUser({ id: 'u1', email: 'u1@x.com' }, null)).rejects.toThrow();
-    await expect(muteUser({ id: 'u1' }, 'x@y.com')).rejects.toThrow();
+    await expect(muteUser({ id: 'u1' }, 'x-id')).rejects.toThrow();
   });
 
   // `ignoreDuplicates` is not a detail — it is the whole fix. Without it
@@ -55,12 +55,12 @@ describe('muteUser', () => {
   // new row violates row-level security policy`, and muteUser throws.
   // Verified against the database as a real authenticated user. The only
   // non-key column is the muter's own email, so there is nothing to merge.
-  it('upserts the (muter_id, muted_email) tuple with DO NOTHING semantics', async () => {
+  it('upserts by muted_id with DO NOTHING semantics; the server fills muted_email', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     fromSpy.mockReturnValue({ upsert });
-    await muteUser({ id: 'u1', email: 'u1@x.com' }, 'noisy@x.com');
+    await muteUser({ id: 'u1', email: 'u1@x.com' }, 'noisy-id');
     expect(upsert).toHaveBeenCalledWith(
-      { muter_id: 'u1', muter_email: 'u1@x.com', muted_email: 'noisy@x.com' },
+      { muter_id: 'u1', muter_email: 'u1@x.com', muted_id: 'noisy-id' },
       { onConflict: 'muter_id,muted_email', ignoreDuplicates: true },
     );
   });
@@ -68,25 +68,25 @@ describe('muteUser', () => {
   it('throws when the upsert returns an error', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: { code: 'XX', message: 'fail' } });
     fromSpy.mockReturnValue({ upsert });
-    await expect(muteUser({ id: 'u1', email: 'u1@x.com' }, 'x@y.com'))
+    await expect(muteUser({ id: 'u1', email: 'u1@x.com' }, 'x-id'))
       .rejects.toMatchObject({ code: 'XX' });
   });
 });
 
 describe('unmuteUser', () => {
-  it('throws when userId or email is missing', async () => {
-    await expect(unmuteUser(null, 'x@y.com')).rejects.toThrow();
+  it('throws when userId or target id is missing', async () => {
+    await expect(unmuteUser(null, 'x-id')).rejects.toThrow();
     await expect(unmuteUser('u1', null)).rejects.toThrow();
   });
 
-  it('deletes the row scoped to (muter_id, muted_email)', async () => {
+  it('deletes the row scoped to (muter_id, muted_id)', async () => {
     const eq2 = vi.fn().mockResolvedValue({ error: null });
     const eq1 = vi.fn().mockReturnValue({ eq: eq2 });
     const del = vi.fn().mockReturnValue({ eq: eq1 });
     fromSpy.mockReturnValue({ delete: del });
-    await unmuteUser('u1', 'noisy@x.com');
+    await unmuteUser('u1', 'noisy-id');
     expect(del).toHaveBeenCalled();
     expect(eq1).toHaveBeenCalledWith('muter_id', 'u1');
-    expect(eq2).toHaveBeenCalledWith('muted_email', 'noisy@x.com');
+    expect(eq2).toHaveBeenCalledWith('muted_id', 'noisy-id');
   });
 });

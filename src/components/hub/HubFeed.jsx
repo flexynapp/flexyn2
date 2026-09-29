@@ -117,8 +117,8 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const realtimeFilterRef = useRef({
     feedTab: 'pump',
     followingIds: new Set(),
-    mutedLc: new Set(),
-    blockedLc: new Set(),
+    mutedIds: new Set(),
+    blockedIds: new Set(),
     crewIds: new Set(),
   });
 
@@ -130,10 +130,9 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     // src/lib/hubPostsRealtime.js).
     return onHubPostInsert((row) => {
       if (!row.user_id || row.user_id === myId) return;
-      const authorLc = row.author_email?.toLowerCase();
       const f = realtimeFilterRef.current;
-      if (authorLc && f.blockedLc.has(authorLc)) return;
-      if (authorLc && f.mutedLc.has(authorLc))   return;
+      if (f.blockedIds.has(row.user_id)) return;
+      if (f.mutedIds.has(row.user_id))   return;
       // A crew post counts when it is addressed to one of MY crews. Before
       // mig 379 there was no crew_id to test, so every crew row was dropped
       // here and the "N new posts" pill never counted one.
@@ -323,7 +322,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   // Crew posts addressed to MY crews, whoever wrote them.
   //
-  // The Squad window is keyed on author_email, so before this a crew post only
+  // The Squad window is keyed on who you follow, so before this a crew post only
   // reached crew mates who also followed the author — and most of a crew does
   // not follow most of the crew. The composer promises "Only crew members will
   // see this post", which is a restriction, but it is read as delivery too.
@@ -340,15 +339,17 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   // Mute/block lists — applied viewer-side in filteredPosts below.
   // Both queries are cheap (RLS limits rows to the caller's own).
-  const { data: mutedEmails = [] } = useQuery({
+  // Keyed on the author's user id: mutes and blocks are written by id, and a
+  // post carries user_id on every row.
+  const { data: mutedIds = [] } = useQuery({
     queryKey: ['userMutes', user?.id],
-    queryFn: async () => (await userMutes.listMutes(user.id)).map(r => r.muted_email?.toLowerCase()),
+    queryFn: async () => (await userMutes.listMutes(user.id)).map(r => r.muted_id).filter(Boolean),
     enabled: !!user?.id,
     staleTime: 60_000,
   });
-  const { data: blockedEmails = [] } = useQuery({
+  const { data: blockedIds = [] } = useQuery({
     queryKey: ['userBlocks', user?.id],
-    queryFn: async () => (await userBlocks.listBlocks(user.id)).map(r => r.blocked_email?.toLowerCase()),
+    queryFn: async () => (await userBlocks.listBlocks(user.id)).map(r => r.blocked_id).filter(Boolean),
     enabled: !!user?.id,
     staleTime: 60_000,
   });
@@ -358,11 +359,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     realtimeFilterRef.current = {
       feedTab,
       followingIds: new Set((following || []).filter(Boolean)),
-      mutedLc:     new Set(mutedEmails),
-      blockedLc:   new Set(blockedEmails),
+      mutedIds:    new Set(mutedIds),
+      blockedIds:  new Set(blockedIds),
       crewIds:     new Set(myCrewIds),
     };
-  }, [feedTab, following, mutedEmails, blockedEmails, myCrewIds]);
+  }, [feedTab, following, mutedIds, blockedIds, myCrewIds]);
 
   // Filter out crew-private posts the current user doesn't belong to,
   // posts from muted/blocked users, scheduled posts not yet published,
@@ -382,12 +383,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const filteredPosts = useMemo(() => {
     if (!withCrewPosts.length) return withCrewPosts;
     const crewSet  = new Set(myCrewIds);
-    const muteSet  = new Set(mutedEmails);
-    const blockSet = new Set(blockedEmails);
+    const muteSet  = new Set(mutedIds);
+    const blockSet = new Set(blockedIds);
     let result = withCrewPosts.filter(p => {
-      const authorLc = p.author_email?.toLowerCase();
-      if (authorLc && blockSet.has(authorLc)) return false;
-      if (authorLc && muteSet.has(authorLc))  return false;
+      if (p.user_id && blockSet.has(p.user_id)) return false;
+      if (p.user_id && muteSet.has(p.user_id))  return false;
       if (p.privacy !== 'crew') return true;
       return p.crew_id && crewSet.has(p.crew_id);
     });
@@ -417,7 +417,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       result = [...result].sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
     }
     return result;
-  }, [withCrewPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag, sort, timeFilter]);
+  }, [withCrewPosts, myCrewIds, mutedIds, blockedIds, activeHashtag, sort, timeFilter]);
 
   // Trending hashtags derived from current feed window
   const trendingTags = useMemo(() => computeTrending(allPosts), [allPosts]);
