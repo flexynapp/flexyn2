@@ -7,7 +7,6 @@ import FlexynLogo from './FlexynLogo';
 import { ChevronLeft, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, Users, UserCircle, ShoppingBag } from 'lucide-react';
 import QuickLogSheet from './QuickLogSheet';
 import Header, { CHILD_ROUTES, headerBack } from './Header';
-import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
 import PullToRefresh from './PullToRefresh';
 import ProfileMenu from './ProfileMenu';
@@ -200,7 +199,7 @@ export default function Layout() {
   // Bag flow lives at the layout level so only one instance exists
   // (ProfileMenu is rendered twice — sidebar + header — so hosting bag
   // state inside it would split open/closed state across copies).
-  // ProfileMenu's "My Bag" entry triggers this via OPEN_BAG_EVENT.
+  // The You tab's "My Bag" row triggers this via OPEN_BAG_EVENT.
   const bag = useBagFlow();
 
   // My Journal, for the same reason and by the same mechanism: a single
@@ -353,11 +352,8 @@ export default function Layout() {
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label={tFallback("layout.flexynGoToDashboard", "Flexyn. Go to dashboard")} className="flex items-center justify-center hover:opacity-80 transition-opacity">
             <FlexynLogo className="h-14" />
           </Link>
-          {/* Row 1: Profile menu (full width) */}
-          <div className="w-full mt-1">
-            <ProfileMenu />
-          </div>
-          {/* Row 2: Action buttons centered */}
+          {/* Action buttons centered. The account row used to sit above
+              them; it is at the foot of the sidebar now (see below). */}
           <div className="w-full flex items-center justify-center gap-1 mt-0.5">
             <button
               type="button"
@@ -442,8 +438,11 @@ export default function Layout() {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
-          <LanguagePicker variant="inline" />
+        {/* Your account, at the foot of the sidebar. It replaced a second
+            language picker: language lives in this menu and in Settings, and
+            two pickers on one screen were two controls for one setting. */}
+        <div className="p-3 border-t border-border">
+          <ProfileMenu placement="sidebar" />
         </div>
       </aside>
 
