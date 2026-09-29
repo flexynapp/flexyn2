@@ -15,6 +15,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { format } from 'date-fns';
 import { reportError } from '@/lib/reportError';
+import { announceQuestCompleted } from '@/lib/questCompletion';
 import {
   QUEST_CATALOG,
   QUEST_DIFFICULTY,
@@ -264,6 +265,13 @@ export async function recordActions(user, actions) {
       .eq('id', row.id);
     if (error) {
       failures.push({ questRowId: row.id, questId: row.quest_id, error });
+      return;
+    }
+    // This write is what completed the quest, so say so now, wherever the
+    // user is. Only after the update landed: announcing a completion the
+    // database refused would offer a Claim the server then rejects.
+    if (updates.completed_at) {
+      announceQuestCompleted({ ...row, ...updates });
     }
   }));
   if (failures.length) {
