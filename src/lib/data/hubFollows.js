@@ -97,11 +97,14 @@ export const listFollowersIds = async (userId) => {
   return rows.map(r => r.follower_id).filter(Boolean);
 };
 
-/** Check if follower follows target. */
-export const isFollowing = async (followerEmail, followeeEmail) => {
-  if (!followerEmail || !followeeEmail) return false;
-  if (followerEmail === followeeEmail) return false;
-  const rows = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
+/** Check if follower follows target. Each side may be a user id or an email. */
+export const isFollowing = async (follower, followee) => {
+  if (!follower || !followee) return false;
+  if (String(follower) === String(followee)) return false;
+  const rows = await e().filter({
+    ...followMatch(follower, 'follower_id', 'follower_email'),
+    ...followMatch(followee, 'followee_id', 'followee_email'),
+  }, '-created_date', 1).catch(() => []);
   return rows.length > 0;
 };
 
@@ -118,12 +121,17 @@ export const isFollowing = async (followerEmail, followeeEmail) => {
  * lets the consumer decide whether to also fire an anniversary glow
  * when the calendar date matches.
  */
-export const getMutualFollowSince = async (emailA, emailB) => {
-  if (!emailA || !emailB || emailA === emailB) return null;
+export const getMutualFollowSince = async (userA, userB) => {
+  if (!userA || !userB || String(userA) === String(userB)) return null;
   // Two single-row reads in parallel — cheaper than a full mutual list.
+  // Each side may be a user id or an email.
+  const pair = (from, to) => ({
+    ...followMatch(from, 'follower_id', 'follower_email'),
+    ...followMatch(to, 'followee_id', 'followee_email'),
+  });
   const [aFollowsB, bFollowsA] = await Promise.all([
-    e().filter({ follower_email: emailA, followee_email: emailB }, '-created_date', 1).catch(() => []),
-    e().filter({ follower_email: emailB, followee_email: emailA }, '-created_date', 1).catch(() => []),
+    e().filter(pair(userA, userB), '-created_date', 1).catch(() => []),
+    e().filter(pair(userB, userA), '-created_date', 1).catch(() => []),
   ]);
   if (aFollowsB.length === 0 || bFollowsA.length === 0) return null;
   const dateA = aFollowsB[0]?.created_date;

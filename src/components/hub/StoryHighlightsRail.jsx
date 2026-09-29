@@ -75,15 +75,15 @@ function NewHighlightModal({ open, onClose, onCreated }) {
   );
 }
 
-export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
+export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [composeOpen, setComposeOpen] = useState(false);
 
   const { data: highlights = [] } = useQuery({
-    queryKey: ['storyHighlights', userEmail],
-    queryFn: () => listHighlightsForUser(userEmail),
-    enabled: !!userEmail,
+    queryKey: ['storyHighlights', userId],
+    queryFn: () => listHighlightsForUser(userId),
+    enabled: !!userId,
     staleTime: 5 * 60_000,
   });
 
@@ -96,7 +96,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
     if (!confirm(tFallback("storyHighlightsRail.deleteThisHighlightAlbum", "Delete this highlight album?"))) return;
     const res = await deleteHighlight(id);
     if (res.ok) {
-      qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });
+      qc.invalidateQueries({ queryKey: ['storyHighlights', userId] });
     } else {
       toast.error(tFallback('notifications.deleteFailed', 'Could not delete. Try again.'));
     }
@@ -156,7 +156,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
           open={composeOpen}
           onClose={() => setComposeOpen(false)}
           onCreated={() => {
-            qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });
+            qc.invalidateQueries({ queryKey: ['storyHighlights', userId] });
             toast.success(tFallback('highlight.created', 'Album created, story added.'));
           }}
         />

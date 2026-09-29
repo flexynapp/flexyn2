@@ -127,13 +127,14 @@ describe('the specific five', () => {
       .toMatch(/queryKey: \['hubFollowingIds', user\?\.id\]\s*\}\);/);
   });
 
-  it('HubProfile invalidates the id shape as well as the email shape', () => {
+  it('HubProfile invalidates every follow-graph key, whoever it is keyed on', () => {
     const f = read('src/components/hub/HubProfile.jsx');
-    // Two follow mutations plus the block handler.
-    expect((f.match(/queryKey: \['hubFollowing', user\?\.id\]/g) || []).length).toBe(3);
-    expect(f).toMatch(/queryKey: \['hubFollowers', user\?\.id\]/);
-    // The email-keyed calls stay — other consumers legitimately use that shape.
-    expect(f).toMatch(/queryKey: \['hubFollowing', user\?\.email\]/);
+    // Two follow mutations plus the block handler, each through the prefix
+    // helper, which matches the id-keyed lists and the feeds alike.
+    expect((f.match(/invalidateFollowGraph\(queryClient\)/g) || []).length).toBe(3);
+    // No surface registers the email shape any more, so an email-keyed
+    // invalidation would be a silent no-op.
+    expect(f).not.toMatch(/queryKey: \['hubFollow(ing|ers)', user\?\.email\]/);
   });
 
   it('HubFeed keys on the follow set, not its size', () => {
