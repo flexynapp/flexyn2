@@ -27,9 +27,9 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
   const [busy, setBusy] = useState(null); // highlight id being added to OR 'new' when creating
 
   const { data: highlights = [] } = useQuery({
-    queryKey: ['storyHighlights', user?.email],
-    queryFn: () => listHighlightsForUser(user?.email),
-    enabled: open && !!user?.email,
+    queryKey: ['storyHighlights', user?.id],
+    queryFn: () => listHighlightsForUser(user?.id),
+    enabled: open && !!user?.id,
     staleTime: 60_000,
   });
 
@@ -44,7 +44,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
           ? tFallback('highlight.alreadyIn', 'Already in this album.')
           : tFallback('highlight.added', 'Added to highlight.'),
       );
-      qc.invalidateQueries({ queryKey: ['storyHighlights', user?.email] });
+      qc.invalidateQueries({ queryKey: ['storyHighlights', user?.id] });
       onClose?.();
     } else {
       toast.error(tFallback('highlight.addFailed', 'Could not add. Try again.'));
@@ -69,7 +69,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
     setBusy(null);
     if (added.ok) {
       toast.success(tFallback('highlight.created', 'Album created, story added.'));
-      qc.invalidateQueries({ queryKey: ['storyHighlights', user?.email] });
+      qc.invalidateQueries({ queryKey: ['storyHighlights', user?.id] });
       setNewTitle('');
       onClose?.();
     } else {

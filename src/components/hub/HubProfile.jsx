@@ -21,6 +21,7 @@ import { buildTrainingWeek, currentStreak } from '@/lib/trainingWeek';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
+import { invalidateFollowGraph } from '@/lib/followGraphCache';
 import * as userMutes from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -485,13 +486,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   });
 
   // For an id-only target we still need the target's email for the parts of
-  // this component that remain email-keyed (isFollowing / getMutualFollowSince
-  // read hub_follows.*_email; listForProfile reads hub_posts.author_email;
-  // stories/notes read *_email). We can no longer read it off the
-  // public_profiles view (email was dropped), so resolve it server-side via
-  // the narrow resolve_profile_email RPC (SECURITY DEFINER, reads
-  // user_profiles directly). This is a single-row lookup by id, never a bulk
-  // read, and the email is used only as a query key — never displayed.
+  // this component that remain email-keyed: mute, block, the story report
+  // and the DM starter. Follow state, posts, stories, notes and highlights
+  // read by id. It is resolved through resolve_profile_email, which hands
+  // any signed-in caller any user's email; that RPC is being retired, so do
+  // not add a new reader of `email` here.
   const { data: resolvedTargetEmail } = useQuery({
     queryKey: ['resolveProfileEmail', targetId],
     queryFn: async () => {
@@ -510,38 +509,38 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Profile stories (for clickable avatar → StoryViewer)
   // Crew stories are scoped to crew_id and must never appear here.
   const { data: profileStories = [] } = useQuery({
-    queryKey: ['profileStories', email],
+    queryKey: ['profileStories', targetId],
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('stories')
         .select('*')
-        .eq('user_email', email)
+        .eq('user_id', targetId)
         .is('crew_id', null)  // SECURITY: personal stories only
         .gt('expires_at', now)
         .order('created_at', { ascending: true });
       return data ?? [];
     },
-    enabled: !!email,
+    enabled: !!targetId,
     staleTime: 30_000,
   });
 
   // Active status note for the profile owner
   const { data: activeNote, refetch: refetchNote } = useQuery({
-    queryKey: ['profileNote', email],
+    queryKey: ['profileNote', targetId],
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('status_notes')
         .select('*')
-        .eq('user_email', email)
+        .eq('user_id', targetId)
         .gt('expires_at', now)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       return data ?? null;
     },
-    enabled: !!email,
+    enabled: !!targetId,
     staleTime: 30_000,
   });
 
@@ -577,9 +576,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     data: amFollowing,
     isLoading: amFollowingLoading,
   } = useQuery({
-    queryKey: ['hubIsFollowing', user?.email, email],
-    queryFn: () => hubFollows.isFollowing(user.email, email),
-    enabled: !isSelf && !!user?.email,
+    queryKey: ['hubIsFollowing', user?.id, targetId],
+    queryFn: () => hubFollows.isFollowing(user.id, targetId),
+    enabled: !isSelf && !!user?.id && !!targetId,
   });
 
   // Mutual-follow query: does the TARGET also follow ME? Combined with
@@ -589,9 +588,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // changes how openly users interact (less audience-feel, more
   // friends-feel).
   const { data: theyFollowMe } = useQuery({
-    queryKey: ['hubTheyFollowMe', email, user?.email],
-    queryFn: () => hubFollows.isFollowing(email, user.email),
-    enabled: !isSelf && !!user?.email && !!email,
+    queryKey: ['hubTheyFollowMe', targetId, user?.id],
+    queryFn: () => hubFollows.isFollowing(targetId, user.id),
+    enabled: !isSelf && !!user?.id && !!targetId,
   });
   const isMutualFollow = amFollowing === true && theyFollowMe === true;
 
@@ -600,21 +599,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // mutual or self views). Drives the "Training together since March
   // 2025" line under the bio. Returns ISO string or null.
   const { data: mutualSince } = useQuery({
-    queryKey: ['hubMutualSince', user?.email, email],
-    queryFn: () => hubFollows.getMutualFollowSince(user.email, email),
-    enabled: !isSelf && isMutualFollow && !!user?.email && !!email,
+    queryKey: ['hubMutualSince', user?.id, targetId],
+    queryFn: () => hubFollows.getMutualFollowSince(user.id, targetId),
+    enabled: !isSelf && isMutualFollow && !!user?.id && !!targetId,
     staleTime: 5 * 60_000, // doesn't change often
   });
 
   // True only when we have a definitive answer from the server. While the
-  // query is still in-flight (or hasn't started because user.email isn't
+  // query is still in-flight (or hasn't started because user.id isn't
   // loaded yet), we DON'T know whether the user follows the target — so
   // neither "Follow" nor "Unfollow" should be tappable.
-  const followStatusReady = isSelf || (!!user?.email && amFollowing !== undefined);
+  const followStatusReady = isSelf || (!!user?.id && amFollowing !== undefined);
   const { data: posts = [] } = useQuery({
-    queryKey: ['hubProfilePosts', email, amFollowing, isSelf],
-    queryFn: () => hubPosts.listForProfile(email, amFollowing, isSelf),
-    enabled: !!email,
+    queryKey: ['hubProfilePosts', targetId, amFollowing, isSelf],
+    queryFn: () => hubPosts.listForProfile(targetId, amFollowing, isSelf),
+    enabled: !!targetId,
   });
   const [profilePostSort, setProfilePostSort] = useState('newest'); // 'newest' | 'popular'
   const sortedPosts = useMemo(() => {
@@ -716,30 +715,25 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       return hubFollows.follow(followerRef, followeeRef, { t });
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      const previous = queryClient.getQueryData(['hubIsFollowing', user?.email, email]);
-      queryClient.setQueryData(['hubIsFollowing', user?.email, email], true);
+      await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
+      const previous = queryClient.getQueryData(['hubIsFollowing', user?.id, targetId]);
+      queryClient.setQueryData(['hubIsFollowing', user?.id, targetId], true);
       return { previous };
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previous !== undefined) {
-        queryClient.setQueryData(['hubIsFollowing', user?.email, email], ctx.previous);
+        queryClient.setQueryData(['hubIsFollowing', user?.id, targetId], ctx.previous);
       }
       toast.error(t('hub.profile.followError'));
       console.error('[HubProfile] follow failed:', err);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
-      // BOTH shapes, because two different things are registered under this
-      // name. The email-keyed entries belong to HubFeed, FollowSuggestionRail
-      // and useHubUnreadDot; THIS component's own lists are keyed by id
-      // (`['hubFollowing', targetId]` above). TanStack matches key arrays
-      // element-wise, so an email in slot 1 never matches a uuid, and the
-      // viewer's own list was left untouched — open your profile within the
-      // 60s staleTime after following someone and the count had not moved.
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
+      queryClient.invalidateQueries({ queryKey: ['hubMutualSince', user?.id, targetId] });
+      // Every follow-graph cache, whoever's id it is keyed on: the viewer's
+      // own lists, this profile's follower count, and the feeds built from
+      // them.
+      invalidateFollowGraph(queryClient);
     },
   });
 
@@ -753,30 +747,25 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       return hubFollows.unfollow(followerRef, followeeRef);
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      const previous = queryClient.getQueryData(['hubIsFollowing', user?.email, email]);
-      queryClient.setQueryData(['hubIsFollowing', user?.email, email], false);
+      await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
+      const previous = queryClient.getQueryData(['hubIsFollowing', user?.id, targetId]);
+      queryClient.setQueryData(['hubIsFollowing', user?.id, targetId], false);
       return { previous };
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previous !== undefined) {
-        queryClient.setQueryData(['hubIsFollowing', user?.email, email], ctx.previous);
+        queryClient.setQueryData(['hubIsFollowing', user?.id, targetId], ctx.previous);
       }
       toast.error(t('hub.profile.unfollowError'));
       console.error('[HubProfile] unfollow failed:', err);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
-      // BOTH shapes, because two different things are registered under this
-      // name. The email-keyed entries belong to HubFeed, FollowSuggestionRail
-      // and useHubUnreadDot; THIS component's own lists are keyed by id
-      // (`['hubFollowing', targetId]` above). TanStack matches key arrays
-      // element-wise, so an email in slot 1 never matches a uuid, and the
-      // viewer's own list was left untouched — open your profile within the
-      // 60s staleTime after following someone and the count had not moved.
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
+      queryClient.invalidateQueries({ queryKey: ['hubMutualSince', user?.id, targetId] });
+      // Every follow-graph cache, whoever's id it is keyed on: the viewer's
+      // own lists, this profile's follower count, and the feeds built from
+      // them.
+      invalidateFollowGraph(queryClient);
     },
   });
 
@@ -1183,16 +1172,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // block_user_full severs mutual follows too, so the follow-graph caches
       // have to go with it — same set HubPostCard invalidates.
       queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
-      // Same email-vs-id split as the follow mutations, and it matters more
-      // here: block_user_full has just severed the follow rows in BOTH
-      // directions, so both of the viewer's own lists are stale.
-      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.id] });
+      // block_user_full has just severed the follow rows in BOTH directions.
+      invalidateFollowGraph(queryClient);
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
+      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
     } catch (err) {
       reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: email });
       toast.error(tFallback('hub.profile.blockError', 'Could not block. Try again.'));
@@ -1590,7 +1573,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     } else if (!result?.ok) {
                       toast.error(tFallback('hub.profile.storyUploadFailed', 'Could not upload story'));
                     } else {
-                      queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
+                      queryClient.invalidateQueries({ queryKey: ['profileStories', targetId] });
                       toast.success(tFallback('hub.profile.storyPosted', 'Your story is up.'));
                     }
                   }}
@@ -2082,7 +2065,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           rather than as the bug it is. `email` falls back to the
           resolve_profile_email RPC that this component already runs. */}
       <StoryHighlightsRail
-        userEmail={email}
+        userId={targetId}
         isOwn={isSelf}
         onOpenAlbum={async (h) => {
           // Lazy-import to keep the highlights surface out of the
@@ -2320,7 +2303,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           likedIds={new Set()}
           user={user}
           onClose={() => setStoryViewerOpen(false)}
-          onStoriesChange={() => queryClient.invalidateQueries({ queryKey: ['profileStories', email] })}
+          onStoriesChange={() => queryClient.invalidateQueries({ queryKey: ['profileStories', targetId] })}
           onAddStory={() => {}}
         />
       )}

@@ -31,13 +31,13 @@ export const listPublicFeed = async (limit = 50) => {
  * List a single user's posts. Honors privacy: if the viewer doesn't follow
  * the author, only public posts are returned.
  *
- * @param {string} authorEmail
+ * @param {string} authorId — the author's user id
  * @param {boolean} isFollowing — does the viewer follow this author?
  * @param {boolean} isSelf — is the viewer the same as the author?
  */
-export const listForProfile = async (authorEmail, isFollowing, isSelf, limit = 50) => {
-  if (!authorEmail) return [];
-  const all = await e().filter({ author_email: authorEmail }, '-created_date', limit).catch(() => []);
+export const listForProfile = async (authorId, isFollowing, isSelf, limit = 50) => {
+  if (!authorId) return [];
+  const all = await e().filter({ user_id: authorId }, '-created_date', limit).catch(() => []);
   if (isSelf) return all;
   if (isFollowing) return all;
   return all.filter(p => p.privacy === 'public');

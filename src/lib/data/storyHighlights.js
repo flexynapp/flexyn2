@@ -9,12 +9,12 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { accountEmail } from '@/lib/guestIdentity';
 
 /** List a user's highlight albums, sorted by sort_order then newest. */
-export async function listHighlightsForUser(userEmail) {
-  if (!userEmail) return [];
+export async function listHighlightsForUser(userId) {
+  if (!userId) return [];
   const { data, error } = await supabase
     .from('story_highlights')
     .select('id, title, cover_url, sort_order, created_at')
-    .eq('user_email', userEmail)
+    .eq('user_id', userId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
   if (error) return [];
