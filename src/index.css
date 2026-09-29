@@ -994,38 +994,25 @@
    pseudo-element when the frame is equipped. */
 
 /* ── Theme-aware Card Accent ──────────────────────────────────────────────── */
-/* Every <Card> across the app picks up a subtle primary-tinted top strip
-   so the active theme is felt on Workout / Nutrition / Hub / Progress pages,
-   not just Dashboard. The strip is rendered via a ::before pseudo-element
-   so it doesn't add layout cost or shift card content.
-*/
-
-/* Base treatment — applies to ALL themes (level-up + non-animated loot).
-   The strip is subtle (40% primary opacity, 1.5px tall) so it reads as
-   "accent" rather than "warning bar". Default Iron Orange theme still
-   shows the orange highlight; pick a different theme and the color
-   follows automatically because --primary is a CSS variable. */
+/* Only animated and legendary loot themes draw a strip across the top of a
+   Card. Every Card used to carry one: a 1.5px primary gradient, which on the
+   default theme put an orange glow on every surface in the app (Progress
+   audit, 2026-09-29, removed at Kegan's pick). A gradient as decoration is
+   on the list of generated-UI tells in CLAUDE.md, and an accent on every
+   card marks none of them. A rare theme is the one case where the user
+   should feel it on every surface, so that treatment stays. */
 .theme-card-accent {
   position: relative;
 }
-.theme-card-accent::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 12%; right: 12%;
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, var(--card-accent, hsl(var(--primary) / 0.45)), transparent);
-  pointer-events: none;
-  border-radius: inherit;
-  transition: opacity 0.2s ease;
-}
-
-/* Animated / legendary loot themes get a stronger, full-width treatment —
-   their drop is rare enough that the user should feel them on every surface. */
 [data-theme-tier='animated'] .theme-card-accent::before,
 [data-theme-tier='legendary'] .theme-card-accent::before {
-  left: 0; right: 0;
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--card-accent, hsl(var(--primary) / 0.65)), transparent);
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 /* Legendary tier adds a gentle pulse so the rarest themes shimmer. */

@@ -553,7 +553,7 @@ describe('CSV export', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
 
-    expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Freestyle Session');
+    expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Freestyle session');
   });
 
   it('keeps commas in notes instead of blanking them out', () => {

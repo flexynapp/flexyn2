@@ -2,12 +2,11 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// `theme-card-accent` is a global class wired up in src/index.css that
-// renders a primary-tinted top strip on every Card whenever the user has
-// any theme equipped (the strip is fully invisible on the default theme
-// to preserve the neutral look). Putting it on the base primitive means
-// EVERY <Card> across Workout/Nutrition/Hub/Dashboard picks up the active
-// theme automatically — no per-page tagging needed.
+// `theme-card-accent` is a global class wired up in src/index.css. It draws
+// a strip across the top of every Card ONLY while an animated or legendary
+// loot theme is equipped; on every other theme it draws nothing. Putting it
+// on the base primitive means those rare themes reach every Card without
+// per-page tagging.
 const Card = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
