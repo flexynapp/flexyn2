@@ -17,7 +17,7 @@ import { db } from '@/api/db';
 import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
 import { buildCoachContext } from '@/lib/aiCoach/responders';
 import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
-import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
+import { parseBoldSegments, cleanCoachText, parseCoachBlocks } from '@/lib/aiCoach/markdownLite';
 import { followUpsFor } from '@/lib/aiCoach/followUps';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
 import { toast } from '@/lib/toast';
@@ -235,8 +235,25 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     if (messages.length > 0) scrollToBottom(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToBottom, messages.length > 0]);
+  // A long reply lands with its first line in view, not its last. Scrolled to
+  // the bottom, a five-bullet answer opened on its closing line and the
+  // headline that carries the answer sat above the fold.
   useEffect(() => {
-    if (stickToBottomRef.current && messages.length > 0) scrollToBottom(true);
+    if (!stickToBottomRef.current || messages.length === 0) return;
+    const el = scrollerRef.current;
+    const last = messages[messages.length - 1];
+    if (el && !thinking && last?.role !== 'user') {
+      const nodes = el.querySelectorAll('[data-coach-msg]');
+      const node = nodes[nodes.length - 1];
+      if (node && node.offsetHeight > el.clientHeight * 0.6) {
+        const top = el.scrollTop + node.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+        if ('scrollTo' in el) el.scrollTo({ top, behavior: 'smooth' });
+        else el.scrollTop = top;
+        return;
+      }
+    }
+    scrollToBottom(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, thinking, scrollToBottom]);
 
   // `displayAs` lets a follow-up chip send the full re-stated request while the
@@ -511,30 +528,58 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   );
 }
 
+function BoldText({ text }) {
+  return parseBoldSegments(text).map((seg, i) => (
+    seg.bold
+      ? <strong key={i} className="font-semibold">{seg.text}</strong>
+      : <React.Fragment key={i}>{seg.text}</React.Fragment>
+  ));
+}
+
+// A coach reply is drawn as paragraphs and a real list rather than one
+// pre-wrapped string: under pre-wrap a bullet that wrapped ran its second
+// line back under the "•", so a four-bullet answer read as one block of
+// text. The text is tidied first (cleanCoachText): no clause dashes, no
+// stray markdown markers, bullets that start with a capital.
+function CoachReply({ text }) {
+  const blocks = useMemo(() => parseCoachBlocks(cleanCoachText(text)), [text]);
+  return (
+    <div className="flex flex-col gap-2">
+      {blocks.map((b, i) => (b.type === 'list' ? (
+        <ul key={i} className="flex flex-col gap-1">
+          {b.items.map((item, j) => (
+            <li key={j} className="flex gap-2">
+              <span aria-hidden="true" className="text-muted-foreground">•</span>
+              <span className="min-w-0"><BoldText text={item} /></span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p key={i} className="whitespace-pre-line"><BoldText text={b.text} /></p>
+      )))}
+    </div>
+  );
+}
+
 function MessageBubble({ m }) {
   const isUser = m.role === 'user';
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
+      data-coach-msg={isUser ? undefined : ''}
       className={`flex mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm break-words ${
           isUser
-            ? 'bg-primary text-primary-foreground rounded-br-sm'
+            ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap'
             : 'bg-secondary text-foreground rounded-bl-sm'
         }`}
       >
-        {/* The coach writes **bold** for the headline of each reply. Rendered
-            as raw text those markers were pure noise on the one line that
-            most needed to stand out. User messages are echoed verbatim — they
-            are the user's own words, not our copy. */}
-        {isUser ? m.text : parseBoldSegments(m.text).map((seg, i) => (
-          seg.bold
-            ? <strong key={i} className="font-semibold">{seg.text}</strong>
-            : <React.Fragment key={i}>{seg.text}</React.Fragment>
-        ))}
+        {/* User messages are echoed verbatim: they are the user's own words,
+            not our copy. */}
+        {isUser ? m.text : <CoachReply text={m.text} />}
       </div>
     </motion.div>
   );
