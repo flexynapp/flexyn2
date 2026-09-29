@@ -284,7 +284,7 @@ export default function ExerciseTrendsTab({ logs, frame }) {
                 <button
                   onClick={() => toggleGroup(label)}
                   aria-expanded={isOpen}
-                  className="w-full flex items-center justify-between gap-2 min-h-[36px] pb-1.5 border-b border-border text-start"
+                  className="w-full flex items-center justify-between gap-2 min-h-[44px] pb-1.5 border-b border-border text-start"
                 >
                   <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
                     {tFallback(`muscleGroups.${muscleKey(label)}`, label)}
