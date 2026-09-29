@@ -17,7 +17,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
-import { MIN_QUALIFIED_TO_MOVE } from '@/lib/leagueTiers';
+import { MIN_QUALIFIED_TO_MOVE, leagueTierName } from '@/lib/leagueTiers';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
 const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
@@ -77,7 +77,10 @@ export default function LeagueStandingsModal({ open, onClose }) {
         className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
         closeClassName="text-black opacity-100 hover:opacity-100 focus:ring-0 focus:ring-offset-0"
       >
-        {isLoading || !data ? (
+        {/* Skeleton only while loading. getMyLeague resolves null on an
+            error or when the user has no league, and gating on !data here
+            left that case on a skeleton forever. Body has the empty state. */}
+        {isLoading ? (
           <div className="p-6 space-y-2">
             <Skeleton className="h-24 rounded-lg" />
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
@@ -130,7 +133,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pe-8">
             <span className="text-2xl">{tier.icon}</span>
-            {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)} {tFallback('league.title', 'League')}
+            {leagueTierName(tier, tFallback)}
           </DialogTitle>
         </DialogHeader>
         {/* The header states the rules of THIS week ("0 qualified — 5 needed")
@@ -336,17 +339,25 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
           </AnimatePresence>
         )}
 
-        {/* Legend */}
-        <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-micro text-muted-foreground flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-success/30" />
-            <span>{tFallback('league.promoteZone', 'Promotion zone')}</span>
+        {/* Legend. A key for a zone this week does not have describes
+            colours nobody can see, so each entry shows only when its zone
+            is drawn above (a held bracket has neither). */}
+        {(promoteN > 0 || demoteN > 0) && (
+          <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-micro text-muted-foreground flex-wrap">
+            {promoteN > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-success/30" />
+                <span>{tFallback('league.promoteZone', 'Promotion zone')}</span>
+              </div>
+            )}
+            {demoteN > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-destructive/30" />
+                <span>{tFallback('league.demoteZone', 'Demotion zone')}</span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-destructive/30" />
-            <span>{tFallback('league.demoteZone', 'Demotion zone')}</span>
-          </div>
-        </div>
+        )}
       </div>
     </>
   );

@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
+import { leagueTierName } from '@/lib/leagueTiers';
 import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
@@ -202,16 +203,9 @@ export default function LeagueCard({ onClick, stretch = false }) {
               {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
                   the card's title, so it gets the title treatment. */}
               <p className="font-heading font-bold text-sm leading-tight truncate">
-                {/* Composed via a vars-aware tFallback key so
-                    translators control the word order. Spanish would
-                    render "Liga Bronce", Japanese "ブロンズリーグ",
-                    Arabic right-to-left etc. The English fallback uses
-                    "Bronze League" but the {tier} {label} order is the
-                    translator's call. When no tier label is known we
-                    fall back to the bare "League" word. */}
-                {tier.label
-                  ? tFallback('league.tierName', '{tier} League', { tier: tier.label })
-                  : tFallback('league.leagueSuffix', 'League')}
+                {/* leagueTierName translates the tier and lets the
+                    translator own the word order (es: Liga Bronce). */}
+                {leagueTierName(tier, tFallback)}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

@@ -151,6 +151,19 @@ export const TIERS = [
 
 const TIER_INDEX = Object.fromEntries(TIERS.map((t, i) => [t.id, i]));
 
+/**
+ * "Bronze League" in the reader's language. Every surface that names a
+ * league goes through this, so the tier word is translated (es: Bronce) and
+ * the translator owns the word order through `league.tierName` (es: "Liga
+ * {tier}"). Surfaces used to pass the English `label` straight in ("Liga
+ * Bronze") or append the word League themselves ("Bronce Liga").
+ */
+export function leagueTierName(tier, tFallback) {
+  if (!tier?.id) return tFallback('league.leagueSuffix', 'League');
+  const name = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
+  return tFallback('league.tierName', '{tier} League', { tier: name });
+}
+
 export function getTier(id) {
   return TIERS.find(t => t.id === id) || TIERS[0];
 }

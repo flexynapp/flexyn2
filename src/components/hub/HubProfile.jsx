@@ -79,7 +79,7 @@ const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
 // Hidden easter-egg "Sweat Jetpack" — only on the @calason44 profile.
 // Fat sweating dude propelled by his own sweat. Pixelated retro look.
 const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
-const LeaderboardsModal = lazy(() => import('@/components/LeaderboardsModal'));
+const LeagueStandingsModal = lazy(() => import('@/components/dashboard/LeagueStandingsModal'));
 
 // Poop badge — shown on certain special users
 function PoopBadge({ size = 22 }) {
@@ -294,9 +294,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // otherwise navigating person → person would strand you on someone else's
   // Posts with no visual explanation of why.
   const [section, setSection] = useState(null);
-  // Leaderboards open in place from the league pill rather than routing —
-  // LeaderboardsModal is self-contained and the user is mid-profile.
-  const [leaguesOpen, setLeaguesOpen] = useState(false);
+  // The League row opens this week's standings in place. It used to open
+  // the global leaderboards, so a row reading "Bronze, place 2 of 8" led to
+  // a screen that showed neither.
+  const [leagueOpen, setLeagueOpen] = useState(false);
   const storyFileRef = useRef(null);
   const eggTimerRef = useRef(null);
   const eggFiredRef = useRef(false);
@@ -2043,9 +2044,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 icon={Medal}
                 label={tFallback('profile.league', 'League')}
                 sub={tFallback('profile.leagueSub', '{tier}, place {r} of {t} this week', {
-                  tier: heroLeague.tierLabel || tier.name, r: heroLeague.rank, t: heroLeague.total,
+                  tier: heroLeague.tierId
+                    ? tFallback(`trophy.seasonTier.${heroLeague.tierId}`, heroLeague.tierLabel)
+                    : tFallback('league.leagueSuffix', 'League'),
+                  r: heroLeague.rank, t: heroLeague.total,
                 })}
-                onClick={() => setLeaguesOpen(true)}
+                onClick={() => setLeagueOpen(true)}
               />
             )}
             {heroRival && (
@@ -2354,12 +2358,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         <ThemeSelector open={themeOpen} onClose={() => setThemeOpen(false)} />
       )}
 
-      {/* Leaderboards — opened by the hero's league pill. Lazy so the whole
-          leaderboard surface stays out of the profile chunk for the users who
-          never tap it. */}
-      {leaguesOpen && (
+      {/* League standings, opened by the League row. Lazy so the standings
+          stay out of the profile chunk for users who never tap it. */}
+      {leagueOpen && (
         <Suspense fallback={null}>
-          <LeaderboardsModal open={leaguesOpen} onClose={() => setLeaguesOpen(false)} />
+          <LeagueStandingsModal open={leagueOpen} onClose={() => setLeagueOpen(false)} />
         </Suspense>
       )}
 
