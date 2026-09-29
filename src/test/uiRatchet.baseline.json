@@ -10,7 +10,7 @@
     "offScaleRadius": 28,
     "subFloorText": 0,
     "hardcodedFont": 0,
-    "hoverMotion": 54
+    "hoverMotion": 50
   },
   "counts": {
     "purple": {
@@ -228,9 +228,7 @@
       "src/components/dashboard/SleepLogCard.jsx": 1,
       "src/components/gyms/GymFeedTab.jsx": 1,
       "src/components/hub/HubChat.jsx": 1,
-      "src/components/hub/HubProfile.jsx": 3,
       "src/components/hub/HubSearchOverlay.jsx": 2,
-      "src/components/hub/ProfileBadgeShowcase.jsx": 1,
       "src/components/LanguagePicker.jsx": 1,
       "src/components/Layout.jsx": 1,
       "src/components/LevelBar.jsx": 1,

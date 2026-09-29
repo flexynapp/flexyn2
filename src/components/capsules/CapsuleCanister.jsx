@@ -92,10 +92,14 @@ function Lid({ f, clipId }) {
  * @param {number|string} [height]  px (or any css length); width follows the 120:166 box
  * @param {boolean} [open]          lid lifted off, as on the spin screen
  * @param {boolean} [liftLid]       animate the lid coming up (open only)
+ * @param {boolean} [lidFly]        the lid is blown off and lands on its rest (open only)
+ * @param {string}  [seam]          colour leaking from the seam of a closed canister
+ * @param {number}  [seamMs]        how long that leak takes to build
  * @param {string} [label]          exposes the drawing to screen readers
  */
 export default function CapsuleCanister({
-  tier = 'standard', height = 176, open = false, liftLid = false, label, className = '', style,
+  tier = 'standard', height = 176, open = false, liftLid = false, lidFly = false,
+  seam = null, seamMs = 2000, label, className = '', style,
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const f = CANISTER_FINISH[tier] ?? CANISTER_FINISH.standard;
@@ -140,7 +144,7 @@ export default function CapsuleCanister({
           <ellipse cx="60" cy="74" rx="34" ry="7.5" fill={f.collar} stroke={EDGE} strokeWidth="2.2" />
           <ellipse cx="60" cy="74.8" rx="29" ry="5.3" fill={FLOOR} />
           <path d="M32 72.5A28 4.5 0 0 1 88 72.5" fill="none" stroke={f.collarHi} strokeWidth="1" />
-          <g className={liftLid ? 'canister-lid-lift' : undefined}>
+          <g className={lidFly ? 'canister-lid-fly' : liftLid ? 'canister-lid-lift' : undefined}>
             <g transform="translate(-6 -30) rotate(24 94 74)">
               <ellipse cx="60" cy="74" rx="34" ry="7.5" fill={EDGE} />
               <ellipse cx="60" cy="73.4" rx="29" ry="5.1" fill={f.shade} />
@@ -152,6 +156,15 @@ export default function CapsuleCanister({
         <>
           <Lid f={f} clipId={lidClip} />
           <path d="M26 74A34 7.5 0 0 0 94 74" fill="none" stroke={EDGE} strokeWidth="2.6" />
+          {/* Light from inside, through the seam: a line, not a glow. */}
+          {seam && (
+            <path
+              className="canister-seam"
+              d="M27 74.6A33 7 0 0 0 93 74.6"
+              fill="none" stroke={seam} strokeWidth="2.4" strokeLinecap="round"
+              style={{ animationDuration: `${seamMs}ms` }}
+            />
+          )}
           {/* The latch. */}
           <rect x="77.64" y="67.75" width="8.43" height="22" rx="2" fill={f.collar} stroke={EDGE} strokeWidth="1.4" />
           <rect x="79.24" y="70.25" width="5.23" height="6" rx="1" fill={f.collarHi} />

@@ -10,7 +10,7 @@
 // the legacy claim_capsule_loot roll is used and useBagFlow finalizes it on
 // Collect. Nothing in this file writes a capsule row.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -25,6 +25,7 @@ import { THEMES_ENABLED } from '@/lib/featureFlags';
 import { buildLabel, copyDiagnostics } from '@/lib/buildInfo';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
+import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
@@ -39,6 +40,7 @@ import PityMeter from '@/components/capsules/PityMeter';
 import { SetBar, NotchedCorner } from '@/components/capsules/parts';
 import { tierName, tierFinish, rarityName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import { OpenerStage, useOpenerFx, dramaFor, chargeMs } from '@/components/capsules/openFx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // A reel card, from the design: 112 by 164, 12 apart.
@@ -478,17 +480,31 @@ async function rollOneCapsule(capsuleId) {
 
 
 // ─── One reel card ────────────────────────────────────────────────────────────
-function ReelCard({ item, landed }) {
+function ReelCard({ item, landed, dimmed }) {
   const isMystery = item.id === '__mystery__' || item.id === '__filler__';
+  const ref = useRef(null);
+  // The winner lifts out of the band when the reel stops: a quick scale
+  // up and back, the rest of the band falling away behind it.
+  useEffect(() => {
+    const el = ref.current;
+    if (!landed || !el || typeof el.animate !== 'function' || prefersReducedMotion()) return;
+    el.animate(
+      [{ transform: 'none' }, { transform: 'scale(1.14)', offset: 0.35 }, { transform: 'scale(1.05)' }],
+      { duration: 420, easing: 'cubic-bezier(0.3, 1.4, 0.5, 1)', fill: 'forwards' },
+    );
+  }, [landed]);
   return (
     <div
-      className="flex-none flex flex-col items-center justify-center gap-2 rounded-lg bg-card border select-none"
+      ref={ref}
+      className="flex-none flex flex-col items-center justify-center gap-2 rounded-lg bg-card border select-none transition-opacity duration-300"
       style={{
         width: CARD_W,
         height: CARD_H,
         // The landed card takes its rarity on the rim. A colour change, not
         // a glow: the pointer already says where to look.
         borderColor: landed ? rarityTint(item.rarity).color : 'hsl(var(--border))',
+        borderWidth: landed ? 2 : 1,
+        opacity: dimmed ? 0.3 : 1,
       }}
     >
       {isMystery
@@ -500,13 +516,6 @@ function ReelCard({ item, landed }) {
     </div>
   );
 }
-
-// Honors prefers-reduced-motion for the reel's travel time.
-const prefersReducedMotion = () => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-  catch { return false; }
-};
 
 // The ruler along the top and bottom edges of the reel band. Ticks only: the
 // design numbered them in 7px type, under the app's 11px floor, and the
@@ -535,18 +544,31 @@ function Ruler({ flip = false }) {
 // Owns its own container measurement, double-RAF kick-off, CSS transition
 // and transitionend teardown. `onSettled` fires once, when this reel's own
 // transform finishes (or its safety timer does).
-function CapsuleReel({ cards, winIndex, variant, speed = 1, onSettled }) {
+//
+// `running` holds the reel at rest until the canister has popped: the cards
+// sit dimmed in the band, then light up and go.
+//
+// The pointer is a flapper. Each card edge that passes under it flicks the
+// two triangles and ticks the haptic, so the reel slowing down is something
+// you feel in the thumb as the ticks space out, not only something you see.
+function CapsuleReel({ cards, winIndex, variant, speed = 1, running = true, onSettled }) {
   const containerRef = useRef(null);
+  const trackRef     = useRef(null);
+  const topFlapRef   = useRef(null);
+  const botFlapRef   = useRef(null);
   const settledRef   = useRef(false);
   const timerRef     = useRef(null);
+  const rafRef       = useRef(0);
   const [settled, setSettled] = useState(false);
   const stride = CARD_W + CARD_GAP;
-  const dur = prefersReducedMotion() ? 0.01 : variant.duration * speed;
+  const reduced = prefersReducedMotion();
+  const dur = reduced ? 0.01 : variant.duration * speed;
 
   const settle = useCallback(() => {
     if (settledRef.current) return;
     settledRef.current = true;
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0; }
     setSettled(true);
     triggerHaptic('primary');
     onSettled?.();
@@ -556,13 +578,17 @@ function CapsuleReel({ cards, winIndex, variant, speed = 1, onSettled }) {
   // an interrupted transition), and a reel that never settles strands the
   // user on a spinning screen with the capsule already spent.
   useEffect(() => {
+    if (!running) return undefined;
     const ms = dur * 1000 + 600;
     timerRef.current = setTimeout(settle, ms);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [dur, settle]);
+  }, [running, dur, settle]);
 
-  const setTrackRef = useCallback((el) => {
-    if (!el) return;
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!running || !el) return;
     // Double-RAF so the browser paints at translateX(0) first; without it
     // the transition has no "from" position and the reel jumps.
     requestAnimationFrame(() => {
@@ -590,9 +616,32 @@ function CapsuleReel({ cards, winIndex, variant, speed = 1, onSettled }) {
           settle();
         };
         el.addEventListener('transitionend', done);
+
+        // The flapper. One computed-style read a frame, on one element.
+        if (reduced || typeof window.getComputedStyle !== 'function') return;
+        const flaps = [topFlapRef.current, botFlapRef.current].filter(f => f && typeof f.animate === 'function');
+        let last = -1;
+        const tick = () => {
+          if (settledRef.current || !el.isConnected) return;
+          const m = window.getComputedStyle(el).transform;
+          const tx = m && m !== 'none' ? parseFloat(m.split(',')[4]) : 0;
+          const under = Math.floor((containerWidth / 2 - tx - CARD_GAP) / stride);
+          if (Number.isFinite(under) && under !== last) {
+            if (last !== -1) {
+              flaps.forEach((f, i) => f.animate(
+                [{ transform: 'none' }, { transform: `rotate(${i ? 14 : -14}deg)` }, { transform: 'none' }],
+                { duration: 150, easing: 'ease-out' },
+              ));
+              triggerHaptic('subtle');
+            }
+            last = under;
+          }
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        rafRef.current = requestAnimationFrame(tick);
       });
     });
-  }, [stride, winIndex, variant, dur, settle]);
+  }, [running, stride, winIndex, variant, dur, settle, reduced]);
 
   return (
     <div
@@ -604,19 +653,25 @@ function CapsuleReel({ cards, winIndex, variant, speed = 1, onSettled }) {
       <Ruler />
       <Ruler flip />
       <div
-        ref={setTrackRef}
-        className="absolute top-6 start-0 flex"
-        style={{ gap: CARD_GAP, paddingInlineStart: CARD_GAP, willChange: 'transform' }}
+        ref={trackRef}
+        className="absolute top-6 start-0 flex transition-opacity duration-300"
+        style={{ gap: CARD_GAP, paddingInlineStart: CARD_GAP, willChange: 'transform', opacity: running ? 1 : 0.35 }}
       >
         {cards.map((item, idx) => (
-          <ReelCard key={`${item.id}-${idx}`} item={item} landed={settled && idx === winIndex} />
+          <ReelCard
+            key={`${item.id}-${idx}`}
+            item={item}
+            landed={settled && idx === winIndex}
+            dimmed={settled && idx !== winIndex}
+          />
         ))}
       </div>
-      {/* The pointer: a triangle at each edge and a line between. */}
-      <svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true" className="absolute start-1/2 -ms-2.5 -top-px text-foreground">
+      {/* The pointer: a triangle at each edge and a line between. The
+          triangles flick as cards pass, pivoting on their base. */}
+      <svg ref={topFlapRef} width="20" height="12" viewBox="0 0 20 12" aria-hidden="true" className="absolute start-1/2 -ms-2.5 -top-px text-foreground" style={{ transformOrigin: '50% 0' }}>
         <path d="M0 0h20L10 11z" fill="currentColor" />
       </svg>
-      <svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true" className="absolute start-1/2 -ms-2.5 -bottom-px text-foreground">
+      <svg ref={botFlapRef} width="20" height="12" viewBox="0 0 20 12" aria-hidden="true" className="absolute start-1/2 -ms-2.5 -bottom-px text-foreground" style={{ transformOrigin: '50% 100%' }}>
         <path d="M0 12h20L10 1z" fill="currentColor" />
       </svg>
       <div className="absolute start-1/2 -ms-px top-2.5 bottom-2.5 w-0.5 bg-foreground" aria-hidden="true" />
@@ -663,10 +718,20 @@ function describeResult(item, results, inv) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-// Phases: 'idle' → 'spinning' → ['encore' →] 'revealing'
+// Phases: 'idle' → 'rolling' → 'spinning' → ['encore' →] 'revealing'
+//
+// 'rolling' is the roll in flight: the canister waits on the stage. Each
+// reel in 'spinning' then runs two beats, `stage` 'charge' (the canister
+// rattles and pops) and 'reel' (the lid is off and the reel runs). The
+// charge is long and leaks the rarity colour for an epic-or-better pull, so
+// a big one announces itself before the reel moves; below that, every
+// charge looks the same and the reel keeps its suspense.
+//
 // The page starts rolling the moment it mounts: the tap that opened it (Open
 // on the Capsules page, a capsule in the bag) was the decision. 'idle' is
-// only ever on screen while the roll is in flight, or after it failed.
+// only ever on screen after the roll failed, or without autoStart.
+const STOW_MS = 900;
+
 export default function CapsuleOpener({
   rows, next, onClaim, onClaimAndOpenNext, onClose, autoStart = true,
 }) {
@@ -674,6 +739,7 @@ export default function CapsuleOpener({
   const fmt = useNumberFormatter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fx = useOpenerFx();
   const targets = useMemo(
     () => (Array.isArray(rows) ? rows : []).filter(Boolean).slice(0, MAX_BATCH),
     [rows],
@@ -682,13 +748,14 @@ export default function CapsuleOpener({
   const tier = ['standard', 'premium', 'elite'].includes(targets[0]?.capsule_type)
     ? targets[0].capsule_type : 'standard';
 
-  const [phase, setPhase] = useState('idle');
+  const [phase, setPhase] = useState(autoStart ? 'rolling' : 'idle');
   const [failed, setFailed] = useState(false);
   // [{ capsuleId, item, granted }] — every successful roll from this open.
   const [results, setResults] = useState([]);
   // One reel spec per capsule: { capsuleId, item, cards, winIndex, variant }.
   const [reels, setReels] = useState([]);
   const [reelIndex, setReelIndex] = useState(0);
+  const [stage, setStage] = useState('charge');
   const [reelSettled, setReelSettled] = useState(false);
   const [encore, setEncore] = useState(null);
   const [encoreSettled, setEncoreSettled] = useState(false);
@@ -697,6 +764,7 @@ export default function CapsuleOpener({
   // The inventory as the server holds it after the roll.
   const [inv, setInv] = useState(null);
   const [collecting, setCollecting] = useState(false);
+  const [stowing, setStowing] = useState(false);
 
   // The pity reading from BEFORE the roll. A fresh read during the spin
   // could show the counter reset to zero, which spoils an epic before the
@@ -710,11 +778,17 @@ export default function CapsuleOpener({
     if (openGuardRef.current) return;
     openGuardRef.current = true;
     setFailed(false);
+    setPhase('rolling');
+
+    const fail = () => {
+      openGuardRef.current = false;
+      setFailed(true);
+      setPhase('idle');
+    };
 
     if (targets.length === 0 || targets.some(c => !c?.id)) {
       toast.error(tFallback('capsuleOpener.missing', 'Capsule missing. Refresh and try again.'));
-      openGuardRef.current = false;
-      setFailed(true);
+      fail();
       return;
     }
 
@@ -733,8 +807,7 @@ export default function CapsuleOpener({
         console.error('[CapsuleOpener] roll failed:', err);
         toast.error(tFallback('capsuleOpener.openFailed', 'Could not open capsule. Try again.'));
       }
-      openGuardRef.current = false;
-      setFailed(true);
+      fail();
       return;
     }
 
@@ -743,8 +816,7 @@ export default function CapsuleOpener({
       toast.error(targets.length > 1
         ? tFallback('capsuleOpener.alreadyOpenedMany', 'Those capsules were already opened.')
         : tFallback('capsuleOpener.alreadyOpened', 'Capsule already opened.'));
-      openGuardRef.current = false;
-      setFailed(true);
+      fail();
       return;
     }
     if (ok.length < targets.length) {
@@ -762,6 +834,7 @@ export default function CapsuleOpener({
     setPick(ok.indexOf(best));
     setReels(specs);
     setReelIndex(0);
+    setStage('charge');
     setReelSettled(false);
     setEncore(encoreSpec);
     setEncoreSettled(false);
@@ -780,6 +853,55 @@ export default function CapsuleOpener({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const currentReel = reels[reelIndex];
+
+  // ── The charge and the pop ────────────────────────────────────────────
+  const canisterRef = useRef(null);
+  const chargeTimerRef = useRef(null);
+  const reelRarity = currentReel?.item?.rarity ?? 'common';
+  const reelDrama = dramaFor(reelRarity);
+  const reelTint = rarityTint(reelRarity).color;
+  const chargeFor = chargeMs(reelRarity, { batch: isBatch, reduced: fx.reduced });
+
+  // The stage as the pop sees it, synchronously: a tap and the timer can
+  // both reach pop in the same frame, and only one may fire the burst.
+  const stageRef = useRef('charge');
+  useEffect(() => { stageRef.current = stage; }, [stage]);
+
+  const pop = useCallback(() => {
+    if (chargeTimerRef.current) { clearTimeout(chargeTimerRef.current); chargeTimerRef.current = null; }
+    if (stageRef.current !== 'charge') return;
+    stageRef.current = 'reel';
+    const el = canisterRef.current;
+    // The mouth of the canister, about 45% down its box.
+    const point = fx.aimAt(el, 0.45);
+    // Below epic the pop is neutral: the colour would give the reel away.
+    fx.burst(point, reelDrama.hot ? reelRarity : 'common', { scale: reelDrama.hot ? 0.9 : 0.55, shake: reelDrama.hot });
+    fx.setRays(reelDrama.hot ? reelTint : null, reelDrama.hot ? 0.06 : 0.025);
+    if (el && typeof el.animate === 'function' && !fx.reduced) {
+      el.animate(
+        [{ transform: 'scale(1.08, 0.88)' }, { transform: 'scale(0.95, 1.07)', offset: 0.4 }, { transform: 'none' }],
+        { duration: 420, easing: 'cubic-bezier(0.3, 1.3, 0.5, 1)' },
+      );
+    }
+    triggerHaptic(reelDrama.hot ? 'success' : 'primary');
+    setStage('reel');
+  }, [fx, reelDrama.hot, reelRarity, reelTint]);
+
+  useEffect(() => {
+    if (phase !== 'spinning' || stage !== 'charge' || !currentReel) return undefined;
+    fx.aimAt(canisterRef.current, 0.45);
+    // The tell: an epic-or-better pull tints the stage while it charges.
+    if (reelDrama.hot) fx.setRays(reelTint, 0.07, { fast: true });
+    else fx.setRays(null, 0.03);
+    chargeTimerRef.current = setTimeout(pop, chargeFor);
+    return () => { if (chargeTimerRef.current) clearTimeout(chargeTimerRef.current); };
+  }, [phase, stage, currentReel, chargeFor, pop, fx, reelDrama.hot, reelTint]);
+
+  useEffect(() => {
+    if (phase === 'rolling') fx.setRays(null, 0.02);
+  }, [phase, fx]);
+
   // One reel at a time. When it lands, a beat, then the next capsule, or the
   // encore on a legendary-or-better pull, or the reveal.
   const handleReelSettled = useCallback(() => setReelSettled(true), []);
@@ -788,6 +910,8 @@ export default function CapsuleOpener({
     const t = setTimeout(() => {
       if (reelIndex + 1 < reels.length) {
         setReelIndex(i => i + 1);
+        stageRef.current = 'charge';
+        setStage('charge');
         setReelSettled(false);
       } else if (encore) {
         setPhase('encore');
@@ -800,31 +924,32 @@ export default function CapsuleOpener({
 
   const handleEncoreSettled = useCallback(() => setEncoreSettled(true), []);
   useEffect(() => {
-    if (phase !== 'encore' || !encoreSettled) return;
+    if (phase !== 'encore') return undefined;
+    fx.setRays(rarityTint(encore?.item?.rarity).color, 0.09, { double: true, fast: true });
+    if (!encoreSettled) return undefined;
     const t = setTimeout(() => setPhase('revealing'), 800);
     return () => clearTimeout(t);
-  }, [phase, encoreSettled]);
+  }, [phase, encoreSettled, encore, fx]);
 
   const skip = useCallback(() => setPhase('revealing'), []);
 
-  // Rarity-scaled haptic on the reveal. haptic.js no-ops under reduced
-  // motion, the settings toggle and devices without vibration.
   const shown = results[pick]?.item ?? null;
-  useEffect(() => {
-    if (phase !== 'revealing' || !shown) return;
-    const pattern = { legendary: 'success', mythic: 'buzz', animated: 'success' }[shown.rarity]
-      ?? (rarityRank(shown.rarity) >= rarityRank('rare') ? 'primary' : null);
-    if (pattern) triggerHaptic(pattern);
-    // The reveal's arrival only, not every row tap.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
 
   const collect = useCallback(async (andNext) => {
     if (collecting) return;
     setCollecting(true);
-    if (andNext && next) await onClaimAndOpenNext?.(results);
-    else await onClaim?.(results);
-  }, [collecting, next, onClaim, onClaimAndOpenNext, results]);
+    if (andNext && next) {
+      await onClaimAndOpenNext?.(results);
+      return;
+    }
+    // Collect is shown, not announced: the plate drops toward the bag and
+    // the line under it says where it went, then the stage closes. This
+    // replaced a toast that landed over the page title behind the opener.
+    setStowing(true);
+    fx.setRays(null, 0);
+    await new Promise(r => setTimeout(r, fx.reduced ? 500 : STOW_MS));
+    await onClaim?.(results);
+  }, [collecting, next, onClaim, onClaimAndOpenNext, results, fx]);
 
   const handleCopyBuild = useCallback(async () => {
     const result = await copyDiagnostics();
@@ -857,20 +982,25 @@ export default function CapsuleOpener({
     ? tFallback('capsuleOpener.tierCapsules', '{tier} capsules', { tier: tierName(tFallback, tier) })
     : tFallback('capsuleOpener.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) });
 
-  const currentReel = reels[reelIndex];
+  const onStage = phase === 'rolling' || (phase === 'spinning' && currentReel);
+  const charging = phase === 'spinning' && stage === 'charge';
+  const standClass = phase === 'rolling'
+    ? 'canister-wait'
+    : charging ? (reelDrama.hot ? 'canister-charge-hot' : 'canister-charge') : '';
 
   return (
     <div
       // `dark` pins the app's own dark tokens for this subtree: the opener
       // is a stage in either theme, and the canister and stickers are drawn
       // against a dark ground.
-      className="dark fixed inset-0 z-50 flex flex-col bg-background text-foreground overflow-y-auto overscroll-contain"
+      className="dark fixed inset-0 z-50 flex flex-col bg-background text-foreground overflow-y-auto overflow-x-hidden overscroll-contain"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="capsule-opener-title"
     >
-      <div className="mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0">
+      <OpenerStage fx={fx} />
+      <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0">
         <header className="h-[60px] shrink-0 px-5 pt-2 flex items-center justify-between gap-2">
           <h2 id="capsule-opener-title" className="font-display text-title">{titleText}</h2>
           <div className="flex items-center gap-2 min-w-0">
@@ -888,7 +1018,7 @@ export default function CapsuleOpener({
           </div>
         </header>
 
-        {/* ── IDLE: rolling, or the roll failed ─────────────────────────── */}
+        {/* ── IDLE: the roll failed, or waiting for a tap ───────────────── */}
         {phase === 'idle' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5 pb-6">
             <CapsuleCanister tier={tier} height="clamp(150px, 28vh, 240px)" />
@@ -909,10 +1039,6 @@ export default function CapsuleOpener({
                   {tFallback('common.close', 'Close')}
                 </button>
               </div>
-            ) : autoStart ? (
-              <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground" role="status">
-                {tFallback('capsuleOpener.rolling', 'Rolling')}
-              </p>
             ) : (
               <button
                 type="button"
@@ -925,18 +1051,29 @@ export default function CapsuleOpener({
           </div>
         )}
 
-        {/* ── SPINNING: one reel per capsule, in turn ───────────────────── */}
-        {phase === 'spinning' && currentReel && (
+        {/* ── ROLLING + SPINNING: the canister on its stage, the reel under ─ */}
+        {onStage && (
           <div className="flex-1 flex flex-col">
             <div className="relative flex-1 min-h-[180px] flex items-end justify-center pb-5">
-              <CapsuleCanister
-                key={currentReel.capsuleId}
-                tier={tier}
-                open
-                liftLid
-                height="clamp(150px, 30vh, 250px)"
-              />
-              {isBatch && (
+              {/* Tapping a charging canister pops it now. The charge runs
+                  on its own, so this is a shortcut, not a control. */}
+              <div
+                key={currentReel?.capsuleId ?? 'waiting'}
+                ref={canisterRef}
+                className={`canister-stand ${standClass}`}
+                style={charging ? { animationDuration: `${chargeFor}ms` } : undefined}
+                onPointerDown={charging ? pop : undefined}
+              >
+                <CapsuleCanister
+                  tier={tier}
+                  open={phase === 'spinning' && stage === 'reel'}
+                  lidFly={!fx.reduced}
+                  seam={charging && reelDrama.hot ? reelTint : null}
+                  seamMs={chargeFor}
+                  height="clamp(150px, 30vh, 250px)"
+                />
+              </div>
+              {isBatch && phase === 'spinning' && (
                 <span className="stamp absolute start-5 bottom-5">
                   {tFallback('capsuleOpener.capsuleOf', 'Capsule {i} of {n}', { i: reelIndex + 1, n: reels.length })}
                 </span>
@@ -944,20 +1081,28 @@ export default function CapsuleOpener({
               <span className="stamp absolute end-5 bottom-5">{tierFinish(tFallback, tier)}</span>
             </div>
 
-            <CapsuleReel
-              key={currentReel.capsuleId}
-              cards={currentReel.cards}
-              winIndex={currentReel.winIndex}
-              variant={currentReel.variant}
-              speed={isBatch ? 0.6 : 1}
-              onSettled={handleReelSettled}
-            />
+            {phase === 'spinning' ? (
+              <CapsuleReel
+                key={currentReel.capsuleId}
+                cards={currentReel.cards}
+                winIndex={currentReel.winIndex}
+                variant={currentReel.variant}
+                speed={isBatch ? 0.6 : 1}
+                running={stage === 'reel'}
+                onSettled={handleReelSettled}
+              />
+            ) : (
+              <div className="relative w-full border-y bg-black/25" style={{ height: CARD_H + 48 }} aria-hidden="true">
+                <Ruler />
+                <Ruler flip />
+              </div>
+            )}
 
             <div className="px-5 pt-6 flex flex-col items-center gap-2">
               <span className="text-label font-semibold uppercase tracking-wider text-muted-foreground" role="status">
                 {tFallback('capsuleOpener.rolling', 'Rolling')}
               </span>
-              {isBatch && (
+              {isBatch && phase === 'spinning' && (
                 <button
                   type="button"
                   onClick={skip}
@@ -978,7 +1123,7 @@ export default function CapsuleOpener({
         {phase === 'encore' && encore && (
           <div className="flex-1 flex flex-col justify-center gap-6 pb-6">
             <div className="px-5 flex flex-col items-center gap-1 text-center">
-              <span className="font-display text-display" style={{ color: rarityTint(encore.item.rarity).color }}>
+              <span className="reveal-stamp font-display text-display" style={{ color: rarityTint(encore.item.rarity).color }}>
                 {rarityName(tFallback, encore.item.rarity)}
               </span>
               <span className="text-label text-muted-foreground">
@@ -997,6 +1142,7 @@ export default function CapsuleOpener({
         {/* ── REVEAL ─────────────────────────────────────────────────────── */}
         {phase === 'revealing' && shown && (
           <Reveal
+            fx={fx}
             results={results}
             pick={pick}
             setPick={setPick}
@@ -1005,6 +1151,7 @@ export default function CapsuleOpener({
             tier={tier}
             next={next}
             collecting={collecting}
+            stowing={stowing}
             onCollect={() => collect(false)}
             onCollectNext={() => collect(true)}
           />
@@ -1027,19 +1174,80 @@ export default function CapsuleOpener({
 }
 
 // ─── The reveal ───────────────────────────────────────────────────────────────
-function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCollect, onCollectNext }) {
+// The plate flips in from the reel and slams down; on the hit the stage
+// takes the rarity colour, rings and sparks go out, and the screen shakes
+// as hard as the rarity earns. Then the name stamps in, the rarity line, the
+// set, and last the buttons, each a beat apart, the beat longer the rarer
+// the pull. Picking another row in a batch replays a smaller hit.
+const PLATE_MS = 560;
+
+function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, stowing, onCollect, onCollectNext }) {
   const { tFallback } = useLanguage();
   const item = results[pick].item;
   const tint = rarityTint(item.rarity);
+  const drama = dramaFor(item.rarity);
   const info = describeResult(item, results, inv);
   const variant = item.variant ? VARIANTS[item.variant] : null;
   const price = sellPriceFor(item.rarity, item.variant);
   const isBatch = results.length > 1;
+  const plateRef = useRef(null);
+  const arrivedRef = useRef(false);
+  // The first arrival is the big one; a row pick is a smaller replay.
+  const [big] = useState(() => !fx.reduced);
+  const firstHit = big ? Math.round(PLATE_MS * 0.62) : 0;
+  const beat = (n) => ({ animationDelay: `${firstHit + (big ? drama.hold : 0) + n * 110}ms` });
+
+  useLayoutEffect(() => {
+    const el = plateRef.current;
+    if (!el) return undefined;
+    const first = !arrivedRef.current;
+    arrivedRef.current = true;
+    const point = fx.aimAt(el);
+    fx.setRays(tint.color, drama.rays, { double: isEncoreTier(item.rarity) });
+    if (fx.reduced || typeof el.animate !== 'function') return undefined;
+    const dur = first ? PLATE_MS : 380;
+    el.animate([
+      { transform: 'perspective(700px) translateY(48px) scale(0.3) rotateY(-120deg)', opacity: 0 },
+      { transform: 'perspective(700px) translateY(30px) scale(0.55) rotateY(-80deg)', opacity: 1, offset: 0.2 },
+      { transform: 'perspective(700px) translateY(-8px) scale(1.12) rotateY(10deg)', opacity: 1, offset: 0.62 },
+      { transform: 'perspective(700px) scale(0.97) rotateY(-3deg)', offset: 0.82 },
+      { transform: 'none', opacity: 1 },
+    ], { duration: dur, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'backwards' });
+    const t = setTimeout(() => {
+      fx.burst(point, item.rarity, { scale: first ? 1 : 0.45, shake: first });
+      if (first) {
+        const pattern = { legendary: 'success', mythic: 'buzz', animated: 'success' }[item.rarity]
+          ?? (rarityRank(item.rarity) >= rarityRank('rare') ? 'primary' : 'subtle');
+        triggerHaptic(pattern);
+      }
+    }, Math.round(dur * 0.62));
+    return () => clearTimeout(t);
+    // The arrival and each row pick, nothing else.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick]);
+
+  // Collect: the plate drops toward the bag.
+  useEffect(() => {
+    const el = plateRef.current;
+    if (!stowing || !el || fx.reduced || typeof el.animate !== 'function') return;
+    el.animate(
+      [
+        { transform: 'none', opacity: 1 },
+        { transform: 'translateY(-14px) scale(1.04)', opacity: 1, offset: 0.25 },
+        { transform: 'translateY(55vh) scale(0.2) rotate(-14deg)', opacity: 0 },
+      ],
+      { duration: 520, easing: 'cubic-bezier(0.5, 0, 0.85, 0.4)', fill: 'forwards' },
+    );
+  }, [stowing, fx.reduced]);
 
   const nextLabel = !next ? null
     : next.tier === 'elite' ? tFallback('capsuleOpener.nextElite', 'Collect and open the next elite')
     : next.tier === 'premium' ? tFallback('capsuleOpener.nextPremium', 'Collect and open the next premium')
     : tFallback('capsuleOpener.nextStandard', 'Collect and open the next standard');
+
+  const stowedLine = isBatch
+    ? tFallback('inventoryFlow.addedMany', '{n} items are in your bag.', { n: results.length })
+    : tFallback('inventoryFlow.addedOne', '{item} is in your bag.', { item: item.name });
 
   return (
     <div className="flex-1 flex flex-col" data-tier={tier}>
@@ -1049,11 +1257,14 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
           because then the list is what fills the space. */}
       <div className={isBatch ? '' : 'flex-1 flex flex-col justify-center'}>
       <div className="flex flex-col items-center gap-4 px-5 pt-3">
-        {/* key: a new plate lands each time a row is picked */}
-        <div key={`${results[pick].capsuleId}`} className="sticker-land relative">
+        <div ref={plateRef} className="relative">
           <div
-            className="relative rounded-2xl bg-card border flex items-center justify-center"
-            style={{ width: 'clamp(140px, 24vh, 200px)', height: 'clamp(140px, 24vh, 200px)' }}
+            className="relative rounded-2xl bg-card border flex items-center justify-center overflow-hidden"
+            style={{
+              width: 'clamp(140px, 24vh, 200px)',
+              height: 'clamp(140px, 24vh, 200px)',
+              borderColor: tint.color,
+            }}
           >
             <Sticker
               itemId={item.id}
@@ -1063,6 +1274,14 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
               shadow
               label={item.name}
             />
+            {drama.sheen && (
+              <span
+                key={`sheen-${pick}`}
+                className="reveal-sheen absolute inset-y-[-20%] start-0 w-[34%] bg-[#F5F2F0]/15 pointer-events-none"
+                style={{ animationDelay: `${firstHit + 80}ms` }}
+                aria-hidden="true"
+              />
+            )}
             <NotchedCorner />
           </div>
           {info.set && (
@@ -1070,10 +1289,26 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
               {tFallback('capsules.setNo', 'No. {no}', { no: formatSetNo(info.set.no) })}
             </span>
           )}
+          {info.isNew && (
+            <span
+              key={`new-${pick}`}
+              className="reveal-new stamp absolute -top-2.5 -end-4 px-1.5 py-0.5 rounded-sm border-2 border-foreground bg-background text-foreground"
+              style={beat(0)}
+            >
+              {tFallback('capsuleOpener.newStamp', 'New')}
+            </span>
+          )}
         </div>
-        <div className="flex flex-col items-center gap-1.5 text-center">
-          <span className="font-display text-display break-anywhere">{item.name}</span>
-          <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-body font-semibold" style={{ color: tint.color }}>
+        <div
+          key={`name-${pick}`}
+          className="flex flex-col items-center gap-1.5 text-center transition-opacity duration-300"
+          style={stowing ? { opacity: 0 } : undefined}
+        >
+          <span className="reveal-stamp font-display text-display break-anywhere" style={beat(0)}>{item.name}</span>
+          <span
+            className="reveal-rise flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-body font-semibold"
+            style={{ color: tint.color, ...beat(1) }}
+          >
             <span className="w-2 h-2 rounded-full" style={{ background: tint.color }} aria-hidden="true" />
             {rarityName(tFallback, item.rarity)}
             {variant && <span>{variant.badge}</span>}
@@ -1082,7 +1317,10 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
         </div>
       </div>
 
-      <div className="mx-5 mt-5 py-3 border-y flex flex-col gap-2.5">
+      {/* The fade on Collect sits on a wrapper: the rise's fill would
+          otherwise hold the block at full opacity. */}
+      <div className="transition-opacity duration-300" style={stowing ? { opacity: 0 } : undefined}>
+      <div className="reveal-rise mx-5 mt-5 py-3 border-y flex flex-col gap-2.5" style={beat(2)}>
         {info.set && info.owned != null && (
           <>
             <div className="flex justify-between items-baseline text-label">
@@ -1093,7 +1331,7 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
                   : tFallback('capsules.set.of', '{owned} of {total}', { owned: info.owned, total: info.total })}
               </span>
             </div>
-            <SetBar tiers={info.tiers} />
+            <SetBar tiers={info.tiers} grow={info.isNew ? item.rarity : null} growDelay={firstHit + drama.hold + 400} />
           </>
         )}
         <div className="flex justify-between text-label text-muted-foreground">
@@ -1109,11 +1347,12 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
           </span>
         </div>
       </div>
+      </div>
 
       </div>
 
       {isBatch && (
-        <div className="px-5 pt-4 flex flex-col">
+        <div className="reveal-rise px-5 pt-4 flex flex-col" style={beat(3)}>
           <span className="eyebrow pb-1">{tFallback('capsuleOpener.inThisOpen', 'In this open')}</span>
           {results.map((r, i) => {
             const t = rarityTint(r.item.rarity);
@@ -1147,23 +1386,30 @@ function Reveal({ results, pick, setPick, inv, fmt, tier, next, collecting, onCo
 
       {/* Pinned CTAs. The spacer keeps the last row clear of them. */}
       <div className="h-6 shrink-0" />
-      <div className="sticky bottom-0 mt-auto px-5 pt-3 pb-3 bg-background flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={onCollect}
-          disabled={collecting}
-          className="h-14 rounded-full bg-primary text-primary-foreground font-display text-title disabled:opacity-60"
-        >
-          {isBatch
-            ? tFallback('capsuleOpener.collectAll', 'Collect all {n}', { n: results.length })
-            : tFallback('capsuleOpener.collect', 'Collect')}
-        </button>
+      <div className="reveal-rise sticky bottom-0 mt-auto px-5 pt-3 pb-3 bg-background flex flex-col gap-1" style={beat(3)}>
+        {stowing ? (
+          <p className="reveal-rise h-14 flex items-center justify-center text-body font-semibold" role="status" style={{ animationDelay: '260ms' }}>
+            {stowedLine}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={onCollect}
+            disabled={collecting}
+            className="h-14 rounded-full bg-primary text-primary-foreground font-display text-title disabled:opacity-60"
+          >
+            {isBatch
+              ? tFallback('capsuleOpener.collectAll', 'Collect all {n}', { n: results.length })
+              : tFallback('capsuleOpener.collect', 'Collect')}
+          </button>
+        )}
         {nextLabel && (
           <button
             type="button"
             onClick={onCollectNext}
             disabled={collecting}
             className="h-11 text-label font-semibold text-foreground disabled:opacity-60"
+            style={stowing ? { visibility: 'hidden' } : undefined}
           >
             {nextLabel}
           </button>

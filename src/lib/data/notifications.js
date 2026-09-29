@@ -124,6 +124,38 @@ export async function listForUser(user, limit = DEFAULT_LIMIT) {
 // the badge would read "9+" anyway; `total` still comes from an exact count.
 const SUMMARY_SCAN = 200;
 
+
+/**
+ * Name and picture for the people behind notification rows, keyed the way
+ * `actorKey()` in `@/lib/notificationActor` keys them. Reads
+ * `public_profiles` by user id (and by username for the two legacy types
+ * that store only a name), never by email. A failure returns an empty map:
+ * the rows fall back to their type icon rather than failing to render.
+ */
+export async function listActorProfiles({ ids = [], usernames = [] } = {}) {
+  const out = {};
+  const put = (p) => {
+    if (!p) return;
+    if (p.id) out[`id:${p.id}`] = p;
+    if (p.username) out[`u:${p.username}`] = p;
+  };
+  const reads = [];
+  if (ids.length) {
+    reads.push(supabase.from('public_profiles')
+      .select('id, username, avatar_url').in('id', ids));
+  }
+  if (usernames.length) {
+    reads.push(supabase.from('public_profiles')
+      .select('id, username, avatar_url').in('username', usernames));
+  }
+  const results = await Promise.all(reads);
+  for (const { data, error } of results) {
+    if (error) { console.warn('[notifications] actor lookup failed:', error); continue; }
+    (data || []).forEach(put);
+  }
+  return out;
+}
+
 /**
  * What the bell shows. `total` is every unread row the bell owns; `people`
  * is the subset another person caused (a follow, a gift, a duel), which is

@@ -70,8 +70,7 @@ export default function ProfileTrophies({
               pin badge, and a caption — because a position that carries
               meaning has to LOOK like it does. Without that it's just the
               leftmost box, and nobody puts their best trophy there on
-              purpose. Whatever sits here is also struck into the profile
-              banner as a crest, which is the actual reward for choosing. */}
+              purpose. */}
           <div className="flex gap-2">
             {Array(5).fill(null).map((_, i) => {
               const slot = trophyCase[i] ?? null;
@@ -133,7 +132,7 @@ export default function ProfileTrophies({
           </div>
           {isSelf && (
             <p className="text-xs text-muted-foreground mt-2">
-              {tFallback('hub.profile.primaryHint', 'Slot 1 is your primary. It shows on your profile banner.')}
+              {tFallback('hub.profile.primaryHint', 'Slot 1 is your primary. Put your best trophy there.')}
             </p>
           )}
         </section>

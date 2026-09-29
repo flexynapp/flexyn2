@@ -674,8 +674,145 @@
     to   { transform: none; }
   }
   .sticker-land { animation: sticker-land 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  /* The capsule open (CapsuleOpener + capsules/openFx.jsx). Every keyframe
+     here moves transform or opacity only.
+
+     The charge: the canister rattles in three escalating bursts, squats,
+     and pops. The hot charge is an epic-or-better pull: a fourth, faster
+     burst, and the seam between lid and base leaks the rarity colour. */
+  @keyframes canister-charge {
+    0%        { transform: none; }
+    6%        { transform: rotate(-2deg); }
+    10%       { transform: rotate(2deg); }
+    14%       { transform: rotate(-1deg); }
+    18%, 32%  { transform: none; }
+    36%       { transform: translateY(-6px) rotate(3deg); }
+    40%       { transform: translateX(-1px) rotate(-3deg); }
+    44%       { transform: translateY(-3px) rotate(2deg); }
+    48%, 58%  { transform: none; }
+    61%       { transform: translateY(-11px) rotate(-4deg); }
+    64%       { transform: translateX(2px) rotate(4deg); }
+    67%       { transform: translateY(-8px) rotate(-5deg); }
+    70%       { transform: translateX(-2px) rotate(5deg); }
+    73%       { transform: translateY(-5px) rotate(-3deg); }
+    76%       { transform: rotate(2deg); }
+    79%, 84%  { transform: none; }
+    92%       { transform: scale(1.03, 0.95); }
+    100%      { transform: scale(1.07, 0.9); }
+  }
+  @keyframes canister-charge-hot {
+    0%        { transform: none; }
+    5%        { transform: rotate(-2deg); }
+    8%        { transform: rotate(2deg); }
+    11%, 22%  { transform: none; }
+    25%       { transform: translateY(-7px) rotate(3deg); }
+    28%       { transform: rotate(-3deg); }
+    31%       { transform: translateY(-4px) rotate(2deg); }
+    34%, 42%  { transform: none; }
+    45%       { transform: translateY(-12px) rotate(-5deg); }
+    48%       { transform: translateX(3px) rotate(5deg); }
+    51%       { transform: translateY(-9px) rotate(-5deg); }
+    54%       { transform: translateX(-3px) rotate(4deg); }
+    57%, 62%  { transform: none; }
+    64%       { transform: translate(-3px, -14px) rotate(-6deg); }
+    66%       { transform: translate(3px, -10px) rotate(6deg); }
+    68%       { transform: translate(-3px, -15px) rotate(-7deg); }
+    70%       { transform: translate(3px, -9px) rotate(7deg); }
+    72%       { transform: translate(-2px, -13px) rotate(-6deg); }
+    74%       { transform: translate(2px, -8px) rotate(5deg); }
+    76%       { transform: translate(-2px, -11px) rotate(-4deg); }
+    78%       { transform: translate(1px, -5px) rotate(3deg); }
+    81%, 85%  { transform: none; }
+    93%       { transform: scale(1.04, 0.93); }
+    100%      { transform: scale(1.09, 0.87); }
+  }
+  /* While the roll is still in flight: a slow nudge, not the charge. */
+  @keyframes canister-wait {
+    0%, 70%, 100% { transform: none; }
+    76%           { transform: rotate(-1.5deg); }
+    82%           { transform: rotate(1.5deg); }
+    88%           { transform: rotate(-0.5deg); }
+  }
+  .canister-stand { transform-origin: 50% 96%; }
+  .canister-charge     { animation: canister-charge 1200ms linear both; }
+  .canister-charge-hot { animation: canister-charge-hot 2000ms linear both; }
+  .canister-wait       { animation: canister-wait 1400ms ease-in-out infinite; }
+  @keyframes canister-seam-leak {
+    0%, 30% { opacity: 0; }
+    34%     { opacity: 0.5; }
+    37%     { opacity: 0.1; }
+    55%     { opacity: 0.7; }
+    58%     { opacity: 0.25; }
+    72%     { opacity: 0.9; }
+    100%    { opacity: 1; }
+  }
+  .canister-seam { animation: canister-seam-leak 2000ms linear both; }
+  /* The lid blown off at the pop: up and spinning, then down onto the rest
+     it sits at for the spin, with one bounce. The origin is the hinge the
+     resting lid is rotated about in CapsuleCanister. */
+  @keyframes canister-lid-fly {
+    0%   { transform: translate(6px, 30px) rotate(-24deg); animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
+    42%  { transform: translate(18px, -150px) rotate(170deg); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+    80%  { transform: translate(0, 5px) rotate(354deg); animation-timing-function: ease-out; }
+    90%  { transform: translate(0, -7px) rotate(358deg); animation-timing-function: ease-in; }
+    100% { transform: rotate(360deg); }
+  }
+  .canister-lid-fly {
+    transform-origin: 94px 74px;
+    animation: canister-lid-fly 1050ms both;
+  }
+
+  /* The stage behind the open: the sunburst, centred on --fx-x / --fx-y,
+     which openFx sets from the canister or the plate. */
+  .opener-rays {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 260vmax;
+    height: 260vmax;
+    transform: translate(calc(var(--fx-x, 50vw) - 130vmax), calc(var(--fx-y, 35vh) - 130vmax));
+    transition: opacity 700ms ease, color 500ms ease, transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .opener-rays > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  @keyframes opener-rays-turn { to { transform: rotate(360deg); } }
+  @keyframes opener-rays-turn-back { to { transform: rotate(-360deg); } }
+  .opener-rays-main { animation: opener-rays-turn 60s linear infinite; }
+  .opener-rays-back { animation: opener-rays-turn-back 90s linear infinite; opacity: 0; transition: opacity 700ms ease; }
+  .opener-rays[data-double="1"] .opener-rays-back { opacity: 0.7; }
+  .opener-rays[data-fast="1"] .opener-rays-main { animation-duration: 14s; }
+
+  /* The reveal, beat by beat. Delays are set inline from the rarity's hold. */
+  @keyframes reveal-stamp {
+    from { opacity: 0; transform: scale(1.4); }
+    60%  { opacity: 1; transform: scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes reveal-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes reveal-new-stamp {
+    from { opacity: 0; transform: rotate(-14deg) scale(2.2); }
+    55%  { opacity: 1; transform: rotate(-9deg) scale(0.92); }
+    to   { opacity: 1; transform: rotate(-9deg); }
+  }
+  .reveal-stamp { animation: reveal-stamp 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .reveal-rise  { animation: reveal-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .reveal-new   { animation: reveal-new-stamp 360ms cubic-bezier(0.3, 1.4, 0.5, 1) both; transform: rotate(-9deg); }
+  /* The foil glint: one flat bone band crossing the plate at an angle. */
+  @keyframes reveal-sheen {
+    from { transform: translateX(-160%) skewX(-18deg); }
+    to   { transform: translateX(260%) skewX(-18deg); }
+  }
+  .reveal-sheen { animation: reveal-sheen 900ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+
   @media (prefers-reduced-motion: reduce) {
-    .canister-lid-lift, .sticker-land { animation: none; }
+    .canister-lid-lift, .sticker-land,
+    .canister-charge, .canister-charge-hot, .canister-wait, .canister-lid-fly,
+    .opener-rays-main, .opener-rays-back,
+    .reveal-stamp, .reveal-rise, .reveal-new { animation: none; }
+    .canister-seam { animation: none; opacity: 1; }
+    .reveal-sheen { display: none; }
   }
 
   .break-anywhere {

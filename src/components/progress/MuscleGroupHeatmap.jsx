@@ -729,9 +729,14 @@ export default function MuscleGroupHeatmap({ logs }) {
                     locale-blind and gets Turkish i → I instead of İ. */}
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' }}>{regionName(tFallback, m.region)}</div>
               </div>
-              {/* The bar restates the number beside it — decorative here. */}
+              {/* The bar restates the number beside it, so it has to measure
+                  the SAME quantity. In recovery mode it used to be drawn from
+                  the fatigue intensity (100 − recovery), so "0%" sat beside a
+                  full bar and "100%" beside an empty one. The colour still
+                  comes from the fatigue ramp; only the length follows the
+                  number. */}
               <div aria-hidden="true" style={{ flex: 1, height: 6, borderRadius: 999, background: 'hsl(var(--secondary))', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.max(6, t * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
+                <div style={{ height: '100%', width: `${Math.max(6, (mode === 'recovery' ? m.recovery / 100 : t) * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
               </div>
               <div style={{ width: 46, textAlign: 'right', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--foreground))' }}>
                 {valTxt}{mode === 'volume' && <span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}> {weightUnit === 'lbs' ? 'lb' : weightUnit}</span>}

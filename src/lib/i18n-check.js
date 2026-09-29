@@ -165,6 +165,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     // Duels: "Rival" and "VS" are the words Spanish uses on a scoreboard.
     'duelDetailSheet.rival',
     'duelDetailSheet.vs',
+    // Profile summary: the Rival row, and "1 PR", which gyms in both
+    // languages write as the English abbreviation.
+    'profile.rival',
+    'profile.prOne',
     // Past You is the ghost rival's product name and Level is a kept product
     // noun (glossary doNotTranslate), so these read the same in every locale.
     'pastYou.title',
@@ -236,6 +240,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     // Duels: \"Rival\" and \"VS\" are the words French uses on a scoreboard.
     'duelDetailSheet.rival',
     'duelDetailSheet.vs',
+    // Profile summary: the Rival row, and "1 PR", which gyms in both
+    // languages write as the English abbreviation.
+    'profile.rival',
+    'profile.prOne',
     // Past You is the ghost rival's product name and Level is a kept product
     // noun (glossary doNotTranslate), so these read the same in every locale.
     'pastYou.title',

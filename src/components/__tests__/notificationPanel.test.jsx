@@ -15,6 +15,7 @@ const deleteAllForUser = vi.fn(async () => ({ ok: true }));
 const deleteNotification = vi.fn(async () => ({ ok: true }));
 const markRead = vi.fn(async () => ({ ok: true }));
 let listRows = [];
+const listActorProfiles = vi.fn(async () => ({}));
 
 vi.mock('@/lib/data/notifications', () => ({
   listForUser: vi.fn(async () => listRows),
@@ -22,6 +23,7 @@ vi.mock('@/lib/data/notifications', () => ({
   markRead: (...a) => markRead(...a),
   deleteNotification: (...a) => deleteNotification(...a),
   deleteAllForUser: (...a) => deleteAllForUser(...a),
+  listActorProfiles: (...a) => listActorProfiles(...a),
 }));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { id: 'me', email: 'me@x.com' } }) }));
 vi.mock('@/lib/LanguageContext', () => ({
@@ -317,5 +319,46 @@ describe('a11y and chrome', () => {
     renderPanel();
     await screen.findByText('Dani followed you');
     expect(screen.getAllByLabelText('Delete')).toHaveLength(4);
+  });
+});
+
+// ── Faces ────────────────────────────────────────────────────────────────
+// A row another person is behind shows their picture, looked up by user id,
+// with the type icon kept as a badge. Everything else keeps its tile.
+describe('rows from a person show their picture', () => {
+  const SEAN = 'ead69f89-3a1e-4bf2-9d3e-444648e01f98';
+
+  it('looks the person up by id and renders their avatar with the type badge', async () => {
+    listRows = [
+      row({ id: 'l1', type: 'post_like', icon: '❤️', title: 'sean liked your post',
+            metadata: { actor_id: SEAN, actor_name: 'sean', actor_email: 'sean@x.com' } }),
+      row({ id: 'p1', type: 'pr_set', icon: '🏋️', title: 'New Bench PR' }),
+    ];
+    listActorProfiles.mockImplementation(async () => ({
+      [`id:${SEAN}`]: { id: SEAN, username: 'sean', avatar_url: 'https://cdn.test/sean.png' },
+    }));
+    // The sheet renders through a portal, so query the document, not the
+    // render container.
+    renderPanel();
+    await screen.findByText('sean liked your post');
+    await waitFor(() => expect(document.body.querySelector('img[src="https://cdn.test/sean.png"]')).not.toBeNull());
+    expect(listActorProfiles).toHaveBeenCalledWith({ ids: [SEAN], usernames: [] });
+    // Never by email.
+    expect(JSON.stringify(listActorProfiles.mock.calls)).not.toContain('sean@x.com');
+    const img = document.body.querySelector('img[src="https://cdn.test/sean.png"]');
+    expect(img.parentElement.textContent).toContain('❤️');
+    // The PR row keeps its type tile.
+    expect(document.body.querySelectorAll('img').length).toBe(1);
+  });
+
+  it('shows the person\'s initial when they have no picture', async () => {
+    listRows = [row({ id: 'l1', type: 'post_like', icon: '❤️', title: 'sean liked your post',
+                      metadata: { actor_id: SEAN } })];
+    listActorProfiles.mockImplementation(async () => ({ [`id:${SEAN}`]: { id: SEAN, username: 'sean', avatar_url: null } }));
+    renderPanel();
+    await screen.findByText('sean liked your post');
+    const initial = await screen.findByText('S');
+    expect(document.body.querySelector('img')).toBeNull();
+    expect(initial.parentElement.textContent).toBe('S❤️');
   });
 });

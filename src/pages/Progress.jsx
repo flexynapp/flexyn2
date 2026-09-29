@@ -735,14 +735,14 @@ export default function Progress() {
                     ) : null}
                     {/* Timeframe toggle — below muscle pills, centered */}
                     <div className="flex justify-center">
-                      <div className="flex gap-1 bg-secondary/50 rounded-xl p-1 shadow-inner">
+                      <div className="flex gap-1 bg-secondary/50 rounded-xl p-1">
                         {(['week', 'month', 'year', 'all']).map((f) => (
                           <button
                             key={f}
                             onClick={() => setStatsFrame(f)}
-                            className={`px-3 py-1 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
+                            className={`min-h-[44px] min-w-[44px] px-3 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
                               statsFrame === f
-                                ? 'bg-foreground text-background shadow-md scale-[1.04]'
+                                ? 'bg-foreground text-background'
                                 : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
                             }`}
                           >
@@ -776,9 +776,11 @@ export default function Progress() {
                     <p className="text-sm font-bold text-foreground">
                       {latestDebriefData.week_label}
                     </p>
+                    {/* The icon is 14px; the negative margin grows the hit
+                        area to 44px without moving the icon or the row. */}
                     <button
                       onClick={() => refetchDebrief()}
-                      className="text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors shrink-0"
+                      className="-m-[15px] min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors shrink-0"
                       title={tFallback('progress.review.refresh', 'Refresh summary')}
                       aria-label={tFallback('progress.review.refresh', 'Refresh summary')}
                     >
@@ -907,16 +909,18 @@ export default function Progress() {
                 at the end of the list they belong to. No gradient, no
                 shimmer sweep, and they no longer ask for a tap before the
                 page has shown anything worth tapping about. */}
-            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-2">
+            {/* min-h-[44px]: these were 16px-tall text links, the only
+                way into both sheets, and well under the 44px floor. */}
+            <div className="flex flex-wrap gap-x-6">
               <button
                 onClick={() => setPersonalBestsModalOpen(true)}
-                className="inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
+                className="min-h-[44px] inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
               >
                 {t('progress.personalBests')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
               </button>
               <button
                 onClick={() => setAdvancedAnalyticsOpen(true)}
-                className="inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
+                className="min-h-[44px] inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
               >
                 {t('progress.advancedAnalytics')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
               </button>

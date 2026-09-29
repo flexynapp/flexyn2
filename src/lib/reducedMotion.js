@@ -24,7 +24,7 @@
 // blank screen.
 //
 // Several other components still carry their own identical copy of this
-// (CapsuleOpener, StepsLogCard, LevelUpOverlay, SnakeGameModal,
+// (StepsLogCard, LevelUpOverlay, SnakeGameModal,
 // ThemeAnimationLayer, DailyQuestsCard, SplashScreen). Point them here
 // when you next touch them; they weren't swept in the same commit as the
 // AnimatedNumber work because animation code is where a silent regression
