@@ -14,6 +14,13 @@ function throwReported(err, feature, ctx) {
   throw err;
 }
 
+
+// Listings and bundles are browsed by every signed-in user. Sellers are
+// identified by seller_user_id / seller_username, so seller_email stays on
+// the server.
+const LISTING_COLUMNS = 'id, seller_user_id, seller_username, inventory_id, item_id, item_name, item_emoji, item_rarity, listing_type, asking_price, trade_for_rarity, status, created_at, available_from, available_until, bundle_id, is_featured, featured_until';
+const BUNDLE_COLUMNS = 'id, seller_user_id, title, discount_pct, status, created_at';
+
 /**
  * List all active marketplace listings.
  * @param {number} limit  Max rows to return.
@@ -26,7 +33,7 @@ export async function listActive(limit = 50, sortBy = 'recent', sortDir = 'desc'
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('marketplace_listings')
-    .select('*')
+    .select(LISTING_COLUMNS)
     .eq('status', 'active')
     // Seasonal / limited-time filter (migration 131).
     // Listings with no window (both NULL) are always shown.
@@ -68,7 +75,7 @@ export async function createListing(data) {
   // Fetch the freshly-created row for the caller.
   const { data: row } = await supabase
     .from('marketplace_listings')
-    .select('*')
+    .select(LISTING_COLUMNS)
     .eq('id', listingId)
     .maybeSingle();
   return row;
@@ -162,7 +169,7 @@ export async function listBySeller(sellerUserId) {
   if (!sellerUserId) return [];
   const { data, error } = await supabase
     .from('marketplace_listings')
-    .select('*')
+    .select(LISTING_COLUMNS)
     .eq('seller_user_id', sellerUserId)
     .order('created_at', { ascending: false });
   if (error) throwReported(error, 'marketplace');
@@ -176,7 +183,7 @@ export async function listBySeller(sellerUserId) {
 export async function listActiveBundles() {
   const { data, error } = await supabase
     .from('marketplace_bundles')
-    .select('*')
+    .select(BUNDLE_COLUMNS)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
   if (error) throwReported(error, 'marketplace');

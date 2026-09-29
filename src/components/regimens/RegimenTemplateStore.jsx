@@ -371,7 +371,7 @@ export default function RegimenTemplateStore({ open, onClose }) {
               <TemplateCard
                 key={tmpl.id}
                 template={tmpl}
-                isMine={tmpl.created_by === user?.email}
+                isMine={!!user?.id && tmpl.user_id === user.id}
                 user={user}
               />
             ))
