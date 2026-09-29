@@ -49,11 +49,13 @@ export function listRecentlyViewed(userEmail) {
  * price, rarity, seller. Keeping it minimal so the localStorage
  * payload stays tiny even with many listings.
  */
-export function addRecentlyViewed(userEmail, listing) {
+export function addRecentlyViewed(userEmail, listing, userId) {
   if (!userEmail || !listing?.id) return;
   // Don't add the user's own listings — "recently viewed" implies
   // browsing for things to buy, not seeing your own posts.
-  if (listing.seller_email === userEmail) return;
+  // Compared by id: a guest seller's seller_email is '' and the summary
+  // should not carry another user's address into localStorage.
+  if (userId && listing.seller_user_id === userId) return;
   const summary = {
     id: listing.id,
     item_emoji: listing.item_emoji,
@@ -61,7 +63,7 @@ export function addRecentlyViewed(userEmail, listing) {
     item_rarity: listing.item_rarity,
     asking_price: listing.asking_price,
     listing_type: listing.listing_type,
-    seller_email: listing.seller_email,
+    seller_user_id: listing.seller_user_id,
     viewedAt: new Date().toISOString(),
   };
   const existing = safeRead(userEmail).filter(e => e.id !== listing.id);

@@ -39,16 +39,13 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       toast.error(tFallback('tradeOfferDialog.missingItem', 'This listing is missing its item. Refresh and try again.'));
       return;
     }
-    // A guest seller's listing carries seller_email = '' (mig 025 stamps it
-    // from auth.email(), which is empty for a guest), and every DM call
-    // below is keyed by email — so the offer message has nowhere to go.
-    //
-    // This has to bail BEFORE createOffer, which escrows the item
-    // server-side: escrowing and then failing to deliver leaves the item
-    // locked behind an offer nobody can see or answer. Resolving a guest's
-    // address needs an RPC — public_profiles exposes id and username, no
-    // email — so this is a hard stop until that lands.
-    if (!listing.seller_email) {
+    // The seller is reached by id. seller_email is '' on a guest's listing
+    // (mig 025 stamps it from auth.email()), which used to make this a hard
+    // stop, and it is another user's address the client should not need.
+    // Checked BEFORE createOffer, which escrows the item server-side:
+    // escrowing and then failing to deliver would lock it behind an offer
+    // nobody can see.
+    if (!listing.seller_user_id) {
       toast.error(tFallback('tradeOfferDialog.guestSeller', "Can't reach this seller. Trade offers aren't available on their listings yet."));
       return;
     }
@@ -65,7 +62,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         listingId:       listing.id,
       });
 
-      const conv = await findOrCreateConversation(user.email, listing.seller_email);
+      const conv = await findOrCreateConversation(user.email, listing.seller_user_id);
       if (!conv) throw new Error('Could not open conversation');
 
       // Structured payload — HubChat detects the [TRADE_OFFER_V1] prefix and
@@ -81,9 +78,12 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         // localStorage or on scanning the conversation for reply markers.
         offerId,
         status: 'pending',
-        fromEmail: user.email,
+        // Ids, not emails: this body is readable by both people in the
+        // conversation. Real offers resolve everything from offerId; only
+        // pre-253 legacy payloads carried fromEmail/toEmail.
+        fromId: user.id,
         fromName,
-        toEmail: listing.seller_email,
+        toId: listing.seller_user_id,
         myItem: {
           inventoryId: selectedOffer.id,
           itemId: selectedOffer.item_id,
@@ -124,7 +124,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       await sendMessage({
         conversationId: conv.id,
         senderEmail: user.email,
-        recipientEmail: listing.seller_email,
+        recipientId: listing.seller_user_id,
         body,
       });
       toast.success(tFallback('tradeOfferDialog.offerSent', 'Trade offer sent. Your item is held until they answer.'));
