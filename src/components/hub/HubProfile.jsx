@@ -11,13 +11,17 @@ import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { initialsFor } from '@/lib/initials';
-import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, TrendingUp, Bookmark } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, Bookmark, ChevronLeft, Medal, Swords, Shield, Trophy, Dumbbell } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
-import { buildTrainingWeek, currentStreak } from '@/lib/trainingWeek';
+import { currentStreak } from '@/lib/trainingWeek';
+import { useNumberFormatter } from '@/lib/intl';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
+import { buildPRIndex } from '@/lib/data/personalRecords';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
@@ -36,19 +40,18 @@ import { reverseGeocode } from '@/lib/geocode';
 import { patchProfile } from '@/api/profileCache';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
-import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
 import ProfileCompletionMeter from './ProfileCompletionMeter';
 import EmptyState from '@/components/EmptyState';
 import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
-import ProfileTierBanner from './profile/ProfileTierBanner';
 import ProfileMetrics from './profile/ProfileMetrics';
 import ProfileActions from './profile/ProfileActions';
-import ProfileTabs, { ProfileTabPanel } from './profile/ProfileTabs';
 import ProfileTrophies from './profile/ProfileTrophies';
-import ProfileContestRail from './profile/ProfileContestRail';
+import ProfileScoreboard from './profile/ProfileScoreboard';
+import ProfileSummaryList, { SummaryRow } from './profile/ProfileSummaryList';
+import ProfileRecentWorkouts from './profile/ProfileRecentWorkouts';
 import { useHeroContests } from './profile/useHeroContests';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
@@ -234,6 +237,8 @@ function flagUrl(emoji) {
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null, highlightPostId = null, onHighlightConsumed = null }) {
   const { t, tFallback, language } = useLanguage();
   const { user, checkUserAuth } = useAuth();
+  const fmtNumber = useNumberFormatter();
+  const { weightUnit } = useWeightUnit();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
   // instead of useAuth().user, which only loads once at bootstrap and doesn't
   // refresh when the user equips a new theme — that's why a freshly-applied
@@ -305,14 +310,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Overflow ("…") sheet — absorbs Themes, Share, Duel, Gift and trophy
   // visibility so the action row can stay at three controls.
   const [menuOpen, setMenuOpen] = useState(false);
-  // Profile body tab. Resets to 'stats' when the viewed profile changes,
+  // Which detail replaces the summary: null (the summary), 'lifts',
+  // 'trophies', 'posts' or 'liked'. Resets when the viewed profile changes,
   // otherwise navigating person → person would strand you on someone else's
-  // Posts tab with no visual explanation of why.
-  const [activeTab, setActiveTab] = useState('stats');
+  // Posts with no visual explanation of why.
+  const [section, setSection] = useState(null);
   // Leaderboards open in place from the league pill rather than routing —
   // LeaderboardsModal is self-contained and the user is mid-profile.
   const [leaguesOpen, setLeaguesOpen] = useState(false);
   const storyFileRef = useRef(null);
+  const eggTimerRef = useRef(null);
+  const eggFiredRef = useRef(false);
+  useEffect(() => () => clearTimeout(eggTimerRef.current), []);
   const navigate = useNavigate();
 
   // Always start a profile view at the top, regardless of where the user
@@ -321,7 +330,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // race with the layout shift of new content.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
-    setActiveTab('stats');
+    setSection(null);
     setMenuOpen(false);
   }, [targetKey]);
 
@@ -391,7 +400,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
           'trophy_case', 'trophy_case_visible',
-          'website_url', 'signature_trophy',
+          'website_url', 'signature_trophy', 'workout_streak',
         ],
         build: (cols) => selectProfiles((from) => from
           .select(cols)
@@ -546,7 +555,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // query reads hub_reactions by created_by, which RLS scopes to your own
   // rows, so there is no shape of this request that could return anyone
   // else's. That is why the control only exists on your own profile.
-  const [likesOpen, setLikesOpen] = useState(false);
+  const likesOpen = section === 'liked';
   const { data: likedPosts = [], isLoading: likedLoading } = useQuery({
     queryKey: ['myLikedPosts', user?.email],
     queryFn: async () => {
@@ -560,10 +569,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     staleTime: 30_000,
   });
 
-  // Leaving your own profile closes the mode. Without this, tapping through
-  // to someone else and coming back would land you in a view of your likes
-  // with no memory of having opened it.
-  useEffect(() => { if (!isSelf) setLikesOpen(false); }, [isSelf]);
 
   // ── Landing on a shared post ─────────────────────────────────────────────
   // A link built by the share sheet carries ?post=<id>. Opening it used to
@@ -583,7 +588,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     // profile is already mounted still deserves a scroll.
     if (highlightHandledRef.current === highlightPostId) return;
     if (!sortedPosts.some(p => p.id === highlightPostId)) return;
-    if (activeTab !== 'posts') { setActiveTab('posts'); return; }
+    if (section !== 'posts') { setSection('posts'); return; }
 
     const el = postRefs.current[highlightPostId];
     if (!el) return;   // rendering; the effect re-runs when the ref lands
@@ -603,7 +608,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       onHighlightConsumed?.();
     }, 4000);
     return () => clearTimeout(t);
-  }, [highlightPostId, sortedPosts, activeTab, onHighlightConsumed]);
+  }, [highlightPostId, sortedPosts, section, onHighlightConsumed]);
 
   // ── Derived display values (needed by mutations below) ──────────────────
   const ownerUsername = isSelf
@@ -1177,8 +1182,22 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Both derived from the same logs on purpose — a server-side streak counter
   // and a client-side week strip will eventually disagree across a timezone
   // boundary, and then the user believes neither.
-  const trainingWeek = useMemo(() => buildTrainingWeek(heroLogs, new Date(), language), [heroLogs, language]);
   const trainingStreak = useMemo(() => currentStreak(heroLogs), [heroLogs]);
+  // The strongest estimated 1RM, for the Workouts row's subtitle. Same
+  // index ProfileLiftStats ranks on, so the row and the page it opens
+  // never name different lifts.
+  const bestLift = useMemo(() => {
+    const top = Object.entries(buildPRIndex(heroLogs))
+      .filter(([, rm]) => rm > 0)
+      .sort((a, b) => b[1] - a[1])[0];
+    if (!top) return null;
+    const [key, rm] = top;
+    const unit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
+    return {
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      label: `${fmtNumber(Math.round(fromLbs(rm, weightUnit)))} ${unit}`,
+    };
+  }, [heroLogs, weightUnit, fmtNumber]);
 
   // Live contests — self only; there's no server surface exposing another
   // user's rival pairing or their crew's war, and adding one is a privacy
@@ -1205,11 +1224,48 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     ownerUsername === 'calason44' || displayHandle === '@calason44'
     || ownerUsername === 'jaxf'   || displayHandle === '@jaxf';
 
+  // A long press on the avatar opens whichever egg this profile has. The
+  // click that ends the press is swallowed, or the same gesture would also
+  // open the story viewer underneath.
+  const openEgg = showSnakeEgg ? () => setSnakeOpen(true)
+    : showBirdEgg ? () => setBirdOpen(true)
+      : showSweatEgg ? () => setSweatOpen(true)
+        : null;
+  const cancelEggPress = () => clearTimeout(eggTimerRef.current);
+  const eggPressHandlers = openEgg && !avatarEditable ? {
+    onPointerDown: () => {
+      eggFiredRef.current = false;
+      cancelEggPress();
+      eggTimerRef.current = setTimeout(() => {
+        eggFiredRef.current = true;
+        triggerHaptic('primary');
+        openEgg();
+      }, 650);
+    },
+    onPointerUp: cancelEggPress,
+    onPointerLeave: cancelEggPress,
+    onPointerCancel: cancelEggPress,
+    onClickCapture: (e) => {
+      if (!eggFiredRef.current) return;
+      eggFiredRef.current = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    onContextMenu: (e) => e.preventDefault(),
+  } : {};
+
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
-  const { level, xpInLevel, xpNeeded, progressPercent } = levelData;
+  const { level, xpInLevel, xpNeeded } = levelData;
   const tier = getTier(level, t);
+  const xpToNext = Number.isFinite(xpNeeded) && Number.isFinite(xpInLevel)
+    ? Math.max(0, Math.round(xpNeeded - xpInLevel))
+    : null;
+  // Your own streak is derived from your logs; nobody else's logs are
+  // readable, so their scoreboard uses the server's workout_streak, which
+  // public_profiles returns only when their stats are visible to you.
+  const scoreStreak = isSelf ? trainingStreak : (Number(targetProfile?.workout_streak) || 0);
 
   // Deleted / reset accounts have username starting with "deleted_".
   // For other people's profiles: show "User not found".
@@ -1229,9 +1285,65 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     );
   }
 
-  // The owners' profiles, which get a steel wash on the cover banner.
-  const isAdminProfile = ownerUsername === 'sean' || ownerUsername === 'seanj'
-    || ownerUsername === 'kegan' || ownerUsername === 'keganbergeron';
+  const SECTION_LABELS = {
+    lifts: tFallback('profile.workouts', 'Workouts'),
+    trophies: tFallback('hub.profile.tabTrophies', 'Trophies'),
+    posts: tFallback('hub.profile.tabPosts', 'Posts'),
+    liked: tFallback('hub.profile.likedPosts', 'Liked posts'),
+  };
+
+  const postsList = (
+    <>
+          {posts.length > 1 && (
+            <div className="flex items-center justify-end mb-3">
+              <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-bold">
+                <button type="button"
+                  onClick={() => setProfilePostSort('newest')}
+                  className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+                  {tFallback("coach.onboarding.levelLabel.newbie", "New")}
+                </button>
+                <button type="button"
+                  onClick={() => setProfilePostSort('popular')}
+                  className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+                  {tFallback("league.info.terminal", "Top")}
+                </button>
+              </div>
+            </div>
+          )}
+          {sortedPosts.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title={isSelf
+                ? tFallback('hub.profile.noPostsSelfTitle', 'No posts yet')
+                : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
+              body={isSelf
+                ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
+                : tFallback('hub.profile.noPostsBody', 'Check back later. New posts will appear here.')}
+            />
+          ) : (
+            <div className="space-y-3">
+              {sortedPosts.map(p => (
+                <div
+                  key={p.id}
+                  ref={(el) => { postRefs.current[p.id] = el; }}
+                  // Amber-orange, not a literal yellow: the palette has exactly
+                  // four state hues (primary / destructive / success / info) and
+                  // adding a fifth is banned. `primary` is hue 26, which is the
+                  // warm highlight Sean was reaching for and is already the
+                  // app's "look here" colour.
+                  className={`rounded-2xl transition-shadow duration-500 ${
+                    landedPostId === p.id
+                      ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                      : ''
+                  }`}
+                >
+                  <HubPostCard post={p} onAuthorClick={onSelectUser} />
+                </div>
+              ))}
+            </div>
+          )}
+    </>
+  );
 
   return (
     <ThemedScope themeId={ownerThemeId} lootThemeId={ownerLootThemeId}>
@@ -1254,81 +1366,23 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </>
       )}
 
-      {/* ── Tier banner ─────────────────────────────────────────────────
-          The XP tier used to be an 84px card at 10% opacity, three items
-          down the page. xpTier.js hand-tunes ten gradients; this is what
-          they look like when you let them run. */}
-      <ProfileTierBanner
-        tier={tier}
-        level={level}
-        levelLabel={t('levelBar.level', { n: level })}
-        // The bare word, taken from the same translated template rather than
-        // stripping digits out of the formatted string — locales that write
-        // the number first would lose the wrong part otherwise. Trim only:
-        // several locales abbreviate WITH a period ("Ур. {n}", "Poz. {n}")
-        // and that period is part of the word, not trailing punctuation.
-        levelWord={t('levelBar.level', { n: '' }).trim()}
-        xpInLevel={xpInLevel}
-        xpNeeded={xpNeeded}
-        progressPercent={progressPercent}
-        isAdminProfile={isAdminProfile}
-        // `[]` and not `trainingWeek` on someone else's profile. An empty
-        // log list is indistinguishable from a rest week here, and
-        // buildTrainingWeek returns seven days either way — so the banner's
-        // `week.length > 0` guard never fired and every other athlete's
-        // profile painted seven blank squares labelled "Trained 0 of the
-        // last 7 days" about somebody who may well have trained all seven.
-        // Absent beats wrong: the strip is absolutely positioned, so
-        // dropping it moves nothing else.
-        week={isSelf ? trainingWeek : []}
-        streak={isSelf ? trainingStreak : 0}
-        tFallback={tFallback}
-        // Slot 1 IS the primary — the trophy case is already an ordered
-        // array, so "most prized" needs no new column, just the convention
-        // that position one means something. ProfileTrophies marks it.
-        primaryTrophy={trophyVisible ? (trophyCase[0]?.value ?? null) : null}
-        contests={(heroLeague || heroRival || heroWar) ? (
-          <ProfileContestRail
-            league={heroLeague}
-            rival={heroRival}
-            war={heroWar}
-            language={language}
-            tFallback={tFallback}
-            onOpenLeague={() => setLeaguesOpen(true)}
-            // The rival card lives on Workout; the crew war lives in the Hub
-            // crews section, which listens for this event (the same hand-off
-            // CrewDMInviteCard uses). ?rival=1 scrolls to the card and opens
-            // it — plain /workout left the user to go find the thing they
-            // just tapped.
-            onOpenRival={() => navigate('/workout?rival=1')}
-            onOpenWar={() => {
-              navigate('/hub');
-              if (heroWar?.crewId) {
-                window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId: heroWar.crewId } }));
-              }
-            }}
-          />
-        ) : null}
-      />
-
       {/* ── Identity ────────────────────────────────────────────────────
-          One block. No card, no border, no fill — separation is whitespace
-          and type weight, which is what every reference implementation
-          does and what ten stacked bordered cards can't. */}
-      <div className="mb-5">
-        <div className="flex items-end justify-between gap-3" style={{ marginTop: -44 }}>
-
-          {/* Avatar overlapping the banner seam. The ring is the PAGE
-              BACKGROUND colour rather than a border colour — that's the
-              detail that makes it read as punched out of the banner
-              instead of placed on top of it. */}
-          {/* z-10 so the avatar always wins the paint order against the
-              banner's own positioned children. The XP rail is inset to clear
-              it, but the banner is `position: relative` and anything absolute
-              added inside it later would otherwise draw over this face. */}
-          <div className="relative shrink-0 z-10" style={{ width: 88, height: 88 }}>
-
-            {/* Status note — floats over the banner, sticker-style. */}
+          Centred, no cover. The tier banner that used to sit above this
+          (rust texture, floating dots, a 120px emoji crest and a week strip
+          fighting for one 176px band) is gone: the level lives in the
+          scoreboard below as a number with its context, which is what the
+          banner was trying to say. Kegan's pick, option C "Athlete summary",
+          2026-09-29. */}
+      <div className="flex flex-col items-center text-center pt-6">
+        {/* Long-press on the avatar opens the per-profile easter egg game.
+            It used to be a 👾 button beside the name, which put an emoji on
+            every visitor's view of three profiles. */}
+        <div
+          className="relative shrink-0 select-none"
+          style={{ width: 96, height: 96, marginTop: activeNote ? 48 : 0, WebkitTouchCallout: 'none' }}
+          {...eggPressHandlers}
+        >
+            {/* Status note — floats above the avatar, sticker-style. */}
             {activeNote && (
               <div style={{
                 position: 'absolute',
@@ -1409,8 +1463,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <div
               className="rounded-full overflow-hidden"
               style={{
-                width: 88,
-                height: 88,
+                width: 96,
+                height: 96,
                 border: '3px solid hsl(var(--background))',
                 cursor: profileStories.length > 0 && !avatarEditable ? 'pointer' : undefined,
               }}
@@ -1425,7 +1479,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 initials={initials}
                 editable={avatarEditable}
                 variant="overlay"
-                size={82}
+                neutral
+                size={90}
                 frameCss={equippedFrame?.css}
                 frameAnimation={equippedFrame?.animation}
               />
@@ -1506,191 +1561,56 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </button>
               </>
             )}
-          </div>
-
-          {/* Actions — on the avatar's baseline, ~700px earlier than they
-              used to be. Exactly one primary; the rest behind "…". */}
-          <ProfileActions
-            isSelf={isSelf}
-            isFollowingNow={isFollowingNow}
-            theyFollowMe={theyFollowMe === true}
-            followStatusReady={followStatusReady}
-            followBusy={followBusy}
-            onFollow={handleFollow}
-            onMessage={handleMessage}
-            messageReady={!!user?.email && !!onStartConversation && !!messageTargetKey}
-            messageInFlight={startConversationMutation.isPending}
-            menuOpen={menuOpen}
-            onOpenMenu={() => setMenuOpen(true)}
-            onCloseMenu={() => setMenuOpen(false)}
-            onToggleLikes={() => setLikesOpen(v => !v)}
-            likesOpen={likesOpen}
-            isPrivate={isPrivateNow}
-            onTogglePrivate={isSelf ? handleTogglePrivate : undefined}
-            onEditProfile={() => {
-              setCityDraft(city);
-              setBioDraft(bio);
-              setWebsiteUrlDraft(websiteUrl);
-              setDisplayNameDraft(displayName || '');
-              setUsernameDraft(displayUsername || '');
-              setEditProfileOpen(v => !v);
-            }}
-            onOpenThemes={() => setThemeOpen(true)}
-            onOpenQr={() => setQrOpen(true)}
-            onOpenDuel={() => setDuelOpen(true)}
-            onOpenGift={() => setGiftOpen(true)}
-            onMute={!isSelf && targetId ? handleMute : undefined}
-            onUnmute={!isSelf && targetId ? handleUnmute : undefined}
-            onBlock={!isSelf && targetId ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
-            isMuted={isMutedTarget}
-            onToggleTrophyVisibility={handleTrophyVisibility}
-            trophyVisible={trophyVisible}
-            canDuelOrGift={!!targetProfile?.id}
-            hasUsername={!!displayUsername}
-            t={t}
-            tFallback={tFallback}
-          />
         </div>
 
-        {/* Two lines ONLY when there are two things to say.
-            //
-            // This used to render the username twice — "Test2" capitalised
-            // above "@test2" muted underneath — one identity taking two rows
-            // to say the same word, so the second line was removed. A chosen
-            // display name is the second piece of information that was
-            // missing, so the two-line shape becomes correct again — but only
-            // for someone who set one. Everyone else keeps the single line,
-            // which is the same screen they have now. */}
-        <div className="mt-3">
-          {displayName && (
-            <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
-              {displayName}
-              {signatureTrophy && (
-                <span className="ms-1.5 align-middle" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubProfile.signatureTrophy", "Signature trophy")}>{signatureTrophy}</span>
-              )}
-            </h2>
+        {/* Name. Two lines only when there are two things to say: a chosen
+            display name above "@handle · Title", otherwise the handle IS the
+            name. The equipped title is plain text in its rarity colour; it
+            was an emoji chip, and a chip is a control-shaped thing that did
+            nothing. */}
+        <h2 className="font-display text-2xl !leading-tight mt-3 max-w-full truncate">
+          {displayName || displayHandle}
+          {signatureTrophy && (
+            <span className="ms-1.5 align-middle" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubProfile.signatureTrophy", "Signature trophy")}>{signatureTrophy}</span>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* A <p> rather than a second <h2> when the display name already
-                took that role — two h2s for one identity is a heading order
-                a screen reader reads as two separate sections. */}
-            {displayName ? (
-              <p className="text-sm text-muted-foreground leading-tight min-w-0 truncate">
-                {displayHandle}
-              </p>
-            ) : (
-              <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
-                {displayHandle}
-                {/* The trophy rides whichever line is the NAME, so it never
-                    renders twice when both lines exist. */}
-                {signatureTrophy && (
-                  <span className="ms-1.5 align-middle" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubProfile.signatureTrophy", "Signature trophy")}>{signatureTrophy}</span>
-                )}
-              </h2>
-            )}
-
-            {/* 👾 Hidden easter-egg triggers — same per-user gates as before,
-                now inline with the name instead of floating in the old
-                button row. Still lazy-loaded. */}
-            {showSnakeEgg && (
-              <button
-                type="button"
-                onClick={() => setSnakeOpen(true)}
-                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-                title="???"
-                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <span aria-hidden="true">👾</span>
-              </button>
-            )}
-            {showBirdEgg && (
-              <button
-                type="button"
-                onClick={() => setBirdOpen(true)}
-                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-                title="???"
-                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <span aria-hidden="true">👾</span>
-              </button>
-            )}
-            {showSweatEgg && (
-              <button
-                type="button"
-                onClick={() => setSweatOpen(true)}
-                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-                title="???"
-                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <span aria-hidden="true">👾</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Pill row — activity, equipped title and mutual status were three
-            separate stacked rows. They're one wrapping line now. */}
-        {(activeLabel || equippedTitle || isMutualFollow || (isSelf && !activeNote)) && (
-          <div className="flex items-center flex-wrap gap-2 mt-2.5">
-            {activeLabel && (
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                activeLabel.text === 'Active now'
-                  ? 'bg-success/10 border-success/30 text-success dark:text-success'
-                  : 'bg-muted/60 border-border/50 text-muted-foreground'
-              }`}>
-                {activeLabel.text === 'Active now' ? (
-                  <motion.span
-                    className="w-2 h-2 rounded-full bg-success shrink-0"
-                    animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
-                )}
-                {activeLabel.text}
-              </span>
-            )}
-
+        </h2>
+        {(displayName || equippedTitle) && (
+          <p className="text-sm text-muted-foreground mt-1 max-w-full truncate">
+            {displayName && <span>{displayHandle}</span>}
+            {displayName && equippedTitle && <span aria-hidden="true"> · </span>}
             {equippedTitle && (
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border"
-                style={{
-                  color: titleRarity?.color,
-                  borderColor: `${titleRarity?.color}55`,
-                  background: `${titleRarity?.color}14`,
-                }}
-                title={equippedTitle.description}
-              >
-                <span aria-hidden="true">{equippedTitle.emoji}</span>
+              <span className="font-semibold" style={{ color: titleRarity?.color }} title={equippedTitle.description}>
                 {equippedTitle.name}
               </span>
             )}
+          </p>
+        )}
 
+        {/* Presence and relationship, as one quiet line of text. They were
+            two pills with borders, fills and a pulsing dot. */}
+        {(activeLabel || isMutualFollow) && (
+          <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mt-1.5">
+            {activeLabel && (
+              <>
+                <span
+                  aria-hidden="true"
+                  className={`w-2 h-2 rounded-full shrink-0 ${activeLabel.text === 'Active now' ? 'bg-success' : 'bg-muted-foreground opacity-40'}`}
+                />
+                <span className={activeLabel.text === 'Active now' ? 'text-success' : undefined}>{activeLabel.text}</span>
+              </>
+            )}
+            {activeLabel && isMutualFollow && <span aria-hidden="true">·</span>}
             {isMutualFollow && (
-              <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/25"
-                title={tFallback('hub.profile.mutualTooltip', 'You follow each other')}
-              >
-                <span aria-hidden="true">↔</span>
+              <span title={tFallback('hub.profile.mutualTooltip', 'You follow each other')}>
                 {tFallback('hub.profile.mutual', 'Friends')}
               </span>
             )}
-
-            {isSelf && !activeNote && (
-              <button
-                type="button"
-                onClick={() => setNoteEditorOpen(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-dashed border-border text-muted-foreground hover:text-primary active:text-primary hover:border-primary/40 transition-colors"
-              >
-                + {tFallback('hub.profile.addNote', 'note')}
-              </button>
-            )}
-          </div>
+          </p>
         )}
 
         {/* Bio — 12px → 14px. It's the one piece of copy the owner wrote. */}
         {(isPoopUser || bio) && (
-          <p className="text-sm text-foreground/90 mt-3 leading-relaxed whitespace-pre-line">
+          <p className="text-sm text-foreground mt-2 leading-relaxed whitespace-pre-line max-w-sm">
             {isPoopUser ? 'I eat poop 💩' : bio}
           </p>
         )}
@@ -1703,9 +1623,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-primary hover:underline break-all"
+            className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-foreground hover:underline break-all"
           >
-            <Link2 className="w-3.5 h-3.5 shrink-0" />
+            <Link2 className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate max-w-[220px]">{websiteUrl.replace(/^https?:\/\//i, '')}</span>
             <ExternalLink className="w-3 h-3 shrink-0 opacity-60" />
           </a>
@@ -1714,7 +1634,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         {/* Location + anniversary — merged onto one line. Two facts about
             where and how long, not two stacked rows. */}
         {(city || countryFlag || (!isSelf && mutualSince)) && (
-          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2.5 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-1 mt-2 text-sm text-muted-foreground">
             {(city || countryFlag) && (
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -1751,6 +1671,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         {/* Metrics as text. Three bordered tiles and three 16ms count-up
             timers used to live here. */}
         <ProfileMetrics
+          center
           postCount={posts.length}
           followerCount={followerIds.length}
           followingCount={followingIds.length}
@@ -1769,7 +1690,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           <button
             type="button"
             onClick={handleNoteLike}
-            className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground"
+            className="inline-flex items-center gap-1.5 mt-2 text-sm text-muted-foreground"
             aria-label={noteLiked ? 'Unlike note' : 'Like note'}
           >
             <Heart
@@ -1780,6 +1701,48 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             )}
           </button>
         )}
+
+        <div className="w-full mt-4">
+        <ProfileActions
+          isSelf={isSelf}
+          isFollowingNow={isFollowingNow}
+          theyFollowMe={theyFollowMe === true}
+          followStatusReady={followStatusReady}
+          followBusy={followBusy}
+          onFollow={handleFollow}
+          onMessage={handleMessage}
+          messageReady={!!user?.email && !!onStartConversation && !!messageTargetKey}
+          messageInFlight={startConversationMutation.isPending}
+          menuOpen={menuOpen}
+          onOpenMenu={() => setMenuOpen(true)}
+          onCloseMenu={() => setMenuOpen(false)}
+          onAddNote={isSelf && !activeNote ? () => setNoteEditorOpen(true) : undefined}
+          isPrivate={isPrivateNow}
+          onTogglePrivate={isSelf ? handleTogglePrivate : undefined}
+          onEditProfile={() => {
+            setCityDraft(city);
+            setBioDraft(bio);
+            setWebsiteUrlDraft(websiteUrl);
+            setDisplayNameDraft(displayName || '');
+            setUsernameDraft(displayUsername || '');
+            setEditProfileOpen(v => !v);
+          }}
+          onOpenThemes={() => setThemeOpen(true)}
+          onOpenQr={() => setQrOpen(true)}
+          onOpenDuel={() => setDuelOpen(true)}
+          onOpenGift={() => setGiftOpen(true)}
+          onMute={!isSelf && targetId ? handleMute : undefined}
+          onUnmute={!isSelf && targetId ? handleUnmute : undefined}
+          onBlock={!isSelf && targetId ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
+          isMuted={isMutedTarget}
+          onToggleTrophyVisibility={handleTrophyVisibility}
+          trophyVisible={trophyVisible}
+          canDuelOrGift={!!targetProfile?.id}
+          hasUsername={!!displayUsername}
+          t={t}
+          tFallback={tFallback}
+        />
+        </div>
       </div>
 
       {/* Edit profile panel */}
@@ -1791,9 +1754,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             style={{ overflow: 'hidden' }}
-            className="mb-3"
+            className="mt-6"
           >
             <div className="bg-secondary/30 rounded-xl p-3 space-y-3">
+              {/* Profile completion used to sit on the public page as a
+                  progress bar. It is a to-do for the owner, so it lives
+                  where the fields it counts are edited. */}
+              <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
               {/* The avatar control used to live HERE, as a 44px circle beside
                   the words "Tap to change avatar" — a second, smaller copy of
                   the photo already on screen 300px above, which read as a
@@ -1962,199 +1929,207 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         )}
       </AnimatePresence>
 
-      {/* Story highlights rail (mig 099). Own profile shows a
-          "+ New" tile + their albums; non-own only shows albums
-          (hides entirely if empty). Keyed by user id: in-app navigation
-          carries no email for anyone else. */}
-      <StoryHighlightsRail
-        userId={targetId}
-        isOwn={isSelf}
-        onOpenAlbum={async (h) => {
-          // Lazy-import to keep the highlights surface out of the
-          // hub-profile entry chunk for users who never open one.
-          const { listItemsForHighlight } = await import('@/lib/data/storyHighlights');
-          const items = await listItemsForHighlight(h.id);
-          // Items come back joined with the underlying stories row;
-          // unwrap the nested `stories` and filter out any orphans
-          // (the parent story was deleted but the highlight item
-          // still points at the dangling id).
-          const stories = (items || [])
-            .map(it => it.stories)
-            .filter(Boolean);
-          if (stories.length === 0) {
-            toast.error(tFallback('highlight.empty', 'This album is empty.'));
-            return;
-          }
-          setActiveHighlight(h);
-          setActiveHighlightItems(stories);
-        }}
-      />
+      {/* Story highlights rail (mig 099). Renders nothing until the owner
+          has an album: an empty dashed "New" circle was a to-do on the
+          public face of the page. Albums are still created from a story
+          (Add to highlight), and once one exists the rail offers "New".
+          Keyed by user id: in-app navigation carries no email for anyone
+          else. */}
+      <div className="mt-6">
+        <StoryHighlightsRail
+          userId={targetId}
+          isOwn={isSelf}
+          onOpenAlbum={async (h) => {
+            // Lazy-import to keep the highlights surface out of the
+            // hub-profile entry chunk for users who never open one.
+            const { listItemsForHighlight } = await import('@/lib/data/storyHighlights');
+            const items = await listItemsForHighlight(h.id);
+            // Items come back joined with the underlying stories row;
+            // unwrap the nested `stories` and filter out any orphans
+            // (the parent story was deleted but the highlight item
+            // still points at the dangling id).
+            const stories = (items || [])
+              .map(it => it.stories)
+              .filter(Boolean);
+            if (stories.length === 0) {
+              toast.error(tFallback('highlight.empty', 'This album is empty.'));
+              return;
+            }
+            setActiveHighlight(h);
+            setActiveHighlightItems(stories);
+          }}
+        />
+      </div>
 
-      {/* ── Body tabs ──────────────────────────────────────────────────
-          Lift stats, badges, completion, referral, two trophy blocks and
-          the post list were seven stacked sections. Three destinations
-          now, each with room to breathe. */}
-      {likesOpen && isSelf ? (
-        // Liked posts takes over the whole tab area — no tab strip, because
-        // this is a different view of the profile rather than a fourth
-        // destination inside it. The ribbon in the action row is lit, which is
-        // what says where you are and how to get back.
-        <div className="mt-2">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            {tFallback('hub.profile.likedPosts', 'Liked posts')}
-          </h3>
-          {likedLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : likedPosts.length === 0 ? (
-            <EmptyState
-              icon={Bookmark}
-              title={tFallback('hub.profile.noLikesTitle', 'Nothing here yet')}
-              body={tFallback('hub.profile.noLikesBody', 'Head to the Hub and start liking posts, they’ll collect here.')}
+      {/* ── Summary or one detail ────────────────────────────────────────
+          The summary is a scoreboard, one grouped list and (on your own
+          page) your recent workouts. Each list row opens its detail in
+          place of the summary, with a back row above it, so there is one
+          thing on screen at a time instead of a tab strip over four
+          stacked sections. */}
+      {section ? (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setSection(null)}
+            className="self-start inline-flex items-center gap-1 h-11 -ms-2 px-2 rounded-lg text-sm font-semibold text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 rtl:scale-x-[-1]" aria-hidden="true" />
+            {SECTION_LABELS[section]}
+          </button>
+
+          {section === 'lifts' && (
+            <ProfileLiftStats
+              userId={isSelf ? user?.id : null}
+              longestStreak={isSelf ? user?.longest_workout_streak : targetUser?.longest_workout_streak}
+              isOwn={isSelf}
+              username={displayUsername}
             />
-          ) : (
-            <div className="space-y-3">
-              {likedPosts.map(p => (
-                <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />
-              ))}
-            </div>
           )}
+
+          {section === 'trophies' && (
+            <ProfileTrophies
+              isSelf={isSelf}
+              trophyCase={trophyCase}
+              trophyVisible={trophyVisible}
+              earnedTrophies={earnedTrophies}
+              onPickSlot={setTrophyPickerSlot}
+              trophyLabels={TROPHY_LABELS}
+              tFallback={tFallback}
+            />
+          )}
+
+          {section === 'liked' && isSelf && (
+            likedLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : likedPosts.length === 0 ? (
+              <EmptyState
+                icon={Bookmark}
+                title={tFallback('hub.profile.noLikesTitle', 'Nothing here yet')}
+                body={tFallback('hub.profile.noLikesBody', 'Head to the Hub and start liking posts, they’ll collect here.')}
+              />
+            ) : (
+              <div className="space-y-3">
+                {likedPosts.map(p => (
+                  <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />
+                ))}
+              </div>
+            )
+          )}
+
+          {section === 'posts' && postsList}
         </div>
       ) : (
-        <>
-      <ProfileTabs
-        active={activeTab}
-        onChange={setActiveTab}
-        tabs={[
-          { id: 'stats', label: tFallback('hub.profile.tabStats', 'Stats') },
-          { id: 'trophies', label: tFallback('hub.profile.tabTrophies', 'Trophies'), count: earnedTrophies.length },
-          { id: 'posts', label: tFallback('hub.profile.tabPosts', 'Posts'), count: posts.length },
-        ]}
-      />
-
-      <ProfileTabPanel id="stats" active={activeTab}>
-        {/* Lift stats — top 3 1RM lifts + total tonnage + longest
-            streak. Self-hides on cold accounts (zero workouts logged). */}
-        {/*
-          `peer` + `peer-empty:` handles the cold-account case. Every child
-          here self-hides when it has nothing to show — which used to be
-          invisible, because these were inline sections you'd simply never
-          see. Behind a *named tab* the same behaviour becomes a tab that
-          leads to a blank screen. When all of them return null this wrapper
-          is genuinely childless, `:empty` matches, and the fallback below
-          takes over. Declarative, so it re-resolves on its own when the
-          lift-stats query lands.
-        */}
-        <div className="peer">
-          <ProfileLiftStats
-            userId={isSelf ? user?.id : null}
-            longestStreak={isSelf
-              ? user?.longest_workout_streak
-              : targetUser?.longest_workout_streak}
-            isOwn={isSelf}
-            username={displayUsername}
+        <div className="flex flex-col gap-6">
+          <ProfileScoreboard
+            cells={[
+              {
+                id: 'level',
+                value: t('levelBar.level', { n: level }),
+                label: isSelf && xpToNext != null
+                  ? tFallback('profile.levelSub', '{tier} · {n} XP to go', { tier: tier.name, n: fmtNumber(xpToNext) })
+                  : tier.name,
+              },
+              scoreStreak > 0 && {
+                id: 'streak',
+                value: fmtNumber(scoreStreak),
+                label: tFallback('profile.dayStreak', 'day streak'),
+              },
+              // Your own third number is your workout count; another
+              // athlete's logs are unreadable, so theirs is trophies. The
+              // list row for the same thing then carries no second count.
+              isSelf && heroLogs.length > 0 && {
+                id: 'workouts',
+                value: fmtNumber(heroLogs.length),
+                label: heroLogs.length === 1
+                  ? tFallback('profile.workoutOne', 'workout')
+                  : tFallback('profile.workoutMany', 'workouts'),
+              },
+              !isSelf && earnedTrophies.length > 0 && {
+                id: 'trophies',
+                value: fmtNumber(earnedTrophies.length),
+                label: earnedTrophies.length === 1
+                  ? tFallback('profile.trophyOne', 'trophy')
+                  : tFallback('profile.trophyMany', 'trophies'),
+              },
+            ]}
           />
 
-          {/* Recent badges — drives the "earn one more badge" identity
-              investment loop. Self-hides when there's nothing to flex. */}
-          <ProfileBadgeShowcase
-            userEmail={email}
-            userId={isSelf ? user?.id : targetProfile?.id}
-            isOwn={isSelf}
-          />
+          <ProfileSummaryList>
+            {heroLeague && (
+              <SummaryRow
+                icon={Medal}
+                label={tFallback('profile.league', 'League')}
+                sub={tFallback('profile.leagueSub', '{tier}, place {r} of {t} this week', {
+                  tier: heroLeague.tierLabel || tier.name, r: heroLeague.rank, t: heroLeague.total,
+                })}
+                onClick={() => setLeaguesOpen(true)}
+              />
+            )}
+            {heroRival && (
+              <SummaryRow
+                icon={Swords}
+                label={tFallback('profile.rival', 'Rival')}
+                sub={tFallback('profile.rivalSub', 'You {a}, your rival {b} this week', {
+                  a: fmtNumber(Math.round(heroRival.mine)), b: fmtNumber(Math.round(heroRival.theirs)),
+                })}
+                // ?rival=1 scrolls to the card on Workout and opens it.
+                onClick={() => navigate('/workout?rival=1')}
+              />
+            )}
+            {heroWar && (
+              <SummaryRow
+                icon={Shield}
+                label={tFallback('profile.crewWar', 'Crew war')}
+                sub={tFallback('profile.crewWarSub', 'Your crew {a}, theirs {b}', {
+                  a: fmtNumber(Math.round(heroWar.mine)), b: fmtNumber(Math.round(heroWar.theirs)),
+                })}
+                // The crew war lives in the Hub crews section, which listens
+                // for this event (the same hand-off CrewDMInviteCard uses).
+                onClick={() => {
+                  navigate('/hub');
+                  if (heroWar?.crewId) {
+                    window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId: heroWar.crewId } }));
+                  }
+                }}
+              />
+            )}
+            {isSelf && heroLogs.length > 0 && (
+              <SummaryRow
+                icon={Dumbbell}
+                label={tFallback('profile.workouts', 'Workouts')}
+                sub={bestLift ? tFallback('profile.bestLiftSub', 'Best lift: {name} {rm}', { name: bestLift.name, rm: bestLift.label }) : undefined}
+                onClick={() => setSection('lifts')}
+              />
+            )}
+            {trophyVisible && (
+              <SummaryRow
+                icon={Trophy}
+                label={tFallback('hub.profile.tabTrophies', 'Trophies')}
+                value={isSelf && earnedTrophies.length > 0 ? fmtNumber(earnedTrophies.length) : undefined}
+                onClick={() => setSection('trophies')}
+              />
+            )}
+            <SummaryRow
+              icon={FileText}
+              label={tFallback('hub.profile.tabPosts', 'Posts')}
+              value={posts.length > 0 ? fmtNumber(posts.length) : undefined}
+              onClick={() => setSection('posts')}
+            />
+            {isSelf && (
+              <SummaryRow
+                icon={Bookmark}
+                label={tFallback('hub.profile.likedPosts', 'Liked posts')}
+                onClick={() => setSection('liked')}
+              />
+            )}
+            {isSelf && <ReferralCard asRow />}
+          </ProfileSummaryList>
 
-          {/* Profile completion meter — own profile only, dismissible
-              once at 100%. */}
-          {isSelf && (
-            <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
-          )}
-
-          {/* Referral card — own profile only. Every share is an unpaid
-              distribution opportunity. */}
-          {isSelf && (
-            <div className="mb-4">
-              <ReferralCard />
-            </div>
-          )}
+          {isSelf && <ProfileRecentWorkouts logs={heroLogs} tFallback={tFallback} />}
         </div>
-
-        <div className="hidden peer-empty:block">
-          <EmptyState
-            icon={TrendingUp}
-            title={isSelf
-              ? tFallback('hub.profile.noStatsSelfTitle', 'No stats yet')
-              : tFallback('hub.profile.noStatsTitle', 'Nothing logged yet')}
-            body={isSelf
-              ? tFallback('hub.profile.noStatsSelfBody', 'Log a workout and your best lifts, tonnage and streak show up here.')
-              : tFallback('hub.profile.noStatsBody', 'Their lifts and badges will appear here once they start training.')}
-          />
-        </div>
-      </ProfileTabPanel>
-
-      <ProfileTabPanel id="trophies" active={activeTab}>
-        <ProfileTrophies
-          isSelf={isSelf}
-          trophyCase={trophyCase}
-          trophyVisible={trophyVisible}
-          earnedTrophies={earnedTrophies}
-          onPickSlot={setTrophyPickerSlot}
-          trophyLabels={TROPHY_LABELS}
-          tFallback={tFallback}
-        />
-      </ProfileTabPanel>
-
-      <ProfileTabPanel id="posts" active={activeTab}>
-        {posts.length > 1 && (
-          <div className="flex items-center justify-end mb-3">
-            <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-bold">
-              <button type="button"
-                onClick={() => setProfilePostSort('newest')}
-                className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                {tFallback("coach.onboarding.levelLabel.newbie", "New")}
-              </button>
-              <button type="button"
-                onClick={() => setProfilePostSort('popular')}
-                className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                {tFallback("league.info.terminal", "Top")}
-              </button>
-            </div>
-          </div>
-        )}
-        {sortedPosts.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={isSelf
-              ? tFallback('hub.profile.noPostsSelfTitle', 'No posts yet')
-              : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
-            body={isSelf
-              ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
-              : tFallback('hub.profile.noPostsBody', 'Check back later. New posts will appear here.')}
-          />
-        ) : (
-          <div className="space-y-3">
-            {sortedPosts.map(p => (
-              <div
-                key={p.id}
-                ref={(el) => { postRefs.current[p.id] = el; }}
-                // Amber-orange, not a literal yellow: the palette has exactly
-                // four state hues (primary / destructive / success / info) and
-                // adding a fifth is banned. `primary` is hue 26, which is the
-                // warm highlight Sean was reaching for and is already the
-                // app's "look here" colour.
-                className={`rounded-2xl transition-shadow duration-500 ${
-                  landedPostId === p.id
-                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
-                    : ''
-                }`}
-              >
-                <HubPostCard post={p} onAuthorClick={onSelectUser} />
-              </div>
-            ))}
-          </div>
-        )}
-      </ProfileTabPanel>
-        </>
       )}
 
 

@@ -59,6 +59,7 @@ export default function ProfileMetrics({
   onOpenFollowing,
   forms,
   language,
+  center = false,
 }) {
   const { tFallback } = useLanguage();
   // A brand-new account rendered "0 followers · 0 following · 0 posts" —
@@ -79,7 +80,7 @@ export default function ProfileMetrics({
 
   if (isBrandNew) {
     return (
-      <div className="mt-3">
+      <div className={`mt-3 ${center ? 'flex justify-center' : ''}`}>
         <button
           type="button"
           onClick={onOpenFollowing}
@@ -92,7 +93,7 @@ export default function ProfileMetrics({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 ${center ? 'justify-center' : ''}`}>
       <Metric
         value={followerCount}
         forms={forms.followers}

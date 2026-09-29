@@ -22,6 +22,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getMyReferralStats } from '@/lib/data/referrals';
 import ReferralSheet from './ReferralSheet';
+import { SummaryRow } from './profile/ProfileSummaryList';
 import { track, EVENTS } from '@/lib/analytics';
 import { shareOrigin } from '@/lib/appOrigin';
 
@@ -40,7 +41,7 @@ function shareUrlForCode(code) {
   return `${shareOrigin()}/?ref=${code}`;
 }
 
-export default function ReferralCard() {
+export default function ReferralCard({ asRow = false }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -134,6 +135,27 @@ export default function ReferralCard() {
       onRestoreCard={() => setHiddenPersisted(false)}
     />
   );
+
+  // ── As a row in the profile's summary list ──
+  // The profile no longer carries the promo card: a row that opens the same
+  // sheet keeps every capability (code, copy, share, redeem) one tap away.
+  if (asRow) {
+    return (
+      <>
+        <SummaryRow
+          icon={Gift}
+          label={tFallback('referral.kicker', 'Invite friends')}
+          sub={count > 0
+            ? (count === 1
+              ? tFallback('referral.invited.one', '1 friend joined')
+              : tFallback('referral.invited.many', '{count} friends joined', { count }))
+            : tFallback('profile.inviteSub', 'You both get 200 Flex Coins and an Elite capsule')}
+          onClick={() => setSheetOpen(true)}
+        />
+        {sheet}
+      </>
+    );
+  }
 
   // ── Dismissed: a pill that opens the same surface as a sheet ──
   // Everything the card offers stays one tap away, and the redeem field

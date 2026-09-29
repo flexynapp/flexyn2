@@ -11,7 +11,7 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Bookmark, Lock, Unlock } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Lock, Unlock, StickyNote } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -58,6 +58,9 @@ function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foregro
   );
 }
 
+const ROW_BTN =
+  'flex-1 min-w-0 h-11 px-3 rounded-lg bg-muted text-foreground text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center gap-2';
+
 export default function ProfileActions({
   isSelf,
   // follow
@@ -75,8 +78,7 @@ export default function ProfileActions({
   onOpenMenu,
   onCloseMenu,
   onEditProfile,
-  onToggleLikes,
-  likesOpen = false,
+  onAddNote,
   onOpenThemes,
   onOpenQr,
   onOpenDuel,
@@ -107,37 +109,32 @@ export default function ProfileActions({
 
   return (
     <>
-      <div className="flex items-center gap-2 pb-1">
+      {/* One full-width row under the centred identity block: two equal
+          buttons and the "…" menu. 44px tall, the tap floor, and a muted
+          fill rather than an outline, because a row of hairline pills was
+          the loudest generated-UI tell on the old header. Follow is the
+          only primary; everything else is secondary on purpose. */}
+      <div className="flex items-center gap-2 w-full">
         {isSelf ? (
           <>
             <button
               type="button"
               onClick={onEditProfile}
-              className="h-9 px-4 rounded-full border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors flex items-center gap-1.5"
+              className={ROW_BTN}
             >
-              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              <Pencil className="w-4 h-4 text-muted-foreground" />
               {tFallback('hub.profile.editProfile', 'Edit profile')}
             </button>
-
-            {/* Liked posts. A MODE, not a tab: switching it on replaces the
-                whole Stats/Trophies/Posts area rather than adding a fourth
-                thing to choose between. Own profile only — likes are private
-                and there is no query in the app that can return anyone
-                else's, so this control has nowhere else it could live. */}
-            <button
-              type="button"
-              onClick={onToggleLikes}
-              aria-pressed={likesOpen}
-              className={`h-9 w-9 rounded-full border transition-colors flex items-center justify-center ${
-                likesOpen
-                  ? 'border-primary text-primary bg-primary/10'
-                  : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
-              }`}
-              aria-label={tFallback('hub.profile.likedPosts', 'Liked posts')}
-              title={tFallback('hub.profile.likedPosts', 'Liked posts')}
-            >
-              <Bookmark className={`w-4 h-4 ${likesOpen ? 'fill-current' : ''}`} />
-            </button>
+            {hasUsername && (
+              <button
+                type="button"
+                onClick={onOpenQr}
+                className={ROW_BTN}
+              >
+                <QrCode className="w-4 h-4 text-muted-foreground" />
+                {tFallback('hub.profile.shareProfile', 'Share profile')}
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -145,9 +142,9 @@ export default function ProfileActions({
               type="button"
               onClick={onFollow}
               disabled={!followStatusReady || followBusy}
-              className={`h-9 px-4 rounded-full text-sm font-bold transition-colors flex items-center justify-center gap-1.5 disabled:cursor-not-allowed ${
+              className={`flex-1 min-w-0 h-11 px-4 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
                 isFollowingNow
-                  ? 'bg-secondary text-foreground hover:bg-destructive/10 active:bg-destructive/10 hover:text-destructive active:text-destructive'
+                  ? 'bg-muted text-foreground hover:bg-destructive/10 active:bg-destructive/10 hover:text-destructive active:text-destructive'
                   : 'bg-primary text-primary-foreground hover:opacity-90'
               } ${!followStatusReady ? 'opacity-60' : ''}`}
             >
@@ -158,7 +155,7 @@ export default function ProfileActions({
                   {isFollowingNow
                     ? <UserCheck className="w-4 h-4" />
                     : <UserPlus className="w-4 h-4" />}
-                  {followLabel}
+                  <span className="truncate">{followLabel}</span>
                 </>
               )}
             </button>
@@ -167,13 +164,13 @@ export default function ProfileActions({
               type="button"
               onClick={onMessage}
               disabled={!messageReady || messageInFlight}
-              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`${ROW_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={t('hub.profile.message')}
-              title={t('hub.profile.message')}
             >
               {!messageReady || messageInFlight
                 ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <MessageCircle className="w-4 h-4" />}
+                : <MessageCircle className="w-4 h-4 text-muted-foreground" />}
+              <span className="truncate">{t('hub.profile.message')}</span>
             </button>
           </>
         )}
@@ -186,7 +183,7 @@ export default function ProfileActions({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="h-11 w-11 shrink-0 rounded-lg bg-muted text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label={menuTitle}
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -217,11 +214,13 @@ export default function ProfileActions({
                   // on 14 of them.
                   hint={THEMES_ENABLED ? undefined : tFallback('levelBar.comingSoon', 'Coming Soon')}
                 />
-                {hasUsername && (
+                {/* The note used to be a dashed "+ note" pill in the header,
+                    a to-do sitting on the public face of the page. */}
+                {onAddNote && (
                   <MenuItem
-                    icon={QrCode}
-                    label={tFallback('hub.profile.shareProfile', 'Share profile')}
-                    onSelect={onOpenQr}
+                    icon={StickyNote}
+                    label={tFallback('profile.addNote', 'Add a note')}
+                    onSelect={onAddNote}
                   />
                 )}
                 <MenuItem

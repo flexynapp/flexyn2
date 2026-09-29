@@ -41,7 +41,7 @@ import { getAvatarGradient } from '@/lib/avatarGradient';
  *   frameAnimation — optional CSS animation name for animated frames
  *               (e.g. "frame-pulse", "frame-rainbow"). Wired up in src/index.css.
  */
-export default function AvatarUploader({ src, initials = '?', seed = '', editable = false, variant = 'badge', size = 64, onChange, frameCss = null, frameAnimation = null }) {
+export default function AvatarUploader({ src, initials = '?', seed = '', neutral = false, editable = false, variant = 'badge', size = 64, onChange, frameCss = null, frameAnimation = null }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -146,12 +146,16 @@ export default function AvatarUploader({ src, initials = '?', seed = '', editabl
         <div
           className={[
             'w-full h-full rounded-full flex items-center justify-center overflow-hidden font-heading font-bold',
-            src ? 'bg-primary/10 text-primary' : 'text-white',
+            src ? 'bg-primary/10 text-primary' : neutral ? 'bg-muted text-foreground' : 'text-white',
             hasFrame ? '' : 'border-2 border-card',
           ].join(' ')}
           style={{
             fontSize: Math.round(size * 0.32),
-            background: src ? undefined : fallbackGradient,
+            // `neutral` drops the seeded gradient for a plain muted disc.
+            // The profile header uses it: the palette reserves purple for
+            // rarity, and five of the twelve gradient pairs are purple or
+            // pink, so a profile could open on a colour that means "epic".
+            background: src || neutral ? undefined : fallbackGradient,
           }}
         >
           {src ? (
