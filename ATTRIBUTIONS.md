@@ -79,6 +79,12 @@ image we save and share** (canvas share cards). Drawing an emoji with
 `ctx.fillText()` on an Apple device would bake Apple's proprietary glyphs into
 a PNG we then distribute — that is the case Twemoji replaces.
 
+### Country flags
+The flag beside a profile's city is also Twemoji, bundled as
+`public/flags/<code>.svg` (one per country the flag picker offers). Windows has
+no flag emoji and renders "🇺🇸" as the letters "US", so this is an image rather
+than text. It used to load from a jsDelivr mirror of the Twemoji repository.
+
 ## Trophy Gamification UI Kit
 
 `src/components/leaderboard/LeaderboardPodium.jsx` is derived from

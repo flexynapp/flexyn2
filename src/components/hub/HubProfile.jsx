@@ -63,6 +63,7 @@ import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { safeExternalUrl } from '@/lib/safeUrl';
+import { flagSrc } from '@/lib/flags';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareOrigin } from '@/lib/appOrigin';
 import * as workouts from '@/lib/data/workouts';
@@ -95,17 +96,6 @@ function CrownBadge({ size = 18 }) {
       <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
     </svg>
   );
-}
-
-// Converts a 2-letter ISO country code to a regional indicator flag emoji.
-// If the value already contains a non-ASCII character (i.e., is already a flag emoji), returns it as-is.
-function codeToFlag(code) {
-  if (!code) return '';
-  if ([...code].some(c => c.codePointAt(0) > 0x7F)) return code; // already emoji
-  const upper = code.toUpperCase().slice(0, 2);
-  if (upper.length < 2 || !/^[A-Z]{2}$/.test(upper)) return code;
-  return String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(0))
-       + String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(1));
 }
 
 // ── QR Code generator ─────────────────────────────────────────────────────────
@@ -222,17 +212,6 @@ const TROPHY_LABELS = {
   '🗡️':'Dagger','🏹':'Bow','🔨':'Hammer','⚒️':'Forge','⚙️':'Gear',
   '🔩':'Bolt','🪜':'Ladder','🪧':'Sign','🎪':'Big Top',
 };
-
-// Converts a flag emoji to a Twemoji SVG URL (works on all platforms including Windows Chrome)
-function flagUrl(emoji) {
-  if (!emoji) return null;
-  const points = [...emoji]
-    .map(c => c.codePointAt(0))
-    .filter(cp => cp !== 0xFE0F) // strip variation selector-16
-    .map(cp => cp.toString(16));
-  if (!points.length) return null;
-  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@v14.0.2/assets/svg/${points.join('-')}.svg`;
-}
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null, highlightPostId = null, onHighlightConsumed = null }) {
   const { t, tFallback, language } = useLanguage();
@@ -1640,7 +1619,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <MapPin className="w-3.5 h-3.5 shrink-0" />
                 {city && <span>{city}</span>}
                 {countryFlag && (
-                  <img loading="lazy" src={flagUrl(codeToFlag(countryFlag))}
+                  <img loading="lazy" src={flagSrc(countryFlag)}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     alt="flag"
                     className="w-4 h-4 object-contain shrink-0"
                   />
@@ -1869,7 +1849,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </div>
               <div className="flex items-center gap-2">
                 {countryFlag
-                  ? <img loading="lazy" src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
+                  ? <img loading="lazy" src={flagSrc(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
                   : <span className="text-sm shrink-0">🌍</span>
                 }
                 <button
@@ -2317,7 +2297,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <div className="grid grid-cols-8 gap-1">
                   {[['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],['AG','Antigua'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],['AT','Austria'],['AZ','Azerbaijan'],['BS','Bahamas'],['BH','Bahrain'],['BD','Bangladesh'],['BB','Barbados'],['BY','Belarus'],['BE','Belgium'],['BZ','Belize'],['BJ','Benin'],['BT','Bhutan'],['BO','Bolivia'],['BA','Bosnia'],['BW','Botswana'],['BR','Brazil'],['BN','Brunei'],['BG','Bulgaria'],['BF','Burkina Faso'],['BI','Burundi'],['CV','Cape Verde'],['KH','Cambodia'],['CM','Cameroon'],['CA','Canada'],['CF','Cent. Africa'],['TD','Chad'],['CL','Chile'],['CN','China'],['CO','Colombia'],['KM','Comoros'],['CD','Congo DR'],['CG','Congo'],['CR','Costa Rica'],['CI','Côte dIvoire'],['HR','Croatia'],['CU','Cuba'],['CY','Cyprus'],['CZ','Czechia'],['DK','Denmark'],['DJ','Djibouti'],['DM','Dominica'],['DO','Dom. Republic'],['EC','Ecuador'],['EG','Egypt'],['SV','El Salvador'],['GQ','Eq. Guinea'],['ER','Eritrea'],['EE','Estonia'],['SZ','Eswatini'],['ET','Ethiopia'],['FJ','Fiji'],['FI','Finland'],['FR','France'],['GA','Gabon'],['GM','Gambia'],['GE','Georgia'],['DE','Germany'],['GH','Ghana'],['GR','Greece'],['GD','Grenada'],['GT','Guatemala'],['GN','Guinea'],['GW','Guinea-Bissau'],['GY','Guyana'],['HT','Haiti'],['HN','Honduras'],['HU','Hungary'],['IS','Iceland'],['IN','India'],['ID','Indonesia'],['IR','Iran'],['IQ','Iraq'],['IE','Ireland'],['IL','Israel'],['IT','Italy'],['JM','Jamaica'],['JP','Japan'],['JO','Jordan'],['KZ','Kazakhstan'],['KE','Kenya'],['KI','Kiribati'],['KW','Kuwait'],['KG','Kyrgyzstan'],['LA','Laos'],['LV','Latvia'],['LB','Lebanon'],['LS','Lesotho'],['LR','Liberia'],['LY','Libya'],['LI','Liechtenstein'],['LT','Lithuania'],['LU','Luxembourg'],['MG','Madagascar'],['MW','Malawi'],['MY','Malaysia'],['MV','Maldives'],['ML','Mali'],['MT','Malta'],['MH','Marshall Is.'],['MR','Mauritania'],['MU','Mauritius'],['MX','Mexico'],['MD','Moldova'],['MC','Monaco'],['MN','Mongolia'],['ME','Montenegro'],['MA','Morocco'],['MZ','Mozambique'],['MM','Myanmar'],['NA','Namibia'],['NR','Nauru'],['NP','Nepal'],['NL','Netherlands'],['NZ','New Zealand'],['NI','Nicaragua'],['NE','Niger'],['NG','Nigeria'],['NO','Norway'],['OM','Oman'],['PK','Pakistan'],['PW','Palau'],['PA','Panama'],['PG','Papua NG'],['PY','Paraguay'],['PE','Peru'],['PH','Philippines'],['PL','Poland'],['PT','Portugal'],['QA','Qatar'],['RO','Romania'],['RU','Russia'],['RW','Rwanda'],['KN','St Kitts'],['LC','St Lucia'],['VC','St Vincent'],['WS','Samoa'],['SM','San Marino'],['ST','São Tomé'],['SA','Saudi Arabia'],['SN','Senegal'],['RS','Serbia'],['SC','Seychelles'],['SL','Sierra Leone'],['SG','Singapore'],['SK','Slovakia'],['SI','Slovenia'],['SB','Solomon Is.'],['SO','Somalia'],['ZA','South Africa'],['SS','South Sudan'],['ES','Spain'],['LK','Sri Lanka'],['SD','Sudan'],['SR','Suriname'],['SE','Sweden'],['CH','Switzerland'],['SY','Syria'],['TW','Taiwan'],['TJ','Tajikistan'],['TZ','Tanzania'],['TH','Thailand'],['TL','Timor-Leste'],['TG','Togo'],['TO','Tonga'],['TT','Trinidad'],['TN','Tunisia'],['TR','Turkey'],['TM','Turkmenistan'],['TV','Tuvalu'],['UG','Uganda'],['UA','Ukraine'],['AE','UAE'],['GB','UK'],['US','USA'],['UY','Uruguay'],['UZ','Uzbekistan'],['VU','Vanuatu'],['VE','Venezuela'],['VN','Vietnam'],['YE','Yemen'],['ZM','Zambia'],['ZW','Zimbabwe']].map(([code, name]) => {
                     const emoji = [...code.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
-                    const imgSrc = flagUrl(emoji);
+                    const imgSrc = flagSrc(emoji);
                     return (
                       <motion.button
                         key={code}
