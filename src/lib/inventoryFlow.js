@@ -122,14 +122,12 @@ export function useBagFlow(t) {
   const settle = useCallback(async (results) => {
     if (!Array.isArray(results) || results.length === 0 || !user?.email) return;
     const pending = results.filter(r => !r.granted);
-    let saved = results.length - pending.length;
     let failed = 0;
-    let lastName = results.length === 1 ? results[0].item?.name : null;
 
     for (const { capsuleId, item } of pending) {
       try {
         if (!capsuleId) throw new Error('missing_capsule_id');
-        const { data, error } = await supabase.rpc('finalize_capsule_claim', {
+        const { error } = await supabase.rpc('finalize_capsule_claim', {
           p_capsule_id:  capsuleId,
           p_item_id:     item.id,
           p_item_name:   item.name,
@@ -139,10 +137,6 @@ export function useBagFlow(t) {
           p_variant:     item.variant ?? null,
         });
         if (error) throw error;
-        // Name what the SERVER granted. Since migration 267 finalize
-        // derives the item from loot_catalog and ignores the arguments.
-        if (results.length === 1) lastName = data?.item_name ?? item.name;
-        saved += 1;
       } catch (err) {
         console.warn('[inventoryFlow] capsule finalize failed:', capsuleId, err?.message);
         failed += 1;
@@ -151,11 +145,9 @@ export function useBagFlow(t) {
 
     for (const key of capsuleRefreshKeys(user.email)) queryClient.invalidateQueries({ queryKey: key });
 
-    if (saved === 1 && lastName) {
-      toast.success(tf('inventoryFlow.addedOne', '{item} is in your bag.', { item: lastName }));
-    } else if (saved > 1) {
-      toast.success(tf('inventoryFlow.addedMany', '{n} items are in your bag.', { n: saved }));
-    }
+    // No success toast: the opener shows the item dropping into the bag
+    // and says so in place before it closes. The toast used to land over
+    // the page title the opener had just uncovered.
     if (failed > 0) {
       toast.error(tf('inventoryFlow.saveFailedMany', '{n} could not be saved. Open them again to retry.', { n: failed }));
     }
