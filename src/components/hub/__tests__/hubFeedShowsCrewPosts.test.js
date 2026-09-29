@@ -69,7 +69,7 @@ describe('realtime counts crew posts', () => {
     // sync effect runs.
     expect(FEED).toMatch(/crewIds: new Set\(\),/);
     expect(FEED).toMatch(/crewIds:\s+new Set\(myCrewIds\),/);
-    expect(FEED).toMatch(/\}, \[feedTab, following, mutedEmails, blockedEmails, myCrewIds\]\);/);
+    expect(FEED).toMatch(/\}, \[feedTab, following, mutedIds, blockedIds, myCrewIds\]\);/);
   });
 });
 

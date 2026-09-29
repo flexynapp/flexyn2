@@ -408,12 +408,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     }
   }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback, describeRpcError, reportRequestFailure]);
 
-  const handleBlockRequest = useCallback(async (convId, otherEmail) => {
-    if (!convId || !otherEmail) return;
+  const handleBlockRequest = useCallback(async (convId, otherId) => {
+    if (!convId || !otherId) return;
     disarmDelete();
     setRequestBusyId(convId);
     try {
-      await blockUserFull(otherEmail);
+      await blockUserFull(otherId);
       // block_user_full severs follows in both directions.
       invalidateFollowGraph(queryClient);
       // Best-effort — the block already stops delivery, so a purge
@@ -1145,8 +1145,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             {tFallback('hub.messages.request.delete', 'Delete')}
                           </button>
                           <button
-                            disabled={requestBusyId === c.id || !otherEmail}
-                            onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
+                            disabled={requestBusyId === c.id || !otherId}
+                            onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherId); }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-destructive hover:bg-destructive/10 active:bg-destructive/10 text-xs font-semibold disabled:opacity-50 transition-colors"
                           >
                             <Ban className="w-3.5 h-3.5" />

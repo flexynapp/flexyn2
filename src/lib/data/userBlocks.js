@@ -34,17 +34,18 @@ export async function listBlocks(userId) {
 
 /**
  * Block a user. Wraps the atomic RPC that inserts the block, mirrors
- * to story_blocks, and severs any mutual follow rows.
+ * to story_blocks, and severs any mutual follow rows. Takes the other
+ * person's user id; the RPC looks their email up itself.
  */
-export async function blockUserFull(email) {
-  if (!email) throw new Error('email required');
-  const { error } = await supabase.rpc('block_user_full', { p_blocked_email: email });
+export async function blockUserFull(targetId) {
+  if (!targetId) throw new Error('targetId required');
+  const { error } = await supabase.rpc('block_user_full', { p_blocked_id: targetId });
   if (error) throw error;
 }
 
-/** Remove a full block (story-scope block is NOT cleared). */
-export async function unblockUserFull(email) {
-  if (!email) throw new Error('email required');
-  const { error } = await supabase.rpc('unblock_user_full', { p_blocked_email: email });
+/** Remove a full block by user id (story-scope block is NOT cleared). */
+export async function unblockUserFull(targetId) {
+  if (!targetId) throw new Error('targetId required');
+  const { error } = await supabase.rpc('unblock_user_full', { p_blocked_id: targetId });
   if (error) throw error;
 }
