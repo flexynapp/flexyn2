@@ -100,18 +100,24 @@ export const createGroupConversation = async (emails, title = null) => {
 export const findOrCreateConversation = async (myEmail, other) => {
   if (!myEmail || !other) return null;
 
-  // The peer may be passed as a user_id (uuid) or an email. Callers on
-  // id-keyed surfaces pass the id so they never read the peer's email off
-  // the public_profiles view; we resolve it to an email here via the
-  // narrow resolve_profile_email RPC (SECURITY DEFINER, reads
-  // user_profiles directly, so it survives dropping email from the view).
-  // The resolved email is used only to build participant_key /
-  // participant_emails membership — it is never returned to the caller.
-  let otherEmail = other;
+  // The peer may be passed as a user_id (uuid) or an email. An id goes
+  // straight to start_dm_conversation(p_other_id), which looks the email up
+  // server-side, so the caller never holds the other person's address.
+  // Only the marketplace still passes an email (listing.seller_email).
   if (UUID_RE.test(String(other))) {
-    const { data } = await supabase.rpc('resolve_profile_email', { p_id: other });
-    otherEmail = data || null;
+    const { data: convId, error } = await supabase
+      .rpc('start_dm_conversation', { p_other_id: other });
+    if (error) {
+      // A refusal (request block, invalid recipient) has to stop here: it
+      // is the gate, and there is no client-side path around it.
+      reportError(error, { feature: 'dm.startConversation', level: 'warning' });
+      throw error;
+    }
+    if (!convId) return null;
+    const rows = await conv().filter({ id: convId }, '-last_message_at', 1).catch(() => []);
+    return rows[0] ?? null;
   }
+  const otherEmail = other;
   if (!otherEmail) return null;
   if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null;
   // Lower-case both emails on insert so RLS membership checks

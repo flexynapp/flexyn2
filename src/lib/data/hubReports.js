@@ -11,12 +11,15 @@ import { safeSelect } from '@/api/safeSelect';
  * @param {{
  *   reporterEmail: string,
  *   reporterUserId: string,
- *   reportedType:   'post'|'comment',
+ *   reportedType:   'post'|'comment'|'story',
  *   reportedId:     string,
- *   reportedAuthorEmail: string,
  *   reason:   string,
  *   detail?:  string,
  * }} data
+ *
+ * reported_author_email is not sent: the hub_reports_a_pin_identities
+ * trigger takes it from the reported row, and overwrites reporter_email
+ * from the reporter's profile.
  */
 export async function fileReport(data) {
   const { error } = await supabase.from('hub_reports').insert({
@@ -24,7 +27,6 @@ export async function fileReport(data) {
     reporter_user_id:      data.reporterUserId,
     reported_type:         data.reportedType,
     reported_id:           data.reportedId,
-    reported_author_email: data.reportedAuthorEmail || null,
     reason:                data.reason,
     detail:                data.detail?.trim() || null,
   });

@@ -819,7 +819,6 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
           onClose={() => setReportOpen(false)}
           reportedType="comment"
           reportedId={c.id}
-          reportedAuthorEmail={c.author_email}
         />
       )}
     </>

@@ -779,7 +779,6 @@ export default function StoryViewer({
                   onClose={() => setReportOpen(false)}
                   reportedType="story"
                   reportedId={currentStory?.id}
-                  reportedAuthorEmail={currentGroup?.email || null}
                 />
               </div>
             )}
