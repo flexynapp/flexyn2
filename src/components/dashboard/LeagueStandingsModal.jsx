@@ -257,7 +257,10 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
                 const isDemote  = !unranked && demoteN > 0 && rank > qualifiedCount - demoteN;
                 const isFirst = rank === 1;
 
-                const interactive = !isMe && m.email;
+                // m.email never existed on these rows (the column is
+                // user_email), so no row ever opened a profile. The id is what
+                // openMemberProfile navigates by anyway.
+                const interactive = !isMe && !!m.user_id;
                 return (
                   <motion.div
                     key={m.id}

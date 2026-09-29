@@ -461,8 +461,9 @@ function RegimenBlock({ snap, post }) {
         description: snap.description || '',
         exercises: copiedExercises,
         copied_from_post_id: post?.id || null,
+        // Credit by name only. This used to copy the author's email into
+        // the new regimen as well, where nothing read it.
         original_author_username: post?.author_name || null,
-        original_author_email: post?.author_email || null,
       });
       setJustCopied(true);
       queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
