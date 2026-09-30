@@ -4,6 +4,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 /* ============================================================
    FLEXYN · Muscle heat-map  (Body Heat Map design, wired to
@@ -137,8 +138,11 @@ export function buildMuscles(logs, rangeDays) {
   Object.keys(COARSE_TO_FINE).forEach((g) => { coarse[g] = { sets: 0, vol: 0, last: null, ex: {} }; });
 
   (logs || []).forEach((log) => {
-    const dt = new Date(log.date);
-    if (isNaN(dt)) return;
+    // Local midnight, not UTC: `new Date('2026-09-30')` is midnight UTC, which
+    // in the Americas is the previous evening, so a session logged today read
+    // as a day old every evening and recovery showed partly recovered.
+    const dt = parseLocalDate(log.date);
+    if (!dt) return;
     const days = Math.floor((now - dt) / 86400000);
     (log.exercises || []).forEach((ex) => {
       const sets = (ex.sets || []).filter((s) => (Number(s.weight) > 0 || Number(s.reps) > 0));
@@ -627,10 +631,10 @@ export default function MuscleGroupHeatmap({ logs }) {
         </h1>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
           {empty
-            ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here. Colour shows fatigue so you know what’s ready to hit again.')
+            ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here. Color shows fatigue so you know what’s ready to hit again.')
             : mode === 'recovery'
-              ? tFallback('bodyMap.body.recovery', 'Colour shows fatigue right now. Fresh green muscles are ready, hot ones still need rest before you hit them again.')
-              : tFallback('bodyMap.body.volume', 'Colour shows training volume over the selected window. Brighter means more work landed there.')}
+              ? tFallback('bodyMap.body.recovery', 'Color shows fatigue right now. Fresh green muscles are ready, hot ones still need rest before you hit them again.')
+              : tFallback('bodyMap.body.volume', 'Color shows training volume over the selected window. Brighter means more work landed there.')}
         </p>
       </div>
 
@@ -640,7 +644,12 @@ export default function MuscleGroupHeatmap({ logs }) {
           { id: 'recovery', label: tFallback('bodyMap.mode.recovery', 'Recovery') },
           { id: 'volume', label: tFallback('bodyMap.mode.volume', 'Volume') },
         ]} />
-        <Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ id: r.id, label: tFallback(r.key, r.en) }))} />
+        {/* Recovery is a right-now reading from the last session, whatever
+            the window, so the window picker only shows where it changes
+            something. It sat under Recovery and did nothing. */}
+        {mode === 'volume' && (
+          <Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ id: r.id, label: tFallback(r.key, r.en) }))} />
+        )}
       </div>
 
       {/* map card */}
@@ -700,7 +709,7 @@ export default function MuscleGroupHeatmap({ logs }) {
           {mode === 'recovery'
             ? tFallback('bodyMap.list.recovery', 'Recovery by muscle')
             : tFallback('bodyMap.list.volume', 'Volume by muscle')}
-          {' · '}{rangeShort}
+          {mode === 'volume' && <>{' · '}{rangeShort}</>}
         </Kicker>
       </div>
       <div style={{ margin: '10px 0 0', background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 18, overflow: 'hidden' }}>

@@ -86,10 +86,18 @@ describe('every string on the Body tab goes through the translation layer', () =
     for (const key of [
       'bodyMap.kicker', 'bodyMap.data.live',
       'bodyMap.mode.recovery', 'bodyMap.mode.volume',
-      'bodyMap.range.7d', 'bodyMap.range.30d', 'bodyMap.range.90d',
       'bodyMap.figure.front', 'bodyMap.figure.back',
       'bodyMap.legend.fresh', 'bodyMap.legend.fatigued',
-      'bodyMap.list.recovery', 'bodyMap.rangeShort.30d',
+      'bodyMap.list.recovery',
+    ]) {
+      expect(container.textContent, `${key} did not reach the screen`).toContain(`XX:${key}`);
+    }
+    // The window picker only exists in Volume mode; Recovery ignores it.
+    expect(container.textContent).not.toContain('XX:bodyMap.range.30d');
+    fireEvent.click(screen.getByText('XX:bodyMap.mode.volume'));
+    for (const key of [
+      'bodyMap.range.7d', 'bodyMap.range.30d', 'bodyMap.range.90d',
+      'bodyMap.list.volume', 'bodyMap.rangeShort.30d',
     ]) {
       expect(container.textContent, `${key} did not reach the screen`).toContain(`XX:${key}`);
     }

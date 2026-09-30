@@ -580,7 +580,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       {/* ── Training Age ────────────────────────────────────────────────── */}
       <InsightSection
         icon={Clock}
-        title={tFallback('insights.trainingAge.title', 'Training Age')}
+        title={tFallback('insights.trainingAge.title', 'Training age')}
         color="text-primary"
         bg="bg-primary/10"
       >
@@ -671,7 +671,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       {/* ── TDEE ────────────────────────────────────────────────────────── */}
       <InsightSection
         icon={Flame}
-        title={tFallback('insights.tdee.title', 'TDEE Estimate')}
+        title={tFallback('insights.tdee.title', 'TDEE estimate')}
         color="text-primary"
         bg="bg-primary/10"
       >
@@ -687,8 +687,8 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   .map(f => tFallback(`insights.tdee.field.${f}`, f === 'weight' ? 'body weight' : f))),
               })}
             </p>
-            <Button size="sm" variant="outline" onClick={() => navigate('/settings')}>
-              {tFallback('insights.tdee.openSettings', 'Open Settings')}
+            <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => navigate('/settings')}>
+              {tFallback('insights.tdee.openSettings', 'Open settings')}
             </Button>
           </div>
         ) : (
@@ -779,7 +779,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       {/* ── Projected Goal ───────────────────────────────────────────────── */}
       <InsightSection
         icon={Target}
-        title={tFallback('insights.goal.title', 'Projected Goal Date')}
+        title={tFallback('insights.goal.title', 'Projected goal date')}
         color="text-success"
         bg="bg-success/10"
       >
@@ -792,7 +792,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <p className="text-sm text-muted-foreground">
               {tFallback('insights.goal.empty', 'Log at least 2 body weight entries to see a projection.')}
             </p>
-            <Button size="sm" variant="outline" onClick={() => navigate('/dashboard?logWeight=1')}>
+            <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => navigate('/dashboard?logWeight=1')}>
               <Scale className="w-4 h-4 me-2" />
               {tFallback('insights.goal.emptyCta', 'Log your weight')}
             </Button>
@@ -811,15 +811,15 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   placeholder={tFallback('insights.goal.placeholder', 'Goal in {unit}', { unit: weightUnit })}
                   value={goalWeightInput}
                   onChange={(e) => setGoalWeightInput(e.target.value)}
-                  className="flex-1 h-9 text-sm"
+                  className="flex-1 h-11"
                 />
-                <Button size="sm" onClick={handleSetGoal} className="h-9 px-4 shrink-0">
+                <Button size="sm" onClick={handleSetGoal} className="h-11 px-4 shrink-0">
                   {tFallback('insights.goal.set', 'Set')}
                 </Button>
                 {/* Without this there was no way to unset a goal once
                     saved — clearing the field and pressing Set did nothing. */}
                 {hasStoredGoal && (
-                  <Button size="sm" variant="ghost" onClick={handleClearGoal} className="h-9 px-3 shrink-0">
+                  <Button size="sm" variant="ghost" onClick={handleClearGoal} className="h-11 px-3 shrink-0">
                     {tFallback('insights.goal.clear', 'Clear')}
                   </Button>
                 )}
@@ -900,7 +900,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       {/* ── Muscle Imbalance ─────────────────────────────────────────────── */}
       <InsightSection
         icon={BarChart3}
-        title={tFallback('insights.balance.title', 'Muscle Imbalance')}
+        title={tFallback('insights.balance.title', 'Muscle imbalance')}
         color="text-info"
         bg="bg-info/10"
       >
@@ -996,7 +996,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
           outside the four-hue system and doesn't move with the theme. */}
       <InsightSection
         icon={Download}
-        title={tFallback('insights.export.title', 'Export My Data')}
+        title={tFallback('insights.export.title', 'Export my data')}
         color="text-muted-foreground"
         bg="bg-secondary"
       >
@@ -1004,10 +1004,10 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
           {tFallback('insights.export.desc', 'Download your data as CSV files, compatible with Excel, Google Sheets, and Apple Health apps.')}
         </p>
         <div className="flex flex-col gap-2">
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportWorkouts}>
+          <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportWorkouts}>
             <Dumbbell className="w-4 h-4 text-primary shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">{tFallback('insights.export.workouts', 'Workout Logs')}</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.workouts', 'Workout logs')}</p>
               <p className="text-xs text-muted-foreground">
                 {tCount('insights.export.workoutsSub', workoutCount, '{n} session · all exercises & sets', '{n} sessions · all exercises & sets')}
               </p>
@@ -1015,10 +1015,10 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <Download className="w-3.5 h-3.5 text-muted-foreground ms-auto" />
           </Button>
 
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportBodyMetrics}>
+          <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportBodyMetrics}>
             <Scale className="w-4 h-4 text-success shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">{tFallback('insights.export.body', 'Body Metrics')}</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.body', 'Body metrics')}</p>
               <p className="text-xs text-muted-foreground">
                 {tCount('insights.export.bodySub', bodyCount, '{n} entry · weight, body fat, measurements', '{n} entries · weight, body fat, measurements')}
               </p>
@@ -1026,10 +1026,10 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <Download className="w-3.5 h-3.5 text-muted-foreground ms-auto" />
           </Button>
 
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportCardio}>
+          <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportCardio}>
             <Activity className="w-4 h-4 text-destructive shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">{tFallback('insights.export.cardio', 'Cardio Logs')}</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.cardio', 'Cardio logs')}</p>
               <p className="text-xs text-muted-foreground">
                 {tCount('insights.export.cardioSub', cardioCount, '{n} session · runs, cycling, etc.', '{n} sessions · runs, cycling, etc.')}
               </p>
