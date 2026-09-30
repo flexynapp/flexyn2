@@ -31,7 +31,9 @@ export async function likeStatusNote(noteId, user) {
   const { error } = await supabase
     .from('status_note_likes')
     .upsert(
-      { note_id: noteId, liker_id: user.id, liker_email: user.email },
+      // No email: the database fills it in from the profile, and an
+      // upsert may not set a column other people cannot read.
+      { note_id: noteId, liker_id: user.id },
       { onConflict: 'note_id,liker_id' },
     );
   return !error;

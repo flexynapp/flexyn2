@@ -41,7 +41,7 @@ describe('listForRegimen', () => {
 });
 
 describe('submit', () => {
-  const ctx = { regimenId: 'reg1', rating: 5, comment: 'great', userId: 'u1', email: 'u@x.com' };
+  const ctx = { regimenId: 'reg1', rating: 5, comment: 'great', userId: 'u1' };
 
   it('rejects invalid args', async () => {
     expect((await submit({})).code).toBe('invalid_args');
@@ -60,7 +60,6 @@ describe('submit', () => {
       {
         regimen_id:     'reg1',
         reviewer_id:    'u1',
-        reviewer_email: 'u@x.com',
         rating:         5,
         comment:        'great',
       },
