@@ -39,6 +39,8 @@ vi.mock('@/api/supabaseClient', () => ({
 }));
 
 const notifications = await import('@/lib/data/notifications');
+const { LIVE_TYPES } = await import('@/lib/notificationCatalog');
+const NOT_IN_FEED = `(${['dm_received', ...LIVE_TYPES].join(',')})`;
 
 const USER = { id: 'u-1', email: 'a@b.c' };
 const notCalls = () => _calls.filter(c => c[0] === 'not');
@@ -75,7 +77,7 @@ describe('unreadSummary', () => {
     const [, col, op, val] = notCalls()[0];
     expect(col).toBe('type');
     expect(op).toBe('in');
-    expect(val).toBe('(dm_received)');
+    expect(val).toBe(NOT_IN_FEED);
   });
 
   it('still scopes to the user and to unread rows', async () => {
@@ -109,32 +111,24 @@ describe('unreadSummary', () => {
   });
 });
 
-describe('same-day reminders', () => {
-  // "3 quests left today" from yesterday used to keep the bell lit forever.
-  it('counts a same-day reminder only while its local day is running', async () => {
+describe('live reminders', () => {
+  // "3 quests left today" from last week used to sit in the list forever and
+  // keep the bell lit. The panel's live card reads those facts from source
+  // now, so neither the bell nor the list reads the rows.
+  it('keeps them off the bell', async () => {
     await notifications.unreadSummary(USER);
-    const ors = _calls.filter(c => c[0] === 'or');
-    expect(ors).toHaveLength(1);
-    const [, expr] = ors[0];
-    const since = notifications.startOfLocalDayIso();
-    expect(expr).toBe(
-      `type.not.in.(${notifications.SAME_DAY_TYPES.join(',')}),created_at.gte.${since}`,
-    );
+    const [, , , val] = notCalls()[0];
+    for (const t of LIVE_TYPES) expect(val).toContain(t);
   });
 
-  it('starts the day at local midnight', () => {
-    const now = new Date(2026, 8, 28, 21, 30);
-    expect(new Date(notifications.startOfLocalDayIso(now)).getTime())
-      .toBe(new Date(2026, 8, 28, 0, 0, 0, 0).getTime());
-  });
-
-  it('does not hide same-day reminders from the panel list', async () => {
+  it('keeps them out of the list', async () => {
     await notifications.listForUser(USER);
-    expect(_calls.filter(c => c[0] === 'or')).toHaveLength(0);
+    const [, , , val] = notCalls()[0];
+    for (const t of LIVE_TYPES) expect(val).toContain(t);
   });
 
   it('holds only values safe for a PostgREST in() list', () => {
-    for (const t of notifications.SAME_DAY_TYPES) expect(t).toMatch(/^[a-z0-9_]+$/);
+    for (const t of LIVE_TYPES) expect(t).toMatch(/^[a-z0-9_]+$/);
   });
 });
 
@@ -148,16 +142,16 @@ describe('listForUser', () => {
     const [, col, op, val] = notCalls()[0];
     expect(col).toBe('type');
     expect(op).toBe('in');
-    expect(val).toBe('(dm_received)');
+    expect(val).toBe(NOT_IN_FEED);
   });
 
   // NotificationPanel reports any type missing from its ALL_KNOWN_TYPES set
   // to Sentry. dm_received was never added there, so before this filter every
   // DM produced an "Unmapped notification types" report. Keeping the two in
   // agreement is what stops that noise coming back.
-  it('filters exactly the types the panel does not know about', async () => {
+  it('filters exactly the push-only and live types', async () => {
     await notifications.listForUser(USER);
     const [, , , val] = notCalls()[0];
-    expect(val).toBe(`(${notifications.PUSH_ONLY_TYPES.join(',')})`);
+    expect(val).toBe(`(${[...notifications.PUSH_ONLY_TYPES, ...LIVE_TYPES].join(',')})`);
   });
 });

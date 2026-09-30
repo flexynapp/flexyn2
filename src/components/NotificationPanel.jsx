@@ -41,6 +41,8 @@ import {
 } from '@/lib/notificationCatalog';
 import { formatNotificationTime, groupByDay, BUCKET } from '@/lib/notificationTime';
 import { actorKey, actorRefOf, collectActorRefs } from '@/lib/notificationActor';
+import { iconFor, stripLeadingEmoji } from '@/lib/notificationIcon';
+import NotificationNowCard from '@/components/notifications/NotificationNowCard';
 
 const PAGE_SIZE = 50;
 
@@ -52,6 +54,14 @@ const HUE_TILE = {
   primary: 'bg-primary/[0.14]',
   success: 'bg-success/[0.14]',
   muted:   'bg-secondary',
+};
+
+// The icon drawn on that tile, in the same hue.
+const HUE_ICON = {
+  info:    'text-info',
+  primary: 'text-primary',
+  success: 'text-success',
+  muted:   'text-muted-foreground',
 };
 
 const BUCKET_LABEL = {
@@ -207,12 +217,13 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     });
   }, [open, rows]);
 
-  const counts = useMemo(() => {
-    const out = { all: rows.length };
-    for (const f of FILTERS) {
-      if (f.id === 'all') continue;
-      out[f.id] = rows.filter(r => matchesFilter(r.type, f.id)).length;
-    }
+  // Each tab shows how many UNREAD rows it holds, and nothing when that is
+  // zero. It used to show totals over the loaded page ("All 50" was the page
+  // size), which never said where anything new was.
+  const unreadByFilter = useMemo(() => {
+    const unread = rows.filter(r => !r.is_read);
+    const out = {};
+    for (const f of FILTERS) out[f.id] = unread.filter(r => matchesFilter(r.type, f.id)).length;
     return out;
   }, [rows]);
 
@@ -221,13 +232,9 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     [rows, filter],
   );
   const groups = useMemo(() => groupByDay(filteredRows), [filteredRows]);
-  // Two different unread numbers, and conflating them reads as a bug.
-  // `unreadCount` is the sheet's total — it drives the live region, which
-  // is about the badge the user just tapped. `unreadInView` is what the
-  // TODAY pill shows, because that pill sits INSIDE a filtered list: under
-  // Friends it said "3 new" over a single unread row.
+  // The sheet's total drives the live region, which is about the badge the
+  // user just tapped. Per-tab numbers live on the tabs themselves.
   const unreadCount = rows.filter(r => !r.is_read).length;
-  const unreadInView = filteredRows.filter(r => !r.is_read).length;
   const hasAny = rows.length > 0;
   const canLoadMore = rows.length >= limit;
 
@@ -241,7 +248,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
         desc:  tFallback('notifications.empty.desc', "When you complete quests, hit streaks, or your friends post, you'll see it here."),
       };
     }
-    if (filter === 'social') {
+    if (filter === 'people') {
       return {
         title: tFallback('notifications.empty.friendsTitle', 'No friend activity yet'),
         desc:  tFallback('notifications.empty.friendsDesc', "Follow friends and you'll see their posts and reactions here."),
@@ -355,7 +362,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
             // notch on every notched iPhone, which is the whole install
             // base. The list pads its own bottom for the home indicator.
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
-            className="absolute end-0 top-0 bottom-0 w-full bg-card border-s border-border flex flex-col touch-pan-y"
+            className="absolute end-0 top-0 bottom-0 w-full sm:w-[420px] bg-card border-s border-border flex flex-col touch-pan-y"
           >
             {/* ── Header ── every control is a 44px target; they were 28. */}
             <div className="flex items-center justify-between h-14 ps-4 pe-1 border-b border-border shrink-0">
@@ -409,29 +416,42 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
               </div>
             </div>
 
-            {/* ── Filters ── one set, from one catalog. The panel had 2 tabs
-                and the page had 5, mapped differently. */}
+            {/* ── Right now ── live reminders, read from their source.
+                Renders nothing when nothing is live. */}
+            <NotificationNowCard
+              user={user}
+              open={open}
+              language={language}
+              tFallback={tFallback}
+              onGo={(to) => { handleClose(); navigate(to); }}
+            />
+
+            {/* ── Filters ── a plain tab strip. The row of filled pills with
+                totals read as clutter and the totals said nothing. */}
             <div
               role="group"
               aria-label={tFallback('notifications.filter', 'Filter notifications')}
-              className="flex gap-2 px-4 py-2.5 overflow-x-auto scrollbar-hide border-b border-border shrink-0"
+              className="flex gap-6 px-4 overflow-x-auto scrollbar-hide border-b border-border shrink-0"
             >
               {FILTERS.map(f => {
                 const on = filter === f.id;
+                const n = unreadByFilter[f.id] ?? 0;
                 return (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => setFilter(f.id)}
                     aria-pressed={on}
-                    className={`shrink-0 h-8 px-3 rounded-full text-label font-semibold transition-colors ${
-                      on ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-secondary/70 active:bg-secondary/70'
+                    className={`shrink-0 h-11 inline-flex items-center gap-2 border-b-2 -mb-px text-label font-semibold transition-colors ${
+                      on ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {tFallback(f.labelKey, f.label)}
-                    <span className={`ms-2 ${on ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                      {counts[f.id] ?? 0}
-                    </span>
+                    {n > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold tabular-nums inline-flex items-center justify-center">
+                        {n > 9 ? '9+' : n}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -483,13 +503,8 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                 <>
                   {groups.map(g => (
                     <section key={g.bucket} aria-label={tFallback(...BUCKET_LABEL[g.bucket])}>
-                      <h3 className="flex items-center justify-between px-4 h-7 text-micro font-bold uppercase tracking-wide text-muted-foreground">
+                      <h3 className="flex items-center px-4 h-7 text-micro font-bold uppercase tracking-wide text-muted-foreground">
                         {tFallback(...BUCKET_LABEL[g.bucket])}
-                        {g.bucket === BUCKET.TODAY && unreadInView > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground normal-case tracking-normal">
-                            {tFallback('notifications.newCount', '{count} new', { count: unreadInView })}
-                          </span>
-                        )}
                       </h3>
                       <ul>
                         <AnimatePresence initial={false}>
@@ -705,6 +720,7 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
   // falling back to the stored text otherwise. See src/lib/notificationText.js
   // — a row is otherwise frozen in whatever language wrote it.
   const text = notificationText(n, tFallback);
+  const title = stripLeadingEmoji(text.title);
   const time = formatNotificationTime(n.created_at, language);
   const dragControls = useDragControls();
 
@@ -762,7 +778,7 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
           )}
           <NotificationAvatar n={n} actor={actor} />
           <div className="flex-1 min-w-0 ms-2">
-            <p className={`text-body leading-tight ${n.is_read ? '' : 'font-semibold'}`}>{text.title}</p>
+            <p className={`text-body leading-tight ${n.is_read ? '' : 'font-semibold'}`}>{title}</p>
             {text.body && (
               <p className="text-label text-muted-foreground leading-snug mt-1 line-clamp-2">{text.body}</p>
             )}
@@ -806,11 +822,12 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
 // a person row until the lookup answers (or if it fails).
 function NotificationAvatar({ n, actor }) {
   const [failed, setFailed] = useState(false);
-  const glyph = n.icon || '🔔';
+  const Icon = iconFor(n.type);
+  const hue = hueFor(n.type);
   if (!actor) {
     return (
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${HUE_TILE[hueFor(n.type)]}`}>
-        <span aria-hidden="true">{glyph}</span>
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${HUE_TILE[hue]}`}>
+        <Icon className={`w-5 h-5 ${HUE_ICON[hue]}`} aria-hidden="true" />
       </div>
     );
   }
@@ -835,9 +852,9 @@ function NotificationAvatar({ n, actor }) {
       )}
       <span
         aria-hidden="true"
-        className="absolute -bottom-1 -end-1 w-5 h-5 rounded-full bg-card ring-2 ring-card flex items-center justify-center text-[11px] leading-none"
+        className="absolute -bottom-1 -end-1 w-5 h-5 rounded-full bg-card ring-2 ring-card flex items-center justify-center"
       >
-        {glyph}
+        <Icon className={`w-3 h-3 ${HUE_ICON[hue]}`} strokeWidth={2.5} />
       </span>
     </div>
   );
