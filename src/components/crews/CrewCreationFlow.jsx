@@ -153,7 +153,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
         })
       );
 
-      toast.success(`${crew.name} created!`);
+      toast.success(tFallback('notice.crewCreated', '{name} created!', { name: crew.name }));
 
       // Said once, after the success, and only when it is true. Those friends
       // are not lost — their DM still arrives and the card files a request —

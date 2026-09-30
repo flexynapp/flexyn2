@@ -41,7 +41,7 @@ export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail, t } = {})
   try { navigator.vibrate?.([20, 60, 20, 60, 80]); } catch { /* ignore */ }
 
   const xpLine = xpGained > 0 ? ` · +${xpGained} XP` : '';
-  toast.success(`🎉 First workout logged${xpLine}`, {
+  toast.success(`${tf('celebration.firstWorkout.title', '🎉 First workout logged')}${xpLine}`, {
     description: tf('celebration.firstWorkout.body', "You're officially training with Flexyn. Keep the momentum going."),
     duration: TOAST_MS,
   });

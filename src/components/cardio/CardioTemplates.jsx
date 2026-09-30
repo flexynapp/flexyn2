@@ -74,7 +74,7 @@ export default function CardioTemplates({ onApply }) {
         .eq('created_by', user.email);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['cardioTemplates', user?.email] });
-      toast.success(`Template "${tpl.name}" deleted`);
+      toast.success(tFallback('notice.templateDeleted', 'Template "{name}" deleted', { name: tpl.name }));
     } catch (err) {
       reportError(err, { feature: 'cardio.template.delete' });
       toast.error(tFallback("cardioTemplates.failedToDeleteTemplate", "Failed to delete template"));

@@ -21,6 +21,7 @@ import * as users from '@/lib/data/users';
 import { createGroupConversation } from '@/lib/data/hubMessages';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 
 const MAX_OTHERS = 9;
 
@@ -110,7 +111,10 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
     } catch (err) {
       const code = err?.code || '';
       if (code === '22023') toast.error(tFallback('groupDM.sizeRange', 'Group must have 3–10 people total.'));
-      else toast.error(`Could not create: ${err?.message || 'try again'}`);
+      else {
+        reportError(err, { feature: 'hub.group-dm.create' });
+        toast.error(tFallback('notice.groupCreateFailed', "Couldn't create the group. Try again."));
+      }
     } finally {
       setCreating(false);
     }

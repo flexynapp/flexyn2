@@ -48,8 +48,8 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
   const prestigeMut = useMutation({
     mutationFn: performPrestige,
     onSuccess: (result) => {
-      toast.success(`Prestige ${roman} achieved!`, {
-        description: `+${result.coins_awarded} Flex Coins · "${title}"`,
+      toast.success(tFallback('notice.prestigeReached', 'Prestige {roman} reached!', { roman }), {
+        description: tFallback('notice.prestigeReward', '+{coins} Flex Coins · "{title}"', { coins: result.coins_awarded, title }),
         duration: 6000,
       });
       qc.invalidateQueries({ queryKey: ['userProfile'] });

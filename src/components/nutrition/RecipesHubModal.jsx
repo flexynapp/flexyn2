@@ -50,6 +50,7 @@ import RecipeOverflowSheet from './RecipeOverflowSheet';
 import LogRecipeSheet from './LogRecipeSheet';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 
 // Square thumbnail — the recipe photo, or a placeholder.
 function RecipeThumb({ recipe, className = 'w-14 h-14' }) {
@@ -221,7 +222,8 @@ export default function RecipesHubModal({
         ? tFallback('recipesHub.sharedToDiscover', 'Shared to Discover.')
         : tFallback('recipesHub.removedFromDiscover', 'Removed from Discover.'));
     } catch (err) {
-      toast.error(`Couldn't update: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'recipes.share' });
+      toast.error(tFallback('notice.recipeUpdateFailed', "Couldn't update the recipe. Try again."));
     } finally {
       setBusyId(null);
     }

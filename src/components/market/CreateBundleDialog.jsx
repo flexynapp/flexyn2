@@ -95,7 +95,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
         sellerUserId: user.id,
         sellerEmail:  user.email,
       });
-      toast.success(`Bundle live — ${selected.length} items at ${discount}% off.`);
+      toast.success(tFallback('notice.bundleLive', 'Bundle live: {n} items at {pct}% off.', { n: selected.length, pct: discount }));
       handleClose();
       onSuccess?.();
     } catch (err) {

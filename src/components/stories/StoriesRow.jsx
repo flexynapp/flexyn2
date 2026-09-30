@@ -726,7 +726,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false, compac
         reportError(e instanceof Error ? e : new Error(`story post failed: ${code} ${msg}`), {
           feature: 'story.post', userEmail: user?.email, code, raw: (() => { try { return JSON.stringify(e).slice(0, 600); } catch { return String(e); } })(),
         });
-        toast.error(`Couldn't post story — ${code ? code + ': ' : ''}${msg}`.slice(0, 160), { duration: 9000 });
+        toast.error(tFallback('notice.storyFailed', "Couldn't post your story. Try again."));
         cleanupPreview();
         return;
       }
@@ -740,7 +740,7 @@ export default function StoriesRow({ onViewProfile, tightOnShort = false, compac
       // leak another blob into memory.
       cleanupPreview();
       reportError(err, { feature: 'story.post', userEmail: user?.email });
-      toast.error(`Upload failed — ${err?.message || err?.code || 'try again'}`.slice(0, 160), { duration: 9000 });
+      toast.error(tFallback('notice.storyFailed', "Couldn't post your story. Try again."));
     },
   });
 
