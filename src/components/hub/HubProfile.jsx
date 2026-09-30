@@ -559,7 +559,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   // ── Liked posts ──────────────────────────────────────────────────────────
   // A mode rather than a fourth tab: switching it on replaces the whole
-  // Stats/Trophies/Posts area. Your likes are private and stay private — the
+  // Stats/Trophies/Posts area. This list is yours alone (friends see your
+  // likes only through get_friends_liked_posts, behind a setting) — the
   // query reads hub_reactions by created_by, which RLS scopes to your own
   // rows, so there is no shape of this request that could return anyone
   // else's. That is why the control only exists on your own profile.
