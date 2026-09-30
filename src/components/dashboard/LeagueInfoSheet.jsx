@@ -36,7 +36,7 @@ function LadderRow({ tier, isLast }) {
     <div className={`flex items-center gap-2 py-2 ${isLast ? '' : 'border-b border-border/50'}`}>
       {/* The tier colour lives here and nowhere else on the sheet — same rule
           the card and the standings follow, so the four-hue budget holds. */}
-      <LeagueTierBadge tier={tier.id} size={24} />
+      <LeagueTierBadge tier={tier.id} size={28} />
       <span className="text-caption font-bold flex-1 min-w-0 truncate">
         {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)}
       </span>

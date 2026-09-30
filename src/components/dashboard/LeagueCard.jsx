@@ -161,10 +161,9 @@ export default function LeagueCard({ onClick, stretch = false }) {
           whole card, sitting immediately below the orange "Start a
           workout" CTA — two saturated orange blocks stacked, with the
           league shouting louder than the primary action on the screen.
-          It's a normal card now. Tier identity moved onto the 32px medal
-          badge, which is the smallest surface that still says "bronze";
-          confining it there also keeps the Master/Legend tiers' pink and
-          violet down to a chip instead of a full-width banner.
+          It's a normal card now. Tier identity lives in the 40px league
+          emblem, the smallest surface that still says "bronze", which
+          keeps the tier colours to one object instead of a banner.
 
           When stretching, flex-1 + items-center absorbs the spare height
           so the card matches its row neighbour (the Readiness square).
@@ -179,7 +178,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
               on top of the rank. Stacked, the title gets the full width.
               See the .dash-slot / cq-* block in index.css. */}
           <div className="flex items-center gap-2.5 w-full cq-stack">
-            <LeagueTierBadge tier={tier.id} size={32} />
+            <LeagueTierBadge tier={tier.id} size={40} />
             <div className="flex-1 min-w-0">
               {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
                   the card's title, so it gets the title treatment. */}

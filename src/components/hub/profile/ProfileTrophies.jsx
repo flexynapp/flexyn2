@@ -25,7 +25,6 @@ import {
   trophyDescription,
 } from '@/lib/trophyDefinitions';
 import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
-import { getTier as getLeagueTier } from '@/lib/leagueTiers';
 
 function SectionLabel({ children, aside }) {
   return (
@@ -166,11 +165,7 @@ export default function ProfileTrophies({
                   className="relative aspect-square rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden"
                 >
                   {trophy.leagueTier ? (
-                    <LeagueTierIcon
-                      tier={trophy.leagueTier}
-                      className="w-7 h-7"
-                      style={{ color: getLeagueTier(trophy.leagueTier).color }}
-                    />
+                    <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
                   ) : (
                     <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
                   )}

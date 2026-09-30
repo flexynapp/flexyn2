@@ -73,7 +73,7 @@ function TrophyPlate({ seasonNumber, tier, isChampion, tierColor }) {
           </span>
           {/* Was the raw tier id in capitals ("DIAMOND" in every language).
               The tier's mark says it without a word to translate. */}
-          <LeagueTierIcon tier={tier} className="w-5 h-5 mt-1" style={{ color: tierColor }} />
+          <LeagueTierIcon tier={tier} className="w-8 h-8 mt-0.5" />
         </>
       )}
       <span

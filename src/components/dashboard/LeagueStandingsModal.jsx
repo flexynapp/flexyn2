@@ -123,12 +123,12 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
     <>
       {/* Header. It was a full-bleed tier gradient under white text, which
           failed contrast on Gold and Platinum and put violet on Diamond.
-          The tier colour now lives on one solid badge, the same medal chip
-          the Today card uses, and the rest sits on the dialog surface. */}
+          The tier colour now lives in the league emblem, the same one the
+          Today card uses, and the rest sits on the dialog surface. */}
       <div className="relative px-5 pt-6 pb-5 border-b border-border">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 pe-8">
-            <LeagueTierBadge tier={tier.id} size={32} />
+            <LeagueTierBadge tier={tier.id} size={40} />
             {leagueTierName(tier, tFallback)}
           </DialogTitle>
         </DialogHeader>

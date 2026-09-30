@@ -1,96 +1,184 @@
 // src/components/leagues/LeagueTierIcon.jsx
 //
-// The league tiers' own marks. They replace the medal emoji (🥉🥈🥇💠💎👑),
-// which rendered differently on every platform, could not take the tier
-// colour, and read as stickers next to the app's drawn icons.
+// League emblems. Each tier is a crest the user earns, and each one is
+// visibly MORE than the one below it, so the next tier up always looks
+// like something worth reaching:
 //
-// The six marks are one ladder, read the way rank insignia are:
-//   bronze   one chevron
-//   silver   two chevrons
-//   gold     three chevrons
-//   platinum a star
-//   diamond  a cut stone
-//   legend   a crown
-// Chevrons count up through the metals, so the first three tiers are
-// ordered by shape alone and survive a colour-blind reading.
+//   bronze    a plain shield with one chevron
+//   silver    the shield grows small wings, two chevrons
+//   gold      full wings and a star
+//   platinum  swept wings, a star, and a spike above the crest
+//   diamond   the shield becomes a cut stone between great wings
+//   legend    the stone crowned
 //
-// Every mark is solid and filled with currentColor on a 24 grid. The
-// caller sets the colour, usually `onTierColor(tier.color)` on a chip in
-// the tier colour (see LeagueTierBadge below). No strokes: a 1.5px line
-// disappears at the 14px the ladder draws these.
+// Depth comes from flat facets (a light and a dark half on every part),
+// not from gradients: this is a drawn object, so it gets a light source,
+// but the app's no-gradient rule still holds. Each tier's palette is its
+// league colour plus a lighter and darker step of the same hue, so the
+// emblem IS the tier colour and needs no chip behind it.
+//
+// The shapes live on a 64 grid. The silhouettes differ tier to tier, so
+// the ladder still reads at the 14px the profile plate draws them.
 
 import React from 'react';
-import { getTier, onTierColor } from '@/lib/leagueTiers';
+import { getTier } from '@/lib/leagueTiers';
 
-// One up-pointing chevron, apex at (12, y), arms `h` tall and `t` thick.
-const chevron = (y, h = 6, t = 3.5) =>
-  `M4 ${y + h}L12 ${y}L20 ${y + h}V${y + h + t}L12 ${y + t}L4 ${y + h + t}Z`;
+// light, dark, rim and glyph ink. `mid` is the tier colour itself, read
+// from leagueTiers so the emblem and every other use of it cannot drift.
+const PALETTES = {
+  bronze:   { light: '#EDB27A', dark: '#9A5A22', rim: '#5E3413', ink: '#FFF1E0' },
+  silver:   { light: '#F4F6F8', dark: '#8E959D', rim: '#4E555D', ink: '#FFFFFF' },
+  gold:     { light: '#FFF08A', dark: '#CE9A04', rim: '#6E4E00', ink: '#FFFBE6' },
+  platinum: { light: '#E0FCFF', dark: '#22B8CC', rim: '#0B5D69', ink: '#FFFFFF' },
+  diamond:  { light: '#DCEBFF', dark: '#2F6FE0', rim: '#15327A', ink: '#FFFFFF' },
+  legend:   { light: '#FFD3DA', dark: '#DB2B4E', rim: '#6E0F2A', ink: '#FFFFFF', crown: '#FACC15', crownDark: '#C99A06' },
+};
 
-const MARKS = {
-  bronze: <path d={chevron(7, 7, 4.5)} />,
-  silver: (
+// Shield, in two halves so the left catches the light.
+const SHIELD_OUT_L = 'M32 8 L14 14 V31 C14 43 22 51 32 57 Z';
+const SHIELD_OUT_R = 'M32 8 L50 14 V31 C50 43 42 51 32 57 Z';
+const SHIELD_IN_L = 'M32 13 L18.5 17.5 V31 C18.5 40.5 24.5 47 32 51.5 Z';
+const SHIELD_IN_R = 'M32 13 L45.5 17.5 V31 C45.5 40.5 39.5 47 32 51.5 Z';
+
+// A left wing, three feathers stepping down; the right is its mirror.
+const WING_SMALL = [
+  'M15 17 L4 14 L7 21 Z',
+  'M15 23 L3 23 L7 28 Z',
+  'M15 29 L6 32 L10 35 Z',
+];
+const WING_FULL = [
+  'M15 16 L1 10 L5 18 Z',
+  'M15 21 L0 19 L5 25 Z',
+  'M15 26 L1 28 L6 32 Z',
+  'M15.5 31 L4 37 L10 38 Z',
+];
+const WING_SWEPT = [
+  'M15 15 L2 4 L4 14 Z',
+  'M15 20 L0 13 L3 21 Z',
+  'M15 25 L0 23 L4 29 Z',
+  'M15 30 L2 33 L7 36 Z',
+  'M16 35 L6 42 L12 42 Z',
+];
+
+const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
+const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
+
+function Wings({ feathers, p }) {
+  return (
     <>
-      <path d={chevron(3.5, 6.5, 4)} />
-      <path d={chevron(11, 6.5, 4)} />
+      {feathers.map((d, i) => (
+        <path key={`l${i}`} d={d} fill={i % 2 ? p.mid : p.light} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+      ))}
+      <g transform="translate(64 0) scale(-1 1)">
+        {feathers.map((d, i) => (
+          <path key={`r${i}`} d={d} fill={i % 2 ? p.dark : p.mid} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+        ))}
+      </g>
+    </>
+  );
+}
+
+function Shield({ p }) {
+  return (
+    <>
+      <path d={SHIELD_OUT_L} fill={p.mid} />
+      <path d={SHIELD_OUT_R} fill={p.dark} />
+      <path d={SHIELD_IN_L} fill={p.light} />
+      <path d={SHIELD_IN_R} fill={p.mid} />
+      <path d="M32 8 L50 14 V31 C50 43 42 51 32 57 C22 51 14 43 14 31 V14 Z" fill="none" stroke={p.rim} strokeWidth="2" strokeLinejoin="round" />
+    </>
+  );
+}
+
+// The cut stone for Diamond and Legend: a crown row over a pavilion.
+function Gem({ p, y = 0 }) {
+  return (
+    <g transform={`translate(0 ${y})`}>
+      <path d="M21 17 H43 L50 27 H14 Z" fill={p.light} />
+      <path d="M21 17 L27 27 H14 Z" fill={p.mid} />
+      <path d="M43 17 L37 27 H50 Z" fill={p.mid} />
+      <path d="M14 27 H32 V54 Z" fill={p.mid} />
+      <path d="M50 27 H32 V54 Z" fill={p.dark} />
+      <path d="M27 27 L32 54 L37 27 Z" fill={p.light} opacity="0.55" />
+      <path d="M21 17 H43 L50 27 L32 54 L14 27 Z" fill="none" stroke={p.rim} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M24 20.5 L27 20.5" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
+    </g>
+  );
+}
+
+const EMBLEMS = {
+  bronze: (p) => (
+    <>
+      <Shield p={p} />
+      <path d={chevron(25)} fill={p.ink} stroke={p.rim} strokeWidth="1" strokeLinejoin="round" />
     </>
   ),
-  gold: (
+  silver: (p) => (
     <>
-      <path d={chevron(2)} />
-      <path d={chevron(8)} />
-      <path d={chevron(14)} />
+      <Wings feathers={WING_SMALL} p={p} />
+      <Shield p={p} />
+      <path d={chevron(19)} fill={p.ink} stroke={p.rim} strokeWidth="1" strokeLinejoin="round" />
+      <path d={chevron(30)} fill={p.ink} stroke={p.rim} strokeWidth="1" strokeLinejoin="round" />
     </>
   ),
-  platinum: (
-    <path d="M12 2.5l2.85 6.1 6.65.8-4.92 4.55 1.3 6.6L12 17.2l-5.88 3.35 1.3-6.6L2.5 9.4l6.65-.8z" />
-  ),
-  // Crown (the table and girdle) above the pavilion, split by a gap so it
-  // reads as a cut stone and not a kite.
-  diamond: (
+  gold: (p) => (
     <>
-      <path d="M7.4 3.5h9.2l4.2 5.2H3.2z" />
-      <path d="M3.2 10.4h17.6L12 21z" />
+      <Wings feathers={WING_FULL} p={p} />
+      <Shield p={p} />
+      <path d={STAR} fill={p.ink} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
     </>
   ),
-  legend: (
+  platinum: (p) => (
     <>
-      <path d="M3 6.5l4.6 4.3L12 3.5l4.4 7.3L21 6.5l-1.8 10H4.8z" />
-      <path d="M4.8 18h14.4v2.5H4.8z" />
+      <Wings feathers={WING_SWEPT} p={p} />
+      <path d="M32 0 L36 9 L32 12 L28 9 Z" fill={p.light} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+      <Shield p={p} />
+      <path d={STAR} fill={p.ink} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+    </>
+  ),
+  diamond: (p) => (
+    <>
+      <Wings feathers={WING_SWEPT} p={p} />
+      <Gem p={p} y={2} />
+    </>
+  ),
+  legend: (p) => (
+    <>
+      <Wings feathers={WING_SWEPT} p={p} />
+      <Gem p={p} y={6} />
+      {/* The crown sits on the stone's table. */}
+      <path d="M22 22 L20 11 L26.5 16 L32 8 L37.5 16 L44 11 L42 22 Z" fill={p.crown} stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M32 8 L37.5 16 L44 11 L42 22 H32 Z" fill={p.crownDark} />
+      <path d="M22 22 L20 11 L26.5 16 L32 8 L37.5 16 L44 11 L42 22 Z" fill="none" stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="32" cy="17" r="1.8" fill={p.light} stroke={p.rim} strokeWidth="0.8" />
     </>
   ),
 };
 
-/** The bare mark in currentColor. `tier` is a league tier id. */
-export default function LeagueTierIcon({ tier, className = 'w-4 h-4', ...rest }) {
-  const mark = MARKS[tier] || MARKS.bronze;
+/** The emblem for a league tier id. Decorative: the tier name is always
+ *  in text beside it, so it is hidden from screen readers. */
+export default function LeagueTierIcon({ tier, className = 'w-8 h-8', ...rest }) {
+  const id = PALETTES[tier] ? tier : 'bronze';
+  const palette = { ...PALETTES[id], mid: getTier(id).color };
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-      {...rest}
-    >
-      {mark}
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true" focusable="false" {...rest}>
+      {EMBLEMS[id](palette)}
     </svg>
   );
 }
 
 /**
- * The mark on a solid chip in the tier colour. This is the one form the
- * tier colour takes on the card, the standings and the ladder, so the
- * chip and its ink are decided here rather than at each call site.
+ * The emblem at a set size. It carries its own colour, so there is no
+ * chip behind it any more; the name is kept so the call sites read the
+ * same as before.
  */
 export function LeagueTierBadge({ tier, size = 32, className = '' }) {
   const meta = getTier(tier);
   return (
-    <span
-      className={`shrink-0 inline-flex items-center justify-center rounded-sm ${className}`}
-      style={{ width: size, height: size, backgroundColor: meta.color, color: onTierColor(meta.color) }}
-      aria-hidden="true"
-    >
-      <LeagueTierIcon tier={meta.id} style={{ width: Math.round(size * 0.6), height: Math.round(size * 0.6) }} className="" />
-    </span>
+    <LeagueTierIcon
+      tier={meta.id}
+      className={`shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+    />
   );
 }

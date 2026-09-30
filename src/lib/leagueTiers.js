@@ -63,9 +63,9 @@ export const DECAY_GRACE_WEEKS = 2;
 /** Lifetime cap on purchased shields. Mirrors `c_lifetime_cap` in grant_league_shield. */
 export const SHIELD_LIFETIME_CAP = 3;
 
-// Each tier's colour is used in exactly one form: a solid chip (the medal
-// on the card, the square on the ladder, the badge in the standings
-// header) or the trophy plate's accent. There are no tier gradients; a
+// Each tier's colour lives in its emblem (LeagueTierIcon, which carries
+// a lighter and darker step of it) and the trophy plate's accent. There
+// are no tier gradients behind UI; a
 // full-bleed tier gradient behind white text failed contrast on Gold and
 // Platinum and put violet on Diamond.
 export const TIERS = [
@@ -155,21 +155,6 @@ export function leagueTierName(tier, tFallback) {
   if (!tier?.id) return tFallback('league.leagueSuffix', 'League');
   const name = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
   return tFallback('league.tierName', '{tier} League', { tier: name });
-}
-
-/**
- * Glyph colour for text or an icon drawn ON a tier chip. Tier colours run
- * from dark bronze to pale platinum, so a fixed white or black fails at one
- * end; pick from relative luminance. 0.42 rather than 0.5 so dark wins
- * ties, because a white glyph disappears fastest on the pale tiers.
- */
-export function onTierColor(hex) {
-  const h = (hex || '').replace('#', '');
-  if (h.length !== 6) return '#fff';
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
-  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.42 ? '#1a1d23' : '#ffffff';
 }
 
 export function getTier(id) {
