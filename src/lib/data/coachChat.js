@@ -65,6 +65,8 @@ async function parseFunctionError(error) {
  * @param {object}   [args.context] training-data digest (see buildCoachContext)
  * @param {string}   [args.language] app language code, e.g. 'es'
  * @param {number}   [args.timeoutMs]
+ * @param {string}   [args.purpose] 'starter_intro' for the onboarding write-up,
+ *                                  which runs on its own small quota and prompt
  * @returns {Promise<{ok: true, kind: string, reply: string, goal: string} | {ok: false, error: string}>}
  */
 export async function askCoachLLM({
@@ -73,6 +75,7 @@ export async function askCoachLLM({
   context = {},
   language = 'en',
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  purpose,
 } = {}) {
   if (!message || !String(message).trim()) return { ok: false, error: 'MISSING_MESSAGE' };
   if (_pipelineMissing) return { ok: false, error: 'PIPELINE_MISSING' };
@@ -91,6 +94,7 @@ export async function askCoachLLM({
           .map(m => ({ role: m.role, text: String(m.text) })),
         context,
         language,
+        ...(purpose ? { purpose } : {}),
       },
       signal: controller.signal,
     });

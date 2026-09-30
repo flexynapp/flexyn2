@@ -135,6 +135,9 @@ export async function askStarterPlanCoach({ draft = {}, language = 'en' } = {}) 
       context: buildOnboardingContext(draft),
       language,
       timeoutMs: TIMEOUT_MS,
+      // Its own short Haiku prompt and its own quota, so the write-up no
+      // longer spends one of a guest's five chat messages (coach-chat).
+      purpose: 'starter_intro',
     });
   } catch (err) {
     // askCoachLLM does not throw, but onboarding is the wrong place to find
