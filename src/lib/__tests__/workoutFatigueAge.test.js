@@ -40,9 +40,25 @@ describe('Rule E counts this session\'s unsaved runs', () => {
   const profile = { age: 30, gender: 'male', weight_lbs: 180 };
   const run = (o) => ({ kind: 'cardio', name: 'Run', segments: [{ duration_s: 5 * 3600, distance_m: 40000 }], ...o });
 
-  it('flags a five hour run the stated duration understates', () => {
-    // The run has no cardio_log_id yet, so only the stated 30 minutes counted.
+  it('lets an honest five hour run inside a workout save', () => {
+    // A marathon typed into a workout is cardio, not five hours of lifting.
     const workout = { date: '2026-09-28', duration_min: 30, exercises: [run()] };
+    expect(detectImplausibleWorkout(workout, profile, [], []).implausible).toBe(false);
+  });
+
+  it('counts an unsaved run against the daily cardio limit', () => {
+    // 10 h already logged in Cardio today plus a 5 h run here is 15 h of cardio.
+    const saved = [{ id: 'c0', date: '2026-09-28', duration_seconds: 10 * 3600 }];
+    const workout = { date: '2026-09-28', duration_min: 30, exercises: [run()] };
+    expect(detectImplausibleWorkout(workout, profile, [], saved)).toMatchObject({
+      implausible: true, i18nKey: 'workout.warn.cardio_hours',
+    });
+  });
+
+  it('keeps the lifting side of a session that also holds a run', () => {
+    // 5 h stated with a 30 min run leaves 4.5 h of lifting, over the 4 h cap.
+    const lift = { name: 'Bench Press', sets: [{ weight: 135, reps: 5 }] };
+    const workout = { date: '2026-09-28', duration_min: 300, exercises: [lift, run({ segments: [{ duration_s: 1800 }] })] };
     expect(detectImplausibleWorkout(workout, profile, [], [])).toMatchObject({
       implausible: true, i18nKey: 'workout.warn.workout_hours',
     });
