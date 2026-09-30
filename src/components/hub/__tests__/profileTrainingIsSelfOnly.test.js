@@ -29,6 +29,10 @@ describe('HubProfile training data is self only', () => {
     expect(src).toMatch(/const scoreStreak = isSelf \? trainingStreak : \(Number\(targetProfile\?\.workout_streak\) \|\| 0\);/);
   });
 
+  it('prints no level for a profile whose stats are hidden', () => {
+    expect(src).toMatch(/const showPlate = isSelf \|\| \(targetProfile != null && targetProfile\.total_xp != null\);/);
+  });
+
   it('shows the workouts row and recent workouts only on your own profile', () => {
     expect(src).toMatch(/\{isSelf && heroLogs\.length > 0 && \(\s*<SummaryRow/);
     expect(src).toMatch(/\{isSelf && <ProfileRecentWorkouts logs=\{heroLogs\}/);

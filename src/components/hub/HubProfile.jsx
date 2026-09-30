@@ -49,7 +49,7 @@ import AvatarUploader from '@/components/AvatarUploader';
 import ProfileMetrics from './profile/ProfileMetrics';
 import ProfileActions from './profile/ProfileActions';
 import ProfileTrophies from './profile/ProfileTrophies';
-import ProfileScoreboard from './profile/ProfileScoreboard';
+import ProfileLeaguePlate from './profile/ProfileLeaguePlate';
 import ProfileSummaryList, { SummaryRow } from './profile/ProfileSummaryList';
 import ProfileRecentWorkouts from './profile/ProfileRecentWorkouts';
 import { useHeroContests } from './profile/useHeroContests';
@@ -375,7 +375,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // the public_profiles view, and nothing on this page needs it.
       const { data } = await safeSelect({
         columns: [
-          'id', 'username', 'display_name', 'avatar_url', 'total_xp',
+          'id', 'username', 'display_name', 'avatar_url', 'total_xp', 'league_tier',
           'preferred_theme', 'loot_theme_id',
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
@@ -1238,14 +1238,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
   const { level, xpInLevel, xpNeeded } = levelData;
-  const tier = getTier(level, t);
-  const xpToNext = Number.isFinite(xpNeeded) && Number.isFinite(xpInLevel)
-    ? Math.max(0, Math.round(xpNeeded - xpInLevel))
-    : null;
   // Your own streak is derived from your logs; nobody else's logs are
-  // readable, so their scoreboard uses the server's workout_streak, which
+  // readable, so their plate uses the server's workout_streak, which
   // public_profiles returns only when their stats are visible to you.
   const scoreStreak = isSelf ? trainingStreak : (Number(targetProfile?.workout_streak) || 0);
+  // The plate needs a level to print. public_profiles returns total_xp as
+  // NULL on a private profile you don't follow, and printing "Lv. 1" there
+  // would be a guess, so a hidden profile gets no plate at all.
+  const showPlate = isSelf || (targetProfile != null && targetProfile.total_xp != null);
+  const plateLeagueId = isSelf ? (heroLeague?.tierId ?? user?.league_tier ?? null) : (targetProfile?.league_tier ?? null);
+  const levelProgress = Number.isFinite(xpNeeded) && xpNeeded > 0 ? xpInLevel / xpNeeded : 0;
 
   // Deleted / reset accounts have username starting with "deleted_".
   // For other people's profiles: show "User not found".
@@ -1353,13 +1355,25 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           scoreboard below as a number with its context, which is what the
           banner was trying to say. Kegan's pick, option C "Athlete summary",
           2026-09-29. */}
-      <div className="flex flex-col items-center text-center pt-6">
+      {showPlate && (
+        <ProfileLeaguePlate
+          leagueId={plateLeagueId}
+          level={level}
+          progress={levelProgress}
+          streak={scoreStreak}
+          onOpenLeague={isSelf && heroLeague ? () => setLeagueOpen(true) : undefined}
+          t={t}
+          tFallback={tFallback}
+          fmtNumber={fmtNumber}
+        />
+      )}
+      <div className={`flex flex-col items-center text-center ${showPlate ? '' : 'pt-6'}`}>
         {/* Long-press on the avatar opens the per-profile easter egg game.
             It used to be a 👾 button beside the name, which put an emoji on
             every visitor's view of three profiles. */}
         <div
           className="relative shrink-0 select-none"
-          style={{ width: 96, height: 96, marginTop: activeNote ? 48 : 0, WebkitTouchCallout: 'none' }}
+          style={{ width: 96, height: 96, marginTop: showPlate ? -48 : (activeNote ? 48 : 0), WebkitTouchCallout: 'none' }}
           {...eggPressHandlers}
         >
             {/* Status note — floats above the avatar, sticker-style. */}
@@ -2004,40 +2018,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <ProfileScoreboard
-            cells={[
-              {
-                id: 'level',
-                value: t('levelBar.level', { n: level }),
-                label: isSelf && xpToNext != null
-                  ? tFallback('profile.levelSub', '{tier} · {n} XP to go', { tier: tier.name, n: fmtNumber(xpToNext) })
-                  : tier.name,
-              },
-              scoreStreak > 0 && {
-                id: 'streak',
-                value: fmtNumber(scoreStreak),
-                label: tFallback('profile.dayStreak', 'day streak'),
-              },
-              // Your own third number is your workout count; another
-              // athlete's logs are unreadable, so theirs is trophies. The
-              // list row for the same thing then carries no second count.
-              isSelf && heroLogs.length > 0 && {
-                id: 'workouts',
-                value: fmtNumber(heroLogs.length),
-                label: heroLogs.length === 1
-                  ? tFallback('profile.workoutOne', 'workout')
-                  : tFallback('profile.workoutMany', 'workouts'),
-              },
-              !isSelf && earnedTrophies.length > 0 && {
-                id: 'trophies',
-                value: fmtNumber(earnedTrophies.length),
-                label: earnedTrophies.length === 1
-                  ? tFallback('profile.trophyOne', 'trophy')
-                  : tFallback('profile.trophyMany', 'trophies'),
-              },
-            ]}
-          />
-
           <ProfileSummaryList>
             {heroLeague && (
               <SummaryRow
@@ -2085,6 +2065,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 icon={Dumbbell}
                 label={tFallback('profile.workouts', 'Workouts')}
                 sub={bestLift ? tFallback('profile.bestLiftSub', 'Best lift: {name} {rm}', { name: bestLift.name, rm: bestLift.label }) : undefined}
+                value={fmtNumber(heroLogs.length)}
                 onClick={() => setSection('lifts')}
               />
             )}
@@ -2092,7 +2073,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <SummaryRow
                 icon={Trophy}
                 label={tFallback('hub.profile.tabTrophies', 'Trophies')}
-                value={isSelf && earnedTrophies.length > 0 ? fmtNumber(earnedTrophies.length) : undefined}
+                value={earnedTrophies.length > 0 ? fmtNumber(earnedTrophies.length) : undefined}
                 onClick={() => setSection('trophies')}
               />
             )}
