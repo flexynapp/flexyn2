@@ -18,8 +18,8 @@ function throwReported(err, feature, ctx) {
 // Listings and bundles are browsed by every signed-in user. Sellers are
 // identified by seller_user_id / seller_username, so seller_email stays on
 // the server.
-const LISTING_COLUMNS = 'id, seller_user_id, seller_username, inventory_id, item_id, item_name, item_emoji, item_rarity, listing_type, asking_price, trade_for_rarity, status, created_at, available_from, available_until, bundle_id, is_featured, featured_until';
-const BUNDLE_COLUMNS = 'id, seller_user_id, title, discount_pct, status, created_at';
+export const LISTING_COLUMNS = 'id, seller_user_id, seller_username, inventory_id, item_id, item_name, item_emoji, item_rarity, listing_type, asking_price, trade_for_rarity, status, created_at, available_from, available_until, bundle_id, is_featured, featured_until';
+export const BUNDLE_COLUMNS = 'id, seller_user_id, title, discount_pct, status, created_at';
 
 /**
  * List all active marketplace listings.
