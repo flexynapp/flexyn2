@@ -18,9 +18,20 @@ describe('buildGoalAssistMessage', () => {
     }];
     const msg = buildGoalAssistMessage(bench, { logs, weightUnit: 'lbs', today });
     expect(msg).toContain('Bench Press, one set of 150 lbs x 8');
-    expect(msg).toContain('135 x 6');
+    expect(msg).toContain('closest to it so far is 135 x 6');
+    expect(msg).not.toContain('heaviest');
     expect(msg).toContain('October 30, 2026, 30 days from now');
     expect(msg).toMatch(/Help me make a plan/);
+  });
+
+  it('names the heavier load when a lighter set is the closest', () => {
+    const logs = [{
+      created_date: '2026-09-10T00:00:00Z',
+      exercises: [{ name: 'Bench Press', sets: [{ weight: 135, reps: 6 }, { weight: 125, reps: 8 }] }],
+    }];
+    const msg = buildGoalAssistMessage(bench, { logs, weightUnit: 'lbs', today });
+    expect(msg).toContain('closest to it so far is 125 x 8');
+    expect(msg).toContain('My heaviest set is 135 lbs, for fewer reps.');
   });
 
   it('says so when nothing has been logged yet', () => {

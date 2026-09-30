@@ -39,7 +39,14 @@ function describeStrength(goal, logs, weightUnit) {
   let current = null;
   if (tw && tr) {
     target = `${lift}, one set of ${formatWeight(tw, weightUnit)} x ${tr}`;
-    if (r.bestSet) current = `My closest set so far is ${formatWeightNumber(r.bestSet.weight, weightUnit)} x ${r.bestSet.reps}.`;
+    if (r.bestSet) {
+      // "Closest" weighs reps and load together, so a lighter set that hit the
+      // reps can beat a heavier one that fell short. Name the heavier load
+      // too, or the Coach reads the history, finds a bigger number and
+      // spends its opening arguing with the message.
+      current = `My set closest to it so far is ${formatWeightNumber(r.bestSet.weight, weightUnit)} x ${r.bestSet.reps}.`;
+      if (r.maxWeight > r.bestSet.weight) current += ` My heaviest set is ${formatWeight(r.maxWeight, weightUnit)}, for fewer reps.`;
+    }
   } else if (tw) {
     target = `${lift} at ${formatWeight(tw, weightUnit)}`;
     if (r.maxWeight > 0) current = `My heaviest so far is ${formatWeight(r.maxWeight, weightUnit)}.`;
