@@ -143,7 +143,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
         const feed = await hubPosts.listPublicFeed(200).catch(() => []);
         const filtered = feed.filter(p => {
           const body = (p.body || p.content || '').toLowerCase();
-          const author = (p.author_name || p.author_email || '').toLowerCase();
+          const author = (p.author_name || '').toLowerCase();
           const postType = (p.post_type || '').toLowerCase();
           // Hashtag search: if query starts with '#' match exact tag, else partial body match
           if (q.startsWith('#')) {

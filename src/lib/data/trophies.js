@@ -174,3 +174,58 @@ export async function checkAndCelebrate(tf) {
   );
   return res;
 }
+
+// ── Lead Lifter reveal ─────────────────────────────────────────────────────
+//
+// Lead Lifter trophies are awarded by the Monday roll while the winner is
+// away, so the app reveals them on the next open instead of at the moment
+// they are earned. "Seen" is per device, like the season ceremony: seeing it
+// twice on two phones is harmless, missing it is not.
+
+const LEAD_SEEN_KEY = (userId) => `flexyn.leadTrophySeen.${userId}`;
+// Only recent wins are revealed; an old one surfacing on a new device weeks
+// later would read as a bug.
+const LEAD_REVEAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+function readLeadSeen(userId) {
+  try {
+    const raw = localStorage.getItem(LEAD_SEEN_KEY(userId));
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markLeadTrophiesSeen(userId, ids) {
+  if (!userId || !ids?.length) return;
+  try {
+    const next = [...new Set([...readLeadSeen(userId), ...ids])].slice(-60);
+    localStorage.setItem(LEAD_SEEN_KEY(userId), JSON.stringify(next));
+  } catch { /* storage unavailable: the sheet may show again, which is fine */ }
+}
+
+/** Lead Lifter trophies the user won recently and has not been shown on
+ *  this device, newest first, the whole-league trophy ahead of a level one. */
+export async function listUnseenLeadTrophies(userId, now = Date.now()) {
+  if (!userId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('user_trophies')
+      .select('trophy_id, earned_at')
+      .eq('user_id', userId)
+      .like('trophy_id', 'league_lead_%')
+      .order('earned_at', { ascending: false })
+      .limit(10);
+    if (error || !Array.isArray(data)) return [];
+    const seen = new Set(readLeadSeen(userId));
+    return data
+      .filter((r) => !seen.has(r.trophy_id))
+      .filter((r) => now - new Date(r.earned_at).getTime() < LEAD_REVEAL_WINDOW_MS)
+      .map((r) => ({ ...r, trophy: getTrophy(r.trophy_id) }))
+      .filter((r) => r.trophy?.isLeadLifter)
+      .sort((a, b) => (a.trophy.leadLevel ? 1 : 0) - (b.trophy.leadLevel ? 1 : 0));
+  } catch {
+    return [];
+  }
+}

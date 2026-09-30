@@ -356,7 +356,7 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
 
 function CommunityTemplateCard({ template, user, queryClient, onCopied }) {
   const { t } = useLanguage();
-  const isMine = template.created_by === user?.email;
+  const isMine = Boolean(user?.id && template.user_id === user.id);
   const authorHandle = handle(template);
 
   const copyMutation = useMutation({

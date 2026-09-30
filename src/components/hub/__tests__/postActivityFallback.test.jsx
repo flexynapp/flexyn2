@@ -43,7 +43,7 @@ const post = (type, extra = {}) => ({
   linked_entity_type: type,
   linked_entity_id: 'row1',
   linked_entity_snapshot: null,
-  author_email: 'me@x.co',
+  user_id: 'u1',
   ...extra,
 });
 
@@ -85,16 +85,16 @@ describe('share card fallback read', () => {
     expect(gets.workout).not.toHaveBeenCalled();
   });
 
-  it('reads nothing when neither the post nor the viewer has an email', async () => {
-    currentUser = { id: 'u2', email: undefined };
-    show(post('workout', { author_email: undefined, user_id: 'u1' }));
+  it('reads nothing when the post has no author id', async () => {
+    currentUser = { id: undefined, email: undefined };
+    show(post('workout', { user_id: undefined }));
     await new Promise((r) => setTimeout(r, 20));
     expect(gets.workout).not.toHaveBeenCalled();
   });
 
   it('recognises the author by id when they have no email', async () => {
     currentUser = { id: 'u1', email: undefined };
-    show(post('workout', { author_email: undefined, user_id: 'u1' }));
+    show(post('workout'));
     await waitFor(() => expect(gets.workout).toHaveBeenCalledWith('row1'));
   });
 

@@ -48,7 +48,7 @@ describe('workout_templates reads', () => {
     results = [{ data: [{ id: 't1' }], error: null }];
     expect(await templates.list('u1')).toEqual([{ id: 't1' }]);
     expect(calls).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'user_id', 'u1'],
+      [T, 'from'], [T, 'select', templates.TEMPLATE_COLUMNS], [T, 'eq', 'user_id', 'u1'],
       [T, 'order', 'created_date', { ascending: false }], [T, 'limit', 1000],
     ]);
   });
@@ -62,7 +62,7 @@ describe('workout_templates reads', () => {
     results = [{ data: [{ id: 'p' }], error: null }, { data: null, error: { code: '42501' } }];
     expect(await templates.listPublic(20)).toEqual([{ id: 'p' }]);
     expect(calls).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'is_public', true],
+      [T, 'from'], [T, 'select', templates.TEMPLATE_COLUMNS], [T, 'eq', 'is_public', true],
       [T, 'order', 'copy_count', { ascending: false }], [T, 'limit', 20],
     ]);
     expect(await templates.listPublic(20)).toEqual([]);
@@ -77,7 +77,7 @@ describe('workout_templates writes', () => {
       name: 'T', user_id: 'u1', created_by: 'a@b.co',
       exercises: [{ name: 'Row', sets: [{ weight: null, reps: null }] }],
     }]);
-    expect(calls.slice(-2)).toEqual([[T, 'select'], [T, 'single']]);
+    expect(calls.slice(-2)).toEqual([[T, 'select', templates.TEMPLATE_COLUMNS], [T, 'single']]);
   });
 
   it('saveTemplate inserts a private skeleton', async () => {
@@ -94,7 +94,7 @@ describe('workout_templates writes', () => {
     results = [{ data: { id: 't1' }, error: null }];
     await templates.update('t1', { name: 'New' });
     expect(calls).toEqual([
-      [T, 'from'], [T, 'update', { name: 'New' }], [T, 'eq', 'id', 't1'], [T, 'select'], [T, 'single'],
+      [T, 'from'], [T, 'update', { name: 'New' }], [T, 'eq', 'id', 't1'], [T, 'select', templates.TEMPLATE_COLUMNS], [T, 'single'],
     ]);
 
     calls = [];
@@ -102,7 +102,7 @@ describe('workout_templates writes', () => {
     await templates.update('t1', { is_public: true });
     expect(calls).toEqual([
       [T, 'from'], [T, 'select', 'original_template_id'], [T, 'eq', 'id', 't1'], [T, 'maybeSingle'],
-      [T, 'from'], [T, 'update', { is_public: true }], [T, 'eq', 'id', 't1'], [T, 'select'], [T, 'single'],
+      [T, 'from'], [T, 'update', { is_public: true }], [T, 'eq', 'id', 't1'], [T, 'select', templates.TEMPLATE_COLUMNS], [T, 'single'],
     ]);
   });
 
@@ -122,7 +122,7 @@ describe('workout_templates writes', () => {
   it('copyTemplate inserts a private copy and bumps the original', async () => {
     results = [{ data: { id: 'c1' }, error: null }];
     expect(await templates.copyTemplate(
-      { id: 'o1', name: 'PPL', exercises: [{ name: 'Row' }], created_by: 'sam@x.co' },
+      { id: 'o1', name: 'PPL', exercises: [{ name: 'Row' }], author_username: 'sam' },
       { email: 'a@b.co' },
     )).toEqual({ id: 'c1' });
     expect(insertOf()).toEqual([{
@@ -130,6 +130,15 @@ describe('workout_templates writes', () => {
       is_public: false, copy_count: 0, original_template_id: 'o1', original_author_username: 'sam',
     }]);
     expect(supabase.rpc).toHaveBeenCalledWith('increment_copy_count', { p_table: T, p_id: 'o1' });
+  });
+
+  it('copyTemplate never names the author from their email', async () => {
+    results = [{ data: { id: 'c2' }, error: null }];
+    await templates.copyTemplate(
+      { id: 'o2', name: 'PPL', exercises: [], created_by: 'sam.smith@work.co' },
+      { email: 'a@b.co' },
+    );
+    expect(insertOf()[0].original_author_username).toBeNull();
   });
 });
 

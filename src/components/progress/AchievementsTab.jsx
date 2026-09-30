@@ -53,6 +53,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
 import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
+import LeadLifterTrophyIcon from '@/components/leagues/LeadLifterTrophyIcon';
 
 // How many "closest rung" cards lead the page. Three is enough to offer a
 // choice without turning the top of the page into a second full list.
@@ -87,7 +88,14 @@ function Medallion({ trophy, earned, size = 44 }) {
           ...(earned ? {} : { filter: 'grayscale(1) brightness(0.5)', opacity: 0.75 }),
         }}
       >
-        {trophy.leagueTier ? (
+        {trophy.isLeadLifter ? (
+          <LeadLifterTrophyIcon
+            tier={trophy.leagueTier}
+            level={trophy.leadLevel}
+            style={{ width: Math.round(size * 0.8), height: Math.round(size * 0.8) }}
+            className=""
+          />
+        ) : trophy.leagueTier ? (
           <LeagueTierIcon
             tier={trophy.leagueTier}
             style={{ width: Math.round(size * 0.8), height: Math.round(size * 0.8) }}
@@ -314,11 +322,11 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
   }, [trophies]);
 
   const namedTotal = TROPHIES.length;
-  // Tails, league seasons and XP milestones all sit outside TROPHIES, so
+  // Tails, league seasons, Lead Lifter trophies and XP milestones all sit outside TROPHIES, so
   // none of them may count against a denominator drawn from it — a
   // numerator that can exceed its denominator reads as a broken counter.
   const namedEarned = earnedRows.filter(
-    (x) => !x.trophy.isTail && !x.trophy.season && !x.trophy.isXpMilestone,
+    (x) => !x.trophy.isTail && !x.trophy.season && !x.trophy.isXpMilestone && !x.trophy.isLeadLifter,
   ).length;
   const pct = namedTotal > 0 ? Math.round((namedEarned / namedTotal) * 100) : 0;
   const extra = earnedRows.length - namedEarned;

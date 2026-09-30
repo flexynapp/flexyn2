@@ -396,8 +396,11 @@ export default function CardioManualForm({
       // One batched call — recordActions reads the day's quests once and
       // fans out, where three recordAction calls read them three times.
       // Zero/absent amounts are dropped inside, so no filtering here.
+      // An edit is not a new session: crediting it again counted the same
+      // run twice, and the server (which counts saved rows) would then
+      // refuse the claim.
       const durSec = Number(payload.duration_seconds) || 0;
-      quests.recordActions(user, [
+      if (!initial?.id) quests.recordActions(user, [
         { type: ACTION_TYPES.CARDIO_COMPLETED, amount: 1 },
         { type: ACTION_TYPES.CARDIO_SECONDS,   amount: durSec },
         { type: ACTION_TYPES.PR_ACHIEVED,      amount: prCount },

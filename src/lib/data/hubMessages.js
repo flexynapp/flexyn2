@@ -55,22 +55,23 @@ const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Create a group DM with the caller + the supplied participant emails.
- * Backed by mig 116's create_group_conversation RPC, which validates
- * the 3-10 participant range, de-dupes, and auto-accepts the creator
- * so the group lands in their main inbox.
+ * Create a group DM with the caller + the supplied participants, by user id.
+ * create_group_conversation_by_ids resolves the emails on the server and
+ * hands them to mig 116's create_group_conversation, which validates the
+ * 3-10 participant range, de-dupes, and auto-accepts the creator so the
+ * group lands in their main inbox.
  *
- * @param {string[]} emails  participant emails (caller excluded)
- * @param {string}   [title]   optional display name; empty string → NULL
+ * @param {string[]} userIds  participant user ids (caller excluded)
+ * @param {string}   [title]  optional display name; empty string → NULL
  * @returns {Promise<string>}  the new conversation's id
  */
-export const createGroupConversation = async (emails, title = null) => {
-  if (!Array.isArray(emails) || emails.length < 2) {
+export const createGroupConversation = async (userIds, title = null) => {
+  if (!Array.isArray(userIds) || userIds.length < 2) {
     throw new Error('group_min_participants');
   }
-  const { data, error } = await supabase.rpc('create_group_conversation', {
-    p_emails: emails,
-    p_title:  title,
+  const { data, error } = await supabase.rpc('create_group_conversation_by_ids', {
+    p_user_ids: userIds,
+    p_title:    title,
   });
   if (error) throw error;
   return data;

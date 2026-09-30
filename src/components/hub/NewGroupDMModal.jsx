@@ -1,7 +1,7 @@
 // src/components/hub/NewGroupDMModal.jsx
 //
 // "New group" modal. Multi-select from the viewer's follows + optional
-// group name. On Create, calls the create_group_conversation RPC
+// group name. On Create, calls the create_group_conversation_by_ids RPC
 // (mig 116), then routes the user into the new thread.
 //
 // Constraints (enforced server-side, surfaced inline):
@@ -32,7 +32,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState([]); // array of emails
+  const [selected, setSelected] = useState([]); // array of user ids
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -43,58 +43,42 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
     }
   }, [open]);
 
-  // listFollowingPairs returns { id, email } — NOT hub_follows rows.
-  //
-  // This used to call listFollowing() and read `.followee_email` /
-  // `.username` / `.avatar_url` off each entry, but that function returns
-  // an Array<string> of emails: every one of those reads was undefined, so
-  // every row fell out of the trailing `.filter(f => f.email)` and the
-  // picker rendered "Follow some people to start a group" at users who
-  // follow plenty of people. Group DMs could not be created at all. Same
-  // defect HubMessages fixed in its partition query (audit 10 #1); this
-  // copy of it was missed.
-  //
-  // Display info is resolved by id against public_profiles — the address
-  // itself is never shown, only used to build the group.
+  // The people you follow, by id, with display info from public_profiles.
+  // Nobody's email is read: the group is created from ids.
   const { data: follows = [], isLoading } = useQuery({
-    queryKey: ['myFollowsForGroupDM', user?.email],
+    queryKey: ['myFollowsForGroupDM', user?.id],
     queryFn:  async () => {
-      const pairs = await hubFollows.listFollowingPairs(user.email).catch(() => []);
-      if (pairs.length === 0) return [];
-      const ids = pairs.map(p => p.id).filter(Boolean);
+      const ids = await hubFollows.listFollowingIds(user.id).catch(() => []);
+      if (ids.length === 0) return [];
       const byId = {};
-      if (ids.length > 0) {
-        const { data } = await users.selectProfiles((from) => from
-          .select('id, username, avatar_url')
-          .in('id', ids));
-        for (const u of (data ?? [])) byId[u.id] = u;
-      }
-      return pairs.map(p => ({
-        email:    p.email,
-        username: byId[p.id]?.username   || null,
-        avatar:   byId[p.id]?.avatar_url || null,
+      const { data } = await users.selectProfiles((from) => from
+        .select('id, username, avatar_url')
+        .in('id', ids));
+      for (const u of (data ?? [])) byId[u.id] = u;
+      return ids.map(id => ({
+        id,
+        username: byId[id]?.username   || null,
+        avatar:   byId[id]?.avatar_url || null,
       }));
     },
-    enabled: !!user?.email && open,
+    enabled: !!user?.id && open,
     staleTime: 60_000,
   });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return follows;
-    return follows.filter(f =>
-      f.email.includes(q) || (f.username || '').toLowerCase().includes(q)
-    );
+    return follows.filter(f => (f.username || '').toLowerCase().includes(q));
   }, [follows, query]);
 
-  const toggle = (email) => {
+  const toggle = (id) => {
     setSelected(curr => {
-      if (curr.includes(email)) return curr.filter(e => e !== email);
+      if (curr.includes(id)) return curr.filter(e => e !== id);
       if (curr.length >= MAX_OTHERS) {
         toast.error(tFallback('groupDM.maxPeople', "That's the most people a group DM can hold. Create a Crew for larger groups."));
         return curr;
       }
-      return [...curr, email];
+      return [...curr, id];
     });
   };
 
@@ -171,17 +155,12 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
         {/* Selected chips */}
         {selected.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-            {/* The chip shows the handle, never the address. `selected` is a
-                list of emails because that is what createGroupConversation
-                takes — but the rows above this already render handle(f), so
-                picking someone turned their @name into their email address
-                on screen. Following someone is not consent to see it. */}
-            {selected.map(email => {
-              const f = follows.find(x => x.email === email);
+            {selected.map(id => {
+              const f = follows.find(x => x.id === id);
               return (
                 <button
-                  key={email}
-                  onClick={() => toggle(email)}
+                  key={id}
+                  onClick={() => toggle(id)}
                   className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1"
                 >
                   {f ? handle(f) : '@athlete'} <X className="w-3 h-3" />
@@ -205,11 +184,11 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
           ) : (
             <ul className="space-y-1">
               {filtered.map(f => {
-                const isSel = selected.includes(f.email);
+                const isSel = selected.includes(f.id);
                 return (
-                  <li key={f.email}>
+                  <li key={f.id}>
                     <button
-                      onClick={() => toggle(f.email)}
+                      onClick={() => toggle(f.id)}
                       className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-colors ${
                         isSel ? 'bg-primary/10' : 'hover:bg-secondary/50 active:bg-secondary/50'
                       }`}

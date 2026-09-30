@@ -31,11 +31,7 @@ function heaviestSet(sets) {
   return best;
 }
 
-/**
- * @param {Array<{ exercises?: Array<{ name?: string, displayName?: string, sets?: Array }> }>} logs
- * @returns {{ name: string, weight: number, reps: number } | null}
- */
-export function headlineLift(logs = []) {
+function heaviestByExercise(logs) {
   const byName = new Map();
   for (const log of Array.isArray(logs) ? logs : []) {
     for (const ex of Array.isArray(log?.exercises) ? log.exercises : []) {
@@ -50,8 +46,31 @@ export function headlineLift(logs = []) {
       }
     }
   }
-  const all = [...byName.values()];
-  const heaviest = (list) => list.sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0] || null;
-  const ofType = (type) => all.filter((l) => implementTypeForExercise(l.name) === type);
-  return heaviest(ofType('barbell')) || heaviest(ofType('dumbbell')) || heaviest(all);
+  return [...byName.values()];
+}
+
+const byWeight = (a, b) => b.weight - a.weight || b.reps - a.reps;
+const RANK = { barbell: 0, dumbbell: 1 };
+
+/**
+ * The best `n` lifts under the same rule as the headline: barbell lifts by
+ * heaviest set first, then dumbbell lifts, then anything else. The Stats
+ * page lists these, so its first row and the profile's Workouts line are
+ * always the same lift.
+ *
+ * @returns {Array<{ name: string, weight: number, reps: number }>}
+ */
+export function topLifts(logs = [], n = 3) {
+  const rank = (l) => RANK[implementTypeForExercise(l.name)] ?? 2;
+  return heaviestByExercise(logs)
+    .sort((a, b) => rank(a) - rank(b) || byWeight(a, b))
+    .slice(0, n);
+}
+
+/**
+ * @param {Array<{ exercises?: Array<{ name?: string, displayName?: string, sets?: Array }> }>} logs
+ * @returns {{ name: string, weight: number, reps: number } | null}
+ */
+export function headlineLift(logs = []) {
+  return topLifts(logs, 1)[0] || null;
 }
