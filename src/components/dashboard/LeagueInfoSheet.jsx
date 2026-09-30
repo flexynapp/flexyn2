@@ -1,16 +1,14 @@
 // src/components/dashboard/LeagueInfoSheet.jsx
 //
-// "How leagues work" — the explainer for the ladder, qualification, seasons
-// and inactivity.
+// "How leagues work": the explainer for the ladder, the Strength Score, the
+// weekly race and seasons.
 //
-// This exists because the standings screen states the RULES OF THIS WEEK
-// ("0 qualified — 5 needed before anyone moves") without ever stating the
-// system. A user reading that line has no way to learn what Bronze is worth,
-// what it takes to leave it, or what happens if they take a week off. Every
-// number here is read from `leagueTiers.js`, which mirrors the resolver's
-// config, so the card cannot drift from what the server actually does — the
-// failure mode that had the old standings header promising "Top 10 promoted"
-// in a bracket of six.
+// Two separate systems live behind one card and this sheet is where the
+// reader learns they are separate (Kegan, 2026-09-30): STRENGTH decides your
+// league, TRAINING decides your week. Every number here is read from
+// `leagueTiers.js`, which mirrors the server's config, so the sheet cannot
+// drift from what `league_apply_strength_placement` and
+// `resolve_league_bracket_internal` actually do.
 //
 // Six tiers, not five: Legend sits above Diamond and is the terminal rank,
 // which is worth showing precisely because it is the thing being climbed
@@ -18,12 +16,13 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, Dumbbell } from 'lucide-react';
+import { Dumbbell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import {
   TIERS,
-  MIN_QUALIFIED_TO_MOVE,
-  DECAY_GRACE_WEEKS,
+  MIN_QUALIFIED_FOR_PRIZE,
+  DEMOTE_MARGIN,
   SHIELD_LIFETIME_CAP,
   MAX_LEAGUE_LEVEL,
   levelNumeral,
@@ -34,39 +33,24 @@ const pct = (n) => `${Math.round(n * 100)}%`;
 
 function LadderRow({ tier, isLast }) {
   const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   return (
     <div className={`flex items-center gap-2 py-2 ${isLast ? '' : 'border-b border-border/50'}`}>
-      {/* The tier colour lives here and nowhere else on the sheet — same rule
-          the card and the standings follow, so the four-hue budget holds. */}
+      {/* The tier colour lives here and nowhere else on the sheet, the same
+          rule the card and the standings follow, so the four-hue budget holds. */}
       <LeagueTierBadge tier={tier.id} size={32} />
       <span className="text-caption font-bold flex-1 min-w-0 truncate">
         {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)}
       </span>
 
-      <span className="flex items-center gap-1 w-16 justify-end tabular-nums">
-        {tier.promotePct > 0 ? (
-          <>
-            <ArrowUp className="w-3 h-3 text-success shrink-0" aria-hidden="true" />
-            <span className="text-micro text-success font-semibold">{pct(tier.promotePct)}</span>
-          </>
-        ) : (
-          <span className="text-micro text-muted-foreground">
-            {tFallback('league.info.terminal', 'Top')}
-          </span>
-        )}
+      <span className="w-16 text-end tabular-nums text-micro font-semibold">
+        {tier.strengthFloor > 0
+          ? fmt(tier.strengthFloor)
+          : <span className="text-muted-foreground font-normal">{tFallback('league.info.start', 'Start')}</span>}
       </span>
 
-      <span className="flex items-center gap-1 w-16 justify-end tabular-nums">
-        {tier.demotePct > 0 ? (
-          <>
-            <ArrowDown className="w-3 h-3 text-destructive shrink-0" aria-hidden="true" />
-            <span className="text-micro text-destructive font-semibold">{pct(tier.demotePct)}</span>
-          </>
-        ) : (
-          <span className="text-micro text-muted-foreground">
-            {tFallback('league.info.floor', 'Floor')}
-          </span>
-        )}
+      <span className="w-14 text-end tabular-nums text-micro text-muted-foreground font-semibold">
+        {pct(tier.prizePct)}
       </span>
 
       <span className="flex items-center gap-1 w-10 justify-end tabular-nums">
@@ -101,8 +85,8 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
           </DialogHeader>
           <p className="text-caption text-muted-foreground pt-2">
             {tFallback(
-              'league.info.intro',
-              'Every Monday you join a bracket of up to 30 people at your tier. You are ranked by the XP you earn that week.',
+              'league.info.introStrength',
+              'Your strength decides your league. Your training decides your week.',
             )}
           </p>
 
@@ -117,10 +101,10 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
                 {tFallback('league.info.colTier', 'Tier')}
               </span>
               <span className="text-micro text-muted-foreground w-16 text-end">
-                {tFallback('league.info.colUp', 'Promote')}
+                {tFallback('league.info.colStrength', 'Strength')}
               </span>
-              <span className="text-micro text-muted-foreground w-16 text-end">
-                {tFallback('league.info.colDown', 'Drop')}
+              <span className="text-micro text-muted-foreground w-14 text-end">
+                {tFallback('league.info.colPrize', 'Prize')}
               </span>
               <span className="text-micro text-muted-foreground w-10 text-end">
                 {tFallback('league.info.colDays', 'Days')}
@@ -131,8 +115,8 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
             ))}
             <p className="text-micro text-muted-foreground pt-2">
               {tFallback(
-                'league.info.ladderNote',
-                'Percentages are of the people who qualified that week. Not of the whole bracket. Days is how many you need to train to be ranked at all.',
+                'league.info.ladderNoteStrength',
+                'Strength is the score a league starts at. Prize is the share of qualified people who win the full reward each week. Days is how many separate days you need to train to be ranked.',
               )}
             </p>
           </div>
@@ -168,33 +152,47 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
           {/* ── The rules ──────────────────────────────────────────── */}
           <div className="pt-6 flex flex-col gap-6">
             <Rule
-              title={tFallback('league.info.qualifyTitle', 'Training is what ranks you')}
+              title={tFallback('league.info.scoreTitle', 'Your Strength Score')}
               body={tFallback(
-                'league.info.qualifyBody',
-                'XP alone is not enough. Train on the number of separate days your tier asks for, and strength or cardio both count. Miss that and you finish Unranked, earn nothing, and cannot be promoted no matter how much XP you have.',
+                'league.info.scoreBody',
+                'We read your squat, bench press, deadlift and overhead press from the last 90 days and compare the total to your bodyweight, so a lighter lifter is not ranked below a heavier one for being lighter. Each lift counts at your second best session, so one great day or one typo cannot place you.',
               )}
             />
             <Rule
-              title={tFallback('league.info.bracketTitle', 'Small brackets hold')}
+              title={tFallback('league.info.moveTitle', 'Moving between leagues')}
               body={tFallback(
-                'league.info.bracketBody',
-                'If fewer than {n} people qualify, nobody moves up or down that week. Everyone keeps their tier and qualified members still get a payout.',
-                { n: MIN_QUALIFIED_TO_MOVE },
+                'league.info.moveBody',
+                'Your first score places you straight into the league it earns. After that you move one league per Monday: up when your score reaches the next league, down only when it falls {margin} below your own. A Shield blocks one drop, and you can own {cap} in total.',
+                { margin: pct(1 - DEMOTE_MARGIN), cap: SHIELD_LIFETIME_CAP },
+              )}
+            />
+            <Rule
+              title={tFallback('league.info.restTitle', 'Time off never drops you')}
+              body={tFallback(
+                'league.info.restBody',
+                'If there is no score to read, because you have not lifted in 90 days or have no bodyweight saved, you keep your league until there is.',
+              )}
+            />
+            <Rule
+              title={tFallback('league.info.raceTitle', 'The weekly race')}
+              body={tFallback(
+                'league.info.raceBody',
+                'Every Monday you join a bracket of up to 30 people. You are ranked by days trained, then XP. Once {n} people qualify, the top of the bracket wins the full reward for their league and everyone else who trained wins a quarter of it. The race pays out but never moves your league.',
+                { n: MIN_QUALIFIED_FOR_PRIZE },
+              )}
+            />
+            <Rule
+              title={tFallback('league.info.mixedTitle', 'Small leagues share a bracket')}
+              body={tFallback(
+                'league.info.mixedBody',
+                'When too few people in your league are training that week, you race in the nearest bracket instead. You still play for your own league’s reward.',
               )}
             />
             <Rule
               title={tFallback('league.info.seasonTitle', 'Seasons last 28 days')}
               body={tFallback(
-                'league.info.seasonBody',
-                'Four weeks to one season. Qualify in any two of them and you keep a permanent title and trophy for the highest tier you reached. Everyone drops one tier when the next season opens, so the climb resets but the trophies do not.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.quietTitle', 'A rest week costs you nothing')}
-              body={tFallback(
-                'league.info.quietBody',
-                'Miss one week and nothing happens. Miss {grace} and you get a nudge. From the next one you drop a tier per quiet week, down to Bronze. A single workout stops it. A Shield holds one drop, and you can own {cap} in total.',
-                { grace: DECAY_GRACE_WEEKS, cap: SHIELD_LIFETIME_CAP },
+                'league.info.seasonBodyStrength',
+                'Four weeks to one season. Qualify in any two of them and you keep a permanent title and trophy for the highest league you reached. A new season does not move your league.',
               )}
             />
             <Rule

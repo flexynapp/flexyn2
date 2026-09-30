@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   TIERS,
   MAX_LEAGUE_SIZE,
-  MIN_QUALIFIED_TO_MOVE,
-  DECAY_GRACE_WEEKS,
+  MIN_QUALIFIED_FOR_PRIZE,
+  DEMOTE_MARGIN,
   SHIELD_LIFETIME_CAP,
   getTier,
   nextTier,
   previousTier,
-  promoteCount,
-  demoteCount,
+  tierForScore,
+  prizeCount,
   isQualified,
   resolveStanding,
   outcomeLabel,
@@ -29,29 +29,24 @@ describe('TIERS configuration', () => {
     TIERS.forEach((tier, i) => {
       expect(tier.id, `tier ${i}`).toBeTruthy();
       expect(tier.label, `tier ${i}`).toBeTruthy();
-      expect(typeof tier.promotePct).toBe('number');
-      expect(typeof tier.demotePct).toBe('number');
+      expect(typeof tier.strengthFloor).toBe('number');
+      expect(typeof tier.prizePct).toBe('number');
       expect(typeof tier.minWorkouts).toBe('number');
-      expect(typeof tier.minXp).toBe('number');
       expect(typeof tier.rewardCoins).toBe('number');
       expect(tier.rewardCoins).toBeGreaterThanOrEqual(0);
     });
   });
 
-  it('promotion tightens as you climb', () => {
-    // Bronze is the widest gate; Legend is terminal. Everything between must
-    // be monotonically harder, or a tier stops meaning anything.
-    const pcts = TIERS.filter(t => t.id !== 'legend').map(t => t.promotePct);
-    for (let i = 1; i < pcts.length; i++) {
-      expect(pcts[i], `promotePct at ${TIERS[i].id}`).toBeLessThan(pcts[i - 1]);
-    }
+  it('strength floors mirror league_tier_floor on the server', () => {
+    // Change these only together with the migration's league_tier_floor.
+    expect(TIERS.map(t => t.strengthFloor)).toEqual([0, 150, 250, 325, 400, 475]);
   });
 
-  it('minXp is zero on every tier — the floor is deliberately switched off', () => {
-    // Guard against someone setting a plausible-looking XP floor from a guess.
-    // The production ledger (10 user-weeks, median 23 XP) cannot support one,
-    // and any value in the hundreds disqualifies every real user.
-    TIERS.forEach(t => expect(t.minXp, `minXp at ${t.id}`).toBe(0));
+  it('prize share narrows as you climb', () => {
+    const pcts = TIERS.map(t => t.prizePct);
+    for (let i = 1; i < pcts.length; i++) {
+      expect(pcts[i], `prizePct at ${TIERS[i].id}`).toBeLessThanOrEqual(pcts[i - 1]);
+    }
   });
 
   it('rewards scale up by tier', () => {
@@ -61,22 +56,14 @@ describe('TIERS configuration', () => {
     }
   });
 
-  it('bronze cannot demote', () => {
-    expect(getTier('bronze').demotePct).toBe(0);
-  });
-
-  it('legend cannot promote (already at top)', () => {
-    expect(getTier('legend').promotePct).toBe(0);
-  });
-
   it('MAX_LEAGUE_SIZE is a sensible number', () => {
     expect(MAX_LEAGUE_SIZE).toBeGreaterThan(0);
     expect(MAX_LEAGUE_SIZE).toBeLessThanOrEqual(100);
   });
 
   it('exports the constants the server mirrors', () => {
-    expect(MIN_QUALIFIED_TO_MOVE).toBe(5);
-    expect(DECAY_GRACE_WEEKS).toBe(2);
+    expect(MIN_QUALIFIED_FOR_PRIZE).toBe(5);
+    expect(DEMOTE_MARGIN).toBe(0.9);
     expect(SHIELD_LIFETIME_CAP).toBe(3);
   });
 });
@@ -110,55 +97,55 @@ describe('getTier / nextTier / previousTier', () => {
   });
 });
 
-describe('promoteCount / demoteCount — proportional bands', () => {
-  it('matches the server for a 12-strong gold bracket', () => {
-    // Verified against roll_weekly_leagues() on a seeded bracket:
-    // 12 qualified at gold -> 4 promote, 1 demote.
-    expect(promoteCount('gold', 12)).toBe(4);
-    expect(demoteCount('gold', 12)).toBe(1);
+describe('tierForScore', () => {
+  it('places a score in the highest tier whose floor it clears', () => {
+    expect(tierForScore(0).id).toBe('bronze');
+    expect(tierForScore(149.9).id).toBe('bronze');
+    expect(tierForScore(150).id).toBe('silver');
+    // 745 lb total at 165 lb bodyweight is about 243 DOTS: Silver.
+    expect(tierForScore(243).id).toBe('silver');
+    expect(tierForScore(269).id).toBe('gold');
+    expect(tierForScore(475).id).toBe('legend');
+    expect(tierForScore(900).id).toBe('legend');
   });
 
-  it('nobody moves below the minimum qualified field', () => {
-    // This is what stops a solo bronze bracket walking one person to Legend.
-    for (let n = 0; n < MIN_QUALIFIED_TO_MOVE; n++) {
-      expect(promoteCount('bronze', n), `n=${n}`).toBe(0);
-      expect(demoteCount('gold', n), `n=${n}`).toBe(0);
+  it('treats a missing score as bronze', () => {
+    expect(tierForScore(null).id).toBe('bronze');
+    expect(tierForScore(undefined).id).toBe('bronze');
+    expect(tierForScore('nope').id).toBe('bronze');
+  });
+});
+
+describe('prizeCount', () => {
+  it('pays nobody the top prize below the minimum qualified field', () => {
+    for (let n = 0; n < MIN_QUALIFIED_FOR_PRIZE; n++) {
+      expect(prizeCount('bronze', n), `n=${n}`).toBe(0);
     }
-    expect(promoteCount('bronze', MIN_QUALIFIED_TO_MOVE)).toBeGreaterThan(0);
   });
 
-  it('always advances at least one from a qualifying bracket', () => {
-    // ceil() plus the GREATEST(1, …) floor. Without it the smallest brackets
-    // would stall permanently at the bottom of the ladder.
-    expect(promoteCount('diamond', 5)).toBe(1);
+  it('takes the tier share, rounded up, and never less than one', () => {
+    expect(prizeCount('bronze', 5)).toBe(3);   // ceil(2.5)
+    expect(prizeCount('gold', 12)).toBe(4);    // ceil(3.6)
+    expect(prizeCount('legend', 5)).toBe(1);
+    expect(prizeCount('legend', 30)).toBe(6);
   });
 
-  it('legend never promotes at any size', () => {
-    [5, 12, 30].forEach(n => expect(promoteCount('legend', n), `n=${n}`).toBe(0));
-  });
-
-  it('bronze never demotes at any size', () => {
-    [5, 12, 30].forEach(n => expect(demoteCount('bronze', n), `n=${n}`).toBe(0));
-  });
-
-  it('demotion rounds in the user favour', () => {
-    // floor(), not ceil() — 30 * 0.15 = 4.5 demotes four, not five.
-    expect(demoteCount('gold', 30)).toBe(4);
-  });
-
-  it('zones never overlap, at any bracket size', () => {
-    // A rank in both bands would make the outcome depend on branch order.
+  it('never exceeds the field', () => {
     TIERS.forEach(t => {
-      for (let n = MIN_QUALIFIED_TO_MOVE; n <= 30; n++) {
-        const p = promoteCount(t.id, n);
-        const d = demoteCount(t.id, n);
-        expect(p + d, `${t.id} at n=${n}`).toBeLessThanOrEqual(n);
+      for (let n = MIN_QUALIFIED_FOR_PRIZE; n <= 30; n++) {
+        expect(prizeCount(t.id, n), `${t.id} at n=${n}`).toBeLessThanOrEqual(n);
       }
     });
   });
 });
 
 describe('isQualified', () => {
+  it('uses the member\'s own tier in a mixed bracket', () => {
+    // A gold lifter racing in a bronze bracket still needs gold's two days.
+    expect(isQualified('bronze', { tier: 'gold', active_days: 1 })).toBe(false);
+    expect(isQualified('bronze', { tier: 'gold', active_days: 2 })).toBe(true);
+  });
+
   it('trusts the server stamp when present', () => {
     expect(isQualified('gold', { qualified: true, active_days: 0 })).toBe(true);
     expect(isQualified('gold', { qualified: false, active_days: 9 })).toBe(false);
@@ -182,78 +169,48 @@ describe('isQualified', () => {
 });
 
 describe('resolveStanding', () => {
-  it('promotes top finishers from silver to gold', () => {
-    const result = resolveStanding('silver', 1, 20);
-    expect(result.outcome).toBe('promote');
-    expect(result.newTier).toBe('gold');
-    expect(result.coinsAwarded).toBeGreaterThan(0);
-  });
-
-  it('pays first place a 1.5x purse', () => {
+  it('pays the prize zone the full purse and first place 1.5x', () => {
     const first = resolveStanding('gold', 1, 12);
     const second = resolveStanding('gold', 2, 12);
+    expect(first.outcome).toBe('top');
     expect(first.coinsAwarded).toBe(300);   // 200 * 3 / 2
+    expect(first.capsuleAwarded).toBe('standard');
     expect(second.coinsAwarded).toBe(200);
   });
 
-  it('demotes bottom finishers from gold to silver', () => {
-    const result = resolveStanding('gold', 12, 12);
-    expect(result.outcome).toBe('demote');
-    expect(result.newTier).toBe('silver');
-    expect(result.coinsAwarded).toBe(0);
-  });
-
-  it('a shield converts a demotion into a hold', () => {
-    const result = resolveStanding('gold', 12, 12, { hasShield: true });
-    expect(result.outcome).toBe('hold');
-    expect(result.newTier).toBe('gold');
-    expect(result.shielded).toBe(true);
-  });
-
-  it('pays qualified mid-table finishers a participation share', () => {
-    // This paid zero before migration 310, which is most of a bracket
-    // receiving no signal that the week happened.
+  it('pays everyone else who trained a quarter', () => {
     const result = resolveStanding('gold', 6, 12);
     expect(result.outcome).toBe('hold');
-    expect(result.newTier).toBe('gold');
     expect(result.coinsAwarded).toBe(50);   // 200 / 4
+    expect(result.capsuleAwarded).toBeNull();
   });
 
-  it('NEVER promotes an unqualified member, whatever their rank or XP', () => {
-    // The bug this whole change exists to fix.
+  it('never moves a tier, whatever the rank', () => {
+    [1, 6, 12].forEach(rank => {
+      const r = resolveStanding('gold', rank, 12);
+      expect(r.newTier, `rank ${rank}`).toBeUndefined();
+      expect(['top', 'hold']).toContain(r.outcome);
+    });
+  });
+
+  it('pays nothing to an unqualified member, whatever their rank or XP', () => {
     const result = resolveStanding('bronze', 1, 20, { qualified: false });
     expect(result.outcome).toBe('unranked');
-    expect(result.newTier).toBe('bronze');
     expect(result.coinsAwarded).toBe(0);
     expect(result.capsuleAwarded).toBeNull();
   });
 
-  it('holds everyone when the qualified field is too small', () => {
-    // 4 qualified at gold: below MIN_QUALIFIED_TO_MOVE, so first place holds.
+  it('holds the top prize when the qualified field is too small', () => {
     const first = resolveStanding('gold', 1, 4);
     expect(first.outcome).toBe('hold');
-    expect(first.newTier).toBe('gold');
-    const last = resolveStanding('gold', 4, 4);
-    expect(last.outcome).toBe('hold');
-    expect(last.newTier).toBe('gold');
+    expect(first.coinsAwarded).toBe(50);
   });
 
-  it('bronze never demotes — bottom rank stays bronze', () => {
-    const result = resolveStanding('bronze', 20, 20);
-    expect(result.outcome).toBe('hold');
-    expect(result.newTier).toBe('bronze');
-  });
-
-  it('legend cannot promote', () => {
-    const top = resolveStanding('legend', 1, 20);
-    expect(top.outcome).toBe('hold');
-    expect(top.newTier).toBe('legend');
-  });
-
-  it('legend bottom band demotes to diamond', () => {
-    const result = resolveStanding('legend', 20, 20);
-    expect(result.outcome).toBe('demote');
-    expect(result.newTier).toBe('diamond');
+  it('pays the member\'s own tier and takes the prize share from the bracket', () => {
+    // A gold lifter in a bronze bracket: bronze's 50% share, gold's purse.
+    const r = resolveStanding('gold', 3, 6, { bracketTierId: 'bronze' });
+    expect(r.outcome).toBe('top');
+    expect(r.coinsAwarded).toBe(200);
   });
 
   it('returns safe defaults for missing inputs', () => {
@@ -261,21 +218,16 @@ describe('resolveStanding', () => {
     expect(resolveStanding('bronze', null, 10).outcome).toBe('hold');
     expect(resolveStanding('bronze', 1, 0).outcome).toBe('hold');
   });
-
-  it('promotion gives a capsule once tier >= gold', () => {
-    expect(resolveStanding('silver', 1, 20).capsuleAwarded).toBeNull();
-    expect(resolveStanding('gold', 1, 20).capsuleAwarded).toBe('standard');
-    expect(resolveStanding('platinum', 1, 20).capsuleAwarded).toBe('premium');
-  });
 });
 
 describe('outcomeLabel', () => {
   it('returns human-readable strings', () => {
+    expect(outcomeLabel('top')).toBe('Prize zone');
     expect(outcomeLabel('promote')).toBe('Promoted');
     expect(outcomeLabel('demote')).toBe('Demoted');
     expect(outcomeLabel('unranked')).toBe('Not qualified');
     expect(outcomeLabel('decayed')).toBe('Dropped for inactivity');
-    expect(outcomeLabel('hold')).toBe('Held position');
+    expect(outcomeLabel('hold')).toBe('Trained');
   });
 });
 

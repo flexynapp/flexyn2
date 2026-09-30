@@ -37,9 +37,8 @@ import {
   isQualified,
   leagueLevel,
   MAX_LEAGUE_LEVEL,
-  promoteCount,
-  demoteCount,
-  MIN_QUALIFIED_TO_MOVE,
+  prizeCount,
+  MIN_QUALIFIED_FOR_PRIZE,
 } from '@/lib/leagueTiers';
 import { reportError } from '@/lib/reportError';
 
@@ -181,7 +180,7 @@ export async function syncMonthlyLeague(user) {
 
 // Every column but user_email. Standings are read by every member of the
 // bracket, and nothing renders an address; rows are keyed by user_id.
-const MEMBER_COLUMNS = 'id, league_id, user_id, weekly_xp, rank, joined_at, active_days, qualified, outcome, coins_awarded';
+const MEMBER_COLUMNS = 'id, league_id, user_id, tier, weekly_xp, rank, joined_at, active_days, qualified, outcome, coins_awarded';
 
 /**
  * List all members of a league, ranked by weekly_xp desc.
@@ -257,13 +256,15 @@ export async function getMyLeague(user) {
   const tier = getTier(tierId);
   const raw = await listLeagueMembers(ctx.league.id);
 
-  // Qualified members rank above every unqualified one, regardless of XP.
-  // listLeagueMembers orders by weekly_xp alone, which would seat an idle
-  // account with incidental XP above someone who actually trained.
+  // Same order as the resolver: qualified first, then training days, then XP.
+  // Days lead because the weekly race is about training, not about which XP
+  // sources someone happened to farm.
   const members = raw
     .map(m => ({ ...m, isQualified: isQualified(tierId, m) }))
     .sort((a, b) => {
       if (a.isQualified !== b.isQualified) return a.isQualified ? -1 : 1;
+      const days = (Number(b.active_days) || 0) - (Number(a.active_days) || 0);
+      if (days !== 0) return days;
       return (b.weekly_xp || 0) - (a.weekly_xp || 0);
     })
     // Rank is a property of the qualified field only. Unqualified members
@@ -278,7 +279,10 @@ export async function getMyLeague(user) {
 
   const qualifiedCount = members.filter(m => m.isQualified).length;
   const me = members.find(m => m.user_id === user.id) || null;
-  const level = await getMyLeagueLevel(user, tierId);
+  // Your league is your own tier. In a mixed bracket it can differ from the
+  // bracket's, which only sets the size of the prize zone.
+  const myTier = getTier(me?.tier || ctx.member?.tier || tierId);
+  const level = await getMyLeagueLevel(user, myTier.id);
 
   return {
     league: ctx.league,
@@ -289,10 +293,10 @@ export async function getMyLeague(user) {
     myActiveDays: Number(me?.active_days) || 0,
     totalMembers: members.length,
     qualifiedCount,
-    promoteN: promoteCount(tierId, qualifiedCount),
-    demoteN: demoteCount(tierId, qualifiedCount),
-    bracketTooSmall: qualifiedCount < MIN_QUALIFIED_TO_MOVE,
-    tier,
+    prizeN: prizeCount(tierId, qualifiedCount),
+    bracketTooSmall: qualifiedCount < MIN_QUALIFIED_FOR_PRIZE,
+    mixedBracket: members.some(m => m.tier && m.tier !== tierId),
+    tier: myTier,
     level,
   };
 }
@@ -308,7 +312,7 @@ export async function getMyLeagueLevel(user, tierId) {
   try {
     const { data, error } = await supabase
       .from('league_members')
-      .select('qualified, joined_at, leagues!inner(tier, week_start, is_resolved)')
+      .select('tier, qualified, joined_at, leagues!inner(tier, week_start, is_resolved)')
       .eq('user_id', user.id)
       .eq('leagues.is_resolved', true)
       // joined_at falls inside its bracket's week, so it orders weeks the
@@ -319,12 +323,37 @@ export async function getMyLeagueLevel(user, tierId) {
       .limit(MAX_LEAGUE_LEVEL * 4);
     if (error || !Array.isArray(data)) return 1;
     const history = data
-      .map((r) => ({ tier: r.leagues?.tier, qualified: r.qualified, week: r.leagues?.week_start || '' }))
+      .map((r) => ({ tier: r.tier || r.leagues?.tier, qualified: r.qualified, week: r.leagues?.week_start || '' }))
       .sort((a, b) => (a.week < b.week ? 1 : a.week > b.week ? -1 : 0));
     return leagueLevel(tierId, history);
   } catch (err) {
     reportError(err, { feature: 'league.level' });
     return 1;
+  }
+}
+
+/**
+ * Your Strength Score and what it means for your league, from
+ * `my_league_strength`. Read only: the server computes everything from your
+ * own logged sets. Returns null on any failure (the league card then simply
+ * leaves the strength line out).
+ *
+ *   { score, lifts: {squat, bench, deadlift, ohp}, sessions, estimated,
+ *     reason: 'no_bodyweight' | 'no_lifts' | null, tier, placed,
+ *     tier_floor, drop_below, next_tier, next_floor }
+ */
+export async function getMyStrength(user) {
+  if (!user?.id) return null;
+  try {
+    const { data, error } = await supabase.rpc('my_league_strength');
+    if (error) {
+      if (error.code !== '42883') reportError(error, { feature: 'league.strength', level: 'warning' });
+      return null;
+    }
+    return data ?? null;
+  } catch (err) {
+    reportError(err, { feature: 'league.strength' });
+    return null;
   }
 }
 
@@ -378,5 +407,5 @@ export async function getLastResolvedLeague(user) {
   const member = data[0];
   const league = member.leagues;
   delete member.leagues;
-  return { league, member, tier: getTier(league.tier) };
+  return { league, member, tier: getTier(member.tier || league.tier) };
 }

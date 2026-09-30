@@ -1,64 +1,44 @@
 // src/lib/leagueTiers.js
 //
-// Configuration for the weekly league tiers. Each tier has:
-//   • A display name + color
-//   • A PROPORTIONAL promote/demote band, evaluated over the QUALIFIED field
-//   • A qualification floor (minimum days trained; minimum weekly XP)
-//   • An end-of-week reward (coins + optional capsule)
+// Configuration for the league tiers (Kegan, 2026-09-30: strength decides
+// your league, training decides your week).
 //
-// Tiers are ordered bronze → silver → gold → platinum → diamond → legend.
+// ── What a tier is ───────────────────────────────────────────────────────────
 //
-// ── Why proportions replaced counts (migration 310) ──────────────────────────
+// Your tier is a strength band. The server computes a Strength Score (DOTS,
+// bodyweight and sex adjusted) from your squat, bench, deadlift and overhead
+// press over the last 90 days, each lift counted at its SECOND-best session
+// so one typo or one forged set cannot place you. See
+// `league_strength_compute` in migration 20260930203000.
 //
-// This file used to carry absolute counts: bronze `promote: 10`, and the
-// server mirrored them. With a 30-member cap and live brackets holding 1–11
-// people, "top 10 promote" meant a bronze bracket promoted EVERY member —
-// including everyone on zero XP. Five weeks of that and an account that had
-// never opened the app was in Legend. Proportions degrade gracefully at small
-// N; absolute counts do not. Duolingo's ladder works the same way (bronze
-// promotes roughly the top two-thirds, tightening to zero at the top tier).
+//   • First placement lands as soon as you have a score, on any tier.
+//   • After that you move one tier per Monday: up when your score clears the
+//     next tier's `strengthFloor`, down only when it falls below
+//     DEMOTE_MARGIN of your own tier's floor. A shield blocks one demotion.
+//   • No score (no bodyweight, or no main lift in 90 days) holds your tier.
 //
-// ── Why a qualification floor exists ─────────────────────────────────────────
+// ── What the weekly bracket is ───────────────────────────────────────────────
 //
-// Ranking by XP alone let an idle account ride a promotion slot. A member is
-// only ranked if they actually trained:
-//
-//     qualified ⟺ activeDays >= minWorkouts AND weeklyXp >= minXp
-//
-// Unqualified members sort below every qualified member regardless of XP, are
-// never promoted, and never consume a promotion slot.
-//
-// ── Why minXp is 0 everywhere ────────────────────────────────────────────────
-//
-// It is a live knob, deliberately switched off. The production XP ledger holds
-// ten user-weeks in total: median 23 XP, p75 50 XP, and 35 of its 36 grants
-// are 3–65 XP micro-actions. Any floor in the hundreds would disqualify every
-// user in the database including the active ones — turning "stops AFK
-// promotion" into "stops all promotion". Raise it from data, never from a
-// guess.
+// A race on training days, then XP, against up to 29 others. It pays coins
+// and capsules at each member's OWN tier and never moves anyone's tier. The
+// top `prizePct` of qualified members take the full prize once at least
+// MIN_QUALIFIED_FOR_PRIZE qualified; everyone else who trained takes a
+// quarter. A member qualifies by training on `minWorkouts` separate days.
 //
 // ── This file mirrors the server ─────────────────────────────────────────────
 //
-// The authoritative copy is the VALUES table inside
-// `resolve_league_bracket_internal` (migration 310). The client copy exists so
-// the standings UI can draw the zone lines without a round trip. THEY MUST
-// MOVE IN LOCKSTEP — a mismatch renders a promotion line in a place the
-// resolver does not honour, which is worse than no line at all.
+// The floors mirror `league_tier_floor`, the prize and day rules mirror
+// `resolve_league_bracket_internal`. The client copy exists so the UI can
+// draw the prize line and the next floor without a round trip. They must move
+// in lockstep.
 
 export const MAX_LEAGUE_SIZE = 30;
 
-/**
- * Qualified members required before a bracket promotes or demotes anyone.
- * Below this, the bracket resolves to participation payouts only and every
- * member keeps their tier. Mirrors `c_min_bracket` in migration 310.
- *
- * This is what stops a solo bronze bracket escalating one person to Legend in
- * five weeks.
- */
-export const MIN_QUALIFIED_TO_MOVE = 5;
+/** Qualified members a bracket needs before anyone wins the top prize. */
+export const MIN_QUALIFIED_FOR_PRIZE = 5;
 
-/** Consecutive quiet weeks tolerated before decay starts. Mirrors `c_decay_grace`. */
-export const DECAY_GRACE_WEEKS = 2;
+/** You drop a tier when your score falls below this share of its floor. */
+export const DEMOTE_MARGIN = 0.9;
 
 /** Lifetime cap on purchased shields. Mirrors `c_lifetime_cap` in grant_league_shield. */
 export const SHIELD_LIFETIME_CAP = 3;
@@ -73,10 +53,9 @@ export const TIERS = [
     id: 'bronze',
     label: 'Bronze',
     color: '#cd7f32',
-    promotePct: 0.50,
-    demotePct: 0,      // never demoted out of bronze — it is the floor
+    strengthFloor: 0,
+    prizePct: 0.50,
     minWorkouts: 1,
-    minXp: 0,
     rewardCoins: 50,
     rewardCapsule: null,
   },
@@ -84,10 +63,9 @@ export const TIERS = [
     id: 'silver',
     label: 'Silver',
     color: '#c0c0c0',
-    promotePct: 0.40,
-    demotePct: 0.10,
+    strengthFloor: 150,
+    prizePct: 0.40,
     minWorkouts: 1,
-    minXp: 0,
     rewardCoins: 100,
     rewardCapsule: null,
   },
@@ -95,10 +73,9 @@ export const TIERS = [
     id: 'gold',
     label: 'Gold',
     color: '#facc15',
-    promotePct: 0.30,
-    demotePct: 0.15,
+    strengthFloor: 250,
+    prizePct: 0.30,
     minWorkouts: 2,
-    minXp: 0,
     rewardCoins: 200,
     rewardCapsule: 'standard',
   },
@@ -106,10 +83,9 @@ export const TIERS = [
     id: 'platinum',
     label: 'Platinum',
     color: '#67e8f9',
-    promotePct: 0.25,
-    demotePct: 0.20,
+    strengthFloor: 325,
+    prizePct: 0.25,
     minWorkouts: 2,
-    minXp: 0,
     rewardCoins: 350,
     rewardCapsule: 'premium',
   },
@@ -119,10 +95,9 @@ export const TIERS = [
     // Blue, not the violet it shipped as: purple is reserved for rarity
     // (loot and XP tiers), and a league is a standing, not a drop.
     color: '#60a5fa',
-    promotePct: 0.20,
-    demotePct: 0.20,
+    strengthFloor: 400,
+    prizePct: 0.20,
     minWorkouts: 3,
-    minXp: 0,
     rewardCoins: 600,
     rewardCapsule: 'premium',
   },
@@ -133,10 +108,9 @@ export const TIERS = [
     // no lower tier or state colour owns: warm enough to read as a prize,
     // clear of the destructive red the demotion zone uses.
     color: '#fb7185',
-    promotePct: 0,     // terminal tier — the season board is the endgame
-    demotePct: 0.20,
+    strengthFloor: 475,
+    prizePct: 0.20,
     minWorkouts: 3,
-    minXp: 0,
     rewardCoins: 1000,
     rewardCapsule: 'elite',
   },
@@ -165,16 +139,15 @@ export function leagueTierName(tier, tFallback, level) {
   return tFallback('league.tierName', '{tier} League', { tier: name });
 }
 
-/** Levels inside a league, I to IV. Display only: the bracket, promotion and
- * payouts never read it. */
+/** Levels inside a league, I to IV. Display only: placement and payouts
+ * never read it. */
 export const MAX_LEAGUE_LEVEL = 4;
 
 /**
  * Your level inside your current league, from 1 to MAX_LEAGUE_LEVEL.
  *
  * Every week you QUALIFY in the league adds a level, and moving to a
- * different league (promotion, demotion, decay or the season reset) starts
- * you at I again. Derived from resolved `league_members` rows rather than
+ * different league (promotion or demotion) starts you at I again. Derived from resolved `league_members` rows rather than
  * stored, so nothing has to keep a counter in step with the resolver.
  *
  * @param {string} currentTierId  the tier you are in this week
@@ -214,130 +187,84 @@ export function previousTier(id) {
   return TIERS[i - 1];
 }
 
-/**
- * How many of `qualifiedCount` promote out of this tier.
- *
- * Mirrors migration 310 exactly, including the `GREATEST(1, …)` floor — a
- * qualified bracket always advances somebody, or the ladder stalls at the
- * bottom where the field is smallest.
- *
- * Returns 0 below MIN_QUALIFIED_TO_MOVE, and 0 for a terminal tier.
- */
-export function promoteCount(tierId, qualifiedCount) {
-  const tier = getTier(tierId);
-  if (!qualifiedCount || qualifiedCount < MIN_QUALIFIED_TO_MOVE) return 0;
-  if (!tier.promotePct) return 0;
-  return Math.max(1, Math.ceil(qualifiedCount * tier.promotePct));
+/** The tier a Strength Score belongs to. Mirrors `league_tier_for_score`. */
+export function tierForScore(score) {
+  if (score == null || !Number.isFinite(Number(score))) return TIERS[0];
+  let found = TIERS[0];
+  for (const t of TIERS) if (Number(score) >= t.strengthFloor) found = t;
+  return found;
 }
 
 /**
- * How many of `qualifiedCount` demote out of this tier.
- *
- * Floors rather than ceils — demotion is the punitive direction, so the
- * rounding goes in the user's favour. Mirrors migration 310.
+ * How many of `qualifiedCount` win the top prize in a bracket of this tier.
+ * Mirrors `resolve_league_bracket_internal`, including the GREATEST(1, …)
+ * floor. 0 below MIN_QUALIFIED_FOR_PRIZE.
  */
-export function demoteCount(tierId, qualifiedCount) {
+export function prizeCount(tierId, qualifiedCount) {
   const tier = getTier(tierId);
-  if (!qualifiedCount || qualifiedCount < MIN_QUALIFIED_TO_MOVE) return 0;
-  if (!tier.demotePct) return 0;
-  return Math.floor(qualifiedCount * tier.demotePct);
+  if (!qualifiedCount || qualifiedCount < MIN_QUALIFIED_FOR_PRIZE) return 0;
+  return Math.max(1, Math.ceil(qualifiedCount * tier.prizePct));
 }
 
 /**
- * Is this member competing this week?
+ * Is this member competing this week? Uses the member's OWN tier, which a
+ * mixed bracket can differ from the bracket's.
  *
- * @param {string} tierId
- * @param {{ active_days?: number, weekly_xp?: number, qualified?: boolean }} member
+ * @param {string} tierId  fallback tier, the bracket's
+ * @param {{ tier?: string, active_days?: number, qualified?: boolean }} member
  */
 export function isQualified(tierId, member) {
   if (!member) return false;
   // The server stamps `qualified` at resolution time; trust it once present.
   if (typeof member.qualified === 'boolean') return member.qualified;
-  const tier = getTier(tierId);
-  const days = Number(member.active_days) || 0;
-  const xp = Number(member.weekly_xp) || 0;
-  return days >= tier.minWorkouts && xp >= tier.minXp;
+  const tier = getTier(member.tier || tierId);
+  return (Number(member.active_days) || 0) >= tier.minWorkouts;
 }
 
 /**
- * Compute the result of a league member's final standing.
+ * What a qualified member's position would pay if the week ended now.
+ * Display-side mirror of `resolve_league_bracket_internal`; the server is
+ * authoritative. Never moves a tier: that is the Strength Score's job.
  *
- * Display-side mirror of `resolve_league_bracket_internal` (migration 310).
- * The server is authoritative — this exists so the UI can show someone what
- * their current position would pay if the week ended now.
- *
- * @param {string} tierId — the league's tier
- * @param {number} rank — 1-indexed rank AMONG QUALIFIED MEMBERS (1 = first)
- * @param {number} qualifiedCount — how many members qualified
+ * @param {string} tierId  the MEMBER's tier (it sets the purse)
+ * @param {number} rank    1-indexed rank among qualified members
+ * @param {number} qualifiedCount
  * @param {object} [opts]
- * @param {boolean} [opts.qualified=true] — false for an unranked member
- * @param {boolean} [opts.hasShield=false] — holds one demotion
- * @returns {{ outcome: 'promote'|'demote'|'hold'|'unranked', newTier: string,
- *             coinsAwarded: number, capsuleAwarded: string|null, shielded: boolean }}
+ * @param {boolean} [opts.qualified=true]
+ * @param {string}  [opts.bracketTierId]  sets the prize share; defaults to tierId
+ * @returns {{ outcome: 'top'|'hold'|'unranked', coinsAwarded: number, capsuleAwarded: string|null }}
  */
 export function resolveStanding(tierId, rank, qualifiedCount, opts = {}) {
-  const { qualified = true, hasShield = false } = opts;
-  const nothing = {
-    outcome: 'hold', newTier: tierId, coinsAwarded: 0,
-    capsuleAwarded: null, shielded: false,
-  };
-
-  if (!tierId || !getTier(tierId)) return nothing;
+  const { qualified = true, bracketTierId = tierId } = opts;
+  const nothing = { outcome: 'hold', coinsAwarded: 0, capsuleAwarded: null };
+  if (!tierId || TIER_INDEX[tierId] === undefined) return nothing;
   const tier = getTier(tierId);
 
-  // Didn't train — not competing. No rank, no reward, no promotion, ever.
-  if (!qualified) {
-    return { ...nothing, outcome: 'unranked' };
-  }
+  if (!qualified) return { ...nothing, outcome: 'unranked' };
   if (!rank || !qualifiedCount) return nothing;
 
-  const promoteN = promoteCount(tierId, qualifiedCount);
-  const demoteN = demoteCount(tierId, qualifiedCount);
-
-  if (promoteN > 0 && rank <= promoteN) {
-    const next = nextTier(tierId);
+  const prizeN = prizeCount(bracketTierId, qualifiedCount);
+  if (prizeN > 0 && rank <= prizeN) {
     return {
-      outcome: 'promote',
-      newTier: next ? next.id : tierId,
-      // First place takes a 1.5× purse; the rest of the zone takes tier rate.
-      coinsAwarded: rank === 1
-        ? Math.floor((tier.rewardCoins * 3) / 2)
-        : tier.rewardCoins,
+      outcome: 'top',
+      // First place takes a 1.5x purse; the rest of the prize zone takes tier rate.
+      coinsAwarded: rank === 1 ? Math.floor((tier.rewardCoins * 3) / 2) : tier.rewardCoins,
       capsuleAwarded: tier.rewardCapsule,
-      shielded: false,
     };
   }
-
-  if (demoteN > 0 && rank > qualifiedCount - demoteN) {
-    if (hasShield) {
-      return { ...nothing, shielded: true };
-    }
-    const prev = previousTier(tierId);
-    return {
-      outcome: 'demote',
-      newTier: prev ? prev.id : tierId,
-      coinsAwarded: 0,
-      capsuleAwarded: null,
-      shielded: false,
-    };
-  }
-
-  // Qualified and mid-table. This paid nothing before 310, which is ~90% of a
-  // full bracket getting no signal that the week happened at all.
   return {
     outcome: 'hold',
-    newTier: tierId,
     coinsAwarded: Math.max(1, Math.floor(tier.rewardCoins / 4)),
     capsuleAwarded: null,
-    shielded: false,
   };
 }
 
 /** Returns the user-visible label for an outcome enum. */
 export function outcomeLabel(outcome) {
+  if (outcome === 'top') return 'Prize zone';
   if (outcome === 'promote') return 'Promoted';
   if (outcome === 'demote') return 'Demoted';
   if (outcome === 'unranked') return 'Not qualified';
   if (outcome === 'decayed') return 'Dropped for inactivity';
-  return 'Held position';
+  return 'Trained';
 }
