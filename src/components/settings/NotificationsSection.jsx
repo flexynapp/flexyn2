@@ -20,6 +20,7 @@ import { useSettings } from '@/lib/SettingsContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { toast } from '@/lib/toast';
 import { useSettingsProfile } from './useSettingsProfile';
 import { Group, Row, ToggleRow, Switch, SubGroup } from './SettingsPrimitives';
@@ -141,6 +142,12 @@ export default function NotificationsSection() {
       }
       return;
     }
+    // The profile cache is what me() serves; without this the snooze
+    // vanished from the list the next time Notifications opened.
+    const savedSnoozes = { ...snoozes };
+    if (!minutes) delete savedSnoozes[category];
+    else savedSnoozes[category] = res.expiry || optimistic[category];
+    patchProfile({ notification_snoozes: savedSnoozes });
     invalidateProfile();
   };
 
@@ -188,6 +195,9 @@ export default function NotificationsSection() {
       }
       return;
     }
+    // Patch the profile cache, or reopening Settings read the old value
+    // back and showed the switch flipped the other way from what's saved.
+    patchProfile({ notification_prefs: { ...prev, [category]: next } });
     invalidateProfile();
   };
 

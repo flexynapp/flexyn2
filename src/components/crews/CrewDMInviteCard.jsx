@@ -5,6 +5,8 @@
 
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Shield, Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import * as crews from '@/lib/data/crews';
@@ -19,6 +21,8 @@ export { CREW_INVITE_PREFIX, parseCrewInvite, buildCrewInviteBody } from '@/lib/
 
 export default function CrewDMInviteCard({ payload, userId, isMine }) {
   const { tFallback } = useLanguage();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [state, setState] = useState('idle'); // idle | joining | joined | requested | full
   // Synchronous double-tap guard. The state-only `if (state !== 'idle')`
   // gate is async — fast double-tap fires joinCrew twice. The RPC is
@@ -62,9 +66,12 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
       }
 
       setState('joined');
-      toast.success(tFallback('notice.joinedCrew', 'You joined {name}!', { name: crewName }));
-      // Navigate to Crews tab
-      window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId } }));
+      toast.success(tFallback('crewDMInviteCard.youJoined', 'You joined {name}!', { name: crewName }));
+      qc.invalidateQueries({ queryKey: ['myCrews'] });
+      // Router state, not the flexyn:open-crew event: this card lives in
+      // Messages, where nothing listens for that event, so accepting never
+      // opened the crew. Hub reads openCrewId on arrival.
+      navigate('/hub', { state: { openCrewId: crewId } });
     } catch (err) {
       setState(err?.message?.includes('full') ? 'full' : 'idle');
       toast.error(err?.message || tFallback('crewInvite.joinFailed', 'Could not join crew. Try again.'));
@@ -93,7 +100,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground leading-tight">invited you to join</p>
+              <p className="text-xs text-muted-foreground leading-tight">{tFallback('crewDMInviteCard.invitedYou', 'invited you to join')}</p>
               <p className="text-sm font-bold text-foreground truncate">{crewName}</p>
             </div>
           </div>
@@ -121,7 +128,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
               style={{ background: 'hsl(var(--primary))' }}
             >
               {state === 'joining' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {state === 'joining' ? 'Joining…' : 'Accept'}
+              {state === 'joining' ? tFallback('crewDMInviteCard.joining', 'Joining…') : tFallback('crewDMInviteCard.accept', 'Accept')}
             </motion.button>
           )}
         </div>

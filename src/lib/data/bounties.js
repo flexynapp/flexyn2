@@ -227,7 +227,22 @@ export async function checkAndCompleteBounty(workoutLog) {
 
     let achieved = null;
 
-    if (metric === 'session_volume' || metric === 'weekly_volume') {
+    // A weekly bounty is summed over 7 days by complete_bounty_claim. This
+    // pre-check used to compare ONE session against the weekly target, so
+    // the RPC was never called and weekly bounties always expired unpaid.
+    // Let the server count; not being there yet is a quiet no.
+    if (metric === 'weekly_volume') {
+      if (!workoutLog?.id) return false;
+      try {
+        await completeBountyClaim(claim.id, workoutLog.id, bounty?.id ?? null);
+        return true;
+      } catch (err) {
+        if (/target_not_met/.test(String(err?.message || ''))) return false;
+        throw err;
+      }
+    }
+
+    if (metric === 'session_volume') {
       // Volume = sum of weight × reps across all sets in the log
       let vol = 0;
       for (const ex of workoutLog.exercises || []) {

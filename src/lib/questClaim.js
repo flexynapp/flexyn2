@@ -18,6 +18,7 @@ import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
+import { clearProfile } from '@/api/profileCache';
 
 /** The quest's display label in the current language. */
 export function questLabel(questId, t) {
@@ -41,6 +42,11 @@ function fireAllQuestsConfetti() {
 }
 
 function invalidateRewards(queryClient, user, crewXp) {
+  // The claim moved coins AND total_xp on the server, and the RPC returns
+  // no XP total to patch with. me() serves a module cache, so an invalidate
+  // alone refetched the stale row: the level bar and the level-up overlay
+  // never saw quest XP. Dropping the cache makes the refetch read the row.
+  clearProfile();
   queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
   queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });
   queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });

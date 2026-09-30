@@ -215,10 +215,23 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
 
   const handleLeaveCrew = useCallback(async (crew) => {
     if (!user?.id) return;
+    // Through leave_crew, like the crew page. A direct row delete skipped
+    // the server's rules, so the only leader could walk out and leave a
+    // crew nobody can manage, and the last member left an empty crew behind.
     try {
-      await crewsData.removeMember(crew.id, user.id);
-      queryClient.invalidateQueries({ queryKey: ['myCrews', user.id] });
-      toast.success(tFallback('notice.leftCrew', 'Left {name}', { name: crew.name }));
+      const res = await crewsData.leaveCrew(crew.id);
+      if (!res?.ok) {
+        toast.error(res?.reason === 'promote_first'
+          ? tFallback('crew.promoteFirst', 'Promote another member to leader first. A crew needs one.')
+          : res?.reason === 'active_war'
+            ? tFallback('crew.leaveWar', 'Your crew is in a war. You can leave once it resolves.')
+            : tFallback('hub.messages.leaveCrewError', 'Could not leave crew. Try again.'));
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['myCrews'] });
+      toast.success(res.crewDeleted
+        ? tFallback('crew.leftAndDeleted', 'You left. The crew was empty, so it\'s gone.')
+        : tFallback('crew.left', 'You left the crew.'));
     } catch {
       toast.error(tFallback('hub.messages.leaveCrewError', 'Could not leave crew. Try again.'));
     }

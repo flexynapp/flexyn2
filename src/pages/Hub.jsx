@@ -555,6 +555,7 @@ export default function Hub() {
             <CrewsSection
               initialCrewId={pendingCrewId}
               key={pendingCrewId}
+              onDeepLinkConsumed={() => setPendingCrewId(null)}
               onViewProfile={(u) => {
                 setProfileTarget(u);
                 setSection('profile');

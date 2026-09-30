@@ -39,6 +39,14 @@ function deriveType(mode, env) {
 
 const STROKE_OPTIONS = ['Freestyle', 'Backstroke', 'Breaststroke', 'Butterfly', 'Mixed'];
 
+// Pools run 10 to 50 m. Applied wherever the length is USED, since the
+// field itself only clamps when it loses focus.
+function clampPoolLength(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(50, Math.max(10, n));
+}
+
 export default function CardioManualForm({
   mode,
   env,
@@ -119,7 +127,7 @@ export default function CardioManualForm({
   // For swimming: auto-compute distance from laps × pool length
   const swimDistMeters = useMemo(() => {
     if (!isSwim) return 0;
-    const pLen = Number(poolLength);
+    const pLen = clampPoolLength(poolLength);
     const lapCount = Number(laps);
     return pLen > 0 && lapCount > 0 ? pLen * lapCount : 0;
   }, [isSwim, poolLength, laps]);
@@ -147,10 +155,14 @@ export default function CardioManualForm({
     } else {
       if (distanceMeters <= 0) return false;
     }
-    const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
-    if (date < sevenDaysAgo) return false;
+    // The 7-day window is for NEW entries. Editing an older session must
+    // stay possible, or Save greys out with no reason given.
+    if (!initial?.id) {
+      const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+      if (date < sevenDaysAgo) return false;
+    }
     return true;
-  }, [durationSeconds, distanceMeters, calories, date, mode, env]);
+  }, [durationSeconds, distanceMeters, calories, date, mode, env, initial?.id]);
 
   const handleEstimate = () => {
     const est = estimateCalories({
@@ -180,23 +192,26 @@ export default function CardioManualForm({
     if (!tplName) { toast.info(tFallback('cardioManualForm.templateNeedsName', 'Give the template a name via Route/Label field')); return; }
     setSavingTemplate(true);
     try {
-      await supabase.from('cardio_templates').insert({
+      const { error: tplError } = await supabase.from('cardio_templates').insert({
         created_by: user.email,
         name: tplName,
         type: deriveType(mode, env),
         distance_meters: distanceMeters || null,
         duration_seconds: durationSeconds || null,
         incline_percent: env === 'treadmill' ? (Number(incline) || null) : null,
-        avg_heart_rate: Number(avgHr) || null,
-        cadence_spm: Number(cadence) || null,
-        power_watts: Number(powerWatts) || null,
-        pool_length_m: Number(poolLength) || null,
+        avg_heart_rate: Math.round(Number(avgHr)) || null,
+        cadence_spm: Math.round(Number(cadence)) || null,
+        power_watts: Math.round(Number(powerWatts)) || null,
+        pool_length_m: clampPoolLength(poolLength) || null,
         laps: Number(laps) || null,
         stroke_type: strokeType || null,
         notes: notes || null,
       });
+      // insert() resolves with { error } rather than throwing, so without
+      // this a failed save still showed success.
+      if (tplError) throw tplError;
       queryClient.invalidateQueries({ queryKey: ['cardioTemplates', user?.email] });
-      toast.success(tFallback('notice.templateSaved', 'Template "{name}" saved', { name: tplName }));
+      toast.success(tFallback('cardioManualForm.templateSaved', 'Template "{name}" saved', { name: tplName }));
     } catch (err) {
       reportError(err, { feature: 'cardio.template.save' });
       toast.error(tFallback("cardioManualForm.failedToSaveTemplate", "Failed to save template"));
@@ -328,7 +343,7 @@ export default function CardioManualForm({
         avg_heart_rate: Number(avgHr) || null,
         cadence_spm: Number(cadence) || null,
         power_watts: Number(powerWatts) || null,
-        pool_length_m: Number(poolLength) || null,
+        pool_length_m: clampPoolLength(poolLength) || null,
         laps: Number(laps) || null,
         stroke_type: strokeType || null,
         route_name: routeName || null,
@@ -337,6 +352,11 @@ export default function CardioManualForm({
 
       let prCount = 0;
       if (initial?.id) {
+        // An edit keeps how the session was recorded. Writing mode:'manual'
+        // and gps_track:null here erased the route of every GPS run that
+        // was opened and edited.
+        delete payload.mode;
+        delete payload.gps_track;
         await cardioData.update(initial.id, payload);
       } else {
         const createdLog = await cardioData.create(payload);
@@ -503,11 +523,19 @@ export default function CardioManualForm({
                       // a 10km "swim" that pollutes pace stats.
                       // `min`/`max` on number inputs are advisory only.
                       // (Audit 16 F6.)
+                      // Clamping per keystroke made "25" impossible to
+                      // type ("2" became 10, then "105" became 50), so
+                      // the clamp runs when the field is left instead.
                       const raw = e.target.value;
                       if (raw === '') { setPoolLength(''); return; }
                       const n = Number(raw);
                       if (!Number.isFinite(n)) return;
-                      setPoolLength(String(Math.min(50, Math.max(10, n))));
+                      setPoolLength(raw);
+                    }}
+                    onBlur={() => {
+                      if (poolLength === '') return;
+                      const n = Number(poolLength);
+                      if (Number.isFinite(n)) setPoolLength(String(Math.min(50, Math.max(10, n))));
                     }}
                     onKeyDown={blockSpecialKeys}
                     className="pe-8"

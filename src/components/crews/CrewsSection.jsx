@@ -141,7 +141,7 @@ function CrewCard({ crew, onClick, currentUserId, trophyCount }) {
 // optional-chained, so an undefined callback is a silent no-op rather than an
 // error. That is why tapping a member in the roster, or an avatar in crew
 // chat, did nothing at all. Every link existed except this one.
-export default function CrewsSection({ initialCrewId, onViewProfile }) {
+export default function CrewsSection({ initialCrewId, onDeepLinkConsumed, onViewProfile }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
@@ -177,10 +177,14 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
   // what makes Hub set `pendingCrewId` and switch to this tab in the first
   // place, so by the time this component mounts the event has already fired and
   // there is nothing left to hear. The prop is the only carrier.
+  //
+  // The deep link is used ONCE. activeCrew is in the deps, so without the ref
+  // tapping Back (activeCrew -> null) re-ran this and reopened the same crew.
+  const deepLinkUsedRef = React.useRef(false);
   React.useEffect(() => {
-    if (!initialCrewId || activeCrew) return;
+    if (!initialCrewId || activeCrew || deepLinkUsedRef.current) return;
     const target = myCrews.find(c => c.id === initialCrewId);
-    if (target) setActiveCrew(target);
+    if (target) { deepLinkUsedRef.current = true; setActiveCrew(target); }
   }, [initialCrewId, myCrews, activeCrew]);
 
   const handleCreated = (crew) => {
@@ -209,7 +213,12 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
     return (
       <CrewPage
         crew={activeCrew}
-        onBack={() => setActiveCrew(null)}
+        onBack={() => {
+          setActiveCrew(null);
+          // Hub holds the deep-link id; clearing it stops the crew reopening
+          // every time the Crews tab mounts again.
+          if (initialCrewId) onDeepLinkConsumed?.();
+        }}
         onViewProfile={onViewProfile}
       />
     );

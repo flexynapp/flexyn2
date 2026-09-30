@@ -4,7 +4,7 @@
 // workouts. Standalone full-screen page (outside the app shell) so a
 // fresh camera-scan lands somewhere clean.
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2, AlertTriangle, Dumbbell, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
@@ -17,7 +17,6 @@ import { useLanguage } from '@/lib/LanguageContext';
 export default function CheckInPage() {
   const { tFallback } = useLanguage();
   const { code } = useParams();
-  const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
   const [status, setStatus] = useState('pending'); // pending | ok | already | error | unauth
   const [gymName, setGymName] = useState('');
@@ -111,12 +110,12 @@ export default function CheckInPage() {
             </div>
             <button
               type="button"
-              onClick={() => navigate('/workout')}
+              onClick={() => window.location.assign('/workout')}
               className="mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
             >
               <Dumbbell className="w-4 h-4" /> {tFallback("checkInPage.startYourWorkout", "Start your workout")}
             </button>
-            <button type="button" onClick={() => navigate('/dashboard')} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
+            <button type="button" onClick={() => window.location.assign('/dashboard')} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
               {tFallback("header.goToDashboard", "Go to dashboard")}
             </button>
           </>
@@ -132,7 +131,7 @@ export default function CheckInPage() {
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-bold">
               <Zap className="w-4 h-4" /> {multiplierLabel} XP active today
             </div>
-            <button type="button" onClick={() => navigate('/workout')} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
+            <button type="button" onClick={() => window.location.assign('/workout')} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
               {tFallback("checkInPage.startYourWorkout", "Start your workout")}
             </button>
           </>
@@ -145,7 +144,7 @@ export default function CheckInPage() {
             </div>
             <p className="font-heading font-bold text-lg">{tFallback("checkInPage.couldnTCheck", "Couldn't check in")}</p>
             <p className="text-sm text-muted-foreground">{tFallback('checkIn.codeNotFound', "That code didn't match an active gym. Double-check the signage code.")}</p>
-            <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
+            <button type="button" onClick={() => window.location.assign('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
               {tFallback("header.goToDashboard", "Go to dashboard")}
             </button>
           </>

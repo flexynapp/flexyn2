@@ -869,6 +869,10 @@ export default function HubComposer({ onClose }) {
           // No post id means nothing to attribute the notification to —
           // skip rather than fall back to sending caller-supplied text.
           if (!createdPost?.id) return;
+          // A crew post is not for followers, and a scheduled one is not
+          // live yet. Both used to notify every follower with the text.
+          // The server refuses them too; this saves the round-trips.
+          if (privacy === 'crew' || (scheduleEnabled && scheduledAt)) return;
           // Per-recipient i18n via notify_friend_post_for (migration 041).
           // The RPC reads each recipient's preferred_language server-side
           // so the title renders in their language, not the poster's.
