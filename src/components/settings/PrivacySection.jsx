@@ -169,12 +169,13 @@ export default function PrivacySection() {
   }, [profile?.read_receipts_enabled]);
 
   // ── Share likes with friends (20261001003000) ─────────────────────
-  // Opt-OUT and reciprocal, like read receipts: off hides your likes from
-  // friends AND empties Hub → Activity → Friends for you.
-  const [shareLikes, setShareLikes] = useState(true);
+  // Opt-IN and reciprocal, like read receipts: off hides your likes from
+  // friends AND empties Hub → Activity → Friends for you. Off by default,
+  // because likes were promised private before this existed.
+  const [shareLikes, setShareLikes] = useState(false);
   useEffect(() => {
     if (profile?.share_likes_with_friends !== undefined) {
-      setShareLikes(profile.share_likes_with_friends !== false);
+      setShareLikes(profile.share_likes_with_friends === true);
     }
   }, [profile?.share_likes_with_friends]);
 

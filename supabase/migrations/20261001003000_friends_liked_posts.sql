@@ -13,6 +13,10 @@
 -- anyone AND the function returns nothing to you. Nobody can hide their own
 -- likes while still watching everyone else's.
 --
+-- OFF BY DEFAULT. Until now the app promised "your likes are private", and
+-- every existing like was made under that promise, so nobody's likes become
+-- visible until they switch this on themselves.
+--
 -- WHAT IS NEVER RETURNED, and why each clause exists:
 --   * a like from anyone who switched sharing off;
 --   * a like from anyone in a block with the viewer, either direction
@@ -31,7 +35,7 @@
 -- client from public_profiles, which applies its own block and privacy rules.
 
 ALTER TABLE public.user_profiles
-  ADD COLUMN IF NOT EXISTS share_likes_with_friends BOOLEAN NOT NULL DEFAULT TRUE;
+  ADD COLUMN IF NOT EXISTS share_likes_with_friends BOOLEAN NOT NULL DEFAULT FALSE;
 
 COMMENT ON COLUMN public.user_profiles.share_likes_with_friends IS
   'Reciprocal: when false, get_friends_liked_posts neither returns this user''s likes to friends nor returns friends'' likes to this user.';

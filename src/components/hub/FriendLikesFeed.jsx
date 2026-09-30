@@ -124,8 +124,8 @@ export default function FriendLikesFeed({ onOpenPost }) {
     enabled: !!user?.email,
     staleTime: 60_000,
   });
-  // Only an explicit false is "off"; unknown behaves as the default (on).
-  const sharing = profile?.share_likes_with_friends !== false;
+  // Only an explicit true is "on"; unknown behaves as the default (off).
+  const sharing = profile?.share_likes_with_friends === true;
 
   const { data: entries = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['friendLikes', user?.id],
