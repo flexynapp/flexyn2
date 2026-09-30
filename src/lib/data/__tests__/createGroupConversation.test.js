@@ -1,5 +1,5 @@
 // Tests for createGroupConversation in src/lib/data/hubMessages.js —
-// the wrapper around mig 116's create_group_conversation RPC. Verifies
+// the wrapper around create_group_conversation_by_ids. Verifies
 // input validation, RPC call shape, and error propagation.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -34,13 +34,13 @@ describe('createGroupConversation', () => {
     await expect(createGroupConversation(null)).rejects.toThrow(/group_min/);
   });
 
-  it('calls the RPC with the email array + null title by default', async () => {
+  it('calls the by-ids RPC with the id array + null title by default', async () => {
     rpcSpy.mockResolvedValueOnce({ data: 'new-conv-id', error: null });
-    const id = await createGroupConversation(['a@x.com', 'b@x.com']);
+    const id = await createGroupConversation(['id-a', 'id-b']);
     expect(id).toBe('new-conv-id');
-    expect(rpcSpy).toHaveBeenCalledWith('create_group_conversation', {
-      p_emails: ['a@x.com', 'b@x.com'],
-      p_title:  null,
+    expect(rpcSpy).toHaveBeenCalledWith('create_group_conversation_by_ids', {
+      p_user_ids: ['id-a', 'id-b'],
+      p_title:    null,
     });
   });
 

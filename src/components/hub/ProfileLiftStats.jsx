@@ -14,7 +14,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { workoutTitle } from '@/lib/workoutTitle';
-import { buildPRIndex } from '@/lib/data/personalRecords';
+import { topLifts as rankTopLifts } from '@/lib/headlineLift';
 import TapToCopy from '@/components/TapToCopy';
 import * as workouts from '@/lib/data/workouts';
 
@@ -40,13 +40,11 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
   });
 
   const { topLifts, totalVolumeLbs } = useMemo(() => {
-    // Build the all-time PR index, then take top 3 by 1RM estimate.
-    const idx = buildPRIndex(logs);
-    const ranked = Object.entries(idx)
-      .filter(([, rm]) => rm > 0)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, rm]) => ({ name, rm }));
+    // Same rule as the profile's Workouts line (headlineLift.js): barbell
+    // lifts by the heaviest set actually lifted, then dumbbell, then the
+    // rest. Ranking by estimated 1RM put the leg press on top here while
+    // the profile named a barbell lift one tap earlier.
+    const ranked = rankTopLifts(logs, 3);
 
     let total = 0;
     for (const log of logs) {
@@ -130,19 +128,21 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
               {tFallback('profileLifts.topLifts', 'Best lifts')}
             </span>
             <span className="text-xs text-muted-foreground">
-              {tFallback('profileLifts.estimated1rm', 'Est. 1RM')}
+              {tFallback('profileLifts.heaviestSet', 'Heaviest set')}
             </span>
           </div>
           {topLifts.map((lift) => {
             const displayName = lift.name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ');
-            const rmDisplay = `${Math.round(fromLbs(lift.rm, weightUnit))} ${unitSuffix}`;
+            const weightShown = fmt(Math.round(fromLbs(lift.weight, weightUnit)));
+            const setDisplay = `${weightShown} ${unitSuffix} × ${lift.reps}`;
             // Relative to the top lift, floored so the smallest bar still
-            // reads as a bar rather than a dot.
-            const pct = Math.max(8, Math.round((lift.rm / topLifts[0].rm) * 100));
+            // reads as a bar rather than a dot. The list is not sorted by
+            // weight across equipment types, so cap at a full bar.
+            const pct = Math.min(100, Math.max(8, Math.round((lift.weight / topLifts[0].weight) * 100)));
             return (
               <TapToCopy
                 key={lift.name}
-                value={`${displayName} 1RM: ${rmDisplay}`}
+                value={`${displayName}: ${setDisplay}`}
                 label={tFallback('copy.noun.pr', 'PR')}
                 className="block"
               >
@@ -150,8 +150,9 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm truncate">{displayName}</span>
                     <span className="font-heading font-bold text-base tabular-nums shrink-0">
-                      {Math.round(fromLbs(lift.rm, weightUnit))}
+                      {weightShown}
                       <span className="text-xs font-semibold text-muted-foreground ms-0.5">{unitSuffix}</span>
+                      <span className="text-xs font-semibold text-muted-foreground ms-1">× {lift.reps}</span>
                     </span>
                   </div>
                   <div className="h-0.5 rounded-full bg-border mt-1.5 overflow-hidden">
@@ -186,7 +187,8 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
               username,
               topLifts: topLifts.map(l => ({
                 name: l.name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '),
-                value: fromLbs(l.rm, weightUnit),
+                value: fromLbs(l.weight, weightUnit),
+                reps: l.reps,
               })),
               tonnage: fromLbs(totalVolumeLbs, weightUnit),
               streak: longestStreak || 0,

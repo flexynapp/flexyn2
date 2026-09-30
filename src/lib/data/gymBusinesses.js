@@ -338,7 +338,7 @@ export async function deleteEvent(eventId) {
   return { ok: !error, error: error?.message };
 }
 
-// author_email is not readable by the app (20260930230000): posts and
+// author_email is not readable by the app (20260930234100): posts and
 // comments are matched to people by author_id, and the email is filled
 // server side from the author's profile.
 const FEED_POST_COLUMNS = 'id, gym_id, author_id, body, media_url, like_count, comment_count, reaction_count, created_at, edited_at, is_pinned, pinned_at';

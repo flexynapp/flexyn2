@@ -126,7 +126,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   // ── Top lifts ──────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = canvasFont('bold 24px');
-  ctx.fillText(tf('shareCard.topLifts1rm', 'TOP LIFTS · ESTIMATED 1RM'), 80, 560);
+  ctx.fillText(tf('shareCard.topLiftsHeaviest', 'TOP LIFTS · HEAVIEST SET'), 80, 560);
 
   (topLifts || []).slice(0, 3).forEach((lift, i) => {
     const y = 600 + i * 76;
@@ -147,7 +147,9 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     // Value
     ctx.fillStyle = '#a7f3d0';
     ctx.font = canvasFont('bold 36px');
-    const valText = `${Math.round(lift.value)} ${unit}`;
+    const valText = lift.reps
+      ? `${Math.round(lift.value)} ${unit} × ${lift.reps}`
+      : `${Math.round(lift.value)} ${unit}`;
     ctx.textAlign = 'end';
     ctx.fillText(valText, W - 80, y + 22);
     ctx.textAlign = 'start';
@@ -326,6 +328,7 @@ export function buildProfileShareProps({ username, logs, topLifts, tonnage, stre
     topLifts: (topLifts || []).map(l => ({
       name: l.name,
       value: l.value,
+      reps: l.reps,
     })),
     tonnage,
     streak: streak || 0,

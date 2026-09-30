@@ -194,7 +194,11 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   and (`20260930163500`) `hub_live_sessions`, `poll_votes`,
   `status_note_likes`, `story_likes`, `story_highlights`, `regimen_reviews`;
   and (`20260930220000`) `regimens` (`created_by`, `original_author_email`),
-  `user_trophies` and `gym_members`. `ownedRows(table, { columns })` is how
+  `user_trophies` and `gym_members`; and (`20260930234100`) the gym feed,
+  `gym_feed_posts` and `gym_feed_comments` (`author_email`); and
+  (`20260930235900`) `hub_follows`, `hub_posts`, `hub_comments`,
+  `hub_comment_likes`, `stories`, `status_notes`, `food_items` and
+  `workout_templates`. `ownedRows(table, { columns })` is how
   a one-person table like `regimens` names its columns.
   On these, `select('*')` (and `.insert().select()` with no list) fails
   with 42501, so name the columns; an upsert may not set the email column

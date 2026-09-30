@@ -307,9 +307,9 @@ export async function generateDemoBounties() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Fetch own profile to get email for hub_follows lookup
+  // Own profile for the XP the targets are scaled against.
   const { data: myProfile } = await safeSelect({
-    columns: ['email', 'total_xp'],
+    columns: ['total_xp'],
     build: (cols) => supabase
     .from('user_profiles')
     .select(cols)
@@ -319,11 +319,11 @@ export async function generateDemoBounties() {
 
   if (!myProfile) throw new Error('Profile not found');
 
-  // Get followed users via the (now-populated) followee_id column
+  // Followed users, by id.
   const { data: follows } = await supabase
     .from('hub_follows')
     .select('followee_id')
-    .eq('follower_email', myProfile.email)
+    .eq('follower_id', user.id)
     .limit(10);
 
   let targetProfiles = [];

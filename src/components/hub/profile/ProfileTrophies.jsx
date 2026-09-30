@@ -45,7 +45,6 @@ export default function ProfileTrophies({
   trophyVisible,
   earnedTrophies,
   onPickSlot,
-  trophyLabels,
   tFallback,
 }) {
   const fmtDate = useDateFormatter();
@@ -84,7 +83,6 @@ export default function ProfileTrophies({
           <div className="flex gap-2">
             {Array(5).fill(null).map((_, i) => {
               const slot = trophyCase[i] ?? null;
-              const label = slot ? (trophyLabels[slot.value] || slot.value) : null;
               const isPrimary = i === 0;
               const slotName = isPrimary
                 ? tFallback('hub.profile.primarySlot', 'Primary trophy')
@@ -97,7 +95,7 @@ export default function ProfileTrophies({
                   whileTap={isSelf ? { scale: 0.9 } : undefined}
                   disabled={!isSelf}
                   aria-label={slot
-                    ? `${slotName}: ${label}`
+                    ? `${slotName}: ${slot.value}`
                     : `${slotName} — ${tFallback('hub.profile.emptySlot', 'empty')}`}
                   className={`relative flex-1 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors ${
                     slot
@@ -118,12 +116,11 @@ export default function ProfileTrophies({
                     />
                   )}
                   {slot ? (
-                    <>
-                      <span className="text-2xl leading-none">{slot.value}</span>
-                      <span className="text-xs text-muted-foreground leading-tight text-center truncate w-full px-1">
-                        {label}
-                      </span>
-                    </>
+                    // The emoji alone. It carried an English word underneath
+                    // (Trophy, Lightning, Dragon…) in every language; the
+                    // icon already says it, and a screen reader names the
+                    // emoji in the reader's own language.
+                    <span className="text-3xl leading-none">{slot.value}</span>
                   ) : isSelf ? (
                     <>
                       <Plus className={`w-4 h-4 ${isPrimary ? 'text-primary/70' : 'text-primary/50'}`} />

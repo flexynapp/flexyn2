@@ -445,25 +445,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.
   //
-  // listFollowing returns Array<string> (the follow-target emails), NOT
-  // an array of row objects. The previous .map(f => f?.followee_email...)
-  // pulled .followee_email OFF EACH STRING — always undefined — so
-  // followingEmails was permanently []. Every conversation with a
-  // followed friend was being mis-partitioned into Requests instead of
-  // Inbox. (Audit 10 #1, the highest-impact Hub bug.)
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['myFollowsForDMs', user?.email],
-    queryFn: async () => {
-      const list = await hubFollows.listFollowing(user.email).catch(() => []);
-      // Accept either the canonical string-array shape OR a future
-      // row-object shape (defensive). Trim + lowercase for consistent
-      // membership checks in partitionConversations.
-      return (list || [])
-        .map(item => (typeof item === 'string' ? item : (item?.followee_email || item?.followed_email || item?.email)))
-        .filter(Boolean)
-        .map(e => String(e).trim().toLowerCase());
-    },
-    enabled: !!user?.email,
+  // By user id: partitionConversations matches these against each
+  // conversation's participant_ids.
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['myFollowsForDMs', user?.id],
+    queryFn: () => hubFollows.listFollowingIds(user.id).catch(() => []),
+    enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
 
@@ -476,7 +463,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // explicitly told us to bury it.
   const { archivedConvs, inboxConvs, requestConvs } = useMemo(() => {
     const { active, archived } = partitionByArchive(conversations, user?.id);
-    const { inbox, requests } = partitionConversations(active, user?.email, followingEmails);
+    const { inbox, requests } = partitionConversations(active, user?.email, followingIds, user?.id);
     return { archivedConvs: archived, inboxConvs: inbox, requestConvs: requests };
   // archiveVersion is a deliberate dependency, not noise. Archive state
   // lives in localStorage, so archiving changes NOTHING this memo watches:
@@ -489,7 +476,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // Pin and Mute were unaffected precisely because they hold their state
   // in React (pinnedConvIds / mutedConvIds) and re-render on change,
   // which is why only Archive was reported broken.
-  }, [conversations, user?.email, user?.id, followingEmails, archiveVersion]);
+  }, [conversations, user?.email, user?.id, followingIds, archiveVersion]);
 
   // The list rendered in the current dmView. Pinned conversations sort
   // to the top within the inbox view (audit 10 #4 — pin used to be a
