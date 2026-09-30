@@ -8,14 +8,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ChevronRight, Globe } from 'lucide-react';
+import { ChevronRight, Dumbbell, Globe } from 'lucide-react';
 import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
-import { leagueTierName } from '@/lib/leagueTiers';
+import { getTier, leagueTierName } from '@/lib/leagueTiers';
 import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
@@ -41,6 +41,15 @@ export default function LeagueCard({ onClick, stretch = false }) {
     enabled: !!user?.id,
     staleTime: 30_000,
     refetchInterval: 90_000, // gentle poll so the rank refreshes after others log XP
+  });
+
+  // Strength Score: what decides the league itself. Separate query so a
+  // failure leaves the card up and simply drops the line.
+  const { data: strength } = useQuery({
+    queryKey: ['myLeagueStrength', user?.id],
+    queryFn: () => leagues.getMyStrength(user),
+    enabled: !!user?.id,
+    staleTime: 60_000,
   });
 
   // Global all-time standing for the footer strip. Same query the level
@@ -104,49 +113,56 @@ export default function LeagueCard({ onClick, stretch = false }) {
     ? Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1)
     : 0;
 
-  // Status strip. The zone indicators were computed here and never read for
-  // months; they render now, because with migration 310 they mean something.
-  //
-  // Ordering is deliberate — qualification outranks position. Someone who has
-  // not trained is not in a zone at all, and telling them "#3, promotion zone"
-  // when they will finish Unranked is the single most misleading thing this
-  // card could say.
+  // Race strip: where this week stands. Qualification comes first, because
+  // someone who has not trained is not in the race at all, and telling them
+  // "#3, prize zone" when they will finish Unranked would be the single most
+  // misleading thing this card could say. The race never moves your league,
+  // so there is no demotion zone to show.
   const qualified = data.myQualified;
-  const promoteN = Number(data.promoteN) || 0;
-  const demoteN = Number(data.demoteN) || 0;
+  const prizeN = Number(data.prizeN) || 0;
   const qualifiedCount = Number(data.qualifiedCount) || 0;
+  const minDays = tier.minWorkouts || 1;
 
   let strip = null;
   if (!qualified) {
     strip = {
       tone: 'text-primary',
       dot: 'bg-primary',
-      text: tFallback('league.gate.qualifyCta', 'Log a workout to qualify'),
+      text: minDays > 1
+        ? tFallback('league.gate.qualifyDays', 'Train on {n} separate days to qualify', { n: minDays })
+        : tFallback('league.gate.qualifyCta', 'Log a workout to qualify'),
     };
-  } else if (data.bracketTooSmall) {
-    strip = {
-      tone: 'text-muted-foreground',
-      dot: 'bg-muted-foreground',
-      text: tFallback('league.gate.bracketHeldShort', 'Bracket held this week'),
-    };
-  } else if (myRank && promoteN > 0 && myRank <= promoteN) {
+  } else if (myRank && prizeN > 0 && myRank <= prizeN) {
     strip = {
       tone: 'text-success',
       dot: 'bg-success',
-      text: tFallback('league.gate.inPromoteZone', 'Promotion zone · top {n}', { n: promoteN }),
+      text: tFallback('league.gate.inPrizeZone', 'Prize zone · top {n}', { n: prizeN }),
     };
-  } else if (myRank && demoteN > 0 && myRank > qualifiedCount - demoteN) {
-    strip = {
-      tone: 'text-destructive',
-      dot: 'bg-destructive',
-      text: tFallback('league.gate.inDemoteZone', 'Demotion zone · bottom {n}', { n: demoteN }),
-    };
-  } else if (myRank) {
+  } else {
     strip = {
       tone: 'text-muted-foreground',
       dot: 'bg-muted-foreground',
-      text: tFallback('league.gate.holding', 'Holding position'),
+      text: tFallback('league.gate.daysTrained', '{n} days trained this week', { n: data.myActiveDays || 0 }),
     };
+  }
+
+  // Strength line: what decides the league. Only drawn when the server
+  // answered, so a host without the RPC shows the card as before.
+  let strengthText = null;
+  if (strength) {
+    if (strength.reason === 'no_bodyweight') {
+      strengthText = tFallback('league.strength.needBodyweight', 'Add your bodyweight to get placed by strength');
+    } else if (strength.score == null) {
+      strengthText = tFallback('league.strength.needLifts', 'Log a squat, bench, deadlift or overhead press in two sessions to get placed');
+    } else if (strength.next_tier) {
+      strengthText = tFallback('league.strength.toNext', 'Strength {score} · {tier} at {floor}', {
+        score: fmt(Math.round(strength.score)),
+        tier: leagueTierName(getTier(strength.next_tier), tFallback),
+        floor: fmt(strength.next_floor),
+      });
+    } else {
+      strengthText = tFallback('league.strength.score', 'Strength {score}', { score: fmt(Math.round(strength.score)) });
+    }
   }
 
   return (
@@ -246,8 +262,18 @@ export default function LeagueCard({ onClick, stretch = false }) {
           </div>
         </div>
 
-        {/* Status strip — qualification first, then zone. Hairline above it,
-            no fill: this is state, not a surface of its own. */}
+        {/* Strength line: the number that sets the league. */}
+        {strengthText && (
+          <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
+            <Dumbbell className="w-2.5 h-2.5 text-muted-foreground shrink-0" aria-hidden="true" />
+            <span className="text-micro text-muted-foreground truncate tabular-nums">
+              {strengthText}
+            </span>
+          </div>
+        )}
+
+        {/* Race strip: qualification first, then the prize zone. Hairline
+            above it, no fill: this is state, not a surface of its own. */}
         {strip && (
           <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${strip.dot}`} aria-hidden="true" />
