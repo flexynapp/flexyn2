@@ -191,7 +191,7 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   people's emails** (2026-09-30, `20260930150000_hide_emails_on_shared_tables`):
   `league_members`, `league_season_stats`, `monthly_league_members`,
   `marketplace_listings`, `marketplace_bundles`, `post_sticker_reactions`;
-  and (`20260930160000`) `hub_live_sessions`, `poll_votes`,
+  and (`20260930163500`) `hub_live_sessions`, `poll_votes`,
   `status_note_likes`, `story_likes`, `story_highlights`, `regimen_reviews`.
   On these, `select('*')` (and `.insert().select()` with no list) fails
   with 42501, so name the columns; an upsert may not set the email column
