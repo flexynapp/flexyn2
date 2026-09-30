@@ -14,6 +14,13 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const read = (p) => readFileSync(p, 'utf8');
+// One statement: from .from('<t>') to its ';', or to the next query when
+// several sit in one Promise.all separated by commas.
+const statement = (src, i) => {
+  const ends = [src.indexOf(';', i), src.indexOf('supabase', i + 1), src.indexOf('.from(', i + 1)]
+    .filter((n) => n !== -1);
+  return src.slice(i, ends.length ? Math.min(...ends) : undefined);
+};
 const constant = (src, name) => {
   const m = src.match(new RegExp(`const ${name} = '([^']+)'`));
   expect(m, `${name} is defined`).toBeTruthy();
@@ -57,6 +64,8 @@ describe('tables moving to column-level SELECT grants', () => {
   const GRANTED = [
     'league_members', 'league_season_stats', 'monthly_league_members',
     'marketplace_listings', 'marketplace_bundles', 'post_sticker_reactions',
+    'hub_live_sessions', 'poll_votes', 'status_note_likes', 'story_likes',
+    'story_highlights', 'regimen_reviews',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));
@@ -67,8 +76,7 @@ describe('tables moving to column-level SELECT grants', () => {
       const src = read(f);
       let i = src.indexOf(`from('${table}')`);
       while (i !== -1) {
-        const end = src.indexOf(';', i);
-        const chain = src.slice(i, end === -1 ? undefined : end);
+        const chain = statement(src, i);
         if (/\.select\(\s*(['"`]\*|\))/.test(chain)) offenders.push(f);
         i = src.indexOf(`from('${table}')`, i + 1);
       }
@@ -81,4 +89,21 @@ it('the sticker upsert does not send user_email (the database fills it)', () => 
   const src = read('src/lib/data/stickerReactions.js');
   const upsert = src.slice(src.indexOf('.upsert('), src.indexOf("onConflict: 'post_id,user_id'"));
   expect(upsert).not.toMatch(/user_email\s*:/);
+});
+
+// Likes and reviews are upserts. Postgres needs SELECT on every column an
+// ON CONFLICT DO UPDATE sets, so once the email is unreadable an upsert that
+// still sends it is refused. The database fills these from the profile.
+it.each([
+  ['src/lib/data/statusNotes.js', 'status_note_likes', 'liker_email'],
+  ['src/lib/data/stories.js', 'story_likes', 'liker_email'],
+  ['src/lib/data/regimenReviews.js', 'regimen_reviews', 'reviewer_email'],
+])('%s never sends or reads %s.%s', (file, table, col) => {
+  const src = read(file);
+  let i = src.indexOf(`from('${table}')`);
+  expect(i).toBeGreaterThan(-1);
+  while (i !== -1) {
+    expect(statement(src, i)).not.toContain(col);
+    i = src.indexOf(`from('${table}')`, i + 1);
+  }
 });

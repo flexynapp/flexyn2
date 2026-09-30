@@ -27,6 +27,7 @@
 // step renders exactly what it rendered before this existed.
 
 import { askCoachLLM } from '@/lib/data/coachChat';
+import { starterPlanLevel } from '@/lib/data/starterRegimen';
 
 // Shorter than the chat default (12 s). This one sits inside the onboarding
 // loading screen, which the user is already watching a progress list on —
@@ -78,11 +79,23 @@ export function buildOnboardingContext(draft = {}) {
 
   const profile = {
     sex: stats.gender || undefined,
-    age: Number.isFinite(stats.age) ? stats.age : undefined,
-    bodyweightLb: Number.isFinite(stats.weightKg)
+    // Only what the person actually entered. The age and weight steps start
+    // on placeholder values (26, 75 kg), and a coach reply sized for a
+    // default body describes a plan nobody asked for.
+    age: stats.userTouchedAge && Number.isFinite(stats.age) ? stats.age : undefined,
+    bodyweightLb: stats.userTouchedWeight && Number.isFinite(stats.weightKg)
       ? Math.round(stats.weightKg * KG_TO_LB)
       : undefined,
-    skillLevel: draft.level || undefined,
+    // The level the plan was built at, which the lift check can move from
+    // the level picked. The coach has to describe the same plan the card shows.
+    skillLevel: draft.level
+      ? starterPlanLevel({
+        goals: draft.goal,
+        level: draft.level,
+        assessment: draft.assessment,
+        age: stats.userTouchedAge && Number.isFinite(stats.age) ? stats.age : undefined,
+      }) || draft.level
+      : undefined,
     goals: goals.length ? goals : undefined,
     trainingDaysPerWeek: Array.isArray(draft.days) && draft.days.length
       ? draft.days.length
@@ -135,6 +148,9 @@ export async function askStarterPlanCoach({ draft = {}, language = 'en' } = {}) 
       context: buildOnboardingContext(draft),
       language,
       timeoutMs: TIMEOUT_MS,
+      // Its own short Haiku prompt and its own quota, so the write-up no
+      // longer spends one of a guest's five chat messages (coach-chat).
+      purpose: 'starter_intro',
     });
   } catch (err) {
     // askCoachLLM does not throw, but onboarding is the wrong place to find

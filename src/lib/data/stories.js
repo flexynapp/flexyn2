@@ -430,15 +430,16 @@ export async function markStoryViewed(storyId, userId) {
  * `ignoreDuplicates: true` for the same reason as markStoryViewed —
  * story_likes has no UPDATE policy, so the merge-duplicates form failed
  * with 42501 on a re-like and this returned false as though the like had
- * been rejected. The only non-key column is the liker's own email, so
- * there was never anything worth updating on conflict.
+ * been rejected. There is no non-key column the client sends, so there
+ * was never anything worth updating on conflict. The liker's email is
+ * filled by the database from the profile.
  */
 export async function likeStory(storyId, user) {
   if (!storyId || !user?.id) return false;
   const { error } = await supabase
     .from('story_likes')
     .upsert(
-      { story_id: storyId, liker_id: user.id, liker_email: user.email },
+      { story_id: storyId, liker_id: user.id },
       { onConflict: 'story_id,liker_id', ignoreDuplicates: true }
     );
   if (error) { console.warn('[stories] like failed:', error); return false; }
@@ -473,7 +474,7 @@ export async function getStoryInsights(storyId) {
 
     supabase
       .from('story_likes')
-      .select('liker_id, liker_email, created_at')
+      .select('liker_id, created_at')
       .eq('story_id', storyId)
       .order('created_at', { ascending: false }),
   ]);

@@ -24,6 +24,7 @@ const GOAL_KEYS = {
   lose:      ['workout.starter.goal.lose',      'Fat loss'],
   endurance: ['workout.starter.goal.endurance', 'Endurance'],
   mobility:  ['workout.starter.goal.mobility',  'Mobility'],
+  speed:     ['workout.starter.goal.speed',     'Speed'],
 };
 
 const LEVEL_KEYS = {
@@ -59,7 +60,14 @@ export default function StarterPlanHeroCard({
   const goalLabel = goalKey && GOAL_KEYS[goalKey]
     ? tFallback(GOAL_KEYS[goalKey][0], GOAL_KEYS[goalKey][1])
     : goalKey || null;
-  const levelKeyRaw = userProfile?.fitness_level || null;
+  // The plan's own level comes first: the builder adjusts the answer the
+  // person gave (an assessment or age can move a "consistent" lifter down),
+  // and writes the level it actually built for at the head of the
+  // description. The badge has to name that one, not the raw answer.
+  const planLevel = typeof regimen.description === 'string'
+    ? regimen.description.split(' · ')[0].trim()
+    : '';
+  const levelKeyRaw = (LEVEL_KEYS[planLevel] ? planLevel : null) || userProfile?.fitness_level || null;
   const levelLabel = levelKeyRaw && LEVEL_KEYS[levelKeyRaw]
     ? tFallback(LEVEL_KEYS[levelKeyRaw][0], LEVEL_KEYS[levelKeyRaw][1])
     : levelKeyRaw || null;
@@ -130,9 +138,13 @@ export default function StarterPlanHeroCard({
           <ul className="mt-4 space-y-1.5">
             {preview.map((ex, i) => (
               <li key={`${ex.name}-${i}`} className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate text-foreground/90">{ex.name}</span>
+                <span className="truncate text-foreground/90">{ex.displayName || ex.name}</span>
                 <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                  {ex.target_sets || 3} × {ex.target_reps ?? '—'}
+                  {ex.kind === 'cardio'
+                    // "2.5 mi @ 8:05/mi", not the "1 × 1" placeholder a run
+                    // carries so older list views can still render it.
+                    ? (ex.detail || '').split(' · ')[0]
+                    : `${ex.target_sets || 3} × ${ex.target_reps ?? '—'}`}
                 </span>
               </li>
             ))}
