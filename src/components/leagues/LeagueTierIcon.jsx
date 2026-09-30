@@ -172,14 +172,107 @@ const EMBLEMS = {
   ),
 };
 
-/** The emblem for a league tier id. Decorative: the tier name is always
- *  in text beside it, so it is hidden from screen readers. */
-export default function LeagueTierIcon({ tier, className = 'w-8 h-8', ...rest }) {
+// ── Levels within a league ────────────────────────────────────────
+//
+// Each league has four levels (Bronze I to Bronze IV and so on). Level I
+// is the league's crest as drawn above; every level after it adds one
+// more piece of ornament, in the league's own palette, so a IV reads as
+// the same crest made grander rather than a different league:
+//
+//   I    the crest
+//   II   + a ribbon across the base, carrying two pips
+//   III  + laurel sprigs rising around the crest, three pips
+//   IV   + a rosette backplate and a star finial, four pips
+//
+// The pips count the level, so the level can be read without a numeral
+// to translate.
+
+// Level IV's backplate: a rosette, the scalloped disc prize medals sit
+// on. Solid in the league's deepest step with a ring in its own colour,
+// so it frames the crest and the crest still stands out against it.
+const ROSETTE = (() => {
+  const pts = [];
+  for (let i = 0; i < 32; i++) {
+    const r = i % 2 ? 29.5 : 34;
+    const a = (i / 32) * Math.PI * 2 - Math.PI / 2;
+    pts.push(`${(32 + r * Math.cos(a)).toFixed(1)} ${(31 + r * Math.sin(a)).toFixed(1)}`);
+  }
+  return `M${pts.join(' L')} Z`;
+})();
+function Rosette({ p }) {
+  return (
+    <>
+      <path d={ROSETTE} fill={p.rim} stroke={p.dark} strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="32" cy="31" r="26.5" fill="none" stroke={p.mid} strokeWidth="1.4" />
+    </>
+  );
+}
+
+// One laurel sprig, sweeping from under the ribbon up the left side,
+// with leaves in pairs along it; the right sprig is the mirror. Leaf
+// positions follow the stem's curve so they lie along it.
+const STEM = [[30, 67], [6, 66], [-2, 40]];
+const LEAVES = [0.18, 0.36, 0.54, 0.72, 0.9].map((t) => {
+  const [[x0, y0], [cx, cy], [x2, y2]] = STEM;
+  const u = 1 - t;
+  const x = u * u * x0 + 2 * u * t * cx + t * t * x2;
+  const y = u * u * y0 + 2 * u * t * cy + t * t * y2;
+  const dx = 2 * u * (cx - x0) + 2 * t * (x2 - cx);
+  const dy = 2 * u * (cy - y0) + 2 * t * (y2 - cy);
+  return [x, y, (Math.atan2(dy, dx) * 180) / Math.PI];
+});
+function Laurel({ p }) {
+  const sprig = (a, b) => (
+    <>
+      <path d={`M${STEM[0].join(' ')} Q${STEM[1].join(' ')} ${STEM[2].join(' ')}`} fill="none" stroke={p.rim} strokeWidth="1.6" strokeLinecap="round" />
+      {LEAVES.map(([x, y, r], i) => (
+        <g key={i} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r.toFixed(0)})`}>
+          <ellipse cx="2.5" cy="-3.4" rx="4" ry="1.9" transform="rotate(-35 2.5 -3.4)" fill={a} stroke={p.rim} strokeWidth="0.9" />
+          <ellipse cx="2.5" cy="3.4" rx="4" ry="1.9" transform="rotate(35 2.5 3.4)" fill={b} stroke={p.rim} strokeWidth="0.9" />
+        </g>
+      ))}
+    </>
+  );
+  return (
+    <>
+      {sprig(p.light, p.mid)}
+      <g transform="translate(64 0) scale(-1 1)">{sprig(p.mid, p.dark)}</g>
+    </>
+  );
+}
+
+function Ribbon({ p, pips }) {
+  const xs = Array.from({ length: pips }, (_, i) => 32 + (i - (pips - 1) / 2) * 6);
+  return (
+    <>
+      {/* Forked tails behind the band. */}
+      <path d="M15 52 L4 53.5 L8.5 57.5 L4 61.5 L15 60 Z" fill={p.dark} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M49 52 L60 53.5 L55.5 57.5 L60 61.5 L49 60 Z" fill={p.dark} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M13 50.5 Q32 56.5 51 50.5 V58.5 Q32 64.5 13 58.5 Z" fill={p.mid} stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
+      {xs.map((x) => {
+        const y = 57.4 - Math.pow((x - 32) / 19, 2) * 6;
+        return <path key={x} data-pip="" d={`M${x} ${y - 2.4} L${x + 2} ${y} L${x} ${y + 2.4} L${x - 2} ${y} Z`} fill={p.ink} stroke={p.rim} strokeWidth="0.7" />;
+      })}
+    </>
+  );
+}
+
+const FINIAL = 'M32 -7 L33.9 -3 L38 -2.6 L34.9 0.2 L35.8 4.3 L32 2.2 L28.2 4.3 L29.1 0.2 L26 -2.6 L30.1 -3 Z';
+
+/** The emblem for a league tier id at a level from 1 to 4. Decorative:
+ *  the tier name is always in text beside it, so it is hidden from
+ *  screen readers. */
+export default function LeagueTierIcon({ tier, level = 1, className = 'w-8 h-8', ...rest }) {
   const id = PALETTES[tier] ? tier : 'bronze';
+  const lv = Math.min(4, Math.max(1, Math.round(Number(level) || 1)));
   const palette = { ...PALETTES[id], mid: getTier(id).color };
   return (
-    <svg viewBox="-3 -3 70 70" className={className} aria-hidden="true" focusable="false" {...rest}>
+    <svg viewBox="-9 -9 82 82" className={className} aria-hidden="true" focusable="false" {...rest}>
+      {lv >= 4 && <Rosette p={palette} />}
+      {lv >= 3 && <Laurel p={palette} />}
       {EMBLEMS[id](palette)}
+      {lv >= 2 && <Ribbon p={palette} pips={lv} />}
+      {lv >= 4 && <path d={FINIAL} fill={palette.light} stroke={palette.rim} strokeWidth="1.2" strokeLinejoin="round" />}
     </svg>
   );
 }
@@ -189,11 +282,12 @@ export default function LeagueTierIcon({ tier, className = 'w-8 h-8', ...rest })
  * chip behind it any more; the name is kept so the call sites read the
  * same as before.
  */
-export function LeagueTierBadge({ tier, size = 32, className = '' }) {
+export function LeagueTierBadge({ tier, level = 1, size = 32, className = '' }) {
   const meta = getTier(tier);
   return (
     <LeagueTierIcon
       tier={meta.id}
+      level={level}
       className={`shrink-0 ${className}`}
       style={{ width: size, height: size }}
     />

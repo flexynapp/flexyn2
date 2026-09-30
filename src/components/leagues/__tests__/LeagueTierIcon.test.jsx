@@ -48,3 +48,30 @@ describe('season trophies carry their league tier', () => {
     expect(parseSeasonTrophy('league_s3_champion').leagueTier).toBe('legend');
   });
 });
+
+describe('LeagueTierIcon levels', () => {
+  const svgOf = (tier, level) => render(<LeagueTierIcon tier={tier} level={level} />).container.querySelector('svg');
+
+  it('draws a different emblem at each of the four levels', () => {
+    for (const t of TIERS) {
+      const marks = [1, 2, 3, 4].map((lv) => svgOf(t.id, lv).innerHTML);
+      expect(new Set(marks).size).toBe(4);
+    }
+  });
+
+  it('keeps level one identical to the plain crest', () => {
+    expect(svgOf('gold', 1).innerHTML).toBe(markOf('gold'));
+  });
+
+  it('counts the level in pips from level two up', () => {
+    expect(svgOf('silver', 1).querySelectorAll('[data-pip]').length).toBe(0);
+    for (const lv of [2, 3, 4]) {
+      expect(svgOf('silver', lv).querySelectorAll('[data-pip]').length).toBe(lv);
+    }
+  });
+
+  it('clamps an out of range level', () => {
+    expect(svgOf('bronze', 9).innerHTML).toBe(svgOf('bronze', 4).innerHTML);
+    expect(svgOf('bronze', 0).innerHTML).toBe(svgOf('bronze', 1).innerHTML);
+  });
+});
