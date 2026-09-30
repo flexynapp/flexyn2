@@ -187,6 +187,17 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   because you have to be able to see who someone is in order to follow
   them. "Private" hides stats and bio, not identity.
 
+- **Some shared tables grant SELECT column by column, to hide other
+  people's emails** (2026-09-30, `20260930150000_hide_emails_on_shared_tables`):
+  `league_members`, `league_season_stats`, `monthly_league_members`,
+  `marketplace_listings`, `marketplace_bundles`, `post_sticker_reactions`.
+  On these, `select('*')` (and `.insert().select()` with no list) fails
+  with 42501, so name the columns; an upsert may not set the email column
+  (ON CONFLICT DO UPDATE reads EXCLUDED, which needs SELECT; the sticker
+  reaction email is filled by a trigger for this reason); and a column
+  added later is unreadable by the app until it is granted. Look people up
+  by user id, never by email.
+
 **Rewriting an RLS policy: prove equivalence on seeded data.** The live
 hub had 23 public posts, zero followers-only, zero scheduled and zero
 blocks, so a before/after there would have exercised one branch. Seed the
