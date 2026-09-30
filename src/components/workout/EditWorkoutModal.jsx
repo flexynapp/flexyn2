@@ -142,9 +142,16 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   );
 }
 
+// Cardio entries are not edited here: this form edits sets, and a run is
+// its own cardio log (workoutCardio.js), edited from Cardio. They ride
+// through untouched. Before, the set filter in handleSave dropped them on
+// every edit, cutting the run out of the workout it was logged in.
+const liftsOf = (list) => (Array.isArray(list) ? list : []).filter((ex) => ex?.kind !== 'cardio');
+const cardioOf = (list) => (Array.isArray(list) ? list : []).filter((ex) => ex?.kind === 'cardio');
+
 export default function EditWorkoutModal({ log, userProfile = {}, logs = [], cardioLogs = [], open, onClose, onSave, onDelete }) {
   const { t, language, tFallback } = useLanguage();
-  const [exercises, setExercises] = useState(() => withSetKeys(log?.exercises));
+  const [exercises, setExercises] = useState(() => withSetKeys(liftsOf(log?.exercises)));
   const [date, setDate] = useState(log?.date || '');
   const [duration, setDuration] = useState(workoutDurationMin(log) || '');
   const [notes, setNotes] = useState(log?.notes || '');
@@ -165,7 +172,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
   // one's exercise list. (Audit 09 #C-3.)
   useEffect(() => {
     if (!log) return;
-    setExercises(withSetKeys(log.exercises));
+    setExercises(withSetKeys(liftsOf(log.exercises)));
     setDate(log.date || '');
     setDuration(workoutDurationMin(log) || '');
     setNotes(log.notes || '');
@@ -320,7 +327,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     // button disabled and no message: onSave throws and nothing caught it.
     setSaving(true);
     try {
-      await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, [TITLE_COLUMN]: name.trim() || workoutTitle(log) || null, tags });
+      await onSave(log.id, { exercises: [...finalExercises, ...cardioOf(log.exercises)], date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, [TITLE_COLUMN]: name.trim() || workoutTitle(log) || null, tags });
     } catch (err) {
       reportError(err, { feature: 'workout.edit-save', level: 'error' });
       toast.error(tFallback('workout.editSaveFailed', 'Could not save your changes. Try again.'));

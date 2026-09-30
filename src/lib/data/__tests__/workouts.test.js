@@ -168,13 +168,24 @@ describe('workouts writes', () => {
 
   it('remove deletes by id and throws on error', async () => {
     await workouts.remove('w1');
-    expect(calls).toEqual([
-      ['workout_logs', 'from'],
+    const deletes = calls.filter((c) => c[1] === 'delete' || (c[1] === 'eq' && calls[calls.indexOf(c) - 1]?.[1] === 'delete'));
+    expect(deletes).toEqual([
       ['workout_logs', 'delete'],
       ['workout_logs', 'eq', 'id', 'w1'],
     ]);
-    results = [{ error: { code: '42501' } }];
+    results = [{ data: null, error: null }, { error: { code: '42501' } }];
     await expect(workouts.remove('w1')).rejects.toMatchObject({ code: '42501' });
+  });
+
+  it('remove takes the runs logged in the workout with it, first', async () => {
+    results = [{ data: { id: 'w1', exercises: [
+      { name: 'Squat', sets: [] },
+      { kind: 'cardio', cardio_log_id: 'c1', segments: [] },
+    ] }, error: null }];
+    await workouts.remove('w1');
+    const deletes = calls.filter((c) => c[1] === 'delete').map((c) => c[0]);
+    expect(deletes).toEqual(['cardio_logs', 'workout_logs']);
+    expect(calls).toContainEqual(['cardio_logs', 'eq', 'id', 'c1']);
   });
 });
 
