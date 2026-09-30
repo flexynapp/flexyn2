@@ -36,8 +36,21 @@ export function useHeroContests({ user, isSelf }) {
     queryFn: async () => {
       try {
         const res = await getMyLeague(user);
-        if (!res?.myRank) return null;
-        return { rank: res.myRank, total: res.totalMembers, tierId: res.tier?.id ?? null, tierLabel: res.tier?.label ?? null };
+        if (!res?.league) return null;
+        // Unranked until you have trained enough days this week. That used
+        // to return null, which removed the League row and the plate's tap
+        // to the standings every Monday, for exactly the people the row
+        // should be nudging.
+        const daysToRank = res.myRank
+          ? 0
+          : Math.max(1, (Number(res.tier?.minWorkouts) || 1) - (Number(res.myActiveDays) || 0));
+        return {
+          rank: res.myRank ?? null,
+          total: res.totalMembers,
+          daysToRank,
+          tierId: res.tier?.id ?? null,
+          tierLabel: res.tier?.label ?? null,
+        };
       } catch { return null; }
     },
     enabled,

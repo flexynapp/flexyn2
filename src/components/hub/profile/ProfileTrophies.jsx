@@ -14,6 +14,7 @@
 //   • Locked slots render. A collection you can see the shape of is one you
 //     want to complete; "8/24" with fifteen empty frames says something that
 //     "8/24" alone doesn't.
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Pin } from 'lucide-react';
 import {
@@ -25,6 +26,7 @@ import {
   trophyDescription,
 } from '@/lib/trophyDefinitions';
 import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
+import { useDateFormatter } from '@/lib/intl';
 
 function SectionLabel({ children, aside }) {
   return (
@@ -46,7 +48,14 @@ export default function ProfileTrophies({
   trophyLabels,
   tFallback,
 }) {
+  const fmtDate = useDateFormatter();
+  // Which earned trophy is open. The name and description used to live only
+  // in a `title` tooltip, which a phone never shows, so a tap did nothing and
+  // nobody could tell what a trophy was for.
+  const [openId, setOpenId] = useState(null);
   const earnedIds = new Set(earnedTrophies.map((row) => row.trophy_id));
+  const openRow = openId ? earnedTrophies.find((row) => row.trophy_id === openId) : null;
+  const openTrophy = openRow ? getTrophy(openRow.trophy_id) : null;
   // Locked frames show the SHAPE of what's left — "8/24 with fifteen empty
   // frames says something 8/24 alone doesn't". Migration 323 took the
   // catalog from 18 to 73, and 65 padlocks is no longer a shape, it's a
@@ -158,25 +167,30 @@ export default function ProfileTrophies({
               const trophy = getTrophy(row.trophy_id);
               if (!trophy) return null;
               const tierMeta = TROPHY_TIERS[trophy.tier] || TROPHY_TIERS.bronze;
+              const open = openId === row.trophy_id;
               return (
-                <div
+                <button
+                  type="button"
                   key={row.trophy_id}
-                  title={`${trophyName(trophy, tFallback)}. ${trophyDescription(trophy, tFallback)}`}
-                  className="relative aspect-square rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden"
+                  onClick={() => setOpenId(open ? null : row.trophy_id)}
+                  aria-pressed={open}
+                  aria-label={`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}
+                  className={`relative aspect-square rounded-xl flex items-center justify-center overflow-hidden transition-colors ${
+                    open ? 'bg-secondary ring-2 ring-primary' : 'bg-secondary/40 hover:bg-secondary active:bg-secondary'
+                  }`}
                 >
                   {trophy.leagueTier ? (
                     <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
                   ) : (
                     <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
                   )}
-                  <span className="sr-only">{`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}</span>
                   {/* Tier as a stripe, not a 7px caption. */}
                   <span
                     aria-hidden="true"
                     className="absolute inset-x-0 bottom-0"
                     style={{ height: 2, background: tierMeta.color }}
                   />
-                </div>
+                </button>
               );
             })}
             {/* Locked frames — the shape of what's left to collect. */}
@@ -189,6 +203,30 @@ export default function ProfileTrophies({
                 <span className="text-base opacity-25">🔒</span>
               </div>
             ))}
+          </div>
+        )}
+        {openTrophy && (
+          <div className="mt-3 flex items-start gap-3 rounded-xl bg-secondary/40 p-3" data-testid="trophy-detail" aria-live="polite">
+            <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+              {openTrophy.leagueTier
+                ? <LeagueTierIcon tier={openTrophy.leagueTier} className="w-10 h-10" />
+                : <span className="text-2xl leading-none" aria-hidden="true">{openTrophy.emoji}</span>}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{trophyName(openTrophy, tFallback)}</p>
+              <p className="text-xs text-muted-foreground">
+                {tierLabel(openTrophy.tier, tFallback)}
+                {openRow?.earned_at && (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    {tFallback('hub.profile.earnedOn', 'Earned {date}', {
+                      date: fmtDate(new Date(openRow.earned_at), { month: 'short', day: 'numeric', year: 'numeric' }),
+                    })}
+                  </>
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">{trophyDescription(openTrophy, tFallback)}</p>
+            </div>
           </div>
         )}
       </section>
