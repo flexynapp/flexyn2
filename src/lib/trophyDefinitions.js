@@ -436,6 +436,48 @@ export function parseSeasonTrophy(id) {
   };
 }
 
+// ── Lead Lifter trophies ──────────────────────────────────────────────────
+//
+// The top lifter of each league level ("Gold III Lead Lifter, Week 40") and
+// of each league as a whole ("Gold Lead Lifter, Week 40"), awarded at the
+// Monday roll by award_league_lead_trophies_internal (migration
+// 20261001001000). A new id every week, so like season trophies they are
+// parsed from the id and stay out of TROPHIES and its denominator:
+//
+//   league_lead_{tier}_{level}_{isoyear}w{isoweek}   level 1 to 4
+//   league_lead_{tier}_{isoyear}w{isoweek}           the whole league
+
+const LEAD_TROPHY_RE = /^league_lead_(bronze|silver|gold|platinum|diamond|legend)(?:_([1-4]))?_(\d{4})w(\d{2})$/;
+const LEVEL_NUMERALS = ['I', 'II', 'III', 'IV'];
+
+/** Parsed Lead Lifter trophy, or null if `id` isn't one. */
+export function parseLeadTrophy(id) {
+  const m = LEAD_TROPHY_RE.exec(id || '');
+  if (!m) return null;
+  const kind = m[1];
+  const level = m[2] ? Number(m[2]) : null;
+  const year = Number(m[3]);
+  const week = Number(m[4]);
+  const label = seasonKindLabel(kind);
+  const group = level ? `${label} ${LEVEL_NUMERALS[level - 1]}` : label;
+  return {
+    id,
+    isLeadLifter: true,
+    kind,
+    leadLevel: level,
+    year,
+    week,
+    category: 'league',
+    tier: SEASON_TIER_MAP[kind] || 'bronze',
+    emoji: '🏆',
+    leagueTier: kind,
+    name: `${group} Lead Lifter, Week ${week}`,
+    description: level
+      ? `Finished first in ${group} in week ${week} of ${year}.`
+      : `Finished first across the ${label} League in week ${week} of ${year}.`,
+  };
+}
+
 // ── Infinite ladder tails ─────────────────────────────────────────
 //
 // Past the last named rung, ids are generated rather than enumerated:
@@ -547,6 +589,7 @@ export const XP_MILESTONE_IDS = Object.keys(XP_MILESTONES)
 export function getTrophy(id) {
   return TROPHY_BY_ID[id]
     || parseSeasonTrophy(id)
+    || parseLeadTrophy(id)
     || parseLadderTail(id)
     || parseXpMilestone(id)
     || null;
@@ -745,6 +788,17 @@ export function trophyCategoryName(category, tf = asIs) {
 export function trophyDescription(trophy, tf = asIs) {
   if (!trophy) return '';
 
+  if (trophy.isLeadLifter) {
+    const tier = tf(`trophy.seasonTier.${trophy.kind}`, seasonKindLabel(trophy.kind));
+    return trophy.leadLevel
+      ? tf('trophy.lead.level.desc', 'Finished first in {tier} {level} in week {week} of {year}.', {
+        tier, level: LEVEL_NUMERALS[trophy.leadLevel - 1], week: trophy.week, year: trophy.year,
+      })
+      : tf('trophy.lead.league.desc', 'Finished first across the {tier} League in week {week} of {year}.', {
+        tier, week: trophy.week, year: trophy.year,
+      });
+  }
+
   if (trophy.season != null && trophy.kind) {
     return trophy.isChampion
       ? tf(
@@ -772,9 +826,17 @@ export function trophyDescription(trophy, tf = asIs) {
   return tf(`trophy.${trophy.id}.desc`, trophy.description || '');
 }
 
-/** The display name for a trophy. Only the generated season rungs move. */
+/** The display name for a trophy. Only the generated season and Lead Lifter ids move. */
 export function trophyName(trophy, tf = asIs) {
   if (!trophy) return '';
+  if (trophy.isLeadLifter) {
+    const tier = tf(`trophy.seasonTier.${trophy.kind}`, seasonKindLabel(trophy.kind));
+    return trophy.leadLevel
+      ? tf('trophy.lead.level.name', '{tier} {level} Lead Lifter, Week {week}', {
+        tier, level: LEVEL_NUMERALS[trophy.leadLevel - 1], week: trophy.week,
+      })
+      : tf('trophy.lead.league.name', '{tier} Lead Lifter, Week {week}', { tier, week: trophy.week });
+  }
   if (trophy.season != null && trophy.kind) {
     return trophy.isChampion
       ? tf('trophy.season.champion.name', 'Champion, S{n}', { n: trophy.season })

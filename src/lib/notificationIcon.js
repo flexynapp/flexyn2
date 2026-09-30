@@ -49,6 +49,7 @@ const ICON_BY_TYPE = {
   league_promoted:          ArrowUp,
   league_demoted:           ArrowDown,
   league_held:              Trophy,
+  league_trophy:            Trophy,
   pr_set:                   Medal,
   capsule_earned:           Package,
   coin_milestone:           Coins,

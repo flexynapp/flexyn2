@@ -69,6 +69,8 @@ import LeagueCard from '@/components/dashboard/LeagueCard';
 // The ceremony is a once-per-season sheet, so it must not sit in the eager
 // dashboard chunk — same reasoning as ReadinessSheet above.
 const SeasonCeremonyModal = React.lazy(() => import('@/components/dashboard/SeasonCeremonyModal'));
+// Lead Lifter reveal: once per won trophy, so lazy for the same reason.
+const LeadTrophyReveal = React.lazy(() => import('@/components/dashboard/LeadTrophyReveal'));
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
 import { enqueueReveal } from '@/lib/rewardQueue';
@@ -76,7 +78,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { checkAndCelebrate as checkTrophies } from '@/lib/data/trophies';
+import { checkAndCelebrate as checkTrophies, listUnseenLeadTrophies, markLeadTrophiesSeen } from '@/lib/data/trophies';
 import { toast } from '@/lib/toast';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -643,6 +645,35 @@ export default function Dashboard() {
       clearTimeout(t);
     };
   }, [user?.id, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Lead Lifter reveal ────────────────────────────────────────────────────
+  //
+  // A Lead Lifter trophy is awarded at the Monday roll while its winner is
+  // away, and only one lifter holds each one a week, so it opens its own
+  // sheet on the next visit. After the season check so the two never land on
+  // the same frame, and through rewardQueue behind any toast already queued.
+  const [leadTrophies, setLeadTrophies] = useState([]);
+  const [leadRevealOpen, setLeadRevealOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      const items = await listUnseenLeadTrophies(user.id).catch(() => []);
+      if (cancelled || !items.length) return;
+      markLeadTrophiesSeen(user.id, items.map((i) => i.trophy_id));
+      setLeadTrophies(items);
+      enqueueReveal(() => {
+        setLeadRevealOpen(true);
+        return 0;
+      });
+    }, 3400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [user?.id]);
 
   // The celebration toast is React-free, so "View" reaches us as a window
   // event rather than a callback — same indirection prCelebration uses.
@@ -2082,6 +2113,17 @@ export default function Dashboard() {
             readiness={readiness}
             focus={readinessFocus}
             onLogWorkout={() => navigate('/workout')}
+          />
+        </Suspense>
+      )}
+
+      {leadRevealOpen && leadTrophies.length > 0 && (
+        <Suspense fallback={null}>
+          <LeadTrophyReveal
+            open={leadRevealOpen}
+            onClose={() => setLeadRevealOpen(false)}
+            items={leadTrophies}
+            onOpenTrophyCase={() => navigate('/profile')}
           />
         </Suspense>
       )}
