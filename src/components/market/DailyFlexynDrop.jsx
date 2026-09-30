@@ -11,6 +11,7 @@
 // out in stages.
 
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { getDailyDrop } from '@/lib/lootCatalog';
@@ -18,6 +19,7 @@ import Sticker from '@/components/capsules/Sticker';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -41,6 +43,7 @@ export default function DailyFlexynDrop() {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [drop, setDrop] = useState(() => getDailyDrop());
   const [purchasing, setPurchasing] = useState(null); // sku of in-flight buy
   const [purchased, setPurchased] = useState(() => {
@@ -87,6 +90,11 @@ export default function DailyFlexynDrop() {
         const msg = error.message || '';
         if (error.code === '42883' || error.code === '42P01' || /unknown_sku|undefined_function/.test(msg)) {
           toast.error(tFallback('dailyFlexynDrop.rpcMissing', 'Daily drop purchases roll out shortly, RPC not deployed yet.'));
+        } else if (/already_owned/.test(msg)) {
+          // Owned from an earlier day or another device; the local "Owned"
+          // flag is per day, so this read as a failed purchase.
+          markPurchased(item.id);
+          toast.info(tFallback('dailyFlexynDrop.alreadyOwned', 'You already own {name}.', { name: item.name }));
         } else if (/insufficient_coins/.test(msg)) {
           toast.error(tFallback('bountyCard.err.insufficientCoins', 'Not enough Flex Coins.'));
         } else {
@@ -95,6 +103,11 @@ export default function DailyFlexynDrop() {
         return;
       }
       markPurchased(item.id);
+      // new_balance is the server's number, so it is safe to cache.
+      if (Number.isFinite(data?.new_balance)) patchProfile({ flex_coins: data.new_balance });
+      qc.invalidateQueries({ queryKey: ['userInventory'] });
+      qc.invalidateQueries({ queryKey: ['flexCoins'] });
+      qc.invalidateQueries({ queryKey: ['userProfile'] });
       toast.success(tFallback('dailyFlexynDrop.addedToBag', '🎁 {name} added to your bag!', { name: item.name }));
     } catch (err) {
       console.error('[DailyFlexynDrop] purchase error', err);

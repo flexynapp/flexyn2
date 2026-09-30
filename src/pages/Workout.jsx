@@ -1288,10 +1288,24 @@ export default function Workout() {
       // distinct celebration rather than the regular saved toast.
       // Filter out optimistic placeholders so the cached optimistic
       // row from a prior attempt doesn't suppress the celebration.
-      const realPrev = (ctx?.previous ?? []).filter(
-        (row) => !(typeof row?.id === 'string' && row.id.startsWith('__optimistic__'))
-      );
-      const isFirstWorkout = realPrev.length === 0;
+      // ctx.previous is getQueriesData output: [queryKey, rows] PAIRS, one
+      // per scoped cache entry, not rows. Reading it as rows made the pair
+      // count stand in for the log count, so isFirstWorkout was never true
+      // and PR / deload / Gauntlet checks compared against rows with no
+      // exercises. Flatten every scope's rows and dedupe by id.
+      const prevById = new Map();
+      let prevKnown = false;
+      for (const [, rows] of ctx?.previous ?? []) {
+        if (!Array.isArray(rows)) continue;
+        prevKnown = true;
+        for (const row of rows) {
+          if (!row?.id || (typeof row.id === 'string' && row.id.startsWith('__optimistic__'))) continue;
+          if (!prevById.has(row.id)) prevById.set(row.id, row);
+        }
+      }
+      const realPrev = [...prevById.values()];
+      // Unknown history (no cache entry had loaded) is not "first workout".
+      const isFirstWorkout = prevKnown && realPrev.length === 0;
       track(EVENTS.WORKOUT_LOGGED, { first: isFirstWorkout, exercises: (clampedData?.exercises || []).length });
       // Sound effect — no-op unless the user has explicitly enabled
       // sounds in Settings. The celebration helper handles its own

@@ -354,7 +354,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
             </AlertDialogContent>
           </AlertDialog>
 
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(log)}>
+          <Button variant="outline" size="sm" className="flex-1" disabled={!full} onClick={() => onEdit(full)}>
             <Pencil className="w-4 h-4 me-1" /> {t('common.edit')}
           </Button>
         </DialogFooter>

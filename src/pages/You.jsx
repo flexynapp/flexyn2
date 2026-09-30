@@ -26,6 +26,7 @@ import {
   CalendarCheck, ShieldAlert, Backpack, Settings, UserCircle, Building2, LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenJournal } from '@/lib/journalOverlay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
@@ -86,6 +87,15 @@ export default function You() {
   const name = user?.full_name || handle(user) || tFallback('you.title', 'You');
 
   // Same query key as the account menu's badge, so this is one request.
+  // XP from the profile query, like Progress. AuthContext's user only
+  // reloads on sign-in or a token refresh, so after a workout this bar kept
+  // the old level for up to an hour.
+  const { data: profile } = useQuery({
+    queryKey: ['userProfile', user?.email],
+    queryFn: () => db.auth.me(),
+    enabled: !!user?.email,
+  });
+
   const { data: capsuleCount = 0 } = useQuery({
     queryKey: ['userCapsulesCount', user?.email],
     queryFn: async () => (await capsules.listUnopenedCapsules(user.email)).length,
@@ -120,7 +130,7 @@ export default function You() {
       {/* The login streak lives here rather than on Today, which shows one
           streak: training. It renders nothing on day 0. */}
       <div className="flex flex-col gap-2">
-        <LevelBar totalXp={user?.total_xp || 0} compact={false} />
+        <LevelBar totalXp={profile?.total_xp ?? user?.total_xp ?? 0} compact={false} />
         <ErrorBoundary label="LoginStreakBanner">
           <LoginStreakBanner />
         </ErrorBoundary>

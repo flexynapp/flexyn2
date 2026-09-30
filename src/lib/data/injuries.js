@@ -111,7 +111,7 @@ export async function logInjury({
       muscle_group: muscleGroup,
       severity,
       notes: notes || null,
-      injured_at: injuredAt || new Date().toISOString().split('T')[0],
+      injured_at: injuredAt || format(new Date(), 'yyyy-MM-dd'),
       estimated_recovery_date: estimatedRecoveryDate || null,
       status: 'active',
     })
@@ -127,7 +127,9 @@ export async function clearInjury(id) {
     .from('injury_logs')
     .update({
       status: 'cleared',
-      cleared_at: new Date().toISOString().split('T')[0],
+      // The user's own calendar day, not UTC's (an evening clear in the US
+      // used to read as tomorrow).
+      cleared_at: format(new Date(), 'yyyy-MM-dd'),
     })
     .eq('id', id)
     .select()
