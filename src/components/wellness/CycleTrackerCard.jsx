@@ -24,6 +24,7 @@ import { formatDate } from '@/lib/intlFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
+import { openPickerOnClick } from '@/lib/nativePicker';
 
 function LogStartModal({ open, onClose, onSubmit, submitting }) {
   const { tFallback } = useLanguage();
@@ -56,6 +57,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
             </label>
             <input
               type="date"
+              onClick={openPickerOnClick}
               value={date}
               max={format(new Date(), 'yyyy-MM-dd')}
               onChange={(e) => setDate(e.target.value)}

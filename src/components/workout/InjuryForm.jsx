@@ -19,6 +19,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter } from '@/lib/intl';
+import { openPickerOnClick } from '@/lib/nativePicker';
 
 // The STORED value stays the English name — `injury_logs.muscle_group` is
 // matched by string downstream (getExcludedMuscleGroups lowercases it, the
@@ -215,6 +216,7 @@ function InjuryCard({ injury, cost, onClear, onSnooze, onExtend, onDelete }) {
         <div className="flex gap-2 mt-2">
           <input
             type="date"
+            onClick={openPickerOnClick}
             value={extendDate}
             onChange={e => setExtendDate(e.target.value)}
             className="flex-1 text-xs h-8 rounded-md border border-border bg-background px-2"
@@ -668,6 +670,7 @@ export default function InjuryForm({ onClose }) {
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.injuredOn', 'Injured on')}</p>
                   <input
                     type="date"
+                    onClick={openPickerOnClick}
                     value={injuredAt}
                     onChange={e => setInjuredAt(e.target.value)}
                     max={format(new Date(), 'yyyy-MM-dd')}
@@ -679,6 +682,7 @@ export default function InjuryForm({ onClose }) {
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.estRecovery', 'Est. recovery')}</p>
                   <input
                     type="date"
+                    onClick={openPickerOnClick}
                     value={recoveryDate}
                     onChange={e => setRecoveryDate(e.target.value)}
                     min={format(addDays(new Date(), 1), 'yyyy-MM-dd')}
