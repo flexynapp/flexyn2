@@ -253,7 +253,6 @@ describe('ProfileTrophies', () => {
         trophyVisible
         earnedTrophies={earned}
         onPickSlot={vi.fn()}
-        trophyLabels={{}}
         tFallback={tFallback}
       />
     );
@@ -280,7 +279,6 @@ describe('ProfileTrophies', () => {
         trophyVisible
         earnedTrophies={[{ trophy_id: first.id, earned_at: '2026-09-12T15:00:00Z' }]}
         onPickSlot={vi.fn()}
-        trophyLabels={{}}
         tFallback={tf}
       />
     );
@@ -302,7 +300,6 @@ describe('ProfileTrophies', () => {
         trophyVisible
         earnedTrophies={[]}
         onPickSlot={vi.fn()}
-        trophyLabels={{}}
         tFallback={tFallback}
       />
     );
@@ -318,7 +315,6 @@ describe('ProfileTrophies', () => {
         trophyVisible
         earnedTrophies={earned}
         onPickSlot={onPickSlot}
-        trophyLabels={{ '🥇': 'Gold' }}
         tFallback={tFallback}
       />
     );
@@ -336,7 +332,6 @@ describe('ProfileTrophies', () => {
         trophyVisible
         earnedTrophies={earned}
         onPickSlot={onPickSlot}
-        trophyLabels={{ '🥇': 'Gold' }}
         tFallback={tFallback}
       />
     );

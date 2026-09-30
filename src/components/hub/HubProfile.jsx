@@ -194,35 +194,6 @@ function QRModal({ url, username, onClose }) {
   );
 }
 
-const TROPHY_LABELS = {
-  '🏆':'Trophy','🥇':'1st Place','🥈':'2nd Place','🥉':'3rd Place','🎯':'Target',
-  '💪':'Strength','🔥':'Fire','⚡':'Lightning','🌟':'Star','⭐':'Star',
-  '🎖️':'Medal','🏅':'Medal','🏋️':'Lifting','🤸':'Gymnastics','🏊':'Swimming',
-  '🚴':'Cycling','🧗':'Climbing','🥊':'Boxing','🥋':'Martial Arts','🎽':'Sports',
-  '💯':'100','👑':'Crown','🦁':'Lion','🐺':'Wolf','🦅':'Eagle','🦊':'Fox',
-  '🐉':'Dragon','⚔️':'Swords','🛡️':'Shield','💎':'Diamond','🌈':'Rainbow',
-  '🌊':'Wave','🎆':'Fireworks','🎇':'Sparkler','🎉':'Party','🎊':'Confetti',
-  '🎁':'Gift','🌙':'Moon','☀️':'Sun','🌸':'Blossom','🍀':'Luck','❄️':'Ice',
-  '🔮':'Crystal','🌀':'Cyclone','🌪️':'Tornado','🏔️':'Mountain','🌋':'Volcano',
-  '🦾':'Strength','🧠':'Brain','💥':'Boom','🎪':'Circus','🎭':'Theater',
-  '🎮':'Gaming','🕹️':'Joystick','🎲':'Dice','♟️':'Chess','🎸':'Guitar',
-  '🥁':'Drums','🎤':'Mic','🎬':'Film','📸':'Photo','🚀':'Rocket',
-  '🛸':'UFO','🌍':'Earth','🌠':'Shooting Star','✨':'Sparkles',
-  // ─── 2026-05-29 expansion — fitness + competitive + nature + elemental ──
-  '🐅':'Tiger','🐻':'Bear','🦈':'Shark','🐍':'Snake','🐎':'Horse',
-  '🦌':'Stag','🦬':'Bison','🐂':'Bull','🦏':'Rhino','🐊':'Crocodile',
-  '🦂':'Scorpion','🕷️':'Spider','🐝':'Hornet','🦋':'Butterfly','🪐':'Saturn',
-  '🌞':'Sun','🌚':'Eclipse','🌖':'Waning','🌗':'Half','🌘':'Crescent',
-  '☄️':'Comet','🌅':'Sunrise','🌃':'Skyline','🗻':'Peak','🏟️':'Stadium',
-  '⛰️':'Summit','🗽':'Statue','🏛️':'Temple','⛩️':'Shrine','🛕':'Sanctum',
-  '🧿':'Evil Eye','🪬':'Hamsa','🔱':'Trident','⚜️':'Fleur-de-lis','♾️':'Infinity',
-  '🌹':'Rose','🌻':'Sunflower','🍁':'Maple','🌴':'Palm','🌵':'Cactus',
-  '🎺':'Trumpet','🪗':'Accordion','🥇':'Gold','🪙':'Coin','💰':'Bag',
-  '🎰':'Jackpot','🃏':'Wild Card','🎯':'Bullseye','⛓️':'Chain','🪓':'Axe',
-  '🗡️':'Dagger','🏹':'Bow','🔨':'Hammer','⚒️':'Forge','⚙️':'Gear',
-  '🔩':'Bolt','🪜':'Ladder','🪧':'Sign','🎪':'Big Top',
-};
-
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null, highlightPostId = null, onHighlightConsumed = null }) {
   const { t, tFallback, language } = useLanguage();
   const { user, checkUserAuth } = useAuth();
@@ -1227,7 +1198,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const trainingStreak = useMemo(() => currentStreak(heroLogs), [heroLogs]);
   // The Workouts row's subtitle: the heaviest barbell set actually lifted
   // (see headlineLift.js for why not the top estimated 1RM, which named the
-  // leg press). The Stats page it opens still ranks by estimated 1RM.
+  // leg press). The Stats page it opens lists topLifts() by the same rule.
   const bestLift = useMemo(() => {
     const top = headlineLift(heroLogs);
     if (!top) return null;
@@ -2074,7 +2045,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               trophyVisible={trophyVisible}
               earnedTrophies={earnedTrophies}
               onPickSlot={setTrophyPickerSlot}
-              trophyLabels={TROPHY_LABELS}
               tFallback={tFallback}
             />
           )}
