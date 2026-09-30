@@ -9,26 +9,12 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { ChevronRight, Globe, Medal } from 'lucide-react';
-
-// Tier colours run from dark bronze (#cd7f32) to pale legend (#f0abfc),
-// so a fixed white or black glyph on the tier badge fails at one end or
-// the other. Pick per tier from relative luminance instead.
-function onTierColor(hex) {
-  const h = (hex || '').replace('#', '');
-  if (h.length !== 6) return '#fff';
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
-  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  // 0.42 rather than 0.5: dark text wins ties, because the light tiers
-  // (gold, platinum, legend) are where a white glyph disappears fastest.
-  return L > 0.42 ? '#1a1d23' : '#ffffff';
-}
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
-import { leagueTierName } from '@/lib/leagueTiers';
+import { leagueTierName, onTierColor } from '@/lib/leagueTiers';
 import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 

@@ -10,14 +10,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle } from 'lucide-react';
+import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle, Medal } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
-import { MIN_QUALIFIED_TO_MOVE, leagueTierName } from '@/lib/leagueTiers';
+import { MIN_QUALIFIED_TO_MOVE, leagueTierName, onTierColor } from '@/lib/leagueTiers';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
 const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
@@ -68,15 +68,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      {/* The X sits on the tier's coloured hero, not on --background, so it
-          takes black rather than the default foreground colour — and no
-          focus halo, which on a touch device stays drawn after the tap and
-          reads as a circle around the icon. Keyboard focus still lands on
-          it; it just isn't ringed. */}
-      <DialogContent
-        className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
-        closeClassName="text-black opacity-100 hover:opacity-100 focus:ring-0 focus:ring-offset-0"
-      >
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0">
         {/* Skeleton only while loading. getMyLeague resolves null on an
             error or when the user has no league, and gating on !data here
             left that case on a skeleton forever. Body has the empty state. */}
@@ -128,11 +120,20 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
 
   return (
     <>
-      {/* Hero */}
-      <div className={`relative bg-gradient-to-br ${tier.gradient} px-5 pt-6 pb-7 text-white`}>
+      {/* Header. It was a full-bleed tier gradient under white text, which
+          failed contrast on Gold and Platinum and put violet on Diamond.
+          The tier colour now lives on one solid badge, the same medal chip
+          the Today card uses, and the rest sits on the dialog surface. */}
+      <div className="relative px-5 pt-6 pb-5 border-b border-border">
         <DialogHeader>
-          <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pe-8">
-            <span className="text-2xl">{tier.icon}</span>
+          <DialogTitle className="font-heading text-xl flex items-center gap-2 pe-8">
+            <span
+              className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
+              style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
+              aria-hidden="true"
+            >
+              <Medal className="w-4 h-4" />
+            </span>
             {leagueTierName(tier, tFallback)}
           </DialogTitle>
         </DialogHeader>
@@ -143,7 +144,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
         <button
           type="button"
           onClick={onOpenInfo}
-          className="absolute top-12 end-3 w-11 h-11 flex items-center justify-center rounded-full text-black/70 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+          className="absolute top-12 end-3 w-11 h-11 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={tFallback('league.info.open', 'How it works')}
         >
           <HelpCircle className="w-5 h-5" aria-hidden="true" />
@@ -154,26 +155,26 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             migration 312 rather than rendering a placeholder. */}
         {season?.season_number != null && (
           <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-white/95">{season.name}</span>
+            <span className="text-xs font-semibold">{season.name}</span>
             {/* Pre-season counts DOWN to the opening rather than reporting a
                 progress bar nobody can move yet. Weekly promotion still runs
                 throughout — only the season reward is waiting. */}
             {preSeason ? (
-              <span className="text-micro text-white/70">
+              <span className="text-micro text-muted-foreground">
                 {seasonDaysUntil != null
                   ? tFallback('league.season.startsIn', 'starts in {n}d', { n: seasonDaysUntil })
                   : tFallback('league.season.notStarted', 'not started yet')}
               </span>
             ) : (
               seasonDaysLeft != null && (
-                <span className="text-micro text-white/70">
+                <span className="text-micro text-muted-foreground">
                   {tFallback('league.season.endsIn', 'ends in {n}d', { n: seasonDaysLeft })}
                 </span>
               )
             )}
             <span
               className={`text-micro font-bold px-1.5 py-0.5 rounded-full ${
-                seasonEligible ? 'bg-white/25 text-white' : 'bg-black/25 text-white/85'
+                seasonEligible ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
               }`}
             >
               {preSeason
@@ -193,14 +194,14 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             <span>{totalMembers} {tFallback('league.members', 'members')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-micro font-bold uppercase tracking-wider opacity-80">
+            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
               {tFallback('league.daysLeft', 'Days left')}
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
           </div>
           {promoteN > 0 && (
-            <div className="flex items-center gap-1 text-white/90">
-              <ArrowUp className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <ArrowUp className="w-3.5 h-3.5 text-success" />
               <span className="text-xs">
                 {/* The {n} placeholder in the fallback string is
                     substituted by tFallback's vars argument. The
@@ -214,8 +215,8 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             </div>
           )}
           {demoteN > 0 && (
-            <div className="flex items-center gap-1 text-white/90">
-              <ArrowDown className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <ArrowDown className="w-3.5 h-3.5 text-destructive" />
               <span className="text-xs">
                 {tFallback('league.bottomDemoted', 'Bottom {n} demoted', { n: demoteN })}
               </span>
@@ -225,7 +226,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
               direction. Saying so is the difference between "the league is
               broken" and "the league has a rule". */}
           {bracketTooSmall && (
-            <div className="flex items-center gap-1 text-white/90">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <span className="text-xs">
                 {tFallback(
                   'league.gate.bracketHeld',

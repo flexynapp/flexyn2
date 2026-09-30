@@ -63,18 +63,17 @@ export const DECAY_GRACE_WEEKS = 2;
 /** Lifetime cap on purchased shields. Mirrors `c_lifetime_cap` in grant_league_shield. */
 export const SHIELD_LIFETIME_CAP = 3;
 
+// Each tier's colour is used in exactly one form: a solid chip (the medal
+// on the card, the square on the ladder, the badge in the standings
+// header) or the trophy plate's accent. There are no tier gradients; a
+// full-bleed tier gradient behind white text failed contrast on Gold and
+// Platinum and put violet on Diamond.
 export const TIERS = [
   {
     id: 'bronze',
     label: 'Bronze',
     icon: '🥉',
     color: '#cd7f32',
-    // Lighter, slightly polished bronze — shifts the previous very-dark
-    // brown ramp (orange-700 → yellow-800) up two steps so it reads as
-    // "shiny patina" instead of "rust." Pairs with a bronze ring border
-    // on the card to outline it without making it look heavy.
-    gradient: 'from-amber-500 via-orange-500 to-yellow-700',
-    ringClass: 'ring-2 ring-amber-400/70',
     promotePct: 0.50,
     demotePct: 0,      // never demoted out of bronze — it is the floor
     minWorkouts: 1,
@@ -87,7 +86,6 @@ export const TIERS = [
     label: 'Silver',
     icon: '🥈',
     color: '#c0c0c0',
-    gradient: 'from-slate-300 via-slate-400 to-slate-500',
     promotePct: 0.40,
     demotePct: 0.10,
     minWorkouts: 1,
@@ -100,7 +98,6 @@ export const TIERS = [
     label: 'Gold',
     icon: '🥇',
     color: '#facc15',
-    gradient: 'from-yellow-300 via-amber-400 to-yellow-600',
     promotePct: 0.30,
     demotePct: 0.15,
     minWorkouts: 2,
@@ -113,7 +110,6 @@ export const TIERS = [
     label: 'Platinum',
     icon: '💠',
     color: '#67e8f9',
-    gradient: 'from-cyan-300 via-teal-400 to-cyan-600',
     promotePct: 0.25,
     demotePct: 0.20,
     minWorkouts: 2,
@@ -125,8 +121,9 @@ export const TIERS = [
     id: 'diamond',
     label: 'Diamond',
     icon: '💎',
-    color: '#a5b4fc',
-    gradient: 'from-indigo-300 via-violet-400 to-purple-500',
+    // Blue, not the violet it shipped as: purple is reserved for rarity
+    // (loot and XP tiers), and a league is a standing, not a drop.
+    color: '#60a5fa',
     promotePct: 0.20,
     demotePct: 0.20,
     minWorkouts: 3,
@@ -138,8 +135,10 @@ export const TIERS = [
     id: 'legend',
     label: 'Legend',
     icon: '👑',
-    color: '#f0abfc',
-    gradient: 'from-fuchsia-400 via-rose-400 to-pink-500',
+    // Rose, not fuchsia, for the same reason. The top tier needs a hue
+    // no lower tier or state colour owns: warm enough to read as a prize,
+    // clear of the destructive red the demotion zone uses.
+    color: '#fb7185',
     promotePct: 0,     // terminal tier — the season board is the endgame
     demotePct: 0.20,
     minWorkouts: 3,
@@ -162,6 +161,21 @@ export function leagueTierName(tier, tFallback) {
   if (!tier?.id) return tFallback('league.leagueSuffix', 'League');
   const name = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
   return tFallback('league.tierName', '{tier} League', { tier: name });
+}
+
+/**
+ * Glyph colour for text or an icon drawn ON a tier chip. Tier colours run
+ * from dark bronze to pale platinum, so a fixed white or black fails at one
+ * end; pick from relative luminance. 0.42 rather than 0.5 so dark wins
+ * ties, because a white glyph disappears fastest on the pale tiers.
+ */
+export function onTierColor(hex) {
+  const h = (hex || '').replace('#', '');
+  if (h.length !== 6) return '#fff';
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return L > 0.42 ? '#1a1d23' : '#ffffff';
 }
 
 export function getTier(id) {
