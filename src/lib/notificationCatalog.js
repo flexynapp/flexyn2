@@ -124,6 +124,7 @@ const TYPE_CATEGORY = {
   league_promoted:          CATEGORY.ACHIEVEMENTS,
   league_demoted:           CATEGORY.ACHIEVEMENTS,
   league_held:              CATEGORY.ACHIEVEMENTS,
+  league_trophy:            CATEGORY.ACHIEVEMENTS, // Lead Lifter trophies
   pr_set:                   CATEGORY.ACHIEVEMENTS,
   capsule_earned:           CATEGORY.ACHIEVEMENTS,
   coin_milestone:           CATEGORY.ACHIEVEMENTS,

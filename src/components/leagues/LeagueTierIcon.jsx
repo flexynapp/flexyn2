@@ -25,7 +25,7 @@ import { getTier } from '@/lib/leagueTiers';
 
 // light, dark, rim and glyph ink. `mid` is the tier colour itself, read
 // from leagueTiers so the emblem and every other use of it cannot drift.
-const PALETTES = {
+export const PALETTES = {
   bronze:   { light: '#EDB27A', dark: '#9A5A22', rim: '#5E3413', ink: '#FFF1E0' },
   silver:   { light: '#F4F6F8', dark: '#8E959D', rim: '#4E555D', ink: '#FFFFFF' },
   gold:     { light: '#FFF08A', dark: '#CE9A04', rim: '#6E4E00', ink: '#FFFBE6' },
@@ -66,8 +66,8 @@ const WING_SMALL = { size: 0.72, lift: 0 };
 const WING_FULL = { size: 0.95, lift: 0 };
 const WING_SWEPT = { size: 1.05, lift: 5 };
 
-const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
-const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
+export const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
+export const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
 
 function Wings({ feathers: { size, lift }, p }) {
   const outer = wingPath(size, lift);
@@ -221,7 +221,7 @@ const LEAVES = [0.18, 0.36, 0.54, 0.72, 0.9].map((t) => {
   const dy = 2 * u * (cy - y0) + 2 * t * (y2 - cy);
   return [x, y, (Math.atan2(dy, dx) * 180) / Math.PI];
 });
-function Laurel({ p }) {
+export function Laurel({ p }) {
   const sprig = (a, b) => (
     <>
       <path d={`M${STEM[0].join(' ')} Q${STEM[1].join(' ')} ${STEM[2].join(' ')}`} fill="none" stroke={p.rim} strokeWidth="1.6" strokeLinecap="round" />
@@ -257,7 +257,7 @@ function Ribbon({ p, pips }) {
   );
 }
 
-const FINIAL = 'M32 -7 L33.9 -3 L38 -2.6 L34.9 0.2 L35.8 4.3 L32 2.2 L28.2 4.3 L29.1 0.2 L26 -2.6 L30.1 -3 Z';
+export const FINIAL = 'M32 -7 L33.9 -3 L38 -2.6 L34.9 0.2 L35.8 4.3 L32 2.2 L28.2 4.3 L29.1 0.2 L26 -2.6 L30.1 -3 Z';
 
 /** The emblem for a league tier id at a level from 1 to 4. Decorative:
  *  the tier name is always in text beside it, so it is hidden from
