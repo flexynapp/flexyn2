@@ -94,6 +94,20 @@ export async function searchDuelOpponents(query = '') {
 }
 
 /**
+ * Up to eight people close to the caller's strength, for the Create Duel
+ * list. Ranked server-side (duel_matched_opponents, migration
+ * 20261001030000) on Strength Score first, then weekly volume and training
+ * days; nobody three or more leagues away or more than 50% apart in strength
+ * is ever listed. Same row shape as searchDuelOpponents plus `match_step`
+ * (1 = closest .. 4 = widest).
+ */
+export async function getMatchedDuelOpponents() {
+  const { data, error } = await supabase.rpc('duel_matched_opponents');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
  * Send a structured [DUEL_INVITE_V1] DM to the opponent.
  * Renders as an accept/decline card in HubChat.
  * Fire-and-forget — failure is non-critical.

@@ -12,6 +12,7 @@ vi.mock('@/lib/data/duels', () => ({
   createDuel: vi.fn(),
   createSessionDuel: vi.fn(),
   getFrequentOpponents: vi.fn(async () => []),
+  getMatchedDuelOpponents: vi.fn(async () => []),
   sendDuelDM: vi.fn(),
   duelErrorMessage: () => 'error',
   searchDuelOpponents: (...a) => candidates(...a),
