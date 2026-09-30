@@ -35,3 +35,26 @@ describe('workoutFatigue reads the age column', () => {
     expect(detectImplausibleWorkout(workout, { gender: 'male', weight_lbs: 165 }, []).implausible).toBe(true);
   });
 });
+
+describe('Rule E counts this session\'s unsaved runs', () => {
+  const profile = { age: 30, gender: 'male', weight_lbs: 180 };
+  const run = (o) => ({ kind: 'cardio', name: 'Run', segments: [{ duration_s: 5 * 3600, distance_m: 40000 }], ...o });
+
+  it('flags a five hour run the stated duration understates', () => {
+    // The run has no cardio_log_id yet, so only the stated 30 minutes counted.
+    const workout = { date: '2026-09-28', duration_min: 30, exercises: [run()] };
+    expect(detectImplausibleWorkout(workout, profile, [], [])).toMatchObject({
+      implausible: true, i18nKey: 'workout.warn.workout_hours',
+    });
+  });
+
+  it('leaves a run that is already saved to the cardio log side', () => {
+    const workout = { date: '2026-09-28', duration_min: 30, exercises: [run({ cardio_log_id: 'c1' })] };
+    expect(detectImplausibleWorkout(workout, profile, [], []).implausible).toBe(false);
+  });
+
+  it('passes a short unsaved run', () => {
+    const workout = { date: '2026-09-28', duration_min: 30, exercises: [run({ segments: [{ duration_s: 1800 }] })] };
+    expect(detectImplausibleWorkout(workout, profile, [], []).implausible).toBe(false);
+  });
+});

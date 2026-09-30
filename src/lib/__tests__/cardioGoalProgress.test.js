@@ -97,6 +97,23 @@ describe('the three metrics', () => {
     expect(r.progress).toBe(50);
   });
 
+  it('sums the CREDITED distance, like goal_is_met', () => {
+    // A forged run the credit trigger zeroed must not fill a summed goal
+    // either; a row that predates the column falls back to the raw distance.
+    const logs = [
+      log({ distance_meters: 42195, duration_seconds: 60, distance_credited_m: 0 }),
+      log({ distance_meters: 3000, distance_credited_m: 3000 }),
+      log({ distance_meters: 2000 }),
+    ];
+    expect(computeCardioGoalProgress(goal(), logs).currentValue).toBe(5000);
+  });
+
+  it('counts at most twelve hours of one log toward a duration goal', () => {
+    const g = goal({ goal_type: 'cardio_duration', target_duration_seconds: 100000 });
+    const r = computeCardioGoalProgress(g, [log({ duration_seconds: 90000 }), log({ duration_seconds: 600 })]);
+    expect(r.currentValue).toBe(43200 + 600);
+  });
+
   it('counts sessions', () => {
     const g = goal({ goal_type: 'cardio_sessions', target_sessions: 4 });
     const r = computeCardioGoalProgress(g, [log(), log(), log()]);
