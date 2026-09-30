@@ -4,6 +4,7 @@ import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { isStarterPlanName, starterPlanDescription, starterPlanName } from '@/lib/starterPlanText';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -336,7 +337,7 @@ export default function RegimensSection({ onStartRegimen }) {
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
+                    <h3 className="font-heading font-bold break-words leading-tight">{starterPlanName(r.name, tFallback)}</h3>
                     {r.is_active && (
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-micro font-bold bg-primary/20 text-primary dark:text-primary border border-primary/30 shrink-0">
                         <Zap className="w-2.5 h-2.5 fill-current" /> {tFallback("duels.status.active", "Active")}
@@ -348,7 +349,14 @@ export default function RegimensSection({ onStartRegimen }) {
                       {t('regimens.copiedFrom', { author: r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}` })}
                     </p>
                   )}
-                  {r.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2 break-words">{r.description}</p>}
+                  {r.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2 break-words">
+                      {/* The starter plan's description is written from a fixed
+                          English vocabulary, so it is translated piece by piece
+                          here. A description the user typed is shown as is. */}
+                      {isStarterPlanName(r.name) ? starterPlanDescription(r.description, tFallback) : r.description}
+                    </p>
+                  )}
                 </div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}

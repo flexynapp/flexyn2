@@ -609,6 +609,8 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
       age: profile.age,
       gender: profile.gender,
       current5kSec,
+      // The runs in the distance unit the user chose in Settings.
+      units: profile.distance_unit === 'km' ? 'metric' : 'imperial',
     });
     // Fuel: training load → diet adjustment (carbs/kcal on run days). Attached
     // so the card can show the nutrition implication and deep-link to Plans.

@@ -17,6 +17,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Sparkles, Pencil, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioSessionName, cardioSessionSummary } from '@/lib/starterPlanText';
 
 const GOAL_KEYS = {
   strength:  ['workout.starter.goal.strength',  'Strength'],
@@ -53,7 +54,7 @@ export default function StarterPlanHeroCard({
   // tab gets one orange action, so the start button steps down to outline.
   primary = true,
 }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   if (!regimen) return null;
 
   const goalKey  = pickPrimaryGoal(userProfile);
@@ -138,12 +139,14 @@ export default function StarterPlanHeroCard({
           <ul className="mt-4 space-y-1.5">
             {preview.map((ex, i) => (
               <li key={`${ex.name}-${i}`} className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate text-foreground/90">{ex.displayName || ex.name}</span>
+                <span className="truncate text-foreground/90">
+                  {ex.kind === 'cardio' ? cardioSessionName(ex, tFallback) : (ex.displayName || ex.name)}
+                </span>
                 <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                   {ex.kind === 'cardio'
                     // "2.5 mi @ 8:05/mi", not the "1 × 1" placeholder a run
                     // carries so older list views can still render it.
-                    ? (ex.detail || '').split(' · ')[0]
+                    ? cardioSessionSummary(ex, tFallback, language)
                     : `${ex.target_sets || 3} × ${ex.target_reps ?? '—'}`}
                 </span>
               </li>

@@ -4,9 +4,10 @@ import { Clock, RotateCcw, Hash } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
+import { cardioSessionName, cardioSessionDetail } from '@/lib/starterPlanText';
 
 export default function RegimenDetailView({ regimen }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const exercises = regimen.exercises || [];
   // `copy_count` (mig 005), maintained by the increment_copy_count RPC.
   // This read `clone_count` — a column no migration ever created, residue of
@@ -35,14 +36,23 @@ export default function RegimenDetailView({ regimen }) {
               <span className="text-xs font-bold text-primary">{i + 1}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">{ex.displayName || translateExerciseName(ex.name, language)}</p>
+              <p className="text-sm font-semibold">
+                {ex.kind === 'cardio'
+                  ? cardioSessionName(ex, tFallback)
+                  : (ex.displayName || translateExerciseName(ex.name, language))}
+              </p>
+              {ex.kind === 'cardio' && (ex.session || ex.detail) && (
+                <p className="text-xs text-muted-foreground mt-0.5">{cardioSessionDetail(ex, tFallback, language)}</p>
+              )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                {ex.target_sets && (
+                {/* A plan run carries 1 × 1 only so older list views render;
+                    the detail line above is what it asks for. */}
+                {ex.kind !== 'cardio' && ex.target_sets && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <RotateCcw className="w-3 h-3" /> {ex.target_sets} {t('common.sets')}
                   </span>
                 )}
-                {ex.target_reps > 0 && (
+                {ex.kind !== 'cardio' && ex.target_reps > 0 && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Hash className="w-3 h-3" /> {ex.target_reps} {t('common.reps')}
                   </span>
