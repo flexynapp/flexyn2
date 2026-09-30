@@ -46,9 +46,14 @@ BEGIN
 END;
 $type$;
 
--- Strength: the stored score when there is one. A league above Bronze with
--- no score is a placement made some other way (the provisional placement
--- from onboarding), so it stands in at that league's floor plus a margin.
+-- Strength: the stored score when there is one. With no score, a league
+-- placement still says roughly how strong someone is: the provisional
+-- placement from onboarding writes a league_strength row with a NULL score
+-- and a placed_at (Bronze, Silver or Gold), and older placements may have
+-- a league above Bronze with no row at all. Either way the middle of that
+-- league's band stands in, so a provisional lifter is matched as what
+-- onboarding said they are, not as a blank beginner. Only someone with no
+-- placement of any kind is unrated.
 CREATE OR REPLACE FUNCTION public.match_skill_for(p_uid uuid, p_kind text)
 RETURNS public.match_skill
 LANGUAGE plpgsql
@@ -56,20 +61,25 @@ STABLE SECURITY DEFINER
 SET search_path TO 'public', 'pg_catalog'
 AS $function$
 DECLARE
-  r      public.match_skill;
-  v_tier text;
-  v_run  record;
+  r        public.match_skill;
+  v_tier   text;
+  v_placed boolean;
+  v_run    record;
 BEGIN
   SELECT p.league_tier, p.age INTO v_tier, r.age
     FROM public.user_profiles p WHERE p.id = p_uid;
 
   r.league := public.league_tier_rank(COALESCE(v_tier, 'bronze'));
 
-  SELECT s.score INTO r.strength
+  SELECT CASE WHEN s.score > 0 THEN s.score END, s.placed_at IS NOT NULL
+    INTO r.strength, v_placed
     FROM public.league_strength s
-   WHERE s.user_id = p_uid AND s.score > 0;
-  IF r.strength IS NULL AND COALESCE(v_tier, 'bronze') <> 'bronze' THEN
-    r.strength := public.league_tier_floor(v_tier) + 25;
+   WHERE s.user_id = p_uid;
+  IF r.strength IS NULL
+     AND (COALESCE(v_placed, FALSE) OR COALESCE(v_tier, 'bronze') <> 'bronze') THEN
+    r.strength := CASE COALESCE(v_tier, 'bronze')
+      WHEN 'silver' THEN 200 WHEN 'gold' THEN 287 WHEN 'platinum' THEN 362
+      WHEN 'diamond' THEN 437 WHEN 'legend' THEN 500 ELSE 100 END;
   END IF;
 
   IF p_kind = 'cardio' THEN
@@ -648,6 +658,11 @@ BEGIN
   ASSERT public.match_pair_step('cardio', r300, rbig) IS NULL, '4.5x the distance never';
   ASSERT public.match_pair_gap('gym', s200, s210) < public.match_pair_gap('gym', s200, s260), 'gap orders by closeness';
   ASSERT public.match_pair_gap('gym', s200, s200) = 0, 'identical is 0';
+  -- A provisional Gold (onboarding, no lifts yet) stands in mid-band and so
+  -- meets a real 280, not a blank beginner.
+  ASSERT public.match_pair_step('gym', ROW(287, 3, 3, 0, NULL, 30)::public.match_skill,
+                                       ROW(280, 3, 3, 0, NULL, 30)::public.match_skill) = 1,
+         'provisional gold meets a real gold';
   ASSERT public.crew_match_gap(5, 30, 200, 3, 3, 5, 30, 400, 3, 3)
        > public.crew_match_gap(5, 30, 200, 3, 3, 5, 30, 200, 3, 4), 'crew strength outweighs one league';
 END;
