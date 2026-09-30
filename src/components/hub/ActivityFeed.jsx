@@ -5,7 +5,7 @@
 // Separate from the notification bell (which shows ALL categories) — this
 // surfaces a focused view of who is interacting with your content.
 
-import { useEffect } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -14,6 +14,8 @@ import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
+
+const FriendLikesFeed = lazy(() => import('./FriendLikesFeed'));
 
 // Maps notification type → icon + color.
 // Checked against live DB: types are post_like, post_reaction, friend_follow, friend_post.
@@ -81,7 +83,7 @@ function ActivityRow({ item, index, onTap }) {
 // Includes both legacy "hub_*" names and actual DB names (post_like, post_reaction, etc.)
 const SOCIAL_TYPES = ['post_like', 'post_reaction', 'post_comment', 'friend_follow', 'friend_post', 'hub_like', 'hub_comment', 'hub_repost', 'follow'];
 
-export default function ActivityFeed() {
+function YouActivity() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const navigate = useNavigate();
@@ -190,6 +192,48 @@ export default function ActivityFeed() {
       {activities.map((item, i) => (
         <ActivityRow key={item.id} item={item} index={i} onTap={onTapActivity} />
       ))}
+    </div>
+  );
+}
+
+// Two tabs, Instagram's old Following / You split. "You" is what happens to
+// your stuff; "Friends" is what your friends liked (FriendLikesFeed).
+export default function ActivityFeed({ onOpenPost }) {
+  const { tFallback } = useLanguage();
+  const [tab, setTab] = useState('you');
+  const tabs = [
+    ['you', tFallback('hub.activity.tab.you', 'You')],
+    ['friends', tFallback('hub.activity.tab.friends', 'Friends')],
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="tablist" className="flex gap-1 p-1 mx-4 bg-secondary rounded-lg border border-border">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`flex-1 min-h-11 flex items-center justify-center py-2 text-xs font-medium rounded-md transition-colors ${
+              tab === key
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'you' ? (
+        <YouActivity />
+      ) : (
+        <div className="px-4">
+          <Suspense fallback={null}>
+            <FriendLikesFeed onOpenPost={onOpenPost} />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 }

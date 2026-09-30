@@ -40,7 +40,7 @@ export function groupByPost(triples = []) {
 
 /**
  * The Friends activity list. Each entry:
- *   { post, likers: [{ id, username, avatar_url }], lastLikedAt }
+ *   { post, author, likers: [{ id, username, avatar_url }], lastLikedAt }
  * `likers` is newest first. Returns [] when the viewer has sharing off.
  */
 export async function listFriendsLikedPosts({ before = null } = {}) {
@@ -52,24 +52,33 @@ export async function listFriendsLikedPosts({ before = null } = {}) {
   const groups = groupByPost(data || []);
   if (groups.length === 0) return [];
 
-  const likerIds = [...new Set(groups.flatMap(g => g.likerIds))];
-  const [posts, profilesRes] = await Promise.all([
-    hubPosts.listByIds(groups.map(g => g.postId)),
-    supabase.from('public_profiles').select('id, username, avatar_url').in('id', likerIds),
-  ]);
-  if (profilesRes?.error) throw profilesRes.error;
-
+  const posts = await hubPosts.listByIds(groups.map(g => g.postId));
   const postById = new Map((posts || []).map(p => [p.id, p]));
-  const profileById = new Map((profilesRes?.data || []).map(p => [p.id, p]));
+
+  // One public_profiles read covers the likers and the post authors.
+  const personIds = [...new Set([
+    ...groups.flatMap(g => g.likerIds),
+    ...(posts || []).map(p => p.user_id).filter(Boolean),
+  ])];
+  const { data: people, error: peopleError } = await supabase
+    .from('public_profiles')
+    .select('id, username, avatar_url')
+    .in('id', personIds);
+  if (peopleError) throw peopleError;
+  const personById = new Map((people || []).map(p => [p.id, p]));
 
   return groups
-    .map(g => ({
-      post: postById.get(g.postId),
-      // A liker public_profiles will not show (blocked since, deleted) is
-      // dropped rather than rendered nameless.
-      likers: g.likerIds.map(id => profileById.get(id)).filter(Boolean),
-      lastLikedAt: g.lastLikedAt,
-    }))
+    .map(g => {
+      const post = postById.get(g.postId);
+      return {
+        post,
+        author: post ? personById.get(post.user_id) || null : null,
+        // A liker public_profiles will not show (blocked since, deleted) is
+        // dropped rather than rendered nameless.
+        likers: g.likerIds.map(id => personById.get(id)).filter(Boolean),
+        lastLikedAt: g.lastLikedAt,
+      };
+    })
     .filter(e => e.post && e.likers.length > 0);
 }
 

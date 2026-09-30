@@ -79,8 +79,11 @@ describe('listFriendsLikedPosts', () => {
       ],
       error: null,
     });
-    listByIdsMock.mockResolvedValue([{ id: 'visible', content: 'PR day' }]);
-    profilesIn.mockResolvedValue({ data: [{ id: 'maya', username: 'maya', avatar_url: null }], error: null });
+    listByIdsMock.mockResolvedValue([{ id: 'visible', content: 'PR day', user_id: 'jordan' }]);
+    profilesIn.mockResolvedValue({ data: [
+      { id: 'maya', username: 'maya', avatar_url: null },
+      { id: 'jordan', username: 'jordan', avatar_url: null },
+    ], error: null });
 
     const out = await listFriendsLikedPosts();
     expect(listByIdsMock).toHaveBeenCalledWith(['visible', 'hidden']);
@@ -88,6 +91,8 @@ describe('listFriendsLikedPosts', () => {
     expect(out).toHaveLength(1);
     expect(out[0].post.id).toBe('visible');
     expect(out[0].likers.map(l => l.id)).toEqual(['maya']);
+    expect(out[0].author.username).toBe('jordan');
+    expect(profilesIn).toHaveBeenCalledWith('id', ['maya', 'gone', 'jordan']);
   });
 
   it('surfaces an RPC error instead of rendering an empty list', async () => {
