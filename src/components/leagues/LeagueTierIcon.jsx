@@ -5,7 +5,7 @@
 // like something worth reaching:
 //
 //   bronze    a plain shield with one chevron
-//   silver    the shield grows small wings, two chevrons
+//   silver    small wings, two chevrons
 //   gold      full wings and a star
 //   platinum  swept wings, a star, and a spike above the crest
 //   diamond   the shield becomes a cut stone between great wings
@@ -40,40 +40,50 @@ const SHIELD_OUT_R = 'M32 8 L50 14 V31 C50 43 42 51 32 57 Z';
 const SHIELD_IN_L = 'M32 13 L18.5 17.5 V31 C18.5 40.5 24.5 47 32 51.5 Z';
 const SHIELD_IN_R = 'M32 13 L45.5 17.5 V31 C45.5 40.5 39.5 47 32 51.5 Z';
 
-// A left wing, three feathers stepping down; the right is its mirror.
-const WING_SMALL = [
-  'M15 17 L4 14 L7 21 Z',
-  'M15 23 L3 23 L7 28 Z',
-  'M15 29 L6 32 L10 35 Z',
-];
-const WING_FULL = [
-  'M15 16 L1 10 L5 18 Z',
-  'M15 21 L0 19 L5 25 Z',
-  'M15 26 L1 28 L6 32 Z',
-  'M15.5 31 L4 37 L10 38 Z',
-];
-const WING_SWEPT = [
-  'M15 15 L2 4 L4 14 Z',
-  'M15 20 L0 13 L3 21 Z',
-  'M15 25 L0 23 L4 29 Z',
-  'M15 30 L2 33 L7 36 Z',
-  'M16 35 L6 42 L12 42 Z',
-];
+// A left wing: a curved leading edge out to the tip, then a scalloped
+// trailing edge (one scallop per flight feather) back to the shield. The
+// right wing is the mirror. `size` scales it out from the shoulder and
+// `lift` raises the tip, so the same wing grows from Silver to Legend.
+const TIPS = [[0.5, 7], [1.5, 15], [3.5, 23], [7, 30.5], [12, 36.5]];
+function wingPath(size, lift = 0) {
+  const pt = ([x, y]) => [16 - (16 - x) * size, 12 + (y - 12) * size - lift * (1 - (y - 6) / 31)];
+  const f = (n) => Math.round(n * 10) / 10;
+  const [t0x, t0y] = pt(TIPS[0]);
+  const [c1x, c1y] = pt([11, 5]);
+  const [c2x, c2y] = pt([5, 3]);
+  let d = `M16 ${f(12 - lift * 0.3)} C${f(c1x)} ${f(c1y)} ${f(c2x)} ${f(c2y)} ${f(t0x)} ${f(t0y)}`;
+  for (let i = 1; i < TIPS.length; i++) {
+    const [px, py] = TIPS[i - 1];
+    const [nx, ny] = pt([px + 3.5, py + 3]);
+    const [tx, ty] = pt(TIPS[i]);
+    const [qx, qy] = pt([TIPS[i][0] - 1.5, (py + 3 + TIPS[i][1]) / 2]);
+    d += ` L${f(nx)} ${f(ny)} Q${f(qx)} ${f(qy)} ${f(tx)} ${f(ty)}`;
+  }
+  const [ex, ey] = pt([16, 36]);
+  return `${d} L${f(ex)} ${f(ey)} Z`;
+}
+const WING_SMALL = { size: 0.72, lift: 0 };
+const WING_FULL = { size: 0.95, lift: 0 };
+const WING_SWEPT = { size: 1.05, lift: 5 };
 
 const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
 const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
 
-function Wings({ feathers, p }) {
+function Wings({ feathers: { size, lift }, p }) {
+  const outer = wingPath(size, lift);
+  // The coverts: a smaller copy of the wing laid over the root, a step
+  // lighter, which is what makes it read as feathers and not a fin.
+  const inner = wingPath(size * 0.62, lift * 0.6);
+  const side = (fillOuter, fillInner) => (
+    <>
+      <path d={outer} fill={fillOuter} stroke={p.rim} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d={inner} fill={fillInner} stroke={p.rim} strokeWidth="1" strokeLinejoin="round" />
+    </>
+  );
   return (
     <>
-      {feathers.map((d, i) => (
-        <path key={`l${i}`} d={d} fill={i % 2 ? p.mid : p.light} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
-      ))}
-      <g transform="translate(64 0) scale(-1 1)">
-        {feathers.map((d, i) => (
-          <path key={`r${i}`} d={d} fill={i % 2 ? p.dark : p.mid} stroke={p.rim} strokeWidth="1.2" strokeLinejoin="round" />
-        ))}
-      </g>
+      {side(p.mid, p.light)}
+      <g transform="translate(64 0) scale(-1 1)">{side(p.dark, p.mid)}</g>
     </>
   );
 }
@@ -86,6 +96,8 @@ function Shield({ p }) {
       <path d={SHIELD_IN_L} fill={p.light} />
       <path d={SHIELD_IN_R} fill={p.mid} />
       <path d="M32 8 L50 14 V31 C50 43 42 51 32 57 C22 51 14 43 14 31 V14 Z" fill="none" stroke={p.rim} strokeWidth="2" strokeLinejoin="round" />
+      {/* A catch-light along the upper left edge, where the light falls. */}
+      <path d="M17 16.2 L31 11.6" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
     </>
   );
 }
@@ -146,11 +158,16 @@ const EMBLEMS = {
     <>
       <Wings feathers={WING_SWEPT} p={p} />
       <Gem p={p} y={6} />
-      {/* The crown sits on the stone's table. */}
-      <path d="M22 22 L20 11 L26.5 16 L32 8 L37.5 16 L44 11 L42 22 Z" fill={p.crown} stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
-      <path d="M32 8 L37.5 16 L44 11 L42 22 H32 Z" fill={p.crownDark} />
-      <path d="M22 22 L20 11 L26.5 16 L32 8 L37.5 16 L44 11 L42 22 Z" fill="none" stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
-      <circle cx="32" cy="17" r="1.8" fill={p.light} stroke={p.rim} strokeWidth="0.8" />
+      {/* The crown sits on the stone's table: five points, a jewel on
+          each tall one, the right half in shadow like everything else. */}
+      <path d="M19 23 L16 8 L24.5 15 L32 4 L39.5 15 L48 8 L45 23 Z" fill={p.crown} />
+      <path d="M32 4 L39.5 15 L48 8 L45 23 H32 Z" fill={p.crownDark} />
+      <path d="M19 23 L16 8 L24.5 15 L32 4 L39.5 15 L48 8 L45 23 Z" fill="none" stroke={p.rim} strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M19.5 19.5 H44.5" stroke={p.rim} strokeWidth="1" opacity="0.6" />
+      {[[16, 8], [32, 4], [48, 8]].map(([cx, cy]) => (
+        <circle key={cx} cx={cx} cy={cy} r="2.3" fill={p.light} stroke={p.rim} strokeWidth="1" />
+      ))}
+      <circle cx="32" cy="15" r="2" fill={p.mid} stroke={p.rim} strokeWidth="0.9" />
     </>
   ),
 };
@@ -161,7 +178,7 @@ export default function LeagueTierIcon({ tier, className = 'w-8 h-8', ...rest })
   const id = PALETTES[tier] ? tier : 'bronze';
   const palette = { ...PALETTES[id], mid: getTier(id).color };
   return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden="true" focusable="false" {...rest}>
+    <svg viewBox="-3 -3 70 70" className={className} aria-hidden="true" focusable="false" {...rest}>
       {EMBLEMS[id](palette)}
     </svg>
   );
