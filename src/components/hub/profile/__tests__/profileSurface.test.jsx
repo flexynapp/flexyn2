@@ -268,6 +268,32 @@ describe('ProfileTrophies', () => {
     expect(locks.length).toBeLessThan(TROPHIES.length - 2);
   });
 
+  // A phone never shows a title tooltip, which was the only place a
+  // trophy's name lived, so tapping one did nothing.
+  it('names an earned trophy when it is tapped, and hides it on a second tap', () => {
+    const tf = (_k, fb, vars) => (vars ? fb.replace(/\{(\w+)\}/g, (_, n) => vars[n]) : fb);
+    const first = TROPHIES[0];
+    render(
+      <ProfileTrophies
+        isSelf={false}
+        trophyCase={[]}
+        trophyVisible
+        earnedTrophies={[{ trophy_id: first.id, earned_at: '2026-09-12T15:00:00Z' }]}
+        onPickSlot={vi.fn()}
+        trophyLabels={{}}
+        tFallback={tf}
+      />
+    );
+    expect(screen.queryByTestId('trophy-detail')).toBeNull();
+    const tile = screen.getAllByRole('button').find((b) => b.getAttribute('aria-pressed') === 'false');
+    fireEvent.click(tile);
+    const detail = screen.getByTestId('trophy-detail');
+    expect(detail.textContent).toContain(first.name);
+    expect(detail.textContent).toMatch(/Earned Sep 12, 2026/);
+    fireEvent.click(tile);
+    expect(screen.queryByTestId('trophy-detail')).toBeNull();
+  });
+
   it('shows the empty-state copy rather than a wall of locks at zero', () => {
     render(
       <ProfileTrophies

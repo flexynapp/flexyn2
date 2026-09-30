@@ -85,7 +85,10 @@ export async function createCrew(user, name) {
 // 248; the base half predates it. They're split so a host that hasn't run
 // 248 yet degrades to the base set instead of erroring the whole Crews tab
 // during the window between the Netlify deploy and the SQL being applied.
-const CREW_BASE_COLS = 'id, name, created_at, max_capacity, tag, avatar_url';
+// is_public and description are here because the leader's settings sheet
+// opens on this object; without them it always showed "By application"
+// and an empty description, and saving wrote those back over the real ones.
+const CREW_BASE_COLS = 'id, name, created_at, max_capacity, tag, avatar_url, is_public, description';
 const CREW_PROG_COLS = 'crew_level, crew_xp, trophies, wars_won, wars_lost, wars_drawn';
 
 export async function getMyCrews(userId) {
@@ -317,9 +320,11 @@ export async function getCrewMessages(crewId, limit = 80) {
     .select('*')
     .eq('crew_id', crewId)
     .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .order('created_at', { ascending: true })
+    // Newest first, then flipped: ascending + limit returned the OLDEST 80,
+    // so past 80 messages nothing new (your own included) ever appeared.
+    .order('created_at', { ascending: false })
     .limit(limit);
-  return error ? [] : (data ?? []);
+  return error ? [] : (data ?? []).reverse();
 }
 
 export async function sendCrewMessage(crewId, senderId, type, content, extras = {}) {

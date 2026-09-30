@@ -21,7 +21,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Swords, AlertTriangle, Trophy, Copy, Share2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -49,7 +49,6 @@ const DUEL_TYPE_LABEL = {
 export default function DuelInviteLanding() {
   const { tFallback } = useLanguage();
   const { token } = useParams();
-  const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
   // Pull the canonical user profile so we can compare usernames the
   // server actually has, not whatever the auth user object provides.
@@ -102,7 +101,7 @@ export default function DuelInviteLanding() {
       clearPendingToken();
       if (result?.duel_id) {
         toast.success(tFallback('duelInviteLanding.accepted', 'Duel accepted! Time to lift.'));
-        navigate('/duels', { replace: true });
+        window.location.replace('/duels');
       }
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
@@ -254,7 +253,7 @@ export default function DuelInviteLanding() {
                 // to "/" enters the App's auth flow → SignIn → Onboarding.
                 // The App's post-auth handler reads PENDING_INVITE_LS_KEY
                 // and bounces back here once the user has an account.
-                navigate('/');
+                window.location.assign('/');
               }}
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors shadow-md"
             >

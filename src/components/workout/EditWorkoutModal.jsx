@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -375,7 +376,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
+                max={format(new Date(), 'yyyy-MM-dd')}
               />
             </div>
             <div>

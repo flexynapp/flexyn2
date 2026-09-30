@@ -257,7 +257,7 @@ export default function PublicGymLanding() {
       >
         {isAuthed ? (
           <Button
-            onClick={() => navigate(`/gym/${id}`)}
+            onClick={() => window.location.assign(`/gym/${id}`)}
             className="w-full"
             size="lg"
           >

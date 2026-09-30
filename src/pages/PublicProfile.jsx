@@ -231,7 +231,7 @@ export default function PublicProfile() {
           </div>
           {isAuthed ? (
             <Button
-              onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
+              onClick={() => window.location.assign(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
               className="w-full max-w-xs"
             >
               {tFallback("publicProfile.viewFullProfile", "View full profile")}
@@ -284,7 +284,7 @@ export default function PublicProfile() {
             {isOwnProfile ? (
               // Viewing own profile
               <Button
-                onClick={() => navigate('/hub')}
+                onClick={() => window.location.assign('/hub')}
                 className="w-full"
               >
                 {tFallback("publicProfile.goToMyHub", "Go to my Hub")} <ChevronRight className="w-4 h-4 ms-1" />
@@ -293,7 +293,7 @@ export default function PublicProfile() {
               // Authenticated visitor viewing someone else
               <>
                 <Button
-                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
+                  onClick={() => window.location.assign(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
                   className="w-full"
                 >
                   <ExternalLink className="w-4 h-4 me-2" />
@@ -301,7 +301,7 @@ export default function PublicProfile() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/messages')}
+                  onClick={() => window.location.assign('/messages')}
                   className="w-full"
                 >
                   <MessageCircle className="w-4 h-4 me-2" />
