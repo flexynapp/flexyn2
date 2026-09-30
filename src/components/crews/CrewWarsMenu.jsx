@@ -162,7 +162,7 @@ function Queued({ tFallback }) {
       <div className="flex flex-wrap justify-center gap-2 mt-2">
         {[
           // Strength leads: it is the main key since the skill matchmaking
-          // migration (20261001004000); the rest refine inside it.
+          // migration (20261001030000); the rest refine inside it.
           tFallback('crewWars.matchStrength', 'Strength'),
           tFallback('crewWars.matchSize',     'Roster size'),
           tFallback('crewWars.matchCadence',  'Cadence'),

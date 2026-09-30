@@ -96,7 +96,7 @@ export async function searchDuelOpponents(query = '') {
 /**
  * Up to eight people close to the caller's strength, for the Create Duel
  * list. Ranked server-side (duel_matched_opponents, migration
- * 20261001004000) on Strength Score first, then weekly volume and training
+ * 20261001030000) on Strength Score first, then weekly volume and training
  * days; nobody three or more leagues away or more than 50% apart in strength
  * is ever listed. Same row shape as searchDuelOpponents plus `match_step`
  * (1 = closest .. 4 = widest).

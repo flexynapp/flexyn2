@@ -1,5 +1,5 @@
 // The picker lists people close to your strength (duel_matched_opponents,
-// migration 20261001004000) above the people you follow, and never lists
+// migration 20261001030000) above the people you follow, and never lists
 // the same person twice.
 
 import React from 'react';
