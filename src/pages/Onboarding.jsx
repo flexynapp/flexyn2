@@ -13,6 +13,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
@@ -2616,7 +2617,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                     onClick={() => setPendingMuscle(p => p === m ? '' : m)}
                     aria-pressed={pendingMuscle === m}
                     className={[
-                      'px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
+                      'min-h-11 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
                       pendingMuscle === m
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground',
@@ -2640,7 +2641,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                     onClick={() => setPendingSeverity(s.id)}
                     aria-pressed={pendingSeverity === s.id}
                     className={[
-                      'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+                      'flex-1 min-h-11 py-1.5 rounded-lg text-xs font-semibold border transition-all',
                       pendingSeverity === s.id ? s.color : 'border-border text-muted-foreground',
                     ].join(' ')}
                   >
@@ -2655,7 +2656,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
               onClick={addEntry}
               disabled={!pendingMuscle}
               className={[
-                'w-full py-2 rounded-lg text-sm font-bold border transition-all',
+                'w-full min-h-11 py-2 rounded-lg text-sm font-bold border transition-all',
                 pendingMuscle
                   ? 'bg-secondary text-foreground border-border hover:border-primary/40'
                   : 'bg-secondary/40 text-muted-foreground/50 border-border/40 cursor-not-allowed',
@@ -2850,7 +2851,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
             <button
               type="button"
               onClick={onSkip}
-              className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+              className="w-full min-h-11 py-2 text-sm text-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
               {tFallback('onboarding.homeGym.skip', "Skip and pick later")}
             </button>
@@ -3403,6 +3404,7 @@ export default function Onboarding() {
   // told which one.
   const { tFallback, language } = useLanguage();
   const { setWeightUnit } = useWeightUnit();
+  const { setDistanceUnit } = useDistanceUnit();
 
   // The step is kept per user beside the draft, by NAME so a reorder of
   // STEPS cannot land someone on the wrong screen. Without it, closing the
@@ -3837,6 +3839,12 @@ export default function Onboarding() {
     setSaving(true);
     const s = data.stats || {};
     const weightUnit = s.weightUnit === 'kg' ? 'kg' : 'lbs';
+    // Distances follow the same choice: someone who measures themselves in
+    // metric sees km. Imperial stays on the default, mi.
+    const applyUnits = () => {
+      setWeightUnit(weightUnit);
+      if (starterInputs.units === 'metric') setDistanceUnit('km');
+    };
 
     // Unit conversion, clamping and the three save tiers live in
     // `@/lib/data/onboardingProfile` — pure, and tested directly rather than
@@ -3858,7 +3866,7 @@ export default function Onboarding() {
     let saved = false;
     try {
       await db.auth.updateMe(fullProfile);
-      setWeightUnit(weightUnit);
+      applyUnits();
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
       saved = true;
@@ -3916,7 +3924,7 @@ export default function Onboarding() {
       let tier2Err = null;
       try {
         await db.auth.updateMe(minimalProfile);
-        setWeightUnit(weightUnit);
+        applyUnits();
         markReturningUser();
         if (checkUserAuth) await checkUserAuth();
         saved = true;
@@ -3934,7 +3942,7 @@ export default function Onboarding() {
         // tiers 1 and 2 and lands here.
         try {
           await db.auth.updateMe(coreProfile);
-          setWeightUnit(weightUnit);
+          applyUnits();
           markReturningUser();
           if (checkUserAuth) await checkUserAuth();
           saved = true;

@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const create = vi.fn();
 vi.mock('@/lib/data/cardio', () => ({ create: (...a) => create(...a) }));
 
-const { cardioLogPayloadFromEntry, saveWorkoutCardio, linkedCardioLogIds, cardioEntryHasData } =
+const {
+  cardioLogPayloadFromEntry, saveWorkoutCardio, linkedCardioLogIds, cardioEntryHasData,
+  blankCardioEntry, workoutCardioSeconds, workoutCardioTotals, MAX_CARDIO_SECONDS, MAX_CARDIO_METERS,
+} =
   await import('@/lib/data/workoutCardio');
 
 const run = {
@@ -27,6 +30,40 @@ describe('cardioLogPayloadFromEntry', () => {
   it('maps a ride and a swim to the tracker types', () => {
     expect(cardioLogPayloadFromEntry({ ...run, activity: 'cycling' }, {}).type).toBe('biking_outside');
     expect(cardioLogPayloadFromEntry({ ...run, activity: 'swimming' }, {}).type).toBe('swimming_pool');
+  });
+});
+
+describe('workout cardio caps', () => {
+  it('clamps a run to the manual form caps of 12 hours and 160 km', () => {
+    const huge = { ...run, segments: [{ duration_s: 10 * 3600, distance_m: 120000 }, { duration_s: 10 * 3600, distance_m: 120000 }] };
+    const p = cardioLogPayloadFromEntry(huge, {});
+    expect(p.duration_seconds).toBe(MAX_CARDIO_SECONDS);
+    expect(p.distance_meters).toBe(MAX_CARDIO_METERS);
+    expect(MAX_CARDIO_SECONDS).toBe(12 * 3600);
+    expect(MAX_CARDIO_METERS).toBe(160934);
+  });
+
+  it('sums the cardio seconds of a workout with the same cap, ignoring lifts', () => {
+    const lift = { name: 'Squat', sets: [{ weight: 100, reps: 5 }] };
+    expect(workoutCardioSeconds([lift, run])).toBe(1500);
+    expect(workoutCardioSeconds([{ ...run, segments: [{ duration_s: 20 * 3600 }] }])).toBe(MAX_CARDIO_SECONDS);
+    expect(workoutCardioSeconds(null)).toBe(0);
+  });
+
+  it('totals time and distance across runs and counts them', () => {
+    const lift = { name: 'Squat', sets: [{ weight: 100, reps: 5 }] };
+    expect(workoutCardioTotals([lift, run, run])).toEqual({ seconds: 3000, meters: 10200, count: 2 });
+    expect(workoutCardioTotals([lift])).toEqual({ seconds: 0, meters: 0, count: 0 });
+  });
+});
+
+describe('blankCardioEntry', () => {
+  it('keeps the activity and drops the numbers and the saved log link', () => {
+    const e = blankCardioEntry({ ...run, cardio_log_id: 'c9', detail: { pace: 300 } });
+    expect(e).toEqual({
+      kind: 'cardio', activity: 'running', name: 'Running', displayName: 'Running',
+      segments: [{ duration_s: null, distance_m: null }], sets: [],
+    });
   });
 });
 

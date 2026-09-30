@@ -20,6 +20,9 @@ import { useNumberFormatter } from '@/lib/intl';
 // the rest of the app for the same workout because it ignored the
 // user's bar-weight inclusion preference. (Audit 09 #H-6.)
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
+import { workoutCardioTotals } from '@/lib/data/workoutCardio';
+import { metersTo } from '@/lib/distanceUnit';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { TagPillRow } from './WorkoutTags';
 import { workoutTitle } from '@/lib/workoutTitle';
 import * as workouts from '@/lib/data/workouts';
@@ -38,6 +41,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
   const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
   const dateLocale = getDateLocale(language);
   const fmt = useNumberFormatter();
   const navigate = useNavigate();
@@ -106,22 +110,31 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
     >
       {logs.map(log => {
         const exercises = log.exercises || [];
-        const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
+        // A run logged in the workout is not a lift. It is counted by its
+        // distance and time, never as an exercise with zero sets.
+        const lifts = exercises.filter(ex => ex?.kind !== 'cardio');
+        const cardio = workoutCardioTotals(exercises);
+        const totalSets = lifts.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
         // Use the shared totalVolume calculator so this number matches
         // the LiveVolumePill, save mutation, and share card. Previously
         // an inline `weight * reps` ignored the user's include_bar
         // preference — kg users with bar inclusion on saw the saved
         // list under-count relative to the active session pill.
-        const totalVolumeLbs = computeTotalVolume(exercises, { includeBarWeight: includeBar });
+        const totalVolumeLbs = computeTotalVolume(lifts, { includeBarWeight: includeBar });
         const totalVolumeDisplay = totalVolumeLbs > 0
           ? `${fmt(Math.round(fromLbs(totalVolumeLbs, weightUnit)))} ${weightUnit}`
           : '';
 
-        const exLabel = exercises.length === 1
+        const exLabel = lifts.length === 1
           ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
-          : exercises.length > 1
-            ? `${exercises.length} ${t('workout.exercises').toLowerCase()}`
+          : lifts.length > 1
+            ? `${lifts.length} ${t('workout.exercises').toLowerCase()}`
             : '';
+        const runUnit = distanceUnit === 'km' ? 'km' : 'mi';
+        const cardioLabel = [
+          cardio.meters > 0 ? `${fmt(Math.round(metersTo(runUnit, cardio.meters) * 10) / 10)} ${runUnit}` : '',
+          cardio.seconds >= 60 ? tFallback('finish.minutes', '{n} min', { n: fmt(Math.round(cardio.seconds / 60)) }) : '',
+        ].filter(Boolean).join(' ');
         const setLabel = totalSets === 1
           ? `1 ${tFallback('workout.setSingular', 'set')}`
           : totalSets > 1
@@ -133,6 +146,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
           exLabel,
           setLabel,
           totalVolumeDisplay,
+          cardioLabel,
         ].filter(Boolean).join(' • ');
 
         const title = workoutTitle(log) || t('workout.freestyle');
