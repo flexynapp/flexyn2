@@ -41,6 +41,8 @@ const CASES = [
   ['src/lib/data/hubCommentLikes.js', 'LIKE_COLUMNS', 'hub_comment_likes', ['created_by']],
   ['src/lib/data/stories.js', 'STORY_COLUMNS', 'stories', ['user_email']],
   ['src/lib/data/statusNotes.js', 'NOTE_COLUMNS', 'status_notes', ['user_email']],
+  ['src/lib/data/foodItems.js', 'FOOD_COLUMNS', 'food_items', ['created_by']],
+  ['src/lib/data/templates.js', 'TEMPLATE_COLUMNS', 'workout_templates', ['created_by']],
 ];
 
 describe.each(CASES)('%s %s', (file, name, table, banned) => {
@@ -77,7 +79,7 @@ describe('tables moving to column-level SELECT grants', () => {
     'regimens', 'user_trophies', 'gym_members',
     'gym_feed_posts', 'gym_feed_comments',
     'hub_follows', 'hub_posts', 'hub_comments', 'hub_comment_likes',
-    'stories', 'status_notes',
+    'stories', 'status_notes', 'food_items', 'workout_templates',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));
@@ -159,4 +161,9 @@ it('no app code reads a follow, post, comment or story email', () => {
     if (/(post|comment|original|story|note)\??\.(author_email|user_email)\b/.test(src)) offenders.push(f);
   }
   expect(offenders).toEqual([]);
+});
+
+it('a copied template never takes its author name from an email', () => {
+  const src = read('src/lib/data/templates.js');
+  expect(src).not.toMatch(/created_by[^\n]*split\('@'\)/);
 });

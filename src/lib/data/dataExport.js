@@ -22,6 +22,7 @@ import { LISTING_COLUMNS } from './marketplace';
 import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from './regimens';
 import { POST_COLUMNS } from './hubPosts';
 import { COMMENT_COLUMNS } from './hubComments';
+import { TEMPLATE_COLUMNS } from './templates';
 
 // (table, owner-filter-column) pairs we know how to export.
 //
@@ -46,7 +47,7 @@ const EXPORT_TABLES = [
   // `achievements` table; this entry asked for one and every export carried
   // { error: 'fetch_failed' } here. Trophies are their own table.
   { name: 'trophies',         table: 'user_trophies',  column: 'user_id',      via: 'id', select: 'id, user_id, trophy_id, earned_at' },
-  { name: 'workout_templates',table: 'workout_templates', column: 'created_by', via: 'email' },
+  { name: 'workout_templates',table: 'workout_templates', column: 'user_id',    via: 'id', select: TEMPLATE_COLUMNS },
   { name: 'hub_posts',        table: 'hub_posts',      column: 'user_id',      via: 'id', select: POST_COLUMNS },
   { name: 'hub_comments',     table: 'hub_comments',   column: 'user_id',      via: 'id', select: COMMENT_COLUMNS },
   { name: 'hub_messages_sent',table: 'hub_messages',   column: 'sender_email', via: 'email' },
