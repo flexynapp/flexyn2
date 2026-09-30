@@ -2146,6 +2146,8 @@
   "goals.archive.toastArchived": "Goal archived",
   "goals.archive.toastRestored": "Goal restored",
   "goals.archive.undo": "Unarchive",
+  "goals.assist.action": "Assist me",
+  "goals.assist.bubble": "Help me reach my goal: {goal}",
   "goals.badge.almostThere": "Almost there!",
   "goals.badge.completed": "Completed ✓",
   "goals.badge.readyToComplete": "Ready to complete!",
