@@ -65,11 +65,25 @@ describe('Training age', () => {
     // so this label read "August 6" for a workout logged on the 7th.
     const expected = new Intl.DateTimeFormat('en', { dateStyle: 'long' })
       .format(parseLocalDate(LOG_DATE));
+    expect(screen.getByText(new RegExp(`One workout so far, on ${expected}`))).toBeInTheDocument();
+  });
+
+  it('gives one session a date, not an age', () => {
+    // A single workout eight weeks ago used to read "2 months" of training.
+    show({ logs: [{ date: d(subDays(new Date(), 56)), exercises: [] }] });
+    expect(screen.queryByText('2 months')).toBeNull();
+    expect(screen.getByText(/One workout so far/)).toBeInTheDocument();
+  });
+
+  it('says "Training since" once there are two sessions', () => {
+    const first = subDays(new Date(), 10);
+    show({ logs: [{ date: d(first), exercises: [] }, { date: d(new Date()), exercises: [] }] });
+    const expected = new Intl.DateTimeFormat('en', { dateStyle: 'long' }).format(parseLocalDate(d(first)));
     expect(screen.getByText(`Training since ${expected}`)).toBeInTheDocument();
   });
 
   it('says "1 day", not "1 days"', () => {
-    show({ logs: [{ date: d(subDays(new Date(), 1)), exercises: [] }] });
+    show({ logs: [{ date: d(subDays(new Date(), 1)), exercises: [] }, { date: d(new Date()), exercises: [] }] });
     expect(screen.getByText('1 day')).toBeInTheDocument();
     expect(screen.queryByText('1 days')).toBeNull();
   });
@@ -77,7 +91,7 @@ describe('Training age', () => {
   it('withholds consistency in week one rather than awarding a free 100%', () => {
     // activeWeeks/totalWeeks is 1/1 for every brand-new account, so the
     // old card congratulated a three-day-old user on being 100% consistent.
-    show({ logs: [{ date: d(startOfWeek(new Date())), exercises: [] }] });
+    show({ logs: [{ date: d(startOfWeek(new Date(), { weekStartsOn: 1 })), exercises: [] }, { date: d(new Date()), exercises: [] }] });
 
     expect(screen.getByText(/Consistency unlocks after two weeks/)).toBeInTheDocument();
     expect(screen.queryByText('consistent')).toBeNull();
@@ -85,7 +99,7 @@ describe('Training age', () => {
   });
 
   it('counts calendar weeks inclusively once there are two, with singular labels', () => {
-    const thisWeek = startOfWeek(new Date());
+    const thisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
     show({
       logs: [
         { date: d(subDays(thisWeek, 7)), exercises: [] },

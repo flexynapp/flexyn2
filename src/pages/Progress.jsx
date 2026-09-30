@@ -12,16 +12,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
-import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { splitByPeriod, PERIODS } from '@/lib/progressPeriod';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { fadeUp } from '@/lib/motion';
 import {
-  TrendingUp, BarChart2, Camera, Ruler, ChevronRight, Lightbulb,
+  TrendingUp, Camera, Ruler, ChevronRight, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
@@ -34,6 +33,8 @@ import * as bodyMetricsData from '@/lib/data/bodyMetrics';
 const AdvancedAnalyticsSheet = lazy(() => import('@/components/progress/AdvancedAnalyticsSheet'));
 const PersonalBestsSheet     = lazy(() => import('@/components/progress/PersonalBestsSheet'));
 import ExerciseTrendsTab from '@/components/progress/ExerciseTrendsTab';
+import TrendFilterChip from '@/components/progress/TrendFilterChip';
+import { liftSeries, defaultLift } from '@/lib/liftSeries';
 import InsightsTab from '@/components/progress/InsightsTab';
 import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // Achievements moved to ProfileMenu (above "My Bag") — it didn't fit
@@ -143,164 +144,121 @@ function calcVolume(logs) {
 
 // ─── Analytics Tab ────────────────────────────────────────────────────────────
 
+// The two charts under the analytics sheet, for the period's logs.
+//
+// Round 2 of the Progress audit (2026-09-30) took three things out:
+// - the three coloured tiles on top, which restated the sheet's own rows
+//   (total workouts, top muscle group) in blue, orange and green;
+// - the 30 day frequency bars, which drew the calendar grid on the page
+//   behind the sheet a second time;
+// - the mixed "max weight" line. It took the heaviest set of ANY exercise
+//   per session, so a leg day followed by an arm day drew a sawtooth that
+//   was nothing but which day it was. It charts one lift now.
+//
+// Sections, not cards: the sheet is already the surface, and a card inside
+// it was a card in a card.
 function AnalyticsTab({ logs }) {
   const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
+  const [pickedLift, setPickedLift] = useState(null);
 
-  // Sort by the RAW 'yyyy-MM-dd' date BEFORE mapping to display labels.
-  // The previous version formatted the localized label first and then
-  // sorted by `new Date(label)` — 'MMM d' labels are Invalid Date in 14
-  // of 15 locales, so the sort was a no-op, the chart rendered in
-  // whatever order logs arrived (newest-first), and slice(-20) kept the
-  // OLDEST 20 sessions. Cardio-only logs (max weight 0) are filtered out
-  // so they don't drag the line to zero.
-  const weightOverTime = useMemo(() => logs
-    .filter(l => l.date)
-    .map(log => {
-      const maxWeightLbs = (log.exercises || []).reduce((max, ex) => {
-        const exMax = (ex.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
-        return Math.max(max, exMax);
-      }, 0);
-      return { rawDate: String(log.date).slice(0, 10), maxWeightLbs };
-    })
-    .filter(e => e.maxWeightLbs > 0)
-    .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
+  const lifts = useMemo(() => liftSeries(logs), [logs]);
+  // A pick survives a period change only while the lift is still in it.
+  const lift = lifts.find(l => l.name === pickedLift) || defaultLift(lifts);
+
+  const weightOverTime = useMemo(() => (lift?.sessions || [])
     .slice(-20)
-    // Only `weightDisplay` is charted. A second field carrying the raw
-    // lbs under the key 'Max Weight (lbs)' rode along here and no axis,
-    // line or tooltip ever read it — a hardcoded unit in a key name is
-    // also exactly what a kg user must not be shown, so it was one
-    // careless dataKey away from being a bug rather than dead weight.
     .map(e => ({
       date: format(parseLocalDate(e.rawDate), 'MMM d', { locale: dateLocale }),
-      weightDisplay: fromLbs(e.maxWeightLbs, weightUnit),
+      weightDisplay: fromLbs(e.maxLbs, weightUnit),
     })),
-  [logs, dateLocale, weightUnit]);
+  [lift, dateLocale, weightUnit]);
+
+  const liftItems = useMemo(() => lifts
+    .map(l => ({ value: l.name, label: translateExerciseName(l.name, language) }))
+    .sort((x, y) => x.label.localeCompare(y.label, language)),
+  [lifts, language]);
 
   const volumeByMuscle = useMemo(() => {
     const map = {};
     logs.forEach(log => {
       (log.exercises || []).forEach(ex => {
         const group = ex.muscle_group || ex.muscle_groups?.[0] || 'Other';
-        const vol = (ex.sets || []).reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
+        const vol = (ex.sets || []).reduce((sum, st) => sum + (Number(st.weight) || 0) * (Number(st.reps) || 0), 0);
         map[group] = (map[group] || 0) + vol;
       });
     });
     return Object.entries(map)
-      .map(([group, volume]) => ({ group, displayGroup: t(`muscleGroups.${muscleKey(group)}`), Volume: Math.round(volume) }))
-      .sort((a, b) => b.Volume - a.Volume).slice(0, 8);
-  }, [logs, t]);
+      .filter(([, volume]) => volume > 0)
+      // Converted for the reader's unit. It charted raw pounds for a kg user.
+      .map(([group, volume]) => ({ group, displayGroup: t(`muscleGroups.${muscleKey(group)}`), Volume: Math.round(fromLbs(volume, weightUnit)) }))
+      .sort((x, y) => y.Volume - x.Volume).slice(0, 8);
+  }, [logs, t, weightUnit]);
 
-  const workoutFrequency = useMemo(() => {
-    const last30 = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() });
-    // log.date is a LOCAL 'yyyy-MM-dd' string — key by the raw string and
-    // compare via parseLocalDate so the frequency bars don't shift a day
-    // for users west of UTC.
-    const cutoff = startOfDay(subDays(new Date(), 29));
-    const loggedDays = new Set(
-      logs
-        .filter(l => {
-          if (!l.date) return false;
-          const d = parseLocalDate(l.date);
-          return d && d >= cutoff;
-        })
-        .map(l => String(l.date).slice(0, 10))
-    );
-    return last30.map(day => ({ date: format(day, 'MMM d', { locale: dateLocale }), Workouts: loggedDays.has(format(day, 'yyyy-MM-dd')) ? 1 : 0 }));
-  }, [logs, dateLocale]);
-
-  const trainedDays = workoutFrequency.filter(d => d.Workouts === 1).length;
-
-  if (logs.length === 0) {
-    return (
-      <Card className="p-12 text-center border-dashed">
-        <BarChart2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">{t('progress.noData')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('progress.logWorkoutsForAnalytics')}</p>
-      </Card>
-    );
-  }
+  if (logs.length === 0) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {[
-          { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-info' },
-          { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-primary' },
-          { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-success', span: 'col-span-2 md:col-span-1' },
-        ].map((stat, i) => (
-          <motion.div key={stat.label} {...fadeUp(i)} className={stat.span || ''}>
-            <Card className="p-4 border border-border shadow-none text-center h-full">
-              {/* Numbers count up from zero rather than popping in at scale 0.5:
-                the tile's own entrance already moves it, and a count is the
-                motion that says something about the number. */}
-              <p className={`font-heading text-2xl font-bold tabular-nums ${stat.color}`}>
-                {typeof stat.value === 'number'
-                  ? <AnimatedNumber value={stat.value} animateOnMount duration={700} />
-                  : stat.value}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      <Card className="p-5 border border-border shadow-none">
-        <h2 className="font-heading font-bold mb-1">{t('progress.maxWeightOverTime')}</h2>
-        <p className="text-xs text-muted-foreground mb-4">{t('progress.maxWeightSubtitle')}</p>
-        {weightOverTime.length < 2 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">{t('progress.minWorkoutsForTrend')}</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={240} key={`${language}-${weightUnit}`}>
-            <LineChart data={weightOverTime}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" domain={[0, 'auto']} allowDataOverflow={false} />
-              <Tooltip {...CHART_STYLE} />
-              <Line type="monotone" dataKey="weightDisplay" name={t('workout.weightWithUnit', { unit: weightUnit })} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-            </LineChart>
-          </ResponsiveContainer>
+    <div>
+      {/* No rule above the first: the sheet's "Charts" label already has one. */}
+      <section className="pb-[var(--fluid-section)]">
+        <h2 className="font-heading font-bold">{t('progress.maxWeightOverTime')}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">{t('progress.maxWeightSubtitle')}</p>
+        {lift && liftItems.length > 1 && (
+          <div className="mt-2">
+            <TrendFilterChip
+              label={tFallback('progress.analytics.liftLabel', 'Lift')}
+              value={lift.name}
+              onChange={setPickedLift}
+              items={liftItems}
+            />
+          </div>
         )}
-      </Card>
+        {lift && liftItems.length === 1 && (
+          <p className="text-sm font-semibold mt-2">{translateExerciseName(lift.name, language)}</p>
+        )}
+        {weightOverTime.length < 2 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {lift
+              ? tFallback('progress.analytics.oneSession', 'Only one session of this lift so far. The line starts at two.')
+              : t('progress.minWorkoutsForTrend')}
+          </p>
+        ) : (
+          <div className="mt-4">
+            <ResponsiveContainer width="100%" height={220} key={`${language}-${weightUnit}`}>
+              <LineChart data={weightOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" domain={['auto', 'auto']} width={40} />
+                <Tooltip {...CHART_STYLE} />
+                <Line type="monotone" dataKey="weightDisplay" name={t('workout.weightWithUnit', { unit: weightUnit })} stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ fill: 'hsl(var(--chart-1))', strokeWidth: 0, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
 
-      <Card className="p-5 border border-border shadow-none">
-        <h2 className="font-heading font-bold mb-1">{t('progress.totalVolumeByMuscle')}</h2>
-        <p className="text-xs text-muted-foreground mb-4">{t('progress.totalVolumeDesc')}</p>
+      <section className="py-[var(--fluid-section)] border-t border-border">
+        <h2 className="font-heading font-bold">{t('progress.totalVolumeByMuscle')}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {tFallback('progress.analytics.volumeDesc', 'Weight times reps, added up for each muscle group, in {unit}', { unit: weightUnit })}
+        </p>
         {volumeByMuscle.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">{t('progress.noMuscleData')}</p>
         ) : (
-          <ResponsiveContainer width="100%" height={240} key={language}>
-            <BarChart data={volumeByMuscle} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-              {/* no inputMode — it was an <input> attribute on an SVG axis,
-                  which renders nothing and configures no keyboard. */}
-              <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis type="category" dataKey="displayGroup" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={80} />
-              <Tooltip {...CHART_STYLE} />
-              <Bar dataKey="Volume" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="mt-4">
+            <ResponsiveContainer width="100%" height={Math.max(120, volumeByMuscle.length * 32)} key={`${language}-${weightUnit}`}>
+              <BarChart data={volumeByMuscle} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={formatBigNumber} />
+                <YAxis type="category" dataKey="displayGroup" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={80} />
+                <Tooltip {...CHART_STYLE} />
+                <Bar dataKey="Volume" name={tFallback('progress.analytics.volume', 'Volume')} fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         )}
-      </Card>
-
-      <Card className="p-5 border border-border shadow-none">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="font-heading font-bold">{t('progress.workoutFrequency')}</h2>
-          <span className="text-xs font-medium text-primary">{trainedDays} / 30 {t('progress.daysShort')}</span>
-        </div>
-        <p className="text-xs text-muted-foreground mb-4">{t('progress.workoutFrequencyDesc')}</p>
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={workoutFrequency}>
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval={4} />
-            <YAxis hide domain={[0, 1]} />
-            <Tooltip {...CHART_STYLE} formatter={(v) => [v === 1
-              ? tFallback('progress.analytics.trained', 'Trained ✓')
-              : tFallback('progress.analytics.restDay', 'Rest day'), '']} />
-            <Bar dataKey="Workouts" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -509,7 +467,7 @@ export default function Progress() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="px-4 md:px-6 lg:pb-6 max-w-2xl mx-auto"
+      className="px-4 md:px-6 pb-16 lg:pb-6 max-w-2xl mx-auto"
       style={{ paddingTop: 'var(--fluid-pad-y)' }}
     >
       {/* The top bar already titles this page "Progress", so a visible
@@ -815,10 +773,12 @@ export default function Progress() {
             <AdvancedAnalyticsSheet
               open={advancedAnalyticsOpen}
               onClose={() => setAdvancedAnalyticsOpen(false)}
-              logs={logs}
+              logs={frameLogs}
+              period={statsFrame}
+              onPeriodChange={setStatsFrame}
             >
               {/* The old "Analytics" tab's charts, still here as a section. */}
-              <AnalyticsTab logs={logs} />
+              <AnalyticsTab logs={frameLogs} />
             </AdvancedAnalyticsSheet>
           </ErrorBoundary>
         </Suspense>

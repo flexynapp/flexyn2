@@ -237,6 +237,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'onboarding.weight.unitKg',
   ]),
   fr: new Set([
+    // "Volume" is the French word for training volume as well.
+    'progress.analytics.volume',
     // "min" is the minute abbreviation French uses too.
     'coach.followUp.minutes',
     // Duels: \"Rival\" and \"VS\" are the words French uses on a scoreboard.

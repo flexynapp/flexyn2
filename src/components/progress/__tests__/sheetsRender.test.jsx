@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 vi.mock('@/lib/LanguageContext', () => ({
   useLanguage: () => ({
@@ -45,9 +45,24 @@ describe('AdvancedAnalyticsSheet', () => {
 
   it('groups the rows instead of listing them flat', () => {
     render(<AdvancedAnalyticsSheet open onClose={() => {}} logs={withDuration} />);
-    expect(screen.getByText('LOAD')).toBeTruthy();
-    expect(screen.getByText('CONSISTENCY')).toBeTruthy();
-    expect(screen.getByText('RANGE')).toBeTruthy();
+    expect(screen.getByText('Load')).toBeTruthy();
+    expect(screen.getByText('Consistency')).toBeTruthy();
+    expect(screen.getByText('Variety')).toBeTruthy();
+  });
+
+  it('names the period it is reporting, and says so when it is empty', () => {
+    render(<AdvancedAnalyticsSheet open onClose={() => {}} logs={withDuration} period="month" onPeriodChange={() => {}} />);
+    expect(screen.getByText(/This month · 2 workouts/)).toBeTruthy();
+    cleanup();
+    render(<AdvancedAnalyticsSheet open onClose={() => {}} logs={[]} period="week" onPeriodChange={() => {}} />);
+    expect(screen.getByText('No workouts logged this week.')).toBeTruthy();
+  });
+
+  it('switches the period from inside the sheet', () => {
+    const onPeriodChange = vi.fn();
+    render(<AdvancedAnalyticsSheet open onClose={() => {}} logs={withDuration} period="week" onPeriodChange={onPeriodChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Year' }));
+    expect(onPeriodChange).toHaveBeenCalledWith('year');
   });
 
   it('renders the duration rows when sessions carry a duration', () => {
@@ -69,7 +84,7 @@ describe('AdvancedAnalyticsSheet', () => {
     expect(screen.queryByText('Avg session')).toBeNull();
     expect(screen.queryByText('0 min')).toBeNull();
     // …while the group that still has a row survives.
-    expect(screen.getByText('Total workouts')).toBeTruthy();
+    expect(screen.getByText('Unique exercises')).toBeTruthy();
   });
 
   it('renders nothing at all when closed', () => {

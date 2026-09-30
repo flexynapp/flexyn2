@@ -68,7 +68,7 @@ describe('WorkoutCalendarGrid', () => {
 
   it('opens scrolled to the newest week', () => {
     render(<WorkoutCalendarGrid logs={[bodyweight(1)]} />);
-    const scroller = screen.getByRole('img', { name: /heatmap/i }).parentElement;
+    const scroller = screen.getByRole('group', { name: /heatmap/i }).parentElement;
     expect(scroller.scrollLeft).toBe(395);
   });
 });

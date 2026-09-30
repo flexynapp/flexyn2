@@ -40,10 +40,14 @@ import React, { useMemo } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight, fromLbs } from '@/lib/weightUnit';
-import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
+import { translateExerciseName } from '@/lib/exerciseTranslations';
 import { useNumberFormatter } from '@/lib/intl';
 import { workoutDurationMin } from '@/lib/workoutDuration';
+import { PERIODS } from '@/lib/progressPeriod';
 import SheetShell from '@/components/sheets/SheetShell';
+
+const PERIOD_LABEL_FALLBACK = { week: 'This week', month: 'This month', year: 'This year', all: 'All time' };
+const PERIOD_SHORT_FALLBACK = { week: 'Week', month: 'Month', year: 'Year', all: 'All' };
 
 /** 96 h 20 m — minutes are noise past a few hours, hours alone are a lie under one. */
 function formatDuration(totalMin, tFallback) {
@@ -56,7 +60,14 @@ function formatDuration(totalMin, tFallback) {
     : tFallback('analyticsSheet.hoursMinutes', '{h} h {m} m', { h, m });
 }
 
-export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], children }) {
+// FOLLOWS THE PAGE'S PERIOD (Progress audit round 2, 2026-09-30). The sheet
+// is opened from inside the period section, under "This week", and used to
+// answer for all time regardless. `logs` is the period's logs now, and the
+// period control is repeated in the sheet so it can be widened without
+// closing it; both write the same state.
+export default function AdvancedAnalyticsSheet({
+  open, onClose, logs = [], period = 'all', onPeriodChange, children,
+}) {
   const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const nf = useNumberFormatter();
@@ -65,7 +76,6 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
     if (!Array.isArray(logs) || logs.length === 0) return null;
 
     const byExercise = new Map();
-    const muscleVolume = {};
     let totalVolume = 0;
     let totalMinutes = 0;
     let sessionsWithDuration = 0;
@@ -78,13 +88,11 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
       if (mins > 0) { totalMinutes += mins; sessionsWithDuration += 1; }
 
       (log.exercises || []).forEach((ex) => {
-        const group = ex.muscle_group || ex.muscle_groups?.[0] || 'Other';
         let exVolume = 0;
         (ex.sets || []).forEach((s) => {
           exVolume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
         });
         totalVolume += exVolume;
-        muscleVolume[group] = (muscleVolume[group] || 0) + exVolume;
 
         if (!ex.name) return;
         if (!byExercise.has(ex.name)) byExercise.set(ex.name, { maxWeight: 0, maxReps: 0, timesPerformed: 0 });
@@ -105,7 +113,6 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
     const strongest = all.reduce((best, e) => (e.maxWeight > (best?.maxWeight ?? -1) ? e : best), null);
     const mostReps = all.reduce((best, e) => (e.maxReps > (best?.maxReps ?? -1) ? e : best), null);
     const mostPerformed = all.reduce((best, e) => (e.timesPerformed > (best?.timesPerformed ?? -1) ? e : best), null);
-    const topMuscle = Object.entries(muscleVolume).sort((a, b) => b[1] - a[1])[0]?.[0];
 
     return {
       totalVolume,
@@ -117,18 +124,39 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
       strongest,
       mostReps,
       mostPerformed,
-      topMuscle,
     };
   }, [logs]);
 
-  const kicker = tFallback('analyticsSheet.kicker', 'ADVANCED ANALYTICS');
+  const kicker = tFallback('analyticsSheet.kicker', 'Charts and analytics');
+  const periodLabel = tFallback(`progress.period.${period}`, PERIOD_LABEL_FALLBACK[period] || PERIOD_LABEL_FALLBACK.all);
 
   if (!open) return null;
+
+  const periodControl = onPeriodChange && (
+    <div className="mt-3 flex rounded-lg bg-secondary/60 p-0.5" role="group" aria-label={tFallback('progress.period.pick', 'Period')}>
+      {PERIODS.map((f) => (
+        <button
+          key={f}
+          type="button"
+          aria-pressed={period === f}
+          onClick={() => onPeriodChange(f)}
+          className={`flex-1 min-h-[44px] px-2.5 rounded-md text-label font-semibold transition-colors ${period === f ? 'bg-background text-foreground' : 'text-muted-foreground'}`}
+        >
+          {tFallback(`progress.periodShort.${f}`, PERIOD_SHORT_FALLBACK[f])}
+        </button>
+      ))}
+    </div>
+  );
 
   if (!model) {
     return (
       <SheetShell open={open} onClose={onClose} kicker={kicker} labelledBy="analytics-sheet-title">
-        <p className="text-sm text-muted-foreground mt-6 mb-4">{t('progress.noDataDesc')}</p>
+        {periodControl}
+        <p className="text-sm text-muted-foreground mt-6 mb-4">
+          {period === 'all'
+            ? t('progress.noDataDesc')
+            : tFallback('analyticsSheet.emptyPeriod', 'No workouts logged {period}.', { period: periodLabel.toLowerCase() })}
+        </p>
       </SheetShell>
     );
   }
@@ -137,7 +165,7 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
   // dropped, never rendered as a zero. See the head comment.
   const groups = [
     {
-      label: tFallback('analyticsSheet.group.load', 'LOAD'),
+      label: tFallback('analyticsSheet.group.load', 'Load'),
       rows: [
         model.strongest && model.strongest.maxWeight > 0 && {
           label: tFallback('analyticsSheet.strongestLift', 'Strongest lift'),
@@ -155,12 +183,9 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
       ],
     },
     {
-      label: tFallback('analyticsSheet.group.consistency', 'CONSISTENCY'),
+      label: tFallback('analyticsSheet.group.consistency', 'Consistency'),
       rows: [
-        {
-          label: tFallback('analyticsSheet.totalWorkouts', 'Total workouts'),
-          value: String(model.workouts),
-        },
+        // No "Total workouts" row: the line under the hero says it.
         // Both duration rows vanish together when nothing carries a
         // duration, rather than reporting a confident 0 min each.
         model.hasDuration && {
@@ -174,7 +199,7 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
       ],
     },
     {
-      label: tFallback('analyticsSheet.group.range', 'RANGE'),
+      label: tFallback('analyticsSheet.group.range', 'Variety'),
       rows: [
         {
           label: tFallback('analyticsSheet.uniqueExercises', 'Unique exercises'),
@@ -184,10 +209,8 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
           label: tFallback('analyticsSheet.mostPerformed', 'Most performed'),
           value: `${translateExerciseName(model.mostPerformed.name, language)} · ${tFallback('analyticsSheet.timesX', '{n}×', { n: model.mostPerformed.timesPerformed })}`,
         },
-        model.topMuscle && {
-          label: tFallback('analyticsSheet.topMuscle', 'Top muscle group'),
-          value: tFallback(`muscleGroups.${muscleKey(model.topMuscle)}`, model.topMuscle),
-        },
+        // No "Top muscle group" row: it is the first bar of the volume
+        // chart below, with its number beside it.
       ],
     },
   ]
@@ -196,18 +219,22 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
 
   return (
     <SheetShell open={open} onClose={onClose} kicker={kicker} labelledBy="analytics-sheet-title">
-      {/* The dial's slot. One figure, the one this sheet exists to report. */}
-      <div className="mt-3">
+      {periodControl}
+      {/* The dial's slot. One figure, the one this sheet exists to report.
+          Foreground, not primary: the orange is kept for actions. */}
+      <div className="mt-5">
         {/* The number alone, grouped for the locale; the unit is the line
             below rather than a suffix, so the figure reads as the headline
             it is. formatWeight would re-attach the unit here. */}
-        <p className="font-heading font-black text-display leading-none tabular-nums text-primary">
+        <p className="font-heading font-black text-display leading-none tabular-nums text-foreground">
           {nf(Math.round(fromLbs(model.totalVolume, weightUnit)))}
         </p>
         <p className="text-sm text-muted-foreground mt-1.5">
-          {tFallback('analyticsSheet.heroCaption', '{unit} lifted, all time', { unit: weightUnit })}
+          {tFallback('analyticsSheet.heroCaptionUnit', '{unit} lifted', { unit: weightUnit })}
         </p>
         <p className="text-micro text-muted-foreground mt-0.5">
+          {periodLabel}
+          {' · '}
           {tFallback(
             model.workouts === 1 ? 'analyticsSheet.heroSub_one' : 'analyticsSheet.heroSub_other',
             model.workouts === 1 ? '{n} workout' : '{n} workouts',
@@ -218,7 +245,7 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
 
       {groups.map(group => (
         <section key={group.label} className="mt-6">
-          <h3 className="text-micro font-bold tracking-wider text-muted-foreground mb-2">{group.label}</h3>
+          <h3 className="text-micro font-bold text-muted-foreground mb-2">{group.label}</h3>
           {group.rows.map(row => (
             <div key={row.label} className="flex items-baseline justify-between gap-3 py-2 border-b border-border">
               <span className="text-sm text-muted-foreground shrink-0">{row.label}</span>
@@ -231,8 +258,8 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
       {/* The charts that used to hang off the old dialog's children prop. */}
       {children && (
         <section className="mt-6">
-          <h3 className="text-micro font-bold tracking-wider text-muted-foreground mb-2">
-            {tFallback('analyticsSheet.group.charts', 'CHARTS')}
+          <h3 className="text-micro font-bold text-muted-foreground pb-2 mb-2 border-b border-border">
+            {tFallback('analyticsSheet.group.charts', 'Charts')}
           </h3>
           {children}
         </section>

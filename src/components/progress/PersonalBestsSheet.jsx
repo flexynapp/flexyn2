@@ -100,7 +100,7 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
       translateExerciseName(pb.name, language).toLowerCase().includes(q));
   }, [bests, query, language]);
 
-  const kicker = tFallback('pbSheet.kicker', 'PERSONAL BESTS');
+  const kicker = tFallback('pbSheet.kicker', 'Personal bests');
   // The headline best. When it carries no load — a pull-up, a dip, anyone
   // training entirely bodyweight — the figure is the REP COUNT, not "0 lbs".
   // formatWeight(0) is a finite number and renders a confident zero, which
@@ -123,7 +123,7 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
         <>
           {/* The dial's slot — the single fact this sheet exists to report. */}
           <div className="mt-3">
-            <p className="font-heading font-black text-display leading-none tabular-nums text-primary">
+            <p className="font-heading font-black text-display leading-none tabular-nums text-foreground">
               {heroIsReps
                 ? tFallback(
                     heaviest.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',
@@ -157,7 +157,7 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
               onChange={(e) => setQuery(e.target.value)}
               placeholder={tFallback('pbSheet.filterPlaceholder', 'Filter exercises')}
               aria-label={tFallback('pbSheet.filterPlaceholder', 'Filter exercises')}
-              className="mt-5 w-full h-9 px-3 rounded-lg bg-background border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-5 w-full h-11 px-3 rounded-lg bg-background border border-border text-base placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
           )}
 
@@ -187,7 +187,7 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
                       {pb.weightDate && format(parseLocalDate(pb.weightDate), 'd MMM', { locale: dateLocale })}
                     </p>
                   </div>
-                  <span className="font-heading font-black text-sm text-primary shrink-0 tabular-nums ms-3">
+                  <span className="font-heading font-black text-sm text-foreground shrink-0 tabular-nums ms-3">
                     {isReps
                       ? tFallback(
                           pb.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',

@@ -210,7 +210,10 @@ export default function ExerciseTrendsTab({ logs }) {
       {/* Controls sit UNDER the heading they qualify. The old filter
           button rendered above it. */}
       {!neverLogged && (
-        <div className="flex flex-wrap gap-2 mt-2">
+        // One row that scrolls sideways rather than wrapping: on an SE the
+        // three chips wrapped to two rows, pushing the list down and
+        // leaving one chip alone on a line.
+        <div className="flex gap-2 mt-2 overflow-x-auto [&>*]:shrink-0">
           {/* Always shown once anything is logged, so a short range that
               filters to nothing can be widened again from the same place. */}
           <TrendFilterChip

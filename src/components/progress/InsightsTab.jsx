@@ -62,12 +62,10 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
 import { motion } from 'framer-motion';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Clock, Flame, Target, BarChart3, Download,
-  TrendingDown, TrendingUp,
+  Download, TrendingDown, TrendingUp,
   Scale, Activity, Dumbbell, Info,
 } from 'lucide-react';
 import { differenceInDays, addDays, format } from 'date-fns';
@@ -114,10 +112,14 @@ function categorizeExercise(ex) {
 
 // ── Training age ──────────────────────────────────────────────────────────────
 
-/** Local midnight of the Sunday that starts `d`'s week. */
+/**
+ * Local midnight of the Monday that starts `d`'s week. It was Sunday, while
+ * the hero ring and the period section count Monday weeks, so a Sunday
+ * session landed in a different "active week" here than everywhere else.
+ */
 function startOfLocalWeek(d) {
   const s = new Date(d);
-  s.setDate(d.getDate() - d.getDay());
+  s.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   s.setHours(0, 0, 0, 0);
   return s;
 }
@@ -154,6 +156,9 @@ function calcTrainingAge(logs) {
   return {
     firstDate,
     totalDays,
+    // One session is a date, not an age. "2 months" under a single workout
+    // logged eight weeks ago read as two months of training.
+    sessions: dated.length,
     totalWeeks,
     activeWeeks,
     consistencyPct,
@@ -231,30 +236,16 @@ function clearGoalWeight(userId) {
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
-function InsightSection({ icon: Icon, title, color, bg, children }) {
+// A plain section under a hairline. These were four Cards, each with a
+// coloured 32px icon tile beside its title (orange, orange, green, blue), so
+// five different questions looked like one repeated object and the hue said
+// nothing. Progress audit round 2, 2026-09-30.
+function InsightSection({ title, children }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-    >
-      {/* Resting elevation is a hairline border and no shadow — the two
-          levels documented in CLAUDE.md. This carried `border-none
-          shadow-sm`, which is the one combination the rule calls out as
-          adding nothing a hairline doesn't. */}
-      <Card className="p-5 border-border/60 shadow-none overflow-hidden">
-        <div className="flex items-center gap-2 mb-2">
-          {/* `rounded-sm` is the inner-chrome radius (icon tiles, chips)
-              per the radius rhythm in tailwind.config.js. `rounded-xl` is
-              a compatibility alias that new code must not reach for. */}
-          <div className={`w-8 h-8 rounded-sm ${bg} flex items-center justify-center shrink-0`}>
-            <Icon className={`w-4 h-4 ${color}`} />
-          </div>
-          <h3 className="font-heading font-bold text-sm">{title}</h3>
-        </div>
-        {children}
-      </Card>
-    </motion.div>
+    <section className="py-[var(--fluid-section)] first:pt-0 border-t border-border first:border-t-0">
+      <h3 className="font-heading font-bold text-base mb-2">{title}</h3>
+      {children}
+    </section>
   );
 }
 
@@ -571,28 +562,31 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
   const cardioCount  = cardioLogs?.length || 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  // `--fluid-section` rather than a typed `space-y-4`: Progress is a
-  // converted surface (see the fluid-scale section of CLAUDE.md) and 16px
-  // is in the banned middle register when hand-typed.
+  // Each section pads by `--fluid-section` rather than a typed `py-4`:
+  // Progress is a converted surface (see the fluid-scale section of
+  // CLAUDE.md) and 16px is in the banned middle register when hand-typed.
   return (
-    <div className="flex flex-col" style={{ gap: 'var(--fluid-section)' }}>
+    <div className="flex flex-col">
 
       {/* ── Training Age ────────────────────────────────────────────────── */}
       <InsightSection
-        icon={Clock}
         title={tFallback('insights.trainingAge.title', 'Training age')}
-        color="text-primary"
-        bg="bg-primary/10"
       >
         {!trainingAge ? (
           <p className="text-sm text-muted-foreground">
             {tFallback('insights.trainingAge.empty', 'Log your first workout to see your training age.')}
           </p>
+        ) : trainingAge.sessions === 1 ? (
+          <p className="text-sm text-muted-foreground">
+            {tFallback('insights.trainingAge.single', 'One workout so far, on {date}. Your training age starts with the second.', {
+              date: fmtDate(trainingAge.firstDate, { dateStyle: 'long' }),
+            })}
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
             <div className="flex items-end gap-2">
               <div>
-                <p className="font-heading font-black text-3xl text-primary">
+                <p className="font-heading font-bold text-2xl text-foreground tabular-nums">
                   {tCount(
                     `insights.trainingAge.${trainingAge.age.unit}`,
                     trainingAge.age.n,
@@ -611,7 +605,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               </div>
               {trainingAge.showConsistency && (
                 <div className="ms-auto text-end pb-1">
-                  <p className="font-heading font-bold text-xl text-foreground">{trainingAge.consistencyPct}%</p>
+                  <p className="font-heading font-bold text-xl text-foreground tabular-nums">{trainingAge.consistencyPct}%</p>
                   <p className="text-xs text-muted-foreground">
                     {tFallback('insights.trainingAge.consistent', 'consistent')}
                   </p>
@@ -621,10 +615,9 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             {trainingAge.showConsistency ? (
               <>
-                {/* Consistency bar */}
-                <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <motion.div
-                    className="h-full rounded-full bg-primary"
+                    className="h-full rounded-full bg-foreground"
                     initial={{ width: 0 }}
                     animate={{ width: `${trainingAge.consistencyPct}%` }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -641,39 +634,24 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               </p>
             )}
 
-            {/* Experience badge */}
-            <div>
-              {trainingAge.totalDays < 90 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-success/10 text-success">
-                  {tFallback('insights.trainingAge.beginner', '🌱 Beginner, building the habit')}
-                </span>
-              )}
-              {trainingAge.totalDays >= 90 && trainingAge.totalDays < 365 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-info/10 text-info">
-                  {tFallback('insights.trainingAge.intermediate', '💪 Intermediate, forming real strength')}
-                </span>
-              )}
-              {trainingAge.totalDays >= 365 && trainingAge.totalDays < 730 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  {tFallback('insights.trainingAge.advanced', '🔥 Advanced, 1+ year dedicated athlete')}
-                </span>
-              )}
-              {trainingAge.totalDays >= 730 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  {tFallback('insights.trainingAge.elite', '⚡ Elite, 2+ years of consistent training')}
-                </span>
-              )}
-            </div>
+            {/* The stage, as a line of text. It was a tinted pill with an
+                emoji, in a different hue per stage. */}
+            <p className="text-sm text-muted-foreground">
+              {trainingAge.totalDays < 90
+                ? tFallback('insights.trainingAge.stage.beginner', 'Beginner. Building the habit.')
+                : trainingAge.totalDays < 365
+                  ? tFallback('insights.trainingAge.stage.intermediate', 'Intermediate. Forming real strength.')
+                  : trainingAge.totalDays < 730
+                    ? tFallback('insights.trainingAge.stage.advanced', 'Advanced. Over a year of training.')
+                    : tFallback('insights.trainingAge.stage.elite', 'Elite. Two years and counting.')}
+            </p>
           </div>
         )}
       </InsightSection>
 
       {/* ── TDEE ────────────────────────────────────────────────────────── */}
       <InsightSection
-        icon={Flame}
         title={tFallback('insights.tdee.title', 'TDEE estimate')}
-        color="text-primary"
-        bg="bg-primary/10"
       >
         {!tdee.hasData ? (
           <div className="flex flex-col gap-2 items-start">
@@ -694,9 +672,9 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
         ) : (
           <div className="flex flex-col gap-2">
             {tdee.windowDays < TDEE_WINDOW_DAYS && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-                <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                <p className="text-xs text-primary">
+              <div className="flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">
                   {tFallback(
                     'insights.tdee.earlyEstimate',
                     'Early estimate. Based on {n} days of training. It will sharpen as you log more.',
@@ -712,7 +690,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 and it is the number the Cut / Bulk targets below are
                 derived from. */}
             {tdee.sexAssumed && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/50 border border-border">
+              <div className="flex items-start gap-2">
                 <Info className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
                 <p className="text-xs text-muted-foreground">
                   {tFallback(
@@ -724,7 +702,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             )}
 
             <div>
-              <p className="font-heading font-black text-3xl text-primary">{fmtNum(tdee.totalTDEE)}</p>
+              <p className="font-heading font-bold text-2xl text-foreground tabular-nums">{fmtNum(tdee.totalTDEE)}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {tFallback('insights.tdee.perDay', 'cal / day estimated')}
               </p>
@@ -732,7 +710,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             {/* Fixed count of three — a grid is correct here; tileRow() is
                 for collections whose count comes from data. */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 border-y border-border divide-x divide-border rtl:divide-x-reverse">
               {[
                 {
                   label: tFallback('insights.tdee.bmr', 'BMR'),
@@ -750,15 +728,15 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   note:  tFallback('insights.tdee.multiplierNote', 'multiplier'),
                 },
               ].map(row => (
-                <div key={row.label} className="bg-secondary/50 rounded-lg p-2.5 text-center">
+                <div key={row.label} className="py-2 text-center">
                   <p className="font-heading font-bold text-sm text-foreground">{row.value}</p>
                   <p className="text-micro text-muted-foreground font-medium">{row.label}</p>
-                  <p className="text-micro text-muted-foreground/60">{row.note}</p>
+                  <p className="text-micro text-muted-foreground">{row.note}</p>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
+            <div className="grid grid-cols-2 gap-2">
               <div className="text-center">
                 <p className="text-xs font-semibold text-foreground">
                   {tFallback('insights.tdee.cal', '{n} cal', { n: fmtNum(Math.round(tdee.totalTDEE * 0.85)) })}
@@ -778,10 +756,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
       {/* ── Projected Goal ───────────────────────────────────────────────── */}
       <InsightSection
-        icon={Target}
         title={tFallback('insights.goal.title', 'Projected goal date')}
-        color="text-success"
-        bg="bg-success/10"
       >
         {weighIns.length < 2 ? (
           // The old copy said "in the Body tab". Body-metric logging was
@@ -830,7 +805,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               <div className="flex flex-col gap-2">
                 <div className="flex items-end gap-2">
                   <div>
-                    <p className={`font-heading font-black text-2xl ${projection.directionMismatch ? 'text-primary' : 'text-success'}`}>
+                    <p className={`font-heading font-bold text-2xl ${projection.directionMismatch ? 'text-destructive' : 'text-foreground'}`}>
                       {projection.directionMismatch
                         ? tFallback('insights.goal.wrongWay', 'Trending wrong way')
                         : projection.daysFromNow > 0 && projection.projectedDate
@@ -857,8 +832,8 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   </div>
                   <div className="ms-auto flex items-center gap-1.5 pb-1">
                     {projection.losing
-                      ? <TrendingDown className="w-4 h-4 text-success" />
-                      : <TrendingUp   className="w-4 h-4 text-primary" />
+                      ? <TrendingDown className="w-4 h-4 text-muted-foreground" />
+                      : <TrendingUp   className="w-4 h-4 text-muted-foreground" />
                     }
                     <span className="text-xs text-muted-foreground">
                       {projection.losing
@@ -877,7 +852,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   <div className="w-px bg-border" />
                   <div>
                     <p className="text-xs text-muted-foreground">{tFallback('insights.goal.goal', 'Goal')}</p>
-                    <p className="text-sm font-bold text-success">{formatWeight(projection.goalLbs, weightUnit)}</p>
+                    <p className="text-sm font-bold">{formatWeight(projection.goalLbs, weightUnit)}</p>
                   </div>
                   <div className="w-px bg-border" />
                   <div>
@@ -899,40 +874,35 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
       {/* ── Muscle Imbalance ─────────────────────────────────────────────── */}
       <InsightSection
-        icon={BarChart3}
         title={tFallback('insights.balance.title', 'Muscle imbalance')}
-        color="text-info"
-        bg="bg-info/10"
       >
         {!muscleImbalance ? (
           <p className="text-sm text-muted-foreground">
             {tFallback('insights.balance.empty', 'Log workouts with muscle groups assigned to see your push/pull balance.')}
           </p>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             {/* Push/pull ratio indicator */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   {tFallback('insights.balance.ratioLabel', 'Push / Pull ratio')}
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  muscleImbalance.balanced ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
-                }`}>
+                <span className={`text-xs font-bold ${muscleImbalance.balanced ? 'text-success' : 'text-foreground'}`}>
                   {muscleImbalance.pushOnly
                     ? tFallback('insights.balance.pushOnly', 'No pull volume')
                     : muscleImbalance.pullOnly
                       ? tFallback('insights.balance.pullOnly', 'No push volume')
                       : muscleImbalance.balanced
-                        ? tFallback('insights.balance.balanced', '✓ Balanced')
+                        ? tFallback('insights.balance.balancedPlain', 'Balanced')
                         : muscleImbalance.ratio > 1.2
-                          ? tFallback('insights.balance.pushDominant', '↑ Push-dominant')
-                          : tFallback('insights.balance.pullDominant', '↑ Pull-dominant')}
+                          ? tFallback('insights.balance.pushHeavy', 'More push')
+                          : tFallback('insights.balance.pullHeavy', 'More pull')}
                 </span>
               </div>
               {muscleImbalance.ratio !== null ? (
-                <div className="text-center mb-2">
-                  <p className="font-heading font-black text-2xl text-foreground">
+                <div className="mb-2">
+                  <p className="font-heading font-bold text-2xl text-foreground tabular-nums">
                     {fmtNum(muscleImbalance.ratio, { maximumFractionDigits: 2 })}:1
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -956,10 +926,12 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 they sum to 100. Uncategorized volume is called out below
                 rather than silently eating a slice of the denominator. */}
             <div className="flex flex-col gap-2">
+              {/* The chart ramp, not state hues: push, pull and legs need to
+                  be told apart, not read as good, bad or warning. */}
               {[
-                { key: 'push', label: tFallback('insights.balance.push', 'Push (chest/shoulders/triceps)'), pct: muscleImbalance.pPush, color: 'bg-info' },
-                { key: 'pull', label: tFallback('insights.balance.pull', 'Pull (back/biceps)'),             pct: muscleImbalance.pPull, color: 'bg-success' },
-                { key: 'legs', label: tFallback('insights.balance.legs', 'Legs (quads/hamstrings/glutes)'), pct: muscleImbalance.pLegs, color: 'bg-primary' },
+                { key: 'push', label: tFallback('insights.balance.push', 'Push (chest/shoulders/triceps)'), pct: muscleImbalance.pPush, color: 'bg-chart-1' },
+                { key: 'pull', label: tFallback('insights.balance.pull', 'Pull (back/biceps)'),             pct: muscleImbalance.pPull, color: 'bg-chart-2' },
+                { key: 'legs', label: tFallback('insights.balance.legs', 'Legs (quads/hamstrings/glutes)'), pct: muscleImbalance.pLegs, color: 'bg-chart-3' },
               ].map(row => (
                 <div key={row.key}>
                   <div className="flex justify-between text-xs mb-1">
@@ -995,17 +967,14 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       {/* Neutral chrome, not `text-slate-500` — a raw Tailwind hue sits
           outside the four-hue system and doesn't move with the theme. */}
       <InsightSection
-        icon={Download}
         title={tFallback('insights.export.title', 'Export my data')}
-        color="text-muted-foreground"
-        bg="bg-secondary"
       >
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-2">
           {tFallback('insights.export.desc', 'Download your data as CSV files, compatible with Excel, Google Sheets, and Apple Health apps.')}
         </p>
         <div className="flex flex-col gap-2">
           <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportWorkouts}>
-            <Dumbbell className="w-4 h-4 text-primary shrink-0" />
+            <Dumbbell className="w-4 h-4 text-muted-foreground shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">{tFallback('insights.export.workouts', 'Workout logs')}</p>
               <p className="text-xs text-muted-foreground">
@@ -1016,7 +985,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
           </Button>
 
           <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportBodyMetrics}>
-            <Scale className="w-4 h-4 text-success shrink-0" />
+            <Scale className="w-4 h-4 text-muted-foreground shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">{tFallback('insights.export.body', 'Body metrics')}</p>
               <p className="text-xs text-muted-foreground">
@@ -1027,7 +996,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
           </Button>
 
           <Button variant="outline" className="w-full h-auto min-h-[52px] py-2 justify-start gap-2" onClick={exportCardio}>
-            <Activity className="w-4 h-4 text-destructive shrink-0" />
+            <Activity className="w-4 h-4 text-muted-foreground shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">{tFallback('insights.export.cardio', 'Cardio logs')}</p>
               <p className="text-xs text-muted-foreground">
