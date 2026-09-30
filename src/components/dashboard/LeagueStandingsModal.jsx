@@ -155,8 +155,13 @@ function Body({ data, season, strength, userId, t, tFallback, fmt, onOpenMember,
             done enough to collect. Omitted entirely on a host without
             migration 312 rather than rendering a placeholder. */}
         {season?.season_number != null && (
-          <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold">{season.name}</span>
+          // pe-12 keeps the row clear of the help button beside it, which
+          // the French "1 sur 2 semaines" pill ran underneath. The name is
+          // built here because the server's is English in every locale.
+          <div className="mt-1 pe-12 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold">
+              {tFallback('league.season', 'Season')} {fmt(season.season_number)}
+            </span>
             {/* Pre-season counts DOWN to the opening rather than reporting a
                 progress bar nobody can move yet. Weekly promotion still runs
                 throughout — only the season reward is waiting. */}

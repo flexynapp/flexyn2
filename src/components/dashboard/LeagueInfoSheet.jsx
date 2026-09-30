@@ -121,34 +121,6 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
             </p>
           </div>
 
-          {/* ── Levels ─────────────────────────────────────────────
-              Drawn in the reader's own league, with their current level
-              marked, so the rule is shown rather than described. */}
-          <div className="pt-6">
-            <p className="text-caption font-bold">
-              {tFallback('league.info.levelsTitle', 'Four levels in every league')}
-            </p>
-            <p className="text-caption text-muted-foreground pt-1">
-              {tFallback(
-                'league.info.levelsBody',
-                'Every week you qualify adds a level, up to IV. Moving to another league starts you at I again. Levels show how long you have held your league and do not change your bracket.',
-              )}
-            </p>
-            <div className="flex justify-between pt-2">
-              {Array.from({ length: MAX_LEAGUE_LEVEL }, (_, i) => i + 1).map((lv) => (
-                <div key={lv} className="flex flex-col items-center gap-1">
-                  <LeagueTierBadge tier={tierId} level={lv} size={48} />
-                  <span
-                    className={`text-micro tabular-nums ${lv === level ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
-                    aria-current={lv === level ? 'true' : undefined}
-                  >
-                    {levelNumeral(lv)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* ── The rules ──────────────────────────────────────────── */}
           <div className="pt-6 flex flex-col gap-6">
             <Rule
@@ -202,6 +174,36 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
                 'There is nothing above it, so Legend plays a season-long board instead. Whoever tops it when the season ends takes a champion trophy minted once and never issued again.',
               )}
             />
+          </div>
+
+          {/* ── Levels ─────────────────────────────────────────────
+              Drawn in the reader's own league, with their current level
+              marked, so the rule is shown rather than described. Last,
+              after the weekly race it depends on: it sat between the
+              ladder and the Strength Score that explains the ladder. */}
+          <div className="pt-6">
+            <p className="text-caption font-bold">
+              {tFallback('league.info.levelsTitle', 'Four levels in every league')}
+            </p>
+            <p className="text-caption text-muted-foreground pt-1">
+              {tFallback(
+                'league.info.levelsBody',
+                'Every week you qualify adds a level, up to IV. Moving to another league starts you at I again. Levels show how long you have held your league and do not change your bracket.',
+              )}
+            </p>
+            <div className="flex justify-between pt-2">
+              {Array.from({ length: MAX_LEAGUE_LEVEL }, (_, i) => i + 1).map((lv) => (
+                <div key={lv} className="flex flex-col items-center gap-1">
+                  <LeagueTierBadge tier={tierId} level={lv} size={48} />
+                  <span
+                    className={`text-micro tabular-nums ${lv === level ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
+                    aria-current={lv === level ? 'true' : undefined}
+                  >
+                    {levelNumeral(lv)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -36,7 +36,6 @@ import {
   getTier,
   isQualified,
   leagueLevel,
-  MAX_LEAGUE_LEVEL,
   prizeCount,
   MIN_QUALIFIED_FOR_PRIZE,
 } from '@/lib/leagueTiers';
@@ -319,8 +318,9 @@ export async function getMyLeagueLevel(user, tierId) {
       // same way getLastResolvedLeague does. week_start re-sorts below.
       .order('joined_at', { ascending: false })
       // A stint can hold unqualified weeks between the qualified ones, so
-      // read past the cap, not just MAX_LEAGUE_LEVEL rows.
-      .limit(MAX_LEAGUE_LEVEL * 4);
+      // read a year of weeks, not just MAX_LEAGUE_LEVEL rows. Sixteen was
+      // too few: a long quiet run in one league hid an older qualified week.
+      .limit(52);
     if (error || !Array.isArray(data)) return 1;
     const history = data
       .map((r) => ({ tier: r.tier || r.leagues?.tier, qualified: r.qualified, week: r.leagues?.week_start || '' }))
