@@ -62,7 +62,7 @@ function FriendLikeRow({ entry, language, onOpen }) {
   const { tFallback } = useLanguage();
   const [first, second] = entry.likers;
   const others = entry.likers.length - 1;
-  const bold = (u) => <span className="font-semibold">{u?.username || tFallback('hub.friendLikes.someone', 'someone')}</span>;
+  const bold = (u) => <span className="font-semibold text-foreground">{u?.username || tFallback('hub.friendLikes.someone', 'someone')}</span>;
 
   let template;
   if (others === 0) {
@@ -91,9 +91,9 @@ function FriendLikeRow({ entry, language, onOpen }) {
       >
         <Avatar person={first} />
         <div className="flex-1 min-w-0 ms-2">
-          <p className="text-body leading-tight">{line}</p>
+          <p className="text-body leading-tight text-muted-foreground">{line}</p>
           {preview && (
-            <p className="text-label text-muted-foreground leading-snug mt-1 line-clamp-2">{preview}</p>
+            <p className="text-label text-foreground/80 leading-snug mt-1 line-clamp-2">{preview}</p>
           )}
           <time dateTime={entry.lastLikedAt || undefined} className="block text-micro text-muted-foreground tabular-nums mt-1">
             {formatNotificationTime(entry.lastLikedAt, language)}

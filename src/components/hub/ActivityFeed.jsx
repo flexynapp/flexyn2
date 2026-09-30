@@ -207,7 +207,10 @@ export default function ActivityFeed({ onOpenPost }) {
   ];
   return (
     <div className="flex flex-col gap-2">
-      <div role="tablist" className="flex gap-1 p-1 mx-4 bg-secondary rounded-lg border border-border">
+      {/* Text tabs with an underline, not a second pill bar: the Hub's own
+          sub-tab pills sit directly above, and two stacked pill rows read as
+          one control repeated. */}
+      <div role="tablist" className="flex gap-6 px-4 border-b border-border">
         {tabs.map(([key, label]) => (
           <button
             key={key}
@@ -215,13 +218,16 @@ export default function ActivityFeed({ onOpenPost }) {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`flex-1 min-h-11 flex items-center justify-center py-2 text-xs font-medium rounded-md transition-colors ${
+            className={`relative min-h-11 text-sm transition-colors ${
               tab === key
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
+                ? 'font-semibold text-foreground'
+                : 'font-medium text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
             {label}
+            {tab === key && (
+              <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />
+            )}
           </button>
         ))}
       </div>
