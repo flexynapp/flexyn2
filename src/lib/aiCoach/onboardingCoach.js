@@ -570,7 +570,7 @@ const GUIDES = {
       { id: 'old',  text: T('coach.onboarding.injury.prompt.old', 'What about an old injury?') },
     ],
     explain: (_d, T) => T('coach.onboarding.injury.explain',
-      "Anything you log here gets pulled out of your plan, along with the muscles that work with it. Flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one."),
+      "Anything you log here comes out of your plan, whatever the severity. Flag a shoulder and the shoulder work goes, so you won't be handed an Overhead Press on a shoulder that can't take one. Mark it serious and your workouts also rest chest and triceps, because they load the same joint."),
     skip: (_d, _text, T) => ({ reply: T('coach.onboarding.injury.skip',
       "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it.") }),
     free: (message, _d, T) => (

@@ -75,3 +75,26 @@ describe('lift picks only lead a strength or muscle plan', () => {
     expect(withPicks).toEqual(without);
   });
 });
+
+describe('pull-up regression for a "Not yet"', () => {
+  const base = { goals: ['strength'], level: 'newbie', daysCount: 3 };
+  const names = (r) => r.exercises.map(e => e.name);
+
+  it('keeps Pull-Up when the question was not answered', () => {
+    expect(names(buildStarterRegimen(base))).toContain('Pull-Up');
+  });
+
+  it('swaps to a pulldown in a gym and an assisted pull-up with minimal kit', () => {
+    const gym = names(buildStarterRegimen({ ...base, assessment: { pullups_10: 'not_yet' } }));
+    expect(gym).not.toContain('Pull-Up');
+    expect(gym).toContain('Machine Lat Pulldown');
+    const minimal = names(buildStarterRegimen({ ...base, equipment: 'minimal', assessment: { pullups_10: 'not_yet' } }));
+    expect(minimal).not.toContain('Pull-Up');
+    expect(minimal).toContain('Assisted Pull-Up');
+  });
+
+  it('keeps a pull-up the user picked by name', () => {
+    const r = buildStarterRegimen({ ...base, assessment: { pullups_10: 'not_yet' }, strengthFocus: ['Pull-Up'] });
+    expect(names(r)).toContain('Pull-Up');
+  });
+});

@@ -763,7 +763,7 @@
   "coach.onboarding.home_gym.prompt.nofind": "Je ne trouve pas ma salle",
   "coach.onboarding.home_gym.prompt.skip": "Puis-je passer cette étape ?",
   "coach.onboarding.home_gym.prompt.why": "Pourquoi choisir une salle ?",
-  "coach.onboarding.injury.explain": "Tout ce que vous enregistrez ici sort de votre plan, avec les muscles qui travaillent avec. Signalez une épaule et le plan retire aussi le travail de pectoraux et de triceps, parce qu'ils sollicitent la même articulation. Sans cela, on vous donnerait un Développé Militaire sur une épaule qui ne peut pas le faire.",
+  "coach.onboarding.injury.explain": "Tout ce que vous enregistrez ici sort de votre plan, quelle que soit la gravité. Signalez une épaule et le travail d'épaule disparaît, donc on ne vous donnera pas de Développé Militaire sur une épaule qui ne le supporte pas. Indiquez que c'est grave et vos séances reposent aussi les pectoraux et les triceps, parce qu'ils sollicitent la même articulation.",
   "coach.onboarding.injury.freeOld": "Si c'est complètement guéri et que ça ne gêne pas sous charge, laissez-la de côté. Les exclusions sont larges et vous perdriez des exercices utiles pour rien. Si ça se rappelle à vous les jours lourds, enregistrez-la en **Légère**. Vous pourrez la clôturer depuis Profil → Mes blessures dès que ça n'aura plus d'importance.",
   "coach.onboarding.injury.intro": "Quelque chose de blessé ou de gênant en ce moment ? C'est l'étape que j'aimerais vraiment que vous ne sautiez pas.",
   "coach.onboarding.injury.prompt.old": "Et une ancienne blessure ?",

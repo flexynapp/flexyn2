@@ -763,7 +763,7 @@
   "coach.onboarding.home_gym.prompt.nofind": "No encuentro mi gimnasio",
   "coach.onboarding.home_gym.prompt.skip": "¿Puedo saltarme esto?",
   "coach.onboarding.home_gym.prompt.why": "¿Por qué elegir un gimnasio?",
-  "coach.onboarding.injury.explain": "Todo lo que registres aquí se saca de tu plan, junto con los músculos que trabajan con ello. Marca un hombro y el plan quita también el trabajo de pecho y tríceps, porque cargan la misma articulación. Sin esto acabarás con un Press Militar sobre un hombro que no puede hacerlo.",
+  "coach.onboarding.injury.explain": "Todo lo que registres aquí sale de tu plan, sea cual sea la gravedad. Marca un hombro y se va el trabajo de hombro, así que no acabarás con un Press Militar sobre un hombro que no lo aguanta. Márcalo como grave y tus entrenamientos también dan descanso al pecho y los tríceps, porque cargan la misma articulación.",
   "coach.onboarding.injury.freeOld": "Si está curada del todo y no te molesta bajo carga, déjala fuera. Las exclusiones son agresivas y perderías ejercicios útiles sin motivo. Si todavía te habla en los días pesados, regístrala como **Leve**. Puedes cerrarla desde Perfil → Mis lesiones en cuanto deje de importar.",
   "coach.onboarding.injury.intro": "¿Tienes algo lesionado o que te moleste ahora mismo? Este es el paso que menos me gustaría que te saltaras.",
   "coach.onboarding.injury.prompt.old": "¿Y una lesión antigua?",
