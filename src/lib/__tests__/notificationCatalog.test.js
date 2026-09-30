@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isFromPeople,
-  CATEGORY, CATEGORY_HUE, FILTERS, KNOWN_TYPES,
+  CATEGORY, CATEGORY_HUE, FILTERS, KNOWN_TYPES, LIVE_TYPES, isFeedType,
   categoryFor, hueFor, isKnownType, matchesFilter,
 } from '@/lib/notificationCatalog';
 
@@ -51,15 +51,29 @@ describe('notificationCatalog', () => {
     expect([...hues].filter(h => h !== 'muted')).toHaveLength(3);
   });
 
-  it('every filter but `all` maps to a category, and `all` maps to none', () => {
-    const ids = FILTERS.map(f => f.id);
-    expect(ids[0]).toBe('all');
-    for (const id of ids.slice(1)) {
-      expect(Object.values(CATEGORY)).toContain(id);
+  it('offers All, People and Earned, and no Reminders tab', () => {
+    expect(FILTERS.map(f => f.id)).toEqual(['all', 'people', 'earned']);
+  });
+
+  it('People is exactly what another person did', () => {
+    for (const t of KNOWN_TYPES) {
+      expect(matchesFilter(t, 'people')).toBe(isFromPeople(t));
     }
-    // Every category is reachable from the filter row — a category with no
-    // filter is a bucket the user can never open.
-    for (const c of Object.values(CATEGORY)) expect(ids).toContain(c);
+  });
+
+  it('Earned is the achievements', () => {
+    for (const t of KNOWN_TYPES) {
+      expect(matchesFilter(t, 'earned')).toBe(categoryFor(t) === CATEGORY.ACHIEVEMENTS);
+    }
+  });
+
+  it('every live reminder is a known reminder type, and report_resolved stays in the feed', () => {
+    for (const t of LIVE_TYPES) {
+      expect(categoryFor(t)).toBe(CATEGORY.REMINDERS);
+      expect(isFeedType(t)).toBe(false);
+    }
+    expect(isFeedType('report_resolved')).toBe(true);
+    expect(isFeedType('friend_follow')).toBe(true);
   });
 
   it('every filter carries both a key and an English fallback', () => {

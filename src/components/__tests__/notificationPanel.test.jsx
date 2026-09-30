@@ -34,6 +34,8 @@ vi.mock('@/lib/LanguageContext', () => ({
       vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
   }),
 }));
+// The live card reads quests, streak and schedules; it has its own tests.
+vi.mock('@/components/notifications/NotificationNowCard', () => ({ default: () => null }));
 vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/toast', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -88,7 +90,7 @@ beforeEach(() => {
     row({ id: 'n2', type: 'coin_gift', title: 'You received a coin gift!', is_read: false,
           metadata: { senderUsername: 'Alex', amount: 10 } }),
     row({ id: 'n3', type: 'pr_set',        title: 'New Bench PR',        is_read: true }),
-    row({ id: 'n4', type: 'welcome_back',  title: 'We miss you',         is_read: true }),
+    row({ id: 'n4', type: 'report_resolved', title: 'Your report was reviewed', is_read: true }),
   ];
 });
 
@@ -176,26 +178,28 @@ describe('the mark-all-read control is reachable', () => {
 // ── 3 ────────────────────────────────────────────────────────────────────
 // Two type→tab maps, neither of which knew about `coin_gift`.
 describe('filters come from the shared catalog', () => {
-  it('offers all five, from notificationCatalog', async () => {
+  it('offers All, People and Earned, and no Reminders tab', async () => {
     renderPanel();
     await screen.findByText('Dani followed you');
-    for (const label of ['All', 'Friends', 'Competitive', 'Achievements', 'Reminders']) {
+    for (const label of ['All', 'People', 'Earned']) {
       expect(screen.getByRole('button', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     }
+    expect(screen.queryByRole('button', { name: /^Reminders/ })).not.toBeInTheDocument();
   });
 
-  it('files coin_gift under Friends, not a catch-all', async () => {
+  it('files coin_gift under People, not a catch-all', async () => {
     renderPanel();
     await screen.findByText('You received a coin gift!');
-    fireEvent.click(screen.getByRole('button', { name: /^Friends/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^People/ }));
     expect(screen.getByText('You received a coin gift!')).toBeInTheDocument();
     expect(screen.queryByText('New Bench PR')).not.toBeInTheDocument();
   });
 
   it('shows a filter-specific empty state rather than "nothing at all"', async () => {
+    listRows = [row({ id: 'a', type: 'friend_follow', title: 'Dani followed you' })];
     renderPanel();
     await screen.findByText('Dani followed you');
-    fireEvent.click(screen.getByRole('button', { name: /^Competitive/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Earned/ }));
     expect(screen.getByText('Nothing in this filter')).toBeInTheDocument();
   });
 });
@@ -229,7 +233,7 @@ describe('clear all confirms in-app', () => {
   it('names the rows the active filter is hiding', async () => {
     renderPanel();
     await screen.findByText('Dani followed you');
-    fireEvent.click(screen.getByRole('button', { name: /^Friends/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^People/ }));
     fireEvent.click(screen.getByLabelText('More options'));
     fireEvent.click(screen.getByRole('menuitem', { name: /Clear all/ }));
     // 4 rows, 2 of them social — so 2 are hidden and about to go too.
@@ -251,28 +255,28 @@ describe('clear all confirms in-app', () => {
 // harness, after the tests above were already green. jsdom computes no
 // layout and paints nothing, so neither was reachable from here first.
 describe('found by looking at it', () => {
-  it('counts "N new" within the active filter, not across the whole sheet', async () => {
-    renderPanel();
-    await screen.findByText('Dani followed you');
-    // 2 unread overall, both social; the sheet-wide count is 2 either way,
-    // so pick a filter where the two numbers genuinely differ.
-    expect(screen.getByText('2 new')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Competitive/ }));
-    // Nothing competitive, so no pill at all rather than "2 new" over an
-    // empty section.
-    expect(screen.queryByText('2 new')).not.toBeInTheDocument();
-  });
-
-  it('shows the pill only for the unread rows the filter admits', async () => {
+  // The tabs used to carry TOTALS over the loaded page ("All 50" was the
+  // page size). They carry unread counts now, and nothing at zero.
+  it('counts unread per tab, and shows no number on a tab with none', async () => {
     listRows = [
       row({ id: 'a', type: 'friend_follow', title: 'Social unread', is_read: false }),
       row({ id: 'b', type: 'pr_set',        title: 'Wins unread',   is_read: false }),
+      row({ id: 'c', type: 'pr_set',        title: 'Wins read',     is_read: true }),
     ];
     renderPanel();
     await screen.findByText('Social unread');
-    expect(screen.getByText('2 new')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Friends/ }));
-    expect(screen.getByText('1 new')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All/ }).textContent).toBe('All2');
+    expect(screen.getByRole('button', { name: /^People/ }).textContent).toBe('People1');
+    expect(screen.getByRole('button', { name: /^Earned/ }).textContent).toBe('Earned1');
+  });
+
+  it('draws no emoji: the icon comes from the type, and the title loses its leading emoji', async () => {
+    listRows = [row({ id: 'q', type: 'streak_milestone', icon: '🔥', title: '🔥 Workout streak: Day 7!' })];
+    renderPanel();
+    const title = await screen.findByText('Workout streak: Day 7!');
+    const rowEl = title.closest('[role="button"]');
+    expect(rowEl.textContent).not.toContain('🔥');
+    expect(rowEl.querySelector('svg')).not.toBeNull();
   });
 
   it('stops the swipe reveal short of the row divider', () => {
@@ -346,7 +350,8 @@ describe('rows from a person show their picture', () => {
     // Never by email.
     expect(JSON.stringify(listActorProfiles.mock.calls)).not.toContain('sean@x.com');
     const img = document.body.querySelector('img[src="https://cdn.test/sean.png"]');
-    expect(img.parentElement.textContent).toContain('❤️');
+    expect(img.parentElement.textContent).not.toContain('❤️');
+    expect(img.parentElement.querySelector('svg')).not.toBeNull();
     // The PR row keeps its type tile.
     expect(document.body.querySelectorAll('img').length).toBe(1);
   });
@@ -359,6 +364,7 @@ describe('rows from a person show their picture', () => {
     await screen.findByText('sean liked your post');
     const initial = await screen.findByText('S');
     expect(document.body.querySelector('img')).toBeNull();
-    expect(initial.parentElement.textContent).toBe('S❤️');
+    expect(initial.parentElement.textContent).toBe('S');
+    expect(initial.parentElement.querySelector('svg')).not.toBeNull();
   });
 });

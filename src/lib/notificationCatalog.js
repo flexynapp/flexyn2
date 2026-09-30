@@ -41,22 +41,54 @@ export const CATEGORY_HUE = {
   [CATEGORY.REMINDERS]:    'muted',
 };
 
-// The filter row, in display order. `all` is not a category — it is the
-// absence of a filter, which is why it has no entry in TYPE_CATEGORY.
+// The filter row, in display order. Three tabs over what HAPPENED (Kegan,
+// 2026-09-30, option C of the panel audit). `all` is the absence of a
+// filter. `people` is everything another person did, the same set the bell
+// puts a number on. `earned` is what you earned.
 //
-// TODO(i18n): `competitive` and `reminders` are English in all 15 languages
-// — no existing key in the corpus carries either word, and machine
-// translation is not allowed on prose or chrome without sign-off (see the
-// i18n section of CLAUDE.md). `all` and `friends` reuse the panel's existing
-// fully-translated keys; `achievements` reuses the value already translated
-// for `leaderboards.achievements`.
+// There is no Reminders tab any more, on purpose. Reminders are about NOW
+// and are wrong an hour later, so they do not belong in a list of things
+// that happened: see LIVE_TYPES below, and the live card at the top of the
+// panel (NotificationNowCard) that replaced them.
 export const FILTERS = [
-  { id: 'all',                     labelKey: 'notifications.tab.all',          label: 'All' },
-  { id: CATEGORY.SOCIAL,           labelKey: 'notifications.tab.friends',      label: 'Friends' },
-  { id: CATEGORY.COMPETITIVE,      labelKey: 'notifications.tab.competitive',  label: 'Competitive' },
-  { id: CATEGORY.ACHIEVEMENTS,     labelKey: 'notifications.tab.achievements', label: 'Achievements' },
-  { id: CATEGORY.REMINDERS,        labelKey: 'notifications.tab.reminders',    label: 'Reminders' },
+  { id: 'all',    labelKey: 'notifications.tab.all',    label: 'All' },
+  { id: 'people', labelKey: 'notifications.tab.people', label: 'People' },
+  { id: 'earned', labelKey: 'notifications.tab.earned', label: 'Earned' },
 ];
+
+// Which categories each filter shows.
+const FILTER_CATEGORIES = {
+  people: [CATEGORY.SOCIAL, CATEGORY.COMPETITIVE],
+  earned: [CATEGORY.ACHIEVEMENTS],
+};
+
+// ── Live reminders ───────────────────────────────────────────────────────
+// Rows the server writes to deliver a PUSH about something happening now:
+// quests left tonight, a streak ending at midnight, a session scheduled for
+// this hour, "we miss you". In the panel they piled up as history that
+// stopped being true: 54% of the average person's notifications were these
+// (measured 2026-09-30), and "4 quests left today" from a week ago still
+// said "today".
+//
+// The rows keep being inserted, because the insert is what fires the push.
+// The panel and the bell just don't read them. What is live right now is
+// read from the source instead (quests, streak, schedule) by
+// NotificationNowCard, so it is always current and disappears on its own.
+//
+// `report_resolved` is deliberately NOT here: a moderator answering your
+// report is something that happened, and it shows under All.
+export const LIVE_TYPES = Object.freeze([
+  'streak_break_warning',
+  'welcome_back',
+  'quest_expiry_warning',
+  'memory_reengagement',
+  'workout_reminder',
+]);
+
+/** Does this row belong in the feed, or is it a live reminder? */
+export function isFeedType(type) {
+  return !LIVE_TYPES.includes(type);
+}
 
 // Every type this app has ever inserted, including the ones only a cron or
 // a SECURITY DEFINER RPC writes. Grouped by the migration that introduced
@@ -128,7 +160,7 @@ export function hueFor(type) {
 /** Does a row belong under the given filter id? `all` always matches. */
 export function matchesFilter(type, filterId) {
   if (!filterId || filterId === 'all') return true;
-  return categoryFor(type) === filterId;
+  return (FILTER_CATEGORIES[filterId] || []).includes(categoryFor(type));
 }
 
 export const KNOWN_TYPES = Object.freeze(Object.keys(TYPE_CATEGORY));

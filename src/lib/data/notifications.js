@@ -31,7 +31,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
-import { isFromPeople } from '@/lib/notificationCatalog';
+import { isFromPeople, LIVE_TYPES } from '@/lib/notificationCatalog';
 
 
 export const NOTIFICATION_TYPES = {
@@ -72,27 +72,14 @@ export const NOTIFICATION_TYPES = {
 // type belongs in the bell, teach NotificationPanel about it instead.
 export const PUSH_ONLY_TYPES = ['dm_received'];
 
-const PUSH_ONLY_FILTER = `(${PUSH_ONLY_TYPES.join(',')})`;
 
-// ── Same-day reminders ───────────────────────────────────────────────────
-// These say "today" or "at midnight" in their own text: "3 quests left
-// today", "your streak ends at midnight". Once the user's day has rolled
-// over they describe a deadline that has already passed, and nothing can be
-// done about them. They used to keep the bell lit indefinitely anyway, so
-// someone who never opened the panel carried yesterday's "quests left" into
-// every following day (88 of 126 quest_expiry_warning rows in production
-// were still unread on 2026-09-28).
-//
-// They are excluded from the COUNT only. The panel still lists them, and
-// the exit flush still marks them read, because they are true history.
-export const SAME_DAY_TYPES = ['quest_expiry_warning', 'streak_break_warning'];
-
-/** Start of the viewer's local day, as an ISO instant. */
-export function startOfLocalDayIso(now = new Date()) {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
+// ── Live reminders ───────────────────────────────────────────────────────
+// Neither the list nor the bell reads LIVE_TYPES (see notificationCatalog):
+// they exist to deliver a push, and what is live now is read from its source
+// by the panel's live card. This replaced a same-day window on the bell
+// count, which fixed yesterday's "3 quests left today" keeping the badge lit
+// but still listed every one of them in the panel forever.
+const NOT_IN_FEED_FILTER = `(${[...PUSH_ONLY_TYPES, ...LIVE_TYPES].join(',')})`;
 
 const DEFAULT_LIMIT = 50;
 
@@ -110,7 +97,7 @@ export async function listForUser(user, limit = DEFAULT_LIMIT) {
     .from('notifications')
     .select('*')
     .eq('user_id', user.id)
-    .not('type', 'in', PUSH_ONLY_FILTER)
+    .not('type', 'in', NOT_IN_FEED_FILTER)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -171,9 +158,7 @@ export async function unreadSummary(user) {
     .select('type', { count: 'exact' })
     .eq('user_id', user.id)
     .eq('is_read', false)
-    .not('type', 'in', PUSH_ONLY_FILTER)
-    // A same-day reminder counts only while its day is still running.
-    .or(`type.not.in.(${SAME_DAY_TYPES.join(',')}),created_at.gte.${startOfLocalDayIso()}`)
+    .not('type', 'in', NOT_IN_FEED_FILTER)
     .limit(SUMMARY_SCAN);
   if (error) return none;
   const rows = data ?? [];

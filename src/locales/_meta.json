@@ -146,8 +146,18 @@
       "notifications.loadOlder",
       "notifications.more",
       "notifications.newCount",
+      "notifications.now.label",
+      "notifications.now.quests",
+      "notifications.now.resetsIn",
+      "notifications.now.resetsInMinutes",
+      "notifications.now.scheduled",
+      "notifications.now.scheduledAt",
+      "notifications.now.streak",
+      "notifications.now.streakHint",
       "notifications.settings",
       "notifications.tab.competitive",
+      "notifications.tab.earned",
+      "notifications.tab.people",
       "notifications.tab.reminders"
     ]
   },
