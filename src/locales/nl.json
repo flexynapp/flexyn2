@@ -2992,7 +2992,7 @@
   "levelUp.fromTo": "Lv. {from} → Lv. {to}",
   "levelUp.skip": "Overslaan",
   "levelUp.tierUnlocked": "{tier}-rang",
-  "levelUp.title": "LEVEL UP!",
+  "levelUp.title": "Level Up!",
   "levelUp.to": "Naar",
   "listItemDialog.backToItemPicker": "Terug naar de itemkeuze",
   "listItemDialog.invalidPrice": "Vul een geldige prijs in (minstens 1 munt).",

@@ -2992,7 +2992,7 @@
   "levelUp.fromTo": "Lv. {from} → Lv. {to}",
   "levelUp.skip": "Überspringen",
   "levelUp.tierUnlocked": "{tier}-Rang",
-  "levelUp.title": "LEVEL UP!",
+  "levelUp.title": "Level Up!",
   "levelUp.to": "Auf",
   "listItemDialog.backToItemPicker": "Zurück zur Gegenstandsauswahl",
   "listItemDialog.invalidPrice": "Gib einen gültigen Preis ein (mindestens 1 Münze).",

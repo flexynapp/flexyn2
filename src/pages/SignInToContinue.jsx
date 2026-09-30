@@ -34,7 +34,7 @@ function AppleGlyph(props) {
 
 export default function SignInToContinue({
   onBack = null,
-  heading = 'Sign in to continue',
+  heading = 'Sign In to Continue',
   subtext = 'Pick up right where you left off. Your workouts, streaks and progress are waiting.',
 }) {
   const { tFallback } = useLanguage();
@@ -205,7 +205,7 @@ export default function SignInToContinue({
           className="flex flex-col gap-2 shrink-0"
         >
           {/* Same display style and size as every onboarding question
-              (KineticHeading): .font-hero, the condensed display face, 800, uppercase. */}
+              (KineticHeading): .font-hero, the condensed display face at 800. */}
           <h1 className="font-hero text-foreground m-0"
             style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
             {heading}
