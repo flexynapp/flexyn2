@@ -16,7 +16,7 @@
 // server path as a run saved from the Cardio tracker, so nothing credits it
 // twice: the workout pays for its sets, and workout_xp_for leaves the run's
 // minutes out of the workout's duration bonus (migration
-// 20260930170000_workout_cardio_minutes).
+// 20260930180000_workout_cardio_minutes).
 //
 // The entry keeps the new row's id as `cardio_log_id`, so deleting the
 // workout deletes the run with it (workouts.remove).
