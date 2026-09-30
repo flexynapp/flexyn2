@@ -85,7 +85,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
       {infoOpen && (
         <Suspense fallback={null}>
-          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} />
+          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} />
         </Suspense>
       )}
     </Dialog>
@@ -103,7 +103,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
       </div>
     );
   }
-  const { league, tier, members, totalMembers } = data;
+  const { league, tier, members, totalMembers, level = 1 } = data;
   // Zone sizes are proportional to the QUALIFIED field and computed by the
   // data layer, which mirrors migration 310. Reading tier.promote here — an
   // absolute count that no longer exists — is what let a 6-person bracket
@@ -128,8 +128,8 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
       <div className="relative px-5 pt-6 pb-5 border-b border-border">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 pe-8">
-            <LeagueTierBadge tier={tier.id} size={40} />
-            {leagueTierName(tier, tFallback)}
+            <LeagueTierBadge tier={tier.id} level={level} size={40} />
+            {leagueTierName(tier, tFallback, level)}
           </DialogTitle>
         </DialogHeader>
         {/* The header states the rules of THIS week ("0 qualified — 5 needed")

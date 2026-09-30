@@ -81,7 +81,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
     return null;
   }
 
-  const { league, tier, members } = data;
+  const { league, tier, members, level = 1 } = data;
   // Default totalMembers to the loaded members.length so the "rank / N"
   // line never renders "/undefined" or "/0" when the RPC omits the count.
   const totalMembers = Number(data.totalMembers) || members.length || 0;
@@ -178,14 +178,14 @@ export default function LeagueCard({ onClick, stretch = false }) {
               on top of the rank. Stacked, the title gets the full width.
               See the .dash-slot / cq-* block in index.css. */}
           <div className="flex items-center gap-2.5 w-full cq-stack">
-            <LeagueTierBadge tier={tier.id} size={40} />
+            <LeagueTierBadge tier={tier.id} level={level} size={40} />
             <div className="flex-1 min-w-0">
               {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
                   the card's title, so it gets the title treatment. */}
               <p className="font-heading font-bold text-sm leading-tight truncate">
                 {/* leagueTierName translates the tier and lets the
                     translator own the word order (es: Liga Bronce). */}
-                {leagueTierName(tier, tFallback)}
+                {leagueTierName(tier, tFallback, level)}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

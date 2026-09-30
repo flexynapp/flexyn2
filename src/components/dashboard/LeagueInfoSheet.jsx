@@ -25,6 +25,8 @@ import {
   MIN_QUALIFIED_TO_MOVE,
   DECAY_GRACE_WEEKS,
   SHIELD_LIFETIME_CAP,
+  MAX_LEAGUE_LEVEL,
+  levelNumeral,
 } from '@/lib/leagueTiers';
 import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 
@@ -84,7 +86,7 @@ function Rule({ title, body }) {
   );
 }
 
-export default function LeagueInfoSheet({ open, onClose }) {
+export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', level = 1 }) {
   const { tFallback } = useLanguage();
   if (!open) return null;
 
@@ -133,6 +135,34 @@ export default function LeagueInfoSheet({ open, onClose }) {
                 'Percentages are of the people who qualified that week. Not of the whole bracket. Days is how many you need to train to be ranked at all.',
               )}
             </p>
+          </div>
+
+          {/* ── Levels ─────────────────────────────────────────────
+              Drawn in the reader's own league, with their current level
+              marked, so the rule is shown rather than described. */}
+          <div className="pt-6">
+            <p className="text-caption font-bold">
+              {tFallback('league.info.levelsTitle', 'Four levels in every league')}
+            </p>
+            <p className="text-caption text-muted-foreground pt-1">
+              {tFallback(
+                'league.info.levelsBody',
+                'Every week you qualify adds a level, up to IV. Moving to another league starts you at I again. Levels show how long you have held your league and do not change your bracket.',
+              )}
+            </p>
+            <div className="flex justify-between pt-2">
+              {Array.from({ length: MAX_LEAGUE_LEVEL }, (_, i) => i + 1).map((lv) => (
+                <div key={lv} className="flex flex-col items-center gap-1">
+                  <LeagueTierBadge tier={tierId} level={lv} size={48} />
+                  <span
+                    className={`text-micro tabular-nums ${lv === level ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
+                    aria-current={lv === level ? 'true' : undefined}
+                  >
+                    {levelNumeral(lv)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* ── The rules ──────────────────────────────────────────── */}

@@ -13,6 +13,9 @@ import {
   isQualified,
   resolveStanding,
   outcomeLabel,
+  leagueLevel,
+  levelNumeral,
+  leagueTierName,
 } from '../leagueTiers';
 
 describe('TIERS configuration', () => {
@@ -273,5 +276,44 @@ describe('outcomeLabel', () => {
     expect(outcomeLabel('unranked')).toBe('Not qualified');
     expect(outcomeLabel('decayed')).toBe('Dropped for inactivity');
     expect(outcomeLabel('hold')).toBe('Held position');
+  });
+});
+
+describe('leagueLevel', () => {
+  const w = (tier, qualified) => ({ tier, qualified });
+
+  it('starts at I with no history', () => {
+    expect(leagueLevel('bronze', [])).toBe(1);
+    expect(leagueLevel('bronze', undefined)).toBe(1);
+  });
+
+  it('adds a level for each qualified week in the current league', () => {
+    expect(leagueLevel('silver', [w('silver', true)])).toBe(2);
+    expect(leagueLevel('silver', [w('silver', true), w('silver', true)])).toBe(3);
+  });
+
+  it('does not count unqualified or voided weeks, but they do not end the stint', () => {
+    expect(leagueLevel('gold', [w('gold', false), w('gold', null), w('gold', true)])).toBe(2);
+  });
+
+  it('stops at the first week spent in another league', () => {
+    // Promoted from bronze last week: back to I, whatever bronze earned.
+    expect(leagueLevel('silver', [w('bronze', true), w('bronze', true)])).toBe(1);
+    expect(leagueLevel('silver', [w('silver', true), w('bronze', true), w('silver', true)])).toBe(2);
+  });
+
+  it('caps at IV', () => {
+    expect(leagueLevel('legend', Array(9).fill(w('legend', true)))).toBe(4);
+  });
+
+  it('writes the level as a numeral that is the same in every locale', () => {
+    expect([1, 2, 3, 4].map(levelNumeral)).toEqual(['I', 'II', 'III', 'IV']);
+    expect(levelNumeral(7)).toBe('IV');
+  });
+
+  it('puts the level into the league name only when one is given', () => {
+    const tf = (_k, en, vars) => en.replace(/\{(\w+)\}/g, (_, v) => vars?.[v] ?? '');
+    expect(leagueTierName(getTier('gold'), tf)).toBe('Gold League');
+    expect(leagueTierName(getTier('gold'), tf, 3)).toBe('Gold League III');
   });
 });

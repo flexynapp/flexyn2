@@ -151,10 +151,51 @@ const TIER_INDEX = Object.fromEntries(TIERS.map((t, i) => [t.id, i]));
  * {tier}"). Surfaces used to pass the English `label` straight in ("Liga
  * Bronze") or append the word League themselves ("Bronce Liga").
  */
-export function leagueTierName(tier, tFallback) {
+export function leagueTierName(tier, tFallback, level) {
   if (!tier?.id) return tFallback('league.leagueSuffix', 'League');
   const name = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
+  // With a level it reads "Bronze League II". The numeral is the same in
+  // every locale; the translator still owns where it sits.
+  if (level) {
+    return tFallback('league.tierLevelName', '{tier} League {level}', {
+      tier: name,
+      level: levelNumeral(level),
+    });
+  }
   return tFallback('league.tierName', '{tier} League', { tier: name });
+}
+
+/** Levels inside a league, I to IV. Display only: the bracket, promotion and
+ * payouts never read it. */
+export const MAX_LEAGUE_LEVEL = 4;
+
+/**
+ * Your level inside your current league, from 1 to MAX_LEAGUE_LEVEL.
+ *
+ * Every week you QUALIFY in the league adds a level, and moving to a
+ * different league (promotion, demotion, decay or the season reset) starts
+ * you at I again. Derived from resolved `league_members` rows rather than
+ * stored, so nothing has to keep a counter in step with the resolver.
+ *
+ * @param {string} currentTierId  the tier you are in this week
+ * @param {{ tier: string, qualified: boolean|null }[]} history
+ *        resolved weeks, NEWEST FIRST
+ */
+export function leagueLevel(currentTierId, history) {
+  let earned = 0;
+  for (const week of history || []) {
+    // The stint in this league ends at the first week spent in another one.
+    if (week?.tier !== currentTierId) break;
+    // qualified is NULL on a voided week (migration 310), which never ran
+    // through the resolver and earns nothing.
+    if (week.qualified === true) earned += 1;
+  }
+  return Math.min(MAX_LEAGUE_LEVEL, 1 + earned);
+}
+
+/** Roman numeral for a league level. Reads the same in every locale. */
+export function levelNumeral(level) {
+  return ['I', 'II', 'III', 'IV'][Math.min(MAX_LEAGUE_LEVEL, Math.max(1, level || 1)) - 1];
 }
 
 export function getTier(id) {
