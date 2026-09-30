@@ -233,6 +233,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'capsules.title',
     'capsules.tier.premium',
     'stickerSet.count',
+    // The kilogram symbol is the same in every Latin-script language.
+    'onboarding.weight.unitKg',
   ]),
   fr: new Set([
     // "min" is the minute abbreviation French uses too.
@@ -408,6 +410,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'capsules.tier.standard',
     'capsules.tier.premium',
     'stickerSet.count',
+    // The kilogram symbol is the same in every Latin-script language.
+    'onboarding.weight.unitKg',
   ]),
   // German. Populated 2026-08-16 while the locale went 67% -> 99.4%: a
   // translation push SURFACES cognates rather than removing them, so the

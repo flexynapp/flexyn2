@@ -178,6 +178,13 @@ export function parseHeightInput(raw, unit) {
     return inch < 12 ? ft * 12 + inch : null;
   }
 
+  // Feet alone, marked as feet: "6'" is six feet, not an error.
+  const feetOnly = trimmed.match(/^(\d{1,2})\s*['’]$/);
+  if (feetOnly) {
+    const ft = parseInt(feetOnly[1], 10);
+    return ft >= 1 && ft <= 8 ? ft * 12 : null;
+  }
+
   // Bare digits.
   const bare = trimmed.match(/^(\d{1,3})["”]?$/);
   if (!bare) return null;
@@ -191,8 +198,11 @@ export function parseHeightInput(raw, unit) {
     const inch = n % 100;
     return inch < 12 ? ft * 12 + inch : null;
   }
-  // One or two digits: too small to be a total-inches height means feet.
-  return n >= PROFILE_RANGES.heightIn.min ? n : n * 12;
+  // One or two digits: a total-inches height, or a small number of feet.
+  // Anything between (like "34") is neither, and used to be read as 34 feet
+  // and clamped to 8'0".
+  if (n >= PROFILE_RANGES.heightIn.min) return n;
+  return n >= 1 && n <= 8 ? n * 12 : null;
 }
 
 /**

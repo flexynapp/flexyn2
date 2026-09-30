@@ -342,7 +342,7 @@ function daysRecommendation(draft, message, t, language = 'en') {
   const runner = goals.includes('speed') || goals.includes('endurance');
   const note = runner
     ? T('coach.onboarding.days.noteRunner',
-        'Since you picked a running goal, these are the days the plan has something scheduled. Easy runs can sit on the gaps without counting against recovery.')
+        ' Since you picked a running goal, these are the days the plan has something scheduled. Easy runs can sit on the gaps without counting against recovery.')
     : T('coach.onboarding.days.noteRest',
         ' The rest days between sessions are doing real work; a muscle grows on the day off, not the day you trained it.');
   const names = dayNames(language);
@@ -467,10 +467,10 @@ const GUIDES = {
       { id: 'why',   text: T('coach.onboarding.sharpen.prompt.why', 'Why does this matter?') },
     ],
     explain: (_d, T) => T('coach.onboarding.sharpen.explain',
-      "This is the specific version of the goal you already picked. It decides things like whether your plan leans toward heavy triples or toward volume. A real difference in what you'll be doing on a Tuesday, so it's worth answering honestly rather than ambitiously."),
+      "These fine tune the goal you already picked: the equipment you have, how long a session can run, which lifts lead the plan and, for runners, the race you're aiming at. All optional, but each one changes what you'll actually be doing on a Tuesday."),
     recommend: (_d, _m, T) => ({
       reply: T('coach.onboarding.sharpen.recommend',
-        "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time. You'll do it more often, and frequency is what makes any of this work."),
+        "Answer the ones you know and leave the rest. Equipment and session length matter most: they decide which exercises fit and how many sets fit in the time. Pick lifts you'd be pleased to see go up in three months."),
     }),
   },
 
@@ -483,7 +483,7 @@ const GUIDES = {
       { id: 'why', text: T('coach.onboarding.experience.prompt.why', 'Why does this matter?') },
     ],
     explain: (_d, T) => T('coach.onboarding.experience.explain',
-      "It sets the loads you start at, and nothing else. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower. The plan raises the weight as soon as you're finishing sets easily."),
+      "It sets where your plan starts: how heavy, how many sets and reps, and whether the first block runs 8 or 12 weeks. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower. The plan raises the weight as soon as you're finishing sets easily."),
     recommend: levelRecommendation,
     free: (message, draft, T, language) =>
       (inferLevel(message) ? levelRecommendation(draft, message, T, language) : null),
@@ -539,7 +539,7 @@ const GUIDES = {
       { id: 'change',  text: T('coach.onboarding.days.prompt.change', 'Can I change this later?') },
     ],
     explain: (_d, T) => T('coach.onboarding.days.explain',
-      "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time. The adaptation happens on them."),
+      "This sets how many sessions your plan spreads across. Fewer days puts a little more work in each session, more days a little less. Rest days aren't idle time. The adaptation happens on them."),
     recommend: daysRecommendation,
     free: (message, draft, T, language) => (
       /\b(\d)\s*(days?|x|times)\b/i.test(message) ? daysRecommendation(draft, message, T, language) : null
@@ -576,7 +576,7 @@ const GUIDES = {
     free: (message, _d, T) => (
       /\b(old|past|healed|used to|years ago|fine now|recovered)\b/i.test(message)
       ? { reply: T('coach.onboarding.injury.freeOld',
-          "If it's fully healed and doesn't bother you under load, leave it out. The exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Progress the moment it stops mattering.") }
+          "If it's fully healed and doesn't bother you under load, leave it out. The exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Profile → My Injuries the moment it stops mattering.") }
         : null
     ),
   },
@@ -605,20 +605,23 @@ const GUIDES = {
     intro: (_d, T) => T('coach.onboarding.loading.intro', 'Building your plan. One moment.'),
   },
   [OB.REVEAL]:   {
-    intro: (_d, T) => T('coach.onboarding.home_gym.intro',
+    // Its own keys. It borrowed the home gym step's, and the catalog has
+    // those, so the reveal opened with "Where do you train? Picking your
+    // gym…" and a "Why pick a gym?" chip under a finished plan.
+    intro: (_d, T) => T('coach.onboarding.reveal.intro',
       "Here's what I built. Ask me anything about it before you start."),
     prompts: (_d, T) => [
-      { id: 'why',    text: T('coach.onboarding.home_gym.prompt.why', 'Why this plan?') },
-      { id: 'change', text: T('coach.onboarding.home_gym.prompt.change', 'Can I change it later?') },
+      { id: 'why',    text: T('coach.onboarding.reveal.prompt.why', 'Why this plan?') },
+      { id: 'change', text: T('coach.onboarding.reveal.prompt.change', 'Can I change it later?') },
     ],
-    explain: (_d, T) => T('coach.onboarding.home_gym.explain',
-      "It's built from your goals, your experience level and the days you gave me, with anything you flagged as injured taken out. Nothing is locked — every session is editable, and the plan adjusts on its own as your logged sets tell it more."),
+    explain: (_d, T) => T('coach.onboarding.reveal.explain',
+      "It's built from your goals, your experience, your lift check and the days you gave me, with anything you flagged as injured taken out. Nothing is locked. Every session is editable from Workout, Regimens."),
   },
 
   /* ── Nutrition onboarding ─────────────────────────────────── */
 
   [NUT.GOAL]: {
-    intro: (_d, T) => T('coach.onboarding.goal.intro',
+    intro: (_d, T) => T('coach.onboarding.nutritionGoal.intro',
       "Losing, holding, or gaining? Describe what you're after and I'll set it."),
     prompts: (_d, T) => [
       { id: 'which', text: T('coach.onboarding.goal.prompt.which', 'Which goal should I pick?') },
