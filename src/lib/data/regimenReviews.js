@@ -17,7 +17,7 @@ export async function listForRegimen(regimenId, limit = 20) {
   if (!regimenId) return [];
   const { data, error } = await supabase
     .from('regimen_reviews')
-    .select('id, reviewer_id, reviewer_email, rating, comment, created_at, updated_at')
+    .select('id, reviewer_id, rating, comment, created_at, updated_at')
     .eq('regimen_id', regimenId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -31,9 +31,13 @@ export async function listForRegimen(regimenId, limit = 20) {
  *   • 'needs_adoption' — the user hasn't cloned this regimen yet
  *   • 'rpc_error'      — any other DB failure
  *   • 'network'        — fetch threw
+ *
+ * The reviewer's email is not sent. The database fills it from the profile
+ * (other people's emails are not readable here, and an upsert may not set a
+ * column its caller cannot read), and a guest has no auth email at all.
  */
-export async function submit({ regimenId, rating, comment, userId, email }) {
-  if (!regimenId || !userId || !email) return { ok: false, code: 'invalid_args' };
+export async function submit({ regimenId, rating, comment, userId }) {
+  if (!regimenId || !userId) return { ok: false, code: 'invalid_args' };
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     return { ok: false, code: 'invalid_rating' };
   }
@@ -44,7 +48,6 @@ export async function submit({ regimenId, rating, comment, userId, email }) {
         {
           regimen_id:     regimenId,
           reviewer_id:    userId,
-          reviewer_email: email,
           rating,
           comment:        (comment || '').trim() || null,
         },

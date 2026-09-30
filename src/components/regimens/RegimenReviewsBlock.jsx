@@ -3,7 +3,7 @@
 // Expanded "Reviews" section rendered inside an open RegimenCard.
 // Shows:
 //   • Aggregate stars + count + average
-//   • Up to 5 recent reviews with author email + stars + comment
+//   • Up to 5 recent reviews with author + stars + comment
 //   • Your-review composer (stars + textarea + Submit)
 //
 // Submit is gated server-side by the adoption trigger (mig 118):
@@ -60,7 +60,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
     setSubmitting(true);
     setAdoptionError(false);
     const res = await reviews.submit({
-      regimenId, rating: stars, comment, userId: user.id, email: user.email,
+      regimenId, rating: stars, comment, userId: user.id,
     });
     setSubmitting(false);
     if (res.ok) {
