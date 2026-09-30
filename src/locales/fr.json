@@ -4269,6 +4269,7 @@
   "nutrition.plan.plant_power.tagline": "Une nutrition complète à base de végétaux bruts. Sans rien sacrifier",
   "nutrition.plan.veg_strength.name": "Force végétarienne",
   "nutrition.plan.veg_strength.tagline": "Une alimentation végétarienne riche en protéines. Œufs, laitages et végétaux, sans viande",
+  "nutrition.plannerPhotoAdded": "{name} ajouté",
   "nutrition.pointCamera": "Pointez la caméra sur le code-barres du produit",
   "nutrition.prevDay": "Jour précédent",
   "nutrition.reading": "Lecture…",

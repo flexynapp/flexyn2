@@ -577,17 +577,21 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const handlePick = (recipe) => {
     if (!pickerSlot) return;
     const snapshot = plannerSnapshot(recipe);
+    const { date, mealType } = pickerSlot;
     upsertMutation.mutate({
       user,
-      planDate: pickerSlot.date,
-      mealType: pickerSlot.mealType,
+      planDate: date,
+      mealType,
       recipeId: recipe.id,
       foodSnapshot: snapshot,
+    }, {
+      // A recipe planned for TODAY is a meal eaten today, exactly as a manual
+      // or photo entry is. This path was the only one of the three that
+      // skipped the diary mirror, so planning a recipe for today quietly
+      // counted for nothing. It mirrors only once the plan row has saved, so
+      // a failed save cannot leave a diary entry behind with no plan.
+      onSuccess: () => logToDiaryIfToday(date, snapshot, mealType),
     });
-    // A recipe planned for TODAY is a meal eaten today, exactly as a manual or
-    // photo entry is. This path was the only one of the three that skipped the
-    // diary mirror, so planning a recipe for today quietly counted for nothing.
-    logToDiaryIfToday(pickerSlot.date, snapshot, pickerSlot.mealType);
     setPickerSlot(null);
   };
 
@@ -627,9 +631,17 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
       fat_g:     finiteOr(r.fat_g,     0),
       fiber_g:   finiteOr(r.fiber_g,   0),
     };
-    upsertMutation.mutate({ user, planDate: target.date, mealType: target.mealType, foodSnapshot: snapshot });
-    logToDiaryIfToday(target.date, snapshot, target.mealType);
-    toast.success(`Added: ${r.food_name || 'meal'}`);
+    // The success line used to fire right here, before the save was even
+    // sent, so a failed save said "Added" and then an error on top of it.
+    upsertMutation.mutate(
+      { user, planDate: target.date, mealType: target.mealType, foodSnapshot: snapshot },
+      {
+        onSuccess: () => {
+          logToDiaryIfToday(target.date, snapshot, target.mealType);
+          toast.success(tFallback('nutrition.plannerPhotoAdded', 'Added {name}', { name: snapshot.name }));
+        },
+      },
+    );
   };
 
   // Refresh the diary-backed surfaces (Nutrition page total + dashboard rings)
@@ -653,13 +665,11 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
 
   const handleManualSave = (snapshot) => {
     if (!manualSlot) return;
-    upsertMutation.mutate({
-      user,
-      planDate: manualSlot.date,
-      mealType: manualSlot.mealType,
-      foodSnapshot: snapshot,
-    });
-    logToDiaryIfToday(manualSlot.date, snapshot, manualSlot.mealType);
+    const { date, mealType } = manualSlot;
+    upsertMutation.mutate(
+      { user, planDate: date, mealType, foodSnapshot: snapshot },
+      { onSuccess: () => logToDiaryIfToday(date, snapshot, mealType) },
+    );
     setManualSlot(null);
   };
 
