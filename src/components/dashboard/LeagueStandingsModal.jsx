@@ -209,13 +209,16 @@ function Body({ data, season, strength, userId, t, tFallback, fmt, onOpenMember,
                         floor: fmt(strength.next_floor),
                       })
                     : tFallback('league.strength.headerTop', 'Strength Score. The top of the ladder')}
+                  {strength.bodyweight_given === false && (
+                    <>. {tFallback('league.strength.addBodyweightShort', 'Add your bodyweight to go past Gold.')}</>
+                  )}
                 </span>
               </p>
             ) : (
               <p className="text-muted-foreground min-w-0">
-                {strength.reason === 'no_bodyweight'
-                  ? tFallback('league.strength.needBodyweight', 'Add your bodyweight to get placed by strength')
-                  : tFallback('league.strength.needLifts', 'Log a squat, bench, deadlift or overhead press in two sessions to get placed')}
+                {strength.basis === 'onboarding'
+                  ? tFallback('league.strength.provisional', 'Placed from your answers. Log two sessions of a press, squat or deadlift to confirm')
+                  : tFallback('league.strength.needLiftsAny', 'Log two sessions of a press, squat or deadlift to get placed')}
               </p>
             )}
           </div>
