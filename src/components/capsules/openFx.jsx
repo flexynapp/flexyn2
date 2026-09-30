@@ -110,13 +110,15 @@ export function useOpenerFx() {
     rays.dataset.fast = fast ? '1' : '0';
   }, []);
 
-  /** Shock rings and spark streaks from a point, plus shake and flash. */
-  const burst = useCallback((point, rarity, { scale = 1, shake = true } = {}) => {
+  /** Shock rings and spark streaks from a point, plus shake and flash.
+   *  `color` and `drama` override the rarity's, for a stage that is not
+   *  a capsule (the league rank up passes its tier colour and table). */
+  const burst = useCallback((point, rarity, { scale = 1, shake = true, color: colorOverride, drama } = {}) => {
     const host = sparkRef.current;
     if (!host || !point || reduced) return;
     if (typeof host.animate !== 'function') return;
-    const d = dramaFor(rarity);
-    const color = rarityTint(rarity).color;
+    const d = drama ?? dramaFor(rarity);
+    const color = colorOverride ?? rarityTint(rarity).color;
     const make = (css) => {
       const n = document.createElement('div');
       Object.assign(n.style, { position: 'absolute', left: `${point.x}px`, top: `${point.y}px`, pointerEvents: 'none', ...css });
