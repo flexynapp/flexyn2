@@ -25,7 +25,7 @@ function fmtTime(sec) {
 }
 
 export async function ensureOnboardingCardioGoal({ user, goals, sharpen } = {}) {
-  if (!user?.email) return null;
+  if (!user?.id) return null;
   const goalList = Array.isArray(goals) ? goals : [];
   const isCardio = goalList.some((g) => g === 'speed' || g === 'endurance');
   const event = sharpen?.cardioEvent;
@@ -33,7 +33,10 @@ export async function ensureOnboardingCardioGoal({ user, goals, sharpen } = {}) 
 
   // Idempotency: don't stack a second running goal on account-reset re-onboarding.
   try {
-    const existing = await goalsData.list(user.email);
+    // goals.list filters on user_id, a uuid. It was handed the email, so
+    // the read always failed into the catch below and every re-onboarding
+    // stacked another running goal.
+    const existing = await goalsData.list(user.id);
     if (Array.isArray(existing) && existing.some(
       (g) => String(g.goal_type || '').startsWith('cardio') && g.cardio_activity === 'running' && g.status !== 'completed',
     )) {

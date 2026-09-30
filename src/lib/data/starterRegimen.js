@@ -202,6 +202,9 @@ const LEVEL_SETS_REPS = {
 // Keep these in step with ASSESSMENT_QUESTIONS in Onboarding.jsx. A question
 // that isn't listed here is collected and ignored.
 const STRENGTH_KEYS = ['squat_bw15', 'pullups_10', 'mile_under10'];
+// The lifting half of that tier. A sub 10 minute mile says nothing about
+// what someone can squat, so it promotes only a runner's plan.
+const LIFT_KEYS = ['squat_bw15', 'pullups_10'];
 const FOUNDATION_KEYS = ['pushups_20', 'plank_60s'];
 
 // `bench_bw` and `squats_25` were asked at one point and are still read here
@@ -231,7 +234,7 @@ function advancedIndex(assessment) {
 // carries the weight it deserves — otherwise a collegiate runner who can't
 // bench bodyweight would be mislabelled a newbie.
 const LEVEL_ORDER = ['newbie', 'returning', 'consistent', 'advanced'];
-function effectiveLevel(level, assessment, goalKey) {
+function effectiveLevel(level, assessment, goalKey, age) {
   let idx = Math.max(0, LEVEL_ORDER.indexOf(level));
   const a = assessment && typeof assessment === 'object' ? assessment : {};
   const adv = advancedIndex(a);
@@ -239,17 +242,27 @@ function effectiveLevel(level, assessment, goalKey) {
     if (a.mile_under10 === 'yes') idx = Math.max(idx, 2);          // fit runner → consistent
     if (a.mile_under10 === 'yes' && adv >= 2) idx = LEVEL_ORDER.length - 1; // + broadly fit → advanced
   } else {
-    // Three live strength questions, so "aces everything" is 3 — but a
-    // profile from when there were four can still score 4, and must not be
-    // demoted for it.
-    if (adv >= 3) idx = LEVEL_ORDER.length - 1;                    // aces everything → advanced
-    else if (adv >= 2) idx = Math.max(idx, 2);                     // solid → consistent
+    // Lifts only. The mile used to count here, so a newbie who could run a
+    // quick mile and squat 1.5x bodyweight was promoted to consistent, and
+    // one who also did ten pull-ups to advanced. Two live lift questions
+    // reach consistent; advanced is still reachable by a profile answered
+    // when bench_bw was asked, which must not be demoted for it.
+    const lifts = countYes(a, LIFT_KEYS) + countYes(a, LEGACY_STRENGTH_KEYS);
+    if (lifts >= 3) idx = LEVEL_ORDER.length - 1;
+    else if (lifts >= 2) idx = Math.max(idx, 2);
   }
   // The foundation tier can only lift someone OFF the floor — a person who
   // can do 20 push-ups and hold a plank is not a day-one newbie, whatever
   // they picked on the experience step. It never promotes past 'returning',
   // because clearing a beginner bar says nothing about handling real volume.
   if (countYes(a, FOUNDATION_KEYS) + countYes(a, LEGACY_FOUNDATION_KEYS) >= 2) idx = Math.max(idx, 1);
+  // A teenager is not put on 5 x 5. Under 16 the plan stays at 3 x 10 and
+  // under 18 at 4 x 8, however they answered: three yes taps turned a 13
+  // year old's first plan into heavy triples of squats and deadlifts.
+  if (Number.isFinite(age)) {
+    if (age < 16) idx = Math.min(idx, 1);
+    else if (age < 18) idx = Math.min(idx, 2);
+  }
   return LEVEL_ORDER[idx];
 }
 
@@ -259,10 +272,10 @@ function effectiveLevel(level, assessment, goalKey) {
  * raw pick, or a "New" lifter who aces the check reads "for new lifters"
  * above an advanced plan.
  */
-export function starterPlanLevel({ goals, level, assessment } = {}) {
+export function starterPlanLevel({ goals, level, assessment, age } = {}) {
   const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
   const cardioWanted = goalList.some(g => CARDIO_GOALS.has(g));
-  return effectiveLevel(level, assessment, cardioWanted ? 'endurance' : 'strength');
+  return effectiveLevel(level, assessment, cardioWanted ? 'endurance' : 'strength', age);
 }
 
 /** How long the starter block runs: 12 weeks from consistent up, else 8. */
@@ -280,7 +293,12 @@ export function fiveKSecondsFrom(current) {
   if (!Number.isFinite(t) || t <= 0) return null;
   const km = { '1mi': 1.609, '5k': 5, '10k': 10 }[current?.distance];
   if (!km) return null;
-  return Math.round(t * Math.pow(5 / km, 1.06));
+  const fiveK = Math.round(t * Math.pow(5 / km, 1.06));
+  // The time boxes take anything from 0:01 to 99:59, and a typo there became
+  // a 2:18 mile easy pace or 400 m repeats "@ 0:00". A 5K faster than the
+  // world record or slower than a two hour walk is a typo, not a pace to
+  // train at, so the plan falls back to untargeted paces.
+  return fiveK >= 12 * 60 && fiveK <= 120 * 60 ? fiveK : null;
 }
 
 // Cardio + breath-heavy exercises don't take a literal rep target the way
@@ -292,7 +310,7 @@ const CARDIO_HIGH_REP_NAMES = new Set(['Mountain Climbers', 'Plank', 'Side Plank
 // Bodyweight-ratio movements — reps are gated by how much mass you move. A
 // heavier beginner is given an achievable rep target on these rather than a
 // demoralising one they can't hit on day one.
-const BODYWEIGHT_RATIO_NAMES = new Set(['Pull-Up', 'Push-Up']);
+const BODYWEIGHT_RATIO_NAMES = new Set(['Pull-Up', 'Push-Up', 'Chin-Up', 'Decline Push-Up', 'Inverted Row']);
 
 // ── Pre-flight: assert every named exercise resolves. Runs at import time. ──
 Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
@@ -601,7 +619,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // INVERSE days adjustment (fewer days → more per session, more days → less),
   // then the age recovery cap — with a floor so a starter plan never dips below
   // 2 working sets.
-  const effLevel = effectiveLevel(level, assessment, cardioWanted ? 'endurance' : goalKey);
+  const effLevel = effectiveLevel(level, assessment, cardioWanted ? 'endurance' : goalKey, age);
   const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
   let sets = setsReps.sets + daysVolumeAdjust(safeDays);
   sets = Math.min(sets, ageSetsCap(age));
@@ -690,6 +708,22 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     if (!hits.length) break;
     const biggest = hits.reduce((a, b) => (b.target_sets > a.target_sets ? b : a));
     strengthExercises = strengthExercises.map((e) => (e === biggest ? { ...e, target_sets: e.target_sets - 1 } : e));
+  }
+
+  // Last resort. The steps above keep three lifts at two sets, and a 70 year
+  // old runner on one day a week has a budget of four sets after the runs,
+  // so the plan was still refused on its first save (10 sets against 8, or
+  // 6 biceps sets against 5). A shorter plan that saves beats a full one
+  // that can't: drop trailing lifts until it fits.
+  const overLimit = () => {
+    const all = [...strengthExercises, ...cardioExercises];
+    const total = all.reduce((n, e) => n + (e.target_sets || 0), 0);
+    if (total > getMaxRealisticSetsPerWorkout(saveLimits)) return true;
+    const counts = countSetsPerMuscleGroup(all.map((e) => ({ muscle_groups: e.muscle_groups, sets: { length: e.target_sets || 0 } })));
+    return Object.keys(counts).some((g) => counts[g] > getMuscleGroupCap(g, saveLimits));
+  };
+  while (strengthExercises.length && overLimit()) {
+    strengthExercises = strengthExercises.slice(0, -1);
   }
 
   // Cardio leads the plan for a runner; strength leads for a lifter.

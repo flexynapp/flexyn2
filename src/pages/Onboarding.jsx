@@ -5,6 +5,7 @@
 
 import { Fragment, createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
 import { motion, AnimatePresence, useReducedMotion, useAnimationControls } from 'framer-motion';
@@ -27,7 +28,7 @@ import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
 import GoalIcon from '@/components/onboarding/GoalIcon';
 import { askStarterPlanCoach } from '@/lib/aiCoach/starterPlanCoach';
 import { reportError } from '@/lib/reportError';
-import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
+import { isDuplicateUsernameError, isProfaneUsernameError, isReservedUsernameError } from '@/lib/onboardingErrors';
 import { escapeLikePattern } from '@/lib/sqlPattern';
 import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RANGES, MIN_USERNAME_LENGTH, canLeaveAboutStep } from '@/lib/data/onboardingProfile';
 import { todayLocalDateString } from '@/lib/dateUtils';
@@ -1388,7 +1389,9 @@ function NumberReel({ value }) {
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const { tFallback } = useLanguage();
   const age = stats.age;
-  const setAge = (v) => onChange({ ...stats, age: v });
+  // Same sticky flag as the weight step: an untouched 26 is the default,
+  // not the user's age, and must not be saved as if it were.
+  const setAge = (v) => onChange({ ...stats, age: v, userTouchedAge: true });
   const gender = stats.gender || null;
   const setGender = (g) => onChange({ ...stats, gender: g });
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: AGE_MIN, max: AGE_MAX, axis: 'x', pxPerUnit: 18 });
@@ -1770,8 +1773,8 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     : [PROFILE_RANGES.heightIn.min, PROFILE_RANGES.heightIn.max];
   const PX = unit === 'cm' ? 6 : 12;
   const setValue = (v) => unit === 'cm'
-    ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
-    : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
+    ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v), userTouchedHeight: true })
+    : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v), userTouchedHeight: true });
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX, invert: true });
 
@@ -3379,6 +3382,7 @@ const SIGN_IN_GATE_KEY = 'fn-onboarding-signin-gate';
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, isLoadingAuth, checkUserAuth, user } = useAuth();
   // `language` as well as tFallback: the Coach writes the starter-plan intro
   // in whatever language the app is set to, and the Edge Function needs to be
@@ -3727,6 +3731,7 @@ export default function Onboarding() {
   // two body_metrics rows for the same date, two injury_logs batches.
   // Ref-based guard takes effect synchronously inside the click handler.
   const submittingRef = useRef(false);
+  const sideEffectsDoneRef = useRef(false);
   useEffect(() => {
     const u = (data.username || '').trim();
     // Same threshold the Continue button uses (MIN_USERNAME_LENGTH). These
@@ -3834,6 +3839,18 @@ export default function Onboarding() {
         toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content. Pick another.'));
         return;
       }
+      // A reserved handle is the same kind of refusal with a different
+      // message. It fell through to the tiers below, which all send the
+      // username too, so every retry failed with a raw database error.
+      if (isReservedUsernameError(err)) {
+        const msg = tFallback('onboarding.error.usernameReserved', 'That username is reserved. Pick another.');
+        setUsernameError(msg);
+        setSaving(false);
+        const ageIdx = STEPS.indexOf('age');
+        if (ageIdx >= 0) goTo(ageIdx);
+        toast.error(msg);
+        return;
+      }
 
       // Tier 2 fallback: drop fitness_assessment (a JSONB column added
       // in mig 129 — if PostgREST's schema cache or RLS rejects it for
@@ -3856,8 +3873,9 @@ export default function Onboarding() {
         // flag. This is the bulletproof guarantee: if our backend is
         // even minimally responsive, the user can finish onboarding and
         // fix profile details later from Settings, instead of being
-        // stranded forever on the reveal screen. The strip-and-retry
-        // inside updateMe handles missing columns transparently.
+        // stranded forever on the reveal screen. updateMe no longer strips
+        // missing columns (2026-09-27), so a column the table lacks fails
+        // tiers 1 and 2 and lands here.
         try {
           await db.auth.updateMe(coreProfile);
           setWeightUnit(weightUnit);
@@ -3906,11 +3924,19 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
       submittingRef.current = false;
-      // Only navigate away if SOME save tier succeeded. Side-effects
-      // (capsule, regimen, body-metrics, injuries) fire here so they
-      // run regardless of which tier landed the profile — a Tier 2/3
-      // user still gets their welcome capsule + starter regimen.
       if (saved) {
+        // Only navigate away if SOME save tier succeeded. Side-effects
+        // (capsule, regimen, body-metrics, injuries) fire here so they
+        // run regardless of which tier landed the profile — a Tier 2/3
+        // user still gets their welcome capsule + starter regimen.
+        //
+        // Once per onboarding. If the profile re-read after a good save
+        // fails, the app keeps this screen up and Enter Flexyn works
+        // again; a second tap re-ran every insert below, so the user got
+        // two injury lists, two weight points and two running goals.
+        const firstSave = !sideEffectsDoneRef.current;
+        sideEffectsDoneRef.current = true;
+        if (firstSave) {
         track(EVENTS.ONBOARDING_COMPLETED, {
           goals: Array.isArray(data.goal) ? data.goal.length : 0,
           picked_gym: Boolean(data.homeGym),
@@ -3922,7 +3948,12 @@ export default function Onboarding() {
           });
         }
         // Starter regimen — idempotent (skips if any regimens exist).
-        ensureStarterRegimen({ user, profile: starterInputs }).catch(sideErr => {
+        // Dashboard may have read an empty list before this insert landed
+        // and would keep it for a minute, hiding the plan the reveal just
+        // promised. Refetch once it exists.
+        ensureStarterRegimen({ user, profile: starterInputs }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['regimens'] });
+        }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
           // The reveal just promised the plan would be saved, so a failure
           // here is one the user will go looking for. Say so, the same way
@@ -3937,6 +3968,7 @@ export default function Onboarding() {
         // create a real, trackable cardio goal (shows in the Cardio tab +
         // dashboard). Idempotent-ish + fire-and-forget; never blocks onboarding.
         ensureOnboardingCardioGoal({ user, goals: data.goal, sharpen: data.sharpen })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['goals'] }))
           .catch(sideErr => {
             reportError(sideErr, { feature: 'onboarding.cardio-goal', level: 'warning', userEmail: user?.email });
           });
@@ -4023,9 +4055,20 @@ export default function Onboarding() {
             : data.homeGym.osm
               ? setHomeGymFromOsm(data.homeGym.osm)
               : setHomeGym(data.homeGym.gymId);
-          attach.catch(sideErr => {
+          // Both setters resolve { ok: false } rather than throwing, so a
+          // .catch alone never saw a gym that failed to attach.
+          const gymFailed = (sideErr) => {
             reportError(sideErr, { feature: 'onboarding.home-gym', level: 'warning', userEmail: user?.email });
-          });
+            toast.warning(
+              tFallback('onboarding.toast.gymFailed', "We couldn't set your gym. Pick it from Profile → My Gym."),
+              { duration: 7000 },
+            );
+          };
+          attach
+            .then(res => { if (!res?.ok) gymFailed(new Error(`home gym attach: ${res?.error || 'not ok'}`)); })
+            .catch(gymFailed);
+        }
+
         }
 
         // Clear the persisted draft now that the profile is in the DB.

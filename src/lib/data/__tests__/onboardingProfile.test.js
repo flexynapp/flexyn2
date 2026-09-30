@@ -199,8 +199,24 @@ describe('buildProfilePayload', () => {
     days: [0, 2, 4],
     preferredTime: ['morning', 'late_night'],
     assessment: { bench_bw: 'yes' },
-    stats: { age: 31, heightUnit: 'in', heightIn: 71, weightUnit: 'lb', weightLb: 180, gender: 'female' },
+    stats: {
+      age: 31, heightUnit: 'in', heightIn: 71, weightUnit: 'lb', weightLb: 180, gender: 'female',
+      userTouchedAge: true, userTouchedHeight: true, userTouchedWeight: true,
+    },
   };
+
+  it('does not save the starting age, height and weight as the user\'s own', () => {
+    // Continue works on each of these steps, so an untouched 26 / 70 in /
+    // 165 lb used to be stored as real stats.
+    const untouched = { ...draft, stats: { age: 26, heightUnit: 'in', heightIn: 70, weightUnit: 'lb', weightLb: 165 } };
+    const { detail } = buildProfilePayload({ data: untouched, nowIso: NOW });
+    for (const col of ['age', 'height_cm', 'height_inches', 'weight_kg', 'weight_lbs']) {
+      expect(detail, col).not.toHaveProperty(col);
+    }
+    // The chosen units still save.
+    expect(detail.height_unit).toBe('imperial');
+    expect(detail.weight_unit).toBe('lbs');
+  });
 
   it('trims the username and sets both completion flags', () => {
     const { core } = buildProfilePayload({ data: draft, nowIso: NOW });
@@ -284,11 +300,12 @@ describe('buildProfilePayload', () => {
   });
 
   describe('an empty draft still produces a valid payload', () => {
-    it('does not throw on {} and fills the defaults', () => {
+    it('does not throw on {} and leaves unanswered stats out', () => {
       const { full } = buildProfilePayload({ data: {}, nowIso: NOW });
       expect(full.username).toBe('');
-      expect(full.age).toBe(26);
-      expect(full.weight_lbs).toBe(165);
+      // Nothing was touched, so the starting 26 and 165 are not saved.
+      expect(full).not.toHaveProperty('age');
+      expect(full).not.toHaveProperty('weight_lbs');
       expect(full.fitness_goals).toBe('');
       expect(full.training_days).toEqual([]);
     });

@@ -237,17 +237,20 @@ export function buildProfilePayload({ data, nowIso }) {
     preferred_workout_time: Array.isArray(data?.preferredTime)
       ? data.preferredTime.join(',')
       : (data?.preferredTime || ''),
-    age: m.age,
+    // Age, height and weight are saved only when the user moved them off
+    // the starting value. Continue works on every one of these steps, so an
+    // untouched 26 / 5'10" / 165 lb was stored as the user's real stats and
+    // read everywhere as an answer. Left out, the column stays NULL, which
+    // every consumer already reads as unknown. The units are still saved.
+    ...(stats.userTouchedAge ? { age: m.age } : {}),
     // NUMBERS, not strings. These four columns are `numeric`; the client used
     // to wrap them in String(), a leftover from when they were TEXT. Postgres
     // accepted the quoted form via an implicit cast, so it worked — but it
     // meant any non-numeric string would raise 22P02 and fall into the tier-2
     // and tier-3 fallbacks instead of failing where the mistake was.
-    height_cm:     m.heightCm,
-    height_inches: m.heightIn,
+    ...(stats.userTouchedHeight ? { height_cm: m.heightCm, height_inches: m.heightIn } : {}),
     height_unit:   m.heightUnit === 'cm' ? 'metric' : 'imperial',
-    weight_kg:     m.weightKg,
-    weight_lbs:    m.weightLb,
+    ...(stats.userTouchedWeight ? { weight_kg: m.weightKg, weight_lbs: m.weightLb } : {}),
     weight_unit:   m.weightUnit === 'kg' ? 'kg' : 'lbs',
     // Biological sex (mig 161) — drives sex-specific strength ceilings, volume
     // caps and BMR. NULL when unset; consumers treat NULL as their own
