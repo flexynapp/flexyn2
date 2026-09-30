@@ -163,70 +163,76 @@ export default function ProfileTrophies({
           </div>
         ) : (
           <div className="grid grid-cols-5 gap-2">
-            {earnedTrophies.map((row) => {
-              const trophy = getTrophy(row.trophy_id);
-              if (!trophy) return null;
-              const tierMeta = TROPHY_TIERS[trophy.tier] || TROPHY_TIERS.bronze;
-              const open = openId === row.trophy_id;
-              return (
-                <button
-                  type="button"
-                  key={row.trophy_id}
-                  onClick={() => setOpenId(open ? null : row.trophy_id)}
-                  aria-pressed={open}
-                  aria-label={`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}
-                  className={`relative aspect-square rounded-xl flex items-center justify-center overflow-hidden transition-colors ${
-                    open ? 'bg-secondary ring-2 ring-primary' : 'bg-secondary/40 hover:bg-secondary active:bg-secondary'
-                  }`}
-                >
-                  {trophy.leagueTier ? (
-                    <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
-                  ) : (
-                    <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
-                  )}
-                  {/* Tier as a stripe, not a 7px caption. */}
-                  <span
+            {(() => {
+              const cells = [];
+              let openIndex = -1;
+              for (const row of earnedTrophies) {
+                const trophy = getTrophy(row.trophy_id);
+                if (!trophy) continue;
+                const tierMeta = TROPHY_TIERS[trophy.tier] || TROPHY_TIERS.bronze;
+                const open = openId === row.trophy_id;
+                if (open) openIndex = cells.length;
+                cells.push(
+                  <button
+                    type="button"
+                    key={row.trophy_id}
+                    onClick={() => setOpenId(open ? null : row.trophy_id)}
+                    aria-pressed={open}
+                    aria-label={`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}
+                    className={`relative aspect-square rounded-xl flex items-center justify-center overflow-hidden transition-colors ${
+                      open ? 'bg-secondary ring-2 ring-primary' : 'bg-secondary/40 hover:bg-secondary active:bg-secondary'
+                    }`}
+                  >
+                    {trophy.leagueTier ? (
+                      <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
+                    ) : (
+                      <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
+                    )}
+                    {/* Tier as a stripe, not a 7px caption. */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-0"
+                      style={{ height: 2, background: tierMeta.color }}
+                    />
+                  </button>,
+                );
+              }
+              // Locked frames — the shape of what's left to collect.
+              for (let i = 0; i < lockedCount; i += 1) {
+                cells.push(
+                  <div
+                    key={`locked-${i}`}
                     aria-hidden="true"
-                    className="absolute inset-x-0 bottom-0"
-                    style={{ height: 2, background: tierMeta.color }}
-                  />
-                </button>
-              );
-            })}
-            {/* Locked frames — the shape of what's left to collect. */}
-            {Array(lockedCount).fill(null).map((_, i) => (
-              <div
-                key={`locked-${i}`}
-                aria-hidden="true"
-                className="aspect-square rounded-xl bg-secondary/20 flex items-center justify-center"
-              >
-                <span className="text-base opacity-25">🔒</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {openTrophy && (
-          <div className="mt-3 flex items-start gap-3 rounded-xl bg-secondary/40 p-3" data-testid="trophy-detail" aria-live="polite">
-            <div className="w-10 h-10 shrink-0 flex items-center justify-center">
-              {openTrophy.leagueTier
-                ? <LeagueTierIcon tier={openTrophy.leagueTier} className="w-10 h-10" />
-                : <span className="text-2xl leading-none" aria-hidden="true">{openTrophy.emoji}</span>}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{trophyName(openTrophy, tFallback)}</p>
-              <p className="text-xs text-muted-foreground">
-                {tierLabel(openTrophy.tier, tFallback)}
-                {openRow?.earned_at && (
-                  <>
-                    <span aria-hidden="true"> · </span>
-                    {tFallback('hub.profile.earnedOn', 'Earned {date}', {
-                      date: fmtDate(new Date(openRow.earned_at), { month: 'short', day: 'numeric', year: 'numeric' }),
-                    })}
-                  </>
-                )}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">{trophyDescription(openTrophy, tFallback)}</p>
-            </div>
+                    className="aspect-square rounded-xl bg-secondary/20 flex items-center justify-center"
+                  >
+                    <span className="text-base opacity-25">🔒</span>
+                  </div>,
+                );
+              }
+              // The detail opens under the row of the trophy that was tapped,
+              // so it lands next to the finger rather than below the padlocks.
+              if (openTrophy && openIndex >= 0) {
+                const at = Math.min(cells.length, (Math.floor(openIndex / 5) + 1) * 5);
+                cells.splice(at, 0, (
+                  <div key="trophy-detail" className="col-span-5 rounded-xl bg-secondary/40 px-3 py-2.5" data-testid="trophy-detail" aria-live="polite">
+                    <p className="text-sm font-semibold">{trophyName(openTrophy, tFallback)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tierLabel(openTrophy.tier, tFallback)}
+                      {openRow?.earned_at && (
+                        <>
+                          <span aria-hidden="true"> · </span>
+                          {tFallback('hub.profile.earnedOn', 'Earned {date}', {
+                            date: fmtDate(new Date(openRow.earned_at), { month: 'short', day: 'numeric', year: 'numeric' }),
+                          })}
+                        </>
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">{trophyDescription(openTrophy, tFallback)}</p>
+                  </div>
+                ));
+              }
+              return cells;
+            })()}
           </div>
         )}
       </section>
