@@ -2359,12 +2359,11 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
         {/* Count card.
             Three things used to fire on every tap and fight each other.
 
-            The glow ran `transition-all duration-500` over a
-            radial-gradient whose alpha was interpolated from `count`.
-            background-image is not composited, so that repainted the
-            card for half a second on every selection. It is one static
-            gradient now with an animated OPACITY, which is — the same
-            swap the onboarding step transitions needed.
+            The card used to carry an orange radial glow that brightened
+            with `count`. A decorative gradient is on the house list of
+            generated-UI tells (Kegan, 2026-09-30), so it is gone. The card
+            answers a pick with its border instead, which moves to the
+            primary hue once a day is chosen.
 
             The number carried `key={count}` with `opacity: 0` in its
             initial and no AnimatePresence, so the old digit was removed
@@ -2378,13 +2377,8 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             bounce, landing on top of a repainting background, is the
             stutter. A short tween lands it in 180ms and stops. */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border bg-card p-5 text-center relative overflow-hidden">
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(80% 60% at 50% 0%, hsl(var(--primary) / 0.2), transparent 70%)' }}
-            animate={{ opacity: Math.min(1, 0.2 + count * 0.125) }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-          />
+          className="rounded-2xl border bg-card p-5 text-center relative overflow-hidden transition-colors duration-200"
+          style={{ borderColor: count > 0 ? 'hsl(var(--primary) / 0.5)' : 'hsl(var(--border))' }}>
           <div className="relative flex items-baseline justify-center gap-2">
             <motion.span key={count}
               initial={{ scale: 0.88, opacity: 1 }}
@@ -3588,7 +3582,11 @@ export default function Onboarding() {
     gender: data.stats?.gender,
     weightKg: data.stats?.userTouchedWeight ? data.stats.weightKg : undefined,
     heightCm: data.stats?.userTouchedHeight ? data.stats.heightCm : undefined,
-  }), [data.goal, data.level, data.days, data.assessment, data.sharpen, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm, data.stats?.userTouchedAge, data.stats?.userTouchedWeight, data.stats?.userTouchedHeight]);
+    // Runs in the units the person measures themselves in. Someone who gave
+    // their height in cm or weight in kg (the default outside English) was
+    // handed "2.5 mi @ 8:05/mi" all the same.
+    units: data.stats?.heightUnit === 'cm' || data.stats?.weightUnit === 'kg' ? 'metric' : 'imperial',
+  }), [data.goal, data.level, data.days, data.assessment, data.sharpen, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm, data.stats?.userTouchedAge, data.stats?.userTouchedWeight, data.stats?.userTouchedHeight, data.stats?.heightUnit, data.stats?.weightUnit]);
   const previewRegimen = useMemo(() => buildStarterRegimen(starterInputs), [starterInputs]);
   // The level and length the plan is really built at (the lift check can
   // promote the level), for the loader and the reveal to name.

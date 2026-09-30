@@ -18,6 +18,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { metersTo, toMeters, formatPace, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioSessionName, cardioSessionDetail } from '@/lib/starterPlanText';
 import TransText from '@/components/TransText';
 
 // `label` is the English fallback for `cardio.activity.<id>`, resolved at
@@ -52,7 +53,7 @@ function readSegments(exercise) {
 }
 
 export default function CardioLogger({ exercise, onChange, gender }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const { distanceUnit } = useDistanceUnit();
   const activity = CARDIO_ACTIVITIES.find(a => a.id === exercise.activity) || CARDIO_ACTIVITIES[1];
   const emoji = activityEmoji(activity.id, gender);
@@ -133,11 +134,14 @@ export default function CardioLogger({ exercise, onChange, gender }) {
 
       {/* What the plan asked for, when this run came from one ("Easy Run:
           2.5 mi, conversational pace"), so the target is on screen while
-          the numbers go in. */}
-      {exercise.detail && (
+          the numbers go in. Rendered from the run's structure when it
+          carries one, so it reads in the user's language. */}
+      {(exercise.detail || exercise.session) && (
         <p className="text-xs text-muted-foreground mb-2 px-1">
-          <span className="font-semibold text-foreground">{exercise.displayName || activity.name}</span>
-          {': '}{exercise.detail}
+          <span className="font-semibold text-foreground">
+            {exercise.session ? cardioSessionName(exercise, tFallback) : (exercise.displayName || activity.name)}
+          </span>
+          {': '}{cardioSessionDetail(exercise, tFallback, language)}
         </p>
       )}
 

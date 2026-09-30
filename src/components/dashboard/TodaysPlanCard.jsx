@@ -21,6 +21,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { translateExerciseName } from '@/lib/exerciseTranslations';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 import { findDueRegimen } from '@/lib/todaysPlan';
+import { cardioSessionName, cardioSessionSummary, starterPlanName } from '@/lib/starterPlanText';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -151,7 +152,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
                 : translatedLabel}
             </p>
             <p className="text-micro text-muted-foreground leading-snug mt-0.5 truncate">
-              {regimen.name}
+              {starterPlanName(regimen.name, tFallback)}
               {exerciseCount > 0 && ` · ${exerciseCount} ${tFallback(
                 exerciseCount === 1 ? 'todaysPlan.exerciseOne' : 'todaysPlan.exerciseMany',
                 exerciseCount === 1 ? 'exercise' : 'exercises'
@@ -201,12 +202,14 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
                   <li key={i} className="py-2 first:pt-0">
                     <div className="flex items-baseline gap-2">
                       <span className="flex-1 min-w-0 text-label font-semibold truncate">
-                        {ex.displayName || translateExerciseName(ex.name, language)}
+                        {ex.kind === 'cardio'
+                          ? cardioSessionName(ex, tFallback)
+                          : (ex.displayName || translateExerciseName(ex.name, language))}
                       </span>
                       {ex.kind === 'cardio' ? (
-                        ex.detail && (
+                        (ex.session || ex.detail) && (
                           <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
-                            {ex.detail.split(' · ')[0]}
+                            {cardioSessionSummary(ex, tFallback, language)}
                           </span>
                         )
                       ) : ex.target_sets > 0 && ex.target_reps > 0 && (

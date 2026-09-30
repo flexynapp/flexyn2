@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Dumbbell, Footprints } from 'lucide-react';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioSessionName, cardioSessionDetail } from '@/lib/starterPlanText';
 
 const CARDIO_MODALITIES = new Set(['Running', 'Cycling', 'Jump Rope', 'Rowing']);
 const isCardio = (ex) => ex?.kind === 'cardio' || CARDIO_MODALITIES.has(ex?.name);
@@ -63,7 +64,7 @@ function Section({ title, subtitle, Icon, hue, items, defaultOpen, children }) {
 }
 
 export default function StarterPlanView({ regimen, cardioDefaultOpen = true, strengthDefaultOpen = true }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const exercises = Array.isArray(regimen?.exercises) ? regimen.exercises : [];
   const cardio = exercises.filter(isCardio);
   const strength = exercises.filter((e) => !isCardio(e));
@@ -85,8 +86,13 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
             <div className="flex items-center gap-3">
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'hsl(217 91% 60%)' }} />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-label leading-tight truncate">{ex.displayName || ex.name}</p>
-                {ex.detail && <p className="text-micro text-muted-foreground mt-0.5">{ex.detail}</p>}
+                {/* Rendered from the run's structure, so the words are in the
+                    reader's language; an older plan falls back to its stored
+                    English. See src/lib/starterPlanText.js. */}
+                <p className="font-semibold text-label leading-tight truncate">{cardioSessionName(ex, tFallback)}</p>
+                {(ex.session || ex.detail) && (
+                  <p className="text-micro text-muted-foreground mt-0.5">{cardioSessionDetail(ex, tFallback, language)}</p>
+                )}
               </div>
             </div>
             {/* The modality, not the session — `ex.detail` above already says

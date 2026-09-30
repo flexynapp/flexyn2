@@ -1517,6 +1517,7 @@ export default function Workout() {
           name: a.name,
           displayName: ex.displayName || a.name,
           detail: ex.detail || '',
+          ...(ex.session ? { session: ex.session, sessionParams: ex.sessionParams } : {}),
           segments: [{ duration_s: null, distance_m: null }],
           sets: [],
         };
