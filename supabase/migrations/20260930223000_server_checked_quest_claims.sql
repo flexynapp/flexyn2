@@ -82,7 +82,11 @@ AS $function$
    WHERE v.quest_id = p_quest_id;
 $function$;
 
-REVOKE ALL ON FUNCTION public._quest_def(text) FROM PUBLIC, anon, authenticated;
+-- The catalog is public (the client ships the same table), and the insert
+-- guard below is SECURITY INVOKER, so it runs as the client and must be
+-- able to read it. Revoking it from authenticated fails every quest insert.
+REVOKE ALL ON FUNCTION public._quest_def(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public._quest_def(text) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.quest_server_progress(p_user_id uuid, p_action text, p_day date)
  RETURNS bigint
@@ -383,9 +387,12 @@ $function$;
 
 DO $$
 BEGIN
-  IF has_function_privilege('authenticated', 'public.quest_server_progress(uuid, text, date)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public._quest_def(text)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'quest helpers are callable by clients';
+  IF has_function_privilege('authenticated', 'public.quest_server_progress(uuid, text, date)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'quest_server_progress is callable by clients';
+  END IF;
+  -- The invoker guard reads the catalog as the client.
+  IF NOT has_function_privilege('authenticated', 'public._quest_def(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION '_quest_def must be readable by authenticated for the insert guard';
   END IF;
   IF (SELECT count(*) FROM public._quest_def('volume_25k')) <> 1 THEN
     RAISE EXCEPTION '_quest_def does not resolve a catalog quest';
