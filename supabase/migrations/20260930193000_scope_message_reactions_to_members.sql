@@ -17,11 +17,6 @@
 -- see, so each policy stays bare columns and inherits the membership rule
 -- instead of restating it. The two RPCs are SECURITY DEFINER and bypass
 -- RLS, so they check membership explicitly.
---
--- notify_league_resolution_for is also revoked from clients. Nothing in the
--- app, the edge functions or any database function calls it, and any member
--- of a shared resolved league could use it to send another member a
--- "promoted, +N coins" notification with a number of their choosing.
 
 -- crew_message_reactions -------------------------------------------------
 
@@ -145,8 +140,3 @@ BEGIN
   END IF;
 END;
 $function$;
-
--- notify_league_resolution_for -------------------------------------------
-
-REVOKE EXECUTE ON FUNCTION public.notify_league_resolution_for(uuid, text, text, text, integer, text)
-  FROM PUBLIC, anon, authenticated;
