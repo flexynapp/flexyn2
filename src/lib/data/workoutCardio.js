@@ -36,6 +36,12 @@ const TYPE_BY_ACTIVITY = {
   swimming: 'swimming_pool',
 };
 
+// The caps the manual Cardio form applies (CardioManualForm): a session is
+// clamped to 12 hours and 160 km rather than refused. A workout run is the
+// same kind of typed entry, so it gets the same ceiling.
+export const MAX_CARDIO_SECONDS = 12 * 3600;
+export const MAX_CARDIO_METERS = 160934;
+
 const segmentsOf = (ex) => (Array.isArray(ex?.segments)
   ? ex.segments
   : [{ duration_s: ex?.duration_s, distance_m: ex?.distance_m }]);
@@ -56,8 +62,8 @@ export function cardioLogPayloadFromEntry(ex, { date, userProfile } = {}) {
     if (Number.isFinite(d) && d > 0) seconds += d;
     if (Number.isFinite(m) && m > 0) meters += m;
   }
-  seconds = Math.round(seconds);
-  meters = Math.round(meters);
+  seconds = Math.round(Math.min(seconds, MAX_CARDIO_SECONDS));
+  meters = Math.round(Math.min(meters, MAX_CARDIO_METERS));
   const type = TYPE_BY_ACTIVITY[ex.activity] || 'running_outside';
   // A typed 42 km in a minute is still saved, as the tracker would save it,
   // and the server credits no distance and pays no XP for it.
@@ -116,6 +122,56 @@ export async function saveWorkoutCardio({ exercises, date, userProfile, grantXp,
     }
   }
   return { exercises: out, changed, xp, seconds, sessions };
+}
+
+/**
+ * A fresh copy of a cardio entry for repeating a workout or saving it as a
+ * template: the same activity, blank time and distance, and no link to the
+ * cardio_logs row the original was saved as. Same shape as a new entry from
+ * the Add cardio picker (Workout.jsx addCardio).
+ */
+export function blankCardioEntry(ex) {
+  const activity = ex?.activity || 'running';
+  const name = ex?.name || ex?.displayName || activity;
+  return {
+    kind: 'cardio',
+    activity,
+    name,
+    displayName: ex?.displayName || name,
+    segments: [{ duration_s: null, distance_m: null }],
+    sets: [],
+  };
+}
+
+/**
+ * Time and distance logged across a workout's cardio entries, each entry
+ * capped the way a saved run is. For showing a run beside the lifts (share
+ * card, saved list) and for keeping its minutes out of workout quests.
+ */
+export function workoutCardioTotals(exercises) {
+  let seconds = 0;
+  let meters = 0;
+  let count = 0;
+  for (const ex of Array.isArray(exercises) ? exercises : []) {
+    if (ex?.kind !== 'cardio') continue;
+    count += 1;
+    let s = 0;
+    let m = 0;
+    for (const seg of segmentsOf(ex)) {
+      const d = Number(seg?.duration_s);
+      const dist = Number(seg?.distance_m);
+      if (Number.isFinite(d) && d > 0) s += d;
+      if (Number.isFinite(dist) && dist > 0) m += dist;
+    }
+    seconds += Math.min(s, MAX_CARDIO_SECONDS);
+    meters += Math.min(m, MAX_CARDIO_METERS);
+  }
+  return { seconds: Math.round(seconds), meters: Math.round(meters), count };
+}
+
+/** Total seconds logged across a workout's cardio entries, capped like a saved run. */
+export function workoutCardioSeconds(exercises) {
+  return workoutCardioTotals(exercises).seconds;
 }
 
 /** The cardio_logs ids a workout's entries point at. */

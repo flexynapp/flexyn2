@@ -55,6 +55,17 @@ describe('stripTemplateNumbers', () => {
     expect(mod.stripTemplateNumbers(form)).toEqual(form);
   });
 
+  it('blanks a run and drops its saved log link', () => {
+    const out = mod.stripTemplateNumbers([{
+      kind: 'cardio', activity: 'cycling', name: 'Cycling', displayName: 'Cycling', sets: [],
+      segments: [{ duration_s: 1800, distance_m: 12000 }], cardio_log_id: 'c1', detail: { pace: 150 },
+    }]);
+    expect(out[0]).toEqual({
+      kind: 'cardio', activity: 'cycling', name: 'Cycling', displayName: 'Cycling',
+      segments: [{ duration_s: null, distance_m: null }], sets: [],
+    });
+  });
+
   it('is safe on junk input', () => {
     expect(mod.stripTemplateNumbers(null)).toEqual([]);
     expect(mod.stripTemplateNumbers(undefined)).toEqual([]);

@@ -384,6 +384,12 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
             </div>
           </div>
 
+          {cardioOf(log?.exercises).length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {tFallback('workout.editRunsFromCardio', 'Runs in this workout are edited from Cardio.')}
+            </p>
+          )}
+
           {exercises.map((ex, i) => (
             <Card key={i} className="p-3 border-none shadow-sm">
               <p className="text-sm font-medium mb-2">{getExerciseDisplay(ex, language)}</p>

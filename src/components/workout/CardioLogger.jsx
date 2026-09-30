@@ -246,7 +246,9 @@ function SegInput({ kind, seconds, meters, unit, onCommit }) {
       onCommit(m * 60 || null);
     } else {
       const v = Math.max(0, parseFloat(raw) || 0);
-      onCommit(v > 0 ? Math.round(toMeters(unit, v)) : null);
+      // 160 km, the manual Cardio form's cap (MAX_CARDIO_METERS in
+      // workoutCardio.js, which clamps the saved total the same way).
+      onCommit(v > 0 ? Math.min(Math.round(toMeters(unit, v)), 160934) : null);
     }
   };
   return (

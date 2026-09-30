@@ -97,7 +97,7 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import TransText from '@/components/TransText';
 import { formatDate } from '@/lib/intlFormat';
 import * as workouts from '@/lib/data/workouts';
-import { saveWorkoutCardio, cardioEntryHasData } from '@/lib/data/workoutCardio';
+import { saveWorkoutCardio, cardioEntryHasData, blankCardioEntry, workoutCardioSeconds, linkedCardioLogIds } from '@/lib/data/workoutCardio';
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
 import * as goalsData from '@/lib/data/goals';
@@ -715,7 +715,9 @@ export default function Workout() {
     // saving the old workout twice.
     if (repeatLog) {
       if (Array.isArray(repeatLog.exercises)) {
-        const clonedExercises = repeatLog.exercises.map(ex => ({
+        // A run repeats as a fresh, empty run of the same activity, never
+        // as its old time, distance or saved cardio log.
+        const clonedExercises = repeatLog.exercises.map(ex => ex?.kind === 'cardio' ? blankCardioEntry(ex) : ({
           name:           ex.name,
           displayName:    ex.displayName || ex.name,
           muscle_group:   ex.muscle_group  || '',
@@ -827,6 +829,24 @@ export default function Workout() {
   // construction rather than by luck.
   const calculateTotalVolume = (exList) =>
     computeTotalVolume(exList, { includeBarWeight: false });
+
+  // A run logged inside a workout is its own cardio_logs row. When an edit
+  // moves the workout to another day, its runs move with it, or a running
+  // goal and the cardio history keep them on the old date. Best effort: the
+  // workout edit has already saved.
+  const syncLinkedCardioDates = async (log, newDate) => {
+    if (!newDate || newDate === log?.date) return;
+    const ids = linkedCardioLogIds(log?.exercises);
+    if (ids.length === 0) return;
+    for (const cardioId of ids) {
+      try {
+        await cardioData.update(cardioId, { date: newDate });
+      } catch (err) {
+        reportError(err, { feature: 'workout.edit-cardio-date', level: 'warning', userEmail: user?.email });
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
+  };
 
   // (An unused ['activeInjuries', uid] query used to sit here. Its own comment
   // said InjuryBanner fetches its own data — so this was a second network
@@ -1097,6 +1117,28 @@ export default function Workout() {
         } catch (bountyErr) {
           reportError(bountyErr, { feature: 'workout.bounty-check', level: 'warning' });
         }
+      } else if ((workoutLog?.exercises || []).some((ex) => ex?.kind === 'cardio' && !ex.cardio_log_id)) {
+        // The earlier attempt landed the workout but may have died before
+        // its runs were saved. Finish that part now, on the row that landed,
+        // so a retry cannot leave a run out of the cardio log. Entries that
+        // already carry a cardio_log_id are skipped, so nothing saves twice.
+        try {
+          const cardio = await saveWorkoutCardio({
+            exercises: workoutLog.exercises,
+            date: workoutLog.date,
+            userProfile,
+            grantXp: (logId) => db.functions.invoke('updateUserXpAndAchievements', {
+              xp_gained: 0, action_type: 'cardio_completed', log_id: logId,
+            }),
+            onError: (err, step) => reportError(err, { feature: `workout.cardio-${step}`, level: 'warning', userEmail: user?.email }),
+          });
+          if (cardio.changed && workoutLog?.id) {
+            await workouts.update(workoutLog.id, { exercises: cardio.exercises, total_volume: calculateTotalVolume(cardio.exercises) });
+            queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
+          }
+        } catch (cardioErr) {
+          reportError(cardioErr, { feature: 'workout.cardio-logs', level: 'warning', userEmail: user?.email });
+        }
       }
 
       // Lifetime volume (total_volume_lbs) is credited by the database
@@ -1354,7 +1396,18 @@ export default function Workout() {
       // Volume is the CLAMPED session volume — the same figure credited to
       // the profile above — so a quest and the stat it mirrors can never
       // disagree about what the session was worth.
-      const durationMin = Number(clampedData.duration_minutes) || 0;
+      // The duration lives under DURATION_COLUMN (`duration_min`); this read
+      // `duration_minutes`, a key the payload never carries, so every workout
+      // counted 0 minutes. Runs in the workout count toward CARDIO_SECONDS
+      // (saveWorkoutCardio), so their minutes come out of this total rather
+      // than completing both quests with the same run.
+      const durationMin = Math.max(0,
+        (Number(clampedData?.[DURATION_COLUMN]) || 0)
+        - Math.round(workoutCardioSeconds(clampedData?.exercises) / 60));
+      // A run-only workout is a cardio session, already counted by the
+      // cardio quests; it does not also complete a workout.
+      const savedExercises = clampedData?.exercises || [];
+      const isRunOnly = savedExercises.length > 0 && savedExercises.every(ex => ex?.kind === 'cardio');
       const setCount = (clampedData?.exercises || []).reduce(
         // Only sets with reps on them. An exercise carries empty set rows
         // for anything the user laid out and didn't do, and counting those
@@ -1363,7 +1416,7 @@ export default function Workout() {
         0,
       );
       quests.recordActions(user, [
-        { type: ACTION_TYPES.WORKOUT_COMPLETED, amount: 1 },
+        ...(isRunOnly ? [] : [{ type: ACTION_TYPES.WORKOUT_COMPLETED, amount: 1 }]),
         { type: ACTION_TYPES.WORKOUT_MINUTES,   amount: durationMin },
         { type: ACTION_TYPES.SETS_COMPLETED,    amount: setCount },
         { type: ACTION_TYPES.WORKOUT_VOLUME,    amount: Math.round(result?.sessionVolume || 0) },
@@ -1578,7 +1631,7 @@ export default function Workout() {
     const id = `repeat-${last.id}-${Date.now()}`;
     setActiveSessionId(id);
     setSelectedRegimen(null);
-    setExercises((last.exercises || []).map(ex => ({
+    setExercises((last.exercises || []).map(ex => ex?.kind === 'cardio' ? blankCardioEntry(ex) : ({
       name: ex.name,
       muscle_group: ex.muscle_group || '',
       muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
@@ -3093,6 +3146,7 @@ export default function Workout() {
               // is what get_gym_leaderboard ranks members on and what
               // get_gym_community_progress sums into the gym's "lbs moved".
               await workouts.update(id, { ...data, total_volume: newVolume });
+              await syncLinkedCardioDates(editingLog, data?.date);
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
@@ -3101,6 +3155,8 @@ export default function Workout() {
               // The server takes back this log's share of lifetime volume.
               await workouts.remove(id);
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+              // The runs logged in it are deleted with it (workouts.remove).
+              queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
             }}
@@ -3668,6 +3724,7 @@ export default function Workout() {
             const newVolume = calculateTotalVolume(data?.exercises || []);
             // Writes total_volume for the same reason the idle-view copy does.
             await workouts.update(id, { ...data, total_volume: newVolume });
+            await syncLinkedCardioDates(editingLog, data?.date);
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
             queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);
@@ -3675,6 +3732,7 @@ export default function Workout() {
           onDelete={async (id) => {
             await workouts.remove(id);
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+            queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
             queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);
           }}

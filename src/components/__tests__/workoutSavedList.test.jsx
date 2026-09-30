@@ -26,7 +26,7 @@ const t = (key) => ({
   'workout.exercises': 'Exercises', 'common.sets': 'Sets',
   'workout.freestyle': 'Freestyle',
 }[key] ?? key);
-const tFallback = (key, english) => english;
+const tFallback = (key, english, vars) => (vars ? english.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`) : english);
 
 // What the list's OWN query returns.
 let listRows = [];
@@ -39,6 +39,7 @@ vi.mock('framer-motion', () => ({
 vi.mock('@/lib/LanguageContext', () => ({ useLanguage: () => ({ t, tFallback, language: 'en' }) }));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { email: EMAIL } }) }));
 vi.mock('@/lib/WeightUnitContext', () => ({ useWeightUnit: () => ({ weightUnit: 'lbs' }) }));
+vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'km' }) }));
 vi.mock('@/lib/dateLocales', () => ({ getDateLocale: () => undefined }));
 vi.mock('@/lib/intl', () => ({ useNumberFormatter: () => (n) => String(n) }));
 vi.mock('@/api/db', () => ({
@@ -132,6 +133,32 @@ describe('what a row says', () => {
     expect(screen.queryByText(/0 exercise/)).toBeNull();
     expect(screen.queryByText(/0 set/)).toBeNull();
     expect(screen.queryByText(/0 lbs/)).toBeNull();
+  });
+});
+
+describe('a run logged in a workout', () => {
+  it('is not counted as a lift, and shows its distance and time', async () => {
+    listRows = [log({
+      exercises: [
+        { name: 'Bench Press', sets: [{ weight: 135, reps: 5 }] },
+        { kind: 'cardio', activity: 'running', name: 'Running', sets: [], cardio_log_id: 'c1',
+          segments: [{ duration_s: 1500, distance_m: 5100 }] },
+      ],
+    })];
+    mount();
+    const line = await screen.findByText(/1 exercise/);
+    expect(line.textContent).toMatch(/1 set\b/);
+    expect(line.textContent).toMatch(/5\.1 km 25 min/);
+  });
+
+  it('a run-only workout reads as the run, with no zero lifts', async () => {
+    listRows = [log({
+      exercises: [{ kind: 'cardio', activity: 'running', name: 'Running', sets: [],
+        segments: [{ duration_s: 1800, distance_m: 5000 }] }],
+    })];
+    mount();
+    const line = await screen.findByText(/5 km 30 min/);
+    expect(line.textContent).not.toMatch(/exercise|set/);
   });
 });
 

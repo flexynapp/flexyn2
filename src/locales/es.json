@@ -6888,6 +6888,7 @@
   "workout.durationLabel": "Duración (min)",
   "workout.durationPlaceholder": "ej. 20",
   "workout.editDeleteFailed": "No se pudo eliminar este entrenamiento. Inténtalo de nuevo.",
+  "workout.editRunsFromCardio": "Las sesiones de cardio de este entrenamiento se editan desde Cardio.",
   "workout.editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo.",
   "workout.editTags": "Editar etiquetas",
   "workout.exerciseOptions": "Opciones de {name}",
