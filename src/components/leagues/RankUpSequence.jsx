@@ -187,7 +187,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     ? tFallback('rankUp.promoted', 'Promoted')
     : tFallback('rankUp.newLevel', 'New level');
   const sub = isTier
-    ? tFallback('rankUp.subTier', 'Your Strength Score earned you {league}.', { league: leagueTierName(toTier, tFallback) })
+    ? tFallback('rankUp.subTier', 'Up from {league}.', { league: fromName })
     : tFallback('rankUp.subLevel', 'Another qualified week in {league}.', { league: leagueTierName(toTier, tFallback) });
 
   // The road ahead.
@@ -314,7 +314,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
                         <LeagueTierIcon
                           tier={t.id}
                           level={here ? move.to.level : 1}
-                          className={`${here ? 'w-12 h-12' : 'w-7 h-7'} ${ahead ? (i === toIndex + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
+                          className={`${here ? 'w-14 h-14' : 'w-9 h-9'} ${ahead ? (i === toIndex + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
                         />
                         <span className="sr-only">{leagueTierName(t, tFallback)}</span>
                       </li>

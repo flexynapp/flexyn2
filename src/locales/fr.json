@@ -5495,7 +5495,7 @@
   "rankUp.promoted": "Promotion",
   "rankUp.scoreOf": "{score} sur {floor}",
   "rankUp.subLevel": "Encore une semaine qualifiée dans la {league}.",
-  "rankUp.subTier": "Votre Force vous a valu la {league}.",
+  "rankUp.subTier": "Vous montez depuis la {league}.",
   "rankUp.top": "C’est la ligue la plus haute. Tenez-la.",
   "rankUp.viewLeague": "Voir le classement",
   "readiness.action.Depleted": "Prenez un jour de repos. Sommeil et protéines.",

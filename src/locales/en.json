@@ -5511,7 +5511,7 @@
   "rankUp.promoted": "Promoted",
   "rankUp.scoreOf": "{score} of {floor}",
   "rankUp.subLevel": "Another qualified week in {league}.",
-  "rankUp.subTier": "Your Strength Score earned you {league}.",
+  "rankUp.subTier": "Up from {league}.",
   "rankUp.top": "This is the top league. Hold it.",
   "rankUp.viewLeague": "View standings",
   "readiness.action.Depleted": "Take a rest day. Sleep + protein.",
