@@ -33,6 +33,7 @@ import * as hubPostViews from '@/lib/data/hubPostViews';
 import ShareSheetModal from './ShareSheetModal';
 import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
 import { getLootTitleById } from '@/lib/lootTitles';
+import { RARITY } from '@/lib/lootCatalog';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -799,6 +800,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       await hubPosts.update(post.id, { body: trimmed, edited_at: new Date().toISOString() });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       queryClient.invalidateQueries({ queryKey: ['hubProfilePosts'] });
+      queryClient.invalidateQueries({ queryKey: ['hubProfilePostCount'] });
       toast.success(tFallback('hub.post.editSaved', 'Post updated'));
       setEditMode(false);
     } catch (err) {
@@ -985,16 +987,16 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               if (!title) return null;
               return (
                 <>
+                  {/* Same treatment as on the profile: the name in its rarity
+                      colour, sentence case, no emoji and no pill. */}
                   <span
-                    className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                    style={{
-                      background: 'hsl(var(--primary) / 0.12)',
-                      color: 'hsl(var(--primary))',
-                    }}
+                    className="font-semibold shrink-0 rarity-ink"
+                    style={{ '--rarity': (RARITY[title.rarity] ?? RARITY.common)?.color }}
                     title={title.description}
                   >
-                    {title.emoji} {title.name}
+                    {title.name}
                   </span>
+                  <span aria-hidden="true">·</span>
                 </>
               );
             })()}

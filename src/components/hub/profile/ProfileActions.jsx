@@ -96,6 +96,8 @@ export default function ProfileActions({
   onMute,
   onUnmute,
   onBlock,
+  onUnblock,
+  isBlocked = false,
   isMuted = false,
   onToggleTrophyVisibility,
   isPrivate = false,
@@ -124,8 +126,8 @@ export default function ProfileActions({
           fill rather than an outline, because a row of hairline pills was
           the loudest generated-UI tell on the old header. Follow is the
           only primary; everything else is secondary on purpose. */}
-      <div className="flex items-center gap-2 w-full">
-        {isSelf ? (
+      <div className={`flex items-center gap-2 w-full ${isBlocked ? 'justify-end' : ''}`}>
+        {isBlocked ? null : isSelf ? (
           <>
             <button
               type="button"
@@ -307,14 +309,22 @@ export default function ProfileActions({
                         onSelect={onMute}
                       />
                     )}
-                {onBlock && (
-                  <MenuItem
-                    icon={Ban}
-                    iconClass="text-destructive"
-                    label={tFallback('hub.profile.block', 'Block')}
-                    onSelect={onBlock}
-                  />
-                )}
+                {isBlocked
+                  ? onUnblock && (
+                      <MenuItem
+                        icon={Ban}
+                        label={tFallback('hub.profile.unblock', 'Unblock')}
+                        onSelect={onUnblock}
+                      />
+                    )
+                  : onBlock && (
+                      <MenuItem
+                        icon={Ban}
+                        iconClass="text-destructive"
+                        label={tFallback('hub.profile.block', 'Block')}
+                        onSelect={onBlock}
+                      />
+                    )}
               </>
             )}
           </DropdownMenuContent>

@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { listHighlightsForUser, createHighlight, deleteHighlight } from '@/lib/data/storyHighlights';
+import { useLongPress } from '@/hooks/useLongPress';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 function NewHighlightModal({ open, onClose, onCreated }) {
   const { tFallback } = useLanguage();
@@ -75,10 +77,47 @@ function NewHighlightModal({ open, onClose, onCreated }) {
   );
 }
 
+// One album. The owner deletes it with a long press (or a right click on a
+// desktop). It used to be right click only, which an iPhone cannot do, so
+// on the phones this app ships to an album could never be removed.
+function HighlightTile({ highlight: h, isOwn, onOpen, onAskDelete }) {
+  const { tFallback } = useLanguage();
+  const longPress = useLongPress(() => onAskDelete(h), { ms: 500 });
+  return (
+    <button
+      type="button"
+      {...(isOwn ? longPress.bind : {})}
+      onClick={(e) => { if (!isOwn || longPress.consumeClick(e)) onOpen?.(h); }}
+      onContextMenu={isOwn ? (e) => { e.preventDefault(); onAskDelete(h); } : undefined}
+      className="shrink-0 flex flex-col items-center gap-1.5 group max-w-[80px] select-none [-webkit-touch-callout:none]"
+      aria-label={isOwn
+        ? tFallback('highlight.openOrHold', '{title}. Hold to delete.', { title: h.title })
+        : h.title}
+    >
+      <div className="w-16 h-16 rounded-full ring-2 ring-border group-hover:ring-primary transition-all overflow-hidden bg-secondary flex items-center justify-center">
+        {h.cover_url ? (
+          <img src={h.cover_url} alt="" className="w-full h-full object-cover pointer-events-none" loading="lazy" draggable={false} />
+        ) : (
+          <span className="font-heading font-bold text-lg text-muted-foreground" aria-hidden="true">
+            {(h.title || '?').trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+      </div>
+      {/* leading-normal, not text-micro's own 1.25. `truncate` sets
+          overflow:hidden, and at 11px a 1.25 line-height leaves the
+          glyph box taller than its container — so the tops of capitals
+          were being shaved off ("PRs" lost the tip of the P). The
+          ellipsis behaviour is unchanged; only the vertical room is. */}
+      <span className="text-micro leading-normal font-medium truncate w-full text-center">{h.title}</span>
+    </button>
+  );
+}
+
 export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [composeOpen, setComposeOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const { data: highlights = [] } = useQuery({
     queryKey: ['storyHighlights', userId],
@@ -96,8 +135,10 @@ export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
   // rail offers "New" here.
   if (highlights.length === 0) return null;
 
-  const handleDelete = async (id) => {
-    if (!confirm(tFallback("storyHighlightsRail.deleteThisHighlightAlbum", "Delete this highlight album?"))) return;
+  const handleDelete = async () => {
+    const id = pendingDelete?.id;
+    setPendingDelete(null);
+    if (!id) return;
     const res = await deleteHighlight(id);
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['storyHighlights', userId] });
@@ -129,33 +170,26 @@ export default function StoryHighlightsRail({ userId, isOwn, onOpenAlbum }) {
           </button>
         )}
         {highlights.map((h) => (
-          <button
+          <HighlightTile
             key={h.id}
-            onClick={() => onOpenAlbum?.(h)}
-            onContextMenu={isOwn ? (e) => { e.preventDefault(); handleDelete(h.id); } : undefined}
-            className="shrink-0 flex flex-col items-center gap-1.5 group max-w-[80px]"
-          >
-            <div
-              className="w-16 h-16 rounded-full ring-2 ring-border group-hover:ring-primary transition-all overflow-hidden bg-secondary flex items-center justify-center"
-              title={isOwn ? 'Right-click to delete' : undefined}
-            >
-              {h.cover_url ? (
-                <img src={h.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-              ) : (
-                <span className="font-heading font-bold text-lg text-muted-foreground" aria-hidden="true">
-                  {(h.title || '?').trim().charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            {/* leading-normal, not text-micro's own 1.25. `truncate` sets
-                overflow:hidden, and at 11px a 1.25 line-height leaves the
-                glyph box taller than its container — so the tops of capitals
-                were being shaved off ("PRs" lost the tip of the P). The
-                ellipsis behaviour is unchanged; only the vertical room is. */}
-            <span className="text-micro leading-normal font-medium truncate w-full text-center">{h.title}</span>
-          </button>
+            highlight={h}
+            isOwn={isOwn}
+            onOpen={onOpenAlbum}
+            onAskDelete={setPendingDelete}
+          />
         ))}
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        title={tFallback('storyHighlightsRail.deleteThisHighlightAlbum', 'Delete this highlight album?')}
+        description={pendingDelete?.title}
+        confirmLabel={tFallback('common.delete', 'Delete')}
+        cancelLabel={tFallback('common.cancel', 'Cancel')}
+        onConfirm={handleDelete}
+        destructive
+      />
 
       {composeOpen && (
         <NewHighlightModal
