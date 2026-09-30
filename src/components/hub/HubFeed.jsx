@@ -76,7 +76,7 @@ function PostSkeleton() {
 
 const PAGE_SIZE = 8;
 
-export default function HubFeed({ feedTab, onAuthorClick }) {
+export default function HubFeed({ feedTab, onAuthorClick, onOpenPost }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -520,7 +520,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   if (feedTab === 'activity') {
     return (
       <Suspense fallback={<div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />)}</div>}>
-        <ActivityFeed />
+        <ActivityFeed onOpenPost={onOpenPost} />
       </Suspense>
     );
   }
