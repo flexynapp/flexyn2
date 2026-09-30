@@ -5,7 +5,11 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from './hubPosts';
 import * as hubCommentLikes from './hubCommentLikes';
 
-const e = () => ownedRows('hub_comments');
+// created_by and author_email are the commenter's email, readable by anyone
+// who can see the post, so the app names its columns without them and tells
+// commenters apart by user_id.
+export const COMMENT_COLUMNS = 'id, user_id, post_id, parent_comment_id, author_name, author_avatar, content, body, likes_count, like_count, created_at, created_date, updated_at';
+const e = () => ownedRows('hub_comments', { columns: COMMENT_COLUMNS });
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -189,26 +193,4 @@ export const buildThread = (comments) => {
   }
 
   return { topLevel, repliesByParent };
-};
-
-/**
- * Cascade-delete all comments by a user, decrement post counters,
- * then purge their comment likes.
- */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const rows = await e().filter({ author_email: email }, '-created_date', 1000).catch(() => []);
-  const decrements = {};
-  for (const r of rows) {
-    if (r.post_id) decrements[r.post_id] = (decrements[r.post_id] || 0) + 1;
-  }
-  await Promise.all(rows.map(r => e().remove(r.id).catch(() => {})));
-  await Promise.all(
-    Object.entries(decrements).map(([postId, n]) =>
-      hubPosts.incrementCounter(postId, 'comment_count', -n).catch(() => {})
-    )
-  );
-  // Purge comment likes AFTER comments are deleted so counter decrements
-  // don't race against the row deletions above.
-  await hubCommentLikes.purgeForUser(email);
 };

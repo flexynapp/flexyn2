@@ -193,19 +193,21 @@ export function isPendingRequestSendBlocked(conversation, myEmail, myMessageCoun
  * The second condition is what makes this "stranger filtering" — DMs
  * from accounts you already follow skip Requests even on first send.
  *
- * @param {Array} conversations  fetched list (each with participant_emails + accepted_emails)
+ * The follow check runs on user ids (participant_ids against the ids the
+ * viewer follows): the follow graph no longer hands out emails.
+ *
+ * @param {Array} conversations  fetched list (each with participant_emails, participant_ids + accepted_emails)
  * @param {string} myEmail
- * @param {Set<string>|string[]} followingEmails  emails the viewer follows
+ * @param {Set<string>|string[]} followingIds  user ids the viewer follows
+ * @param {string} [myId]  the viewer's user id
  * @returns {{ inbox: Array, requests: Array }}
  */
-export function partitionConversations(conversations, myEmail, followingEmails) {
+export function partitionConversations(conversations, myEmail, followingIds, myId) {
   if (!Array.isArray(conversations) || !myEmail) {
     return { inbox: conversations || [], requests: [] };
   }
   const myLc = String(myEmail).toLowerCase();
-  const followSet = followingEmails instanceof Set
-    ? new Set(Array.from(followingEmails).map(e => String(e).toLowerCase()))
-    : new Set((followingEmails || []).map(e => String(e).toLowerCase()));
+  const followSet = new Set(Array.from(followingIds || []).map(String));
 
   const inbox = [];
   const requests = [];
@@ -224,7 +226,10 @@ export function partitionConversations(conversations, myEmail, followingEmails) 
     // self-DM or a transient creation state — surface it in the inbox
     // so it isn't permanently hidden. (Audit 17 #F20.)
     const isSelfOrOrphan = otherEmails.length === 0 && participantsLc.includes(myLc);
-    const followsAny = otherEmails.some(e => followSet.has(e));
+    const otherIds = Array.isArray(c.participant_ids)
+      ? c.participant_ids.map(String).filter(id => id !== String(myId))
+      : [];
+    const followsAny = otherIds.some(id => followSet.has(id));
     const accepted_by_me = accepted.includes(myLc);
     if (accepted_by_me || followsAny || isSelfOrOrphan) {
       inbox.push(c);

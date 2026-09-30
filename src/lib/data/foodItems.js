@@ -43,7 +43,10 @@
 import { supabase } from '@/api/supabaseClient';
 import { ownedRows } from './ownedRows';
 
-const rows = ownedRows('food_items');
+// created_by is the contributor's email on a row every signed-in user can
+// read, so the app names its columns without it.
+export const FOOD_COLUMNS = 'id, user_id, name, brand, barcode, serving_label, calories, protein, carbs, fat, fiber, sodium, nutrition, vitamins, created_at, created_date, updated_at';
+const rows = ownedRows('food_items', { columns: FOOD_COLUMNS });
 
 /**
  * Every record for a barcode, newest first by created_date, up to `limit`.
@@ -95,7 +98,7 @@ export const listMineForSearch = async (userId, { limit = 200 } = {}) => {
   try {
     const { data, error } = await supabase
       .from('food_items')
-      .select('*')
+      .select(FOOD_COLUMNS)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);

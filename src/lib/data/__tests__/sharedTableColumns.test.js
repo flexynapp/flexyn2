@@ -35,6 +35,14 @@ const CASES = [
   ['src/lib/data/regimens.js', 'PUBLIC_COLUMNS', 'regimens', ['created_by', 'original_author_email']],
   ['src/lib/data/gymBusinesses.js', 'FEED_POST_COLUMNS', 'gym_feed_posts', ['author_email']],
   ['src/lib/data/gymBusinesses.js', 'FEED_COMMENT_COLUMNS', 'gym_feed_comments', ['author_email']],
+  ['src/lib/data/hubFollows.js', 'FOLLOW_COLUMNS', 'hub_follows', ['follower_email', 'followee_email', 'created_by']],
+  ['src/lib/data/hubPosts.js', 'POST_COLUMNS', 'hub_posts', ['author_email', 'collaborator_emails', 'created_by']],
+  ['src/lib/data/hubComments.js', 'COMMENT_COLUMNS', 'hub_comments', ['author_email', 'created_by']],
+  ['src/lib/data/hubCommentLikes.js', 'LIKE_COLUMNS', 'hub_comment_likes', ['created_by']],
+  ['src/lib/data/stories.js', 'STORY_COLUMNS', 'stories', ['user_email']],
+  ['src/lib/data/statusNotes.js', 'NOTE_COLUMNS', 'status_notes', ['user_email']],
+  ['src/lib/data/foodItems.js', 'FOOD_COLUMNS', 'food_items', ['created_by']],
+  ['src/lib/data/templates.js', 'TEMPLATE_COLUMNS', 'workout_templates', ['created_by']],
 ];
 
 describe.each(CASES)('%s %s', (file, name, table, banned) => {
@@ -70,6 +78,8 @@ describe('tables moving to column-level SELECT grants', () => {
     'story_highlights', 'regimen_reviews',
     'regimens', 'user_trophies', 'gym_members',
     'gym_feed_posts', 'gym_feed_comments',
+    'hub_follows', 'hub_posts', 'hub_comments', 'hub_comment_likes',
+    'stories', 'status_notes', 'food_items', 'workout_templates',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));
@@ -139,4 +149,21 @@ it('trophies are looked up by user id, never by email', () => {
 it('the gym feed tells your own posts apart by id, not email', () => {
   const src = read('src/components/gyms/GymFeedTab.jsx');
   expect(src).not.toMatch(/author_email/);
+});
+
+it('no app code reads a follow, post, comment or story email', () => {
+  const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
+    .split('\n').filter((f) => f && !f.includes('__tests__'));
+  const offenders = [];
+  for (const f of files) {
+    const src = read(f);
+    if (/\.(follower_email|followee_email|collaborator_emails)\b/.test(src)) offenders.push(f);
+    if (/(post|comment|original|story|note)\??\.(author_email|user_email)\b/.test(src)) offenders.push(f);
+  }
+  expect(offenders).toEqual([]);
+});
+
+it('a copied template never takes its author name from an email', () => {
+  const src = read('src/lib/data/templates.js');
+  expect(src).not.toMatch(/created_by[^\n]*split\('@'\)/);
 });

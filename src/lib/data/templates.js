@@ -4,7 +4,10 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { ownedRows } from './ownedRows';
 import { blankCardioEntry } from './workoutCardio';
 
-const rows = ownedRows('workout_templates');
+// created_by is the owner's email and public templates are readable by every
+// signed-in user, so the app names its columns without it.
+export const TEMPLATE_COLUMNS = 'id, user_id, name, description, exercises, is_public, copy_count, original_template_id, original_author_username, author_username, created_at, created_date, updated_at';
+const rows = ownedRows('workout_templates', { columns: TEMPLATE_COLUMNS });
 
 export const list = (userId) =>
   rows.filter({ user_id: userId }, '-created_date');
@@ -141,8 +144,9 @@ export const copyTemplate = async (original, user) => {
     is_public: false,
     copy_count: 0,
     original_template_id: original.id,
-    original_author_username:
-      original.author_username || (original.created_by || '').split('@')[0] || 'Unknown',
+    // Never the email's local part: that printed the author's address on
+    // every copy of a template whose author had no username saved.
+    original_author_username: original.author_username || null,
   });
   // Use security-definer RPC to bypass RLS on cross-user copy_count update
   await supabase.rpc('increment_copy_count', { p_table: 'workout_templates', p_id: original.id }).catch(() => {});

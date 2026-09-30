@@ -1,19 +1,11 @@
 // src/lib/data/__tests__/hubFollows.test.js
 //
-// Covers the SHAPE of what the follow-graph readers return, which is the
-// thing that has broken twice.
-//
-// listFollowing() returns Array<string>. Two separate surfaces treated it
-// as an array of hub_follows ROWS and read `.followee_email` / `.username`
-// off each entry — always undefined, so both silently saw an empty follow
-// graph. In HubMessages that mis-filed every friend's DM into Requests
-// (audit 10 #1); in NewGroupDMModal it emptied the people picker outright,
-// so group DMs could not be created at all.
-//
-// listFollowingPairs() exists for the second case: a picker needs the id
-// (to resolve a username off public_profiles) AND the email (what
-// create_group_conversation takes), and since mig 220 dropped email from
-// the view, neither can be derived from the other.
+// The follow graph is public, so its email columns handed anyone the
+// address of everyone who follows or is followed. The app now names its
+// columns (no email, no created_by) and matches only on user ids; these
+// tests pin that, because the old email-keyed readers broke twice over
+// the shape they returned and would break a third time as a 42501 once
+// the columns are revoked.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -56,72 +48,41 @@ beforeEach(() => {
   _followState.filterReturn = [];
 });
 
-describe('listFollowing', () => {
-  it('returns bare emails — NOT row objects', async () => {
-    _followState.filterReturn = [
-      { followee_email: 'a@x.com', followee_id: 'id-a' },
-      { followee_email: 'b@x.com', followee_id: 'id-b' },
-    ];
-    const list = await hubFollows.listFollowing('me@x.com');
-    expect(list).toEqual(['a@x.com', 'b@x.com']);
-    // The contract a caller must not get wrong: there is no `.email` to read.
-    expect(list.every(item => typeof item === 'string')).toBe(true);
-    expect(list[0].followee_email).toBeUndefined();
+const A = '11111111-1111-4111-8111-111111111111';
+const B = '22222222-2222-4222-8222-222222222222';
+
+describe('the follow graph is read by id only', () => {
+  it('names its columns, and none of them is an email', () => {
+    expect(hubFollows.FOLLOW_COLUMNS).not.toMatch(/email|created_by/);
+    expect(hubFollows.FOLLOW_COLUMNS).toMatch(/follower_id/);
+    expect(hubFollows.FOLLOW_COLUMNS).toMatch(/followee_id/);
   });
 
-  it('returns [] without querying when the email is missing', async () => {
-    expect(await hubFollows.listFollowing(null)).toEqual([]);
-    expect(_followState.filterCalls).toHaveLength(0);
-  });
-});
-
-describe('listFollowingPairs', () => {
-  it('returns { id, email } pairs a picker can both render and address', async () => {
-    _followState.filterReturn = [
-      { followee_email: 'a@x.com', followee_id: 'id-a' },
-      { followee_email: 'b@x.com', followee_id: 'id-b' },
-    ];
-    const pairs = await hubFollows.listFollowingPairs('me@x.com');
-    expect(pairs).toEqual([
-      { id: 'id-a', email: 'a@x.com' },
-      { id: 'id-b', email: 'b@x.com' },
-    ]);
+  it('has no email-keyed readers left', () => {
+    expect(hubFollows.listFollowing).toBeUndefined();
+    expect(hubFollows.listFollowingPairs).toBeUndefined();
+    expect(hubFollows.listFollowers).toBeUndefined();
   });
 
-  it('reads the caller\'s own follow rows, keyed by follower_email', async () => {
-    _followState.filterReturn = [];
-    await hubFollows.listFollowingPairs('Me@X.com');
-    expect(_followState.filterCalls[0].conditions).toEqual({ follower_email: 'Me@X.com' });
+  it('listFollowingIds reads my own rows by follower_id', async () => {
+    _followState.filterReturn = [{ followee_id: B }];
+    expect(await hubFollows.listFollowingIds(A)).toEqual([B]);
+    expect(_followState.filterCalls[0].conditions).toEqual({ follower_id: A });
   });
 
-  it('lower-cases the email so membership checks line up', async () => {
-    _followState.filterReturn = [{ followee_email: 'MixedCase@X.com', followee_id: 'id-a' }];
-    const pairs = await hubFollows.listFollowingPairs('me@x.com');
-    expect(pairs[0].email).toBe('mixedcase@x.com');
+  it('isFollowing matches on both ids', async () => {
+    _followState.filterReturn = [{ id: 'f1' }];
+    expect(await hubFollows.isFollowing(A, B)).toBe(true);
+    expect(_followState.filterCalls[0].conditions).toEqual({ follower_id: A, followee_id: B });
   });
 
-  it('keeps a row whose id has not been backfilled — the email still addresses them', async () => {
-    _followState.filterReturn = [{ followee_email: 'a@x.com', followee_id: null }];
-    const pairs = await hubFollows.listFollowingPairs('me@x.com');
-    expect(pairs).toEqual([{ id: null, email: 'a@x.com' }]);
-  });
-
-  it('drops a row with no email, since it cannot be added to a group', async () => {
-    _followState.filterReturn = [
-      { followee_email: null, followee_id: 'id-a' },
-      { followee_email: 'b@x.com', followee_id: 'id-b' },
-    ];
-    const pairs = await hubFollows.listFollowingPairs('me@x.com');
-    expect(pairs).toEqual([{ id: 'id-b', email: 'b@x.com' }]);
-  });
-
-  it('returns [] without querying when the email is missing', async () => {
-    expect(await hubFollows.listFollowingPairs(undefined)).toEqual([]);
+  it('isFollowing refuses an email instead of filtering on one', async () => {
+    expect(await hubFollows.isFollowing(A, 'them@x.com')).toBe(false);
     expect(_followState.filterCalls).toHaveLength(0);
   });
 
-  it('returns [] rather than throwing when the query fails', async () => {
-    _followState.filterError = new Error('network');
-    expect(await hubFollows.listFollowingPairs('me@x.com')).toEqual([]);
+  it('getMutualFollowSince refuses an email instead of filtering on one', async () => {
+    expect(await hubFollows.getMutualFollowSince('me@x.com', B)).toBeNull();
+    expect(_followState.filterCalls).toHaveLength(0);
   });
 });
