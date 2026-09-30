@@ -7,6 +7,7 @@ import { compressImage } from '@/lib/imageCompress';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { reportError } from '@/lib/reportError';
 import * as workouts from '@/lib/data/workouts';
+import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from '@/lib/data/regimens';
 
 // Display value of one XP-fuel claim. The AUTHORITATIVE number is the
 // constant inside claim_crew_xp_fuel (migration 298) — this is only what
@@ -440,7 +441,9 @@ export async function equipRegimen(regimenId, user) {
       original_template_id:    source.id,
       original_author_username: authorUsername,
     })
-    .select()
+    // Named columns: regimens grants SELECT column by column, and '*' would
+    // ask for the owner's email.
+    .select(OWN_REGIMEN_COLUMNS)
     .single();
   if (copyError) throw copyError;
 

@@ -23,7 +23,15 @@ function parseSort(sort) {
   return { column: desc ? sort.slice(1) : sort, ascending: !desc };
 }
 
-export function ownedRows(table) {
+/**
+ * `columns` is the select list every read and every returned row uses. It
+ * stays '*' unless the table grants SELECT column by column (other people's
+ * emails are not readable there), where '*' is refused with 42501.
+ */
+export function ownedRows(table, { columns = '*' } = {}) {
+  // What a write hands back. '*' keeps the bare .select() these statements
+  // have always sent.
+  const returning = (q) => (columns === '*' ? q.select() : q.select(columns));
   return {
     /** Rows matching a plain equality map. An array value becomes IN. */
     async filter(conditions = {}, sort, limit = 1000) {
@@ -36,7 +44,7 @@ export function ownedRows(table) {
           return [];
         }
       }
-      let q = supabase.from(table).select('*');
+      let q = supabase.from(table).select(columns);
       Object.entries(conditions).forEach(([k, v]) => {
         if (v === undefined || v === null) return;
         q = Array.isArray(v) ? q.in(k, v) : q.eq(k, v);
@@ -50,7 +58,7 @@ export function ownedRows(table) {
 
     /** One row by id, or null. */
     async get(id) {
-      const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+      const { data, error } = await supabase.from(table).select(columns).eq('id', id).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -74,14 +82,14 @@ export function ownedRows(table) {
         ...(email        ? { created_by: email }       : {}),
         ...(authUser?.id ? { user_id:    authUser.id } : {}),
       };
-      const { data, error } = await supabase.from(table).insert(enriched).select().single();
+      const { data, error } = await returning(supabase.from(table).insert(enriched)).single();
       if (error) throw error;
       return data;
     },
 
     /** Patch one row by id and return it. */
     async update(id, patch) {
-      const { data, error } = await supabase.from(table).update({ ...patch }).eq('id', id).select().single();
+      const { data, error } = await returning(supabase.from(table).update({ ...patch }).eq('id', id)).single();
       if (error) throw error;
       return data;
     },
