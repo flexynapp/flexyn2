@@ -1456,6 +1456,22 @@ export default function Workout() {
     setActiveSessionId(id);
     setSelectedRegimen(regimen);
     const exList = (regimen.exercises || []).map(ex => {
+      // A run in a regimen (the starter plan's Easy Run, Tempo Run...) starts
+      // as the same cardio entry "Add cardio" makes, so it gets distance and
+      // time fields. Rebuilt as a lift it became a "Running 1 × 1" row of
+      // weight and reps, four of them for a 10K plan, each named "Running".
+      if (ex.kind === 'cardio') {
+        const a = CARDIO_ACTIVITIES.find(x => x.name === ex.name || x.id === ex.activity) || CARDIO_ACTIVITIES[1];
+        return {
+          kind: 'cardio',
+          activity: a.id,
+          name: a.name,
+          displayName: ex.displayName || a.name,
+          detail: ex.detail || '',
+          segments: [{ duration_s: null, distance_m: null }],
+          sets: [],
+        };
+      }
       // Seed the set rows for this exercise. seedSetsForExercise honors an
       // explicit sets[] array (built-in programs / cloned templates) so
       // programs don't collapse to 3 blank sets, and falls back to the

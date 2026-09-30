@@ -12,7 +12,7 @@ const DRAFT = {
   goal: ['strength', 'mobility'],
   level: 'newbie',
   days: ['mon', 'wed', 'fri'],
-  stats: { age: 34, gender: 'female', weightKg: 68, heightCm: 170 },
+  stats: { age: 34, gender: 'female', weightKg: 68, heightCm: 170, userTouchedAge: true, userTouchedWeight: true },
   onboardingInjuries: [
     { muscleGroup: 'Shoulders', severity: 'serious' },
     { muscleGroup: 'Legs', severity: 'mild' },
@@ -32,6 +32,19 @@ describe('buildOnboardingContext', () => {
     });
     expect(ctx.profile.goals).toEqual(['build strength', 'move better']);
     expect(ctx.profile.bodyweightLb).toBe(150); // 68 kg
+  });
+
+  it('leaves out the placeholder age and weight nobody entered', () => {
+    const ctx = buildOnboardingContext({ ...DRAFT, stats: { age: 26, gender: 'female', weightKg: 75 } });
+    expect(ctx.profile.age).toBeUndefined();
+    expect(ctx.profile.bodyweightLb).toBeUndefined();
+  });
+
+  it('names the level the plan was built at, not the raw pick', () => {
+    // A newbie who aces the lift check gets a plan built a level up, and the
+    // coach has to describe that plan.
+    const strong = { ...DRAFT, assessment: { squat_bw15: 'yes', pullups_10: 'yes' } };
+    expect(buildOnboardingContext(strong).profile.skillLevel).toBe('consistent');
   });
 
   it('lists every injury, because the plan now excludes every severity', () => {

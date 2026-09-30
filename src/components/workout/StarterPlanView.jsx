@@ -72,7 +72,9 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
     <div className="space-y-2.5">
       <Section
         title={tFallback("starterPlanView.cardioPlan", "Cardio Plan")}
-        subtitle={`${cardio.length} running session${cardio.length === 1 ? '' : 's'} / week`}
+        subtitle={cardio.length === 1
+          ? tFallback('starterPlanView.runsOne', '1 run a week')
+          : tFallback('starterPlanView.runsMany', '{n} runs a week', { n: cardio.length })}
         Icon={Footprints}
         hue="217 91% 60%"
         items={cardio}
@@ -97,7 +99,9 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
 
       <Section
         title={tFallback("starterPlanView.strengthPlan", "Strength Plan")}
-        subtitle={`${strength.length} lift${strength.length === 1 ? '' : 's'}`}
+        subtitle={strength.length === 1
+          ? tFallback('starterPlanView.liftsOne', '1 lift')
+          : tFallback('starterPlanView.liftsMany', '{n} lifts', { n: strength.length })}
         Icon={Dumbbell}
         hue="26 95% 56%"
         items={strength}

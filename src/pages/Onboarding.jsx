@@ -242,7 +242,7 @@ function StepHeader({ step, total, onBack }) {
           jump from, because the user has not seen the bar anywhere else
           yet. One silent change on entry beats a permanently lopsided row. */}
       {canBack && (
-        /* No backdrop-blur, and `rounded-lg` rather than `rounded-xl`.
+        /* No backdrop-blur, and `rounded-lg` rather than `rounded-lg`.
            CLAUDE.md bans glassmorphism outright and pins the radius set to
            sm/lg/2xl/full — the carousel below already had its backdrop-filter
            removed citing that same rule, and this button (which renders on
@@ -325,9 +325,18 @@ function ProgressSwoosh({ step, total }) {
 function KineticHeading({ text, accentWord }) {
   const reduce = useReducedMotion();
   const words = text.split(' ');
+  // Each step mounts its own heading. The Continue button that was pressed
+  // has just unmounted, so focus fell to <body> and a screen reader said
+  // nothing about the new step. Move it here, unless the person is already
+  // in a field.
+  const headingRef = useRef(null);
+  useEffect(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <div className="mb-2">
-      <h1 className="font-hero text-foreground m-0"
+      <h1 ref={headingRef} tabIndex={-1} className="font-hero text-foreground m-0 outline-none"
         style={{ fontSize: 'calc(var(--fluid-heading) * 1.1)' }}>
         {/* A real space between the word spans, not a margin: with only a
             margin the heading's text was "Whatareyouherefor?", which is what
@@ -915,7 +924,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                         <button type="button" className="w-full min-h-11 px-3 text-start text-body"
                           onClick={() => { addFromSearch(e.name); setLiftQuery(''); }}>
                           {e.name}
-                          <span className="ms-2 text-micro text-muted-foreground">{e.muscles.join(', ')}</span>
+                          <span className="ms-2 text-micro text-muted-foreground">{e.muscles.map((m) => tFallback(String(m).toLowerCase(), m)).join(', ')}</span>
                         </button>
                       </li>
                     ))}
@@ -1386,7 +1395,7 @@ function NumberReel({ value }) {
 /* ═══════════════════════════════════════════════════════════════
    STEP: AGE — horizontal drag wheel
 ═══════════════════════════════════════════════════════════════ */
-function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
+function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, usernameChecking = false, onNext, onBack, step, total }) {
   const { tFallback } = useLanguage();
   const age = stats.age;
   // Same sticky flag as the weight step: an untouched 26 is the default,
@@ -1466,7 +1475,10 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   // and BMR, nobody ever saw a consequence; they just got a plan calibrated on
   // a guess. Declining is one of the three options, so this asks for a choice,
   // not a disclosure.
-  const canNext = canLeaveAboutStep({ username, usernameError, gender });
+  // And not while the availability check is still out: a quick Continue used
+  // to beat it, so a taken name surfaced only at the final save, which sent
+  // the person from the reveal all the way back here.
+  const canNext = canLeaveAboutStep({ username, usernameError, gender }) && !usernameChecking;
 
   return (
     <div className="flex flex-col h-full">
@@ -1486,12 +1498,15 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
         {/* Username */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           style={{ marginBottom: 'var(--fluid-section)' }}>
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+          <label htmlFor="onboarding-username" className="block font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
             {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
-          </div>
+          </label>
           <input
+            id="onboarding-username"
             type="text"
             value={username}
+            aria-invalid={usernameError ? true : undefined}
+            aria-describedby={usernameError || stripWarning ? 'onboarding-username-note' : undefined}
             onChange={e => onUsernameChangeSanitized(e.target.value)}
             // Pressing the iOS "Next" / "Done" key on the on-screen
             // keyboard now advances the step when allowed. Previously
@@ -1512,11 +1527,11 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             spellCheck={false}
             inputMode="text"
             enterKeyHint="next"
-            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            className="w-full h-12 rounded-lg border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
-          {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
+          {usernameError && <p id="onboarding-username-note" role="alert" className="text-xs text-destructive mt-1">{usernameError}</p>}
           {!usernameError && stripWarning && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p id="onboarding-username-note" className="text-xs text-muted-foreground mt-1">
               {tFallback('onboarding.about.usernameStripped', 'Letters, numbers and underscores only, capitals are auto-lowered.')}
             </p>
           )}
@@ -1712,6 +1727,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                   key={o.id}
                   type="button"
                   onClick={() => setGender(o.id)}
+                  aria-pressed={gender === o.id}
                   className="min-h-11 px-2 py-2 rounded-lg border text-caption font-semibold leading-tight transition-colors"
                   style={{
                     borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
@@ -1732,7 +1748,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               page, so a bare disabled "Continue" gave the user nothing to
               act on — they could see it was dead and not why. */}
           {!canNext
-            ? (usernameError
+            ? (usernameChecking && !usernameError && username.trim().length >= MIN_USERNAME_LENGTH && gender
+                ? tFallback('onboarding.about.ctaCheckingUsername', 'Checking username')
+                : usernameError
                 ? tFallback('onboarding.about.ctaBadUsername', 'Pick a different username')
                 : username.trim().length < MIN_USERNAME_LENGTH
                   ? tFallback('onboarding.about.ctaNoUsername', 'Choose a username to continue')
@@ -2399,12 +2417,12 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             const selected = days.includes(i);
             const label = fmtDate(seed, { weekday: 'short', timeZone: 'UTC' });
             return (
-              <button key={i} onClick={() => toggle(i)}
+              <button key={i} type="button" aria-pressed={selected} onClick={() => toggle(i)}
                 // min-h-11 + the tighter grid gap above lifts these from
                 // 39x50 to >=44 wide. Seven adjacent targets where a mis-tap
                 // silently selects a DIFFERENT day is the worst hit-target
                 // risk in onboarding — a miss here is wrong, not just missed.
-                className="flex flex-col items-center justify-center gap-1 min-h-11 py-2.5 rounded-xl border cursor-pointer transition-all font-medium"
+                className="flex flex-col items-center justify-center gap-1 min-h-11 py-2.5 rounded-lg border cursor-pointer transition-all font-medium"
                 style={{
                   borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                   background: selected ? 'hsl(var(--primary))' : 'hsl(var(--card))',
@@ -2435,8 +2453,8 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             {TIMES.map(t => {
               const active = selectedTimes.includes(t.id);
               return (
-                <button key={t.id} onClick={() => toggleTime(t.id)}
-                  className="py-3 rounded-xl border text-sm font-medium cursor-pointer transition-all"
+                <button key={t.id} type="button" aria-pressed={active} onClick={() => toggleTime(t.id)}
+                  className="py-3 rounded-lg border text-sm font-medium cursor-pointer transition-all"
                   style={{
                     borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                     background: active ? 'hsl(var(--primary) / 0.07)' : 'hsl(var(--card))',
@@ -2553,7 +2571,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                   key={i}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{muscleLabel(inj.muscleGroup)}</span>
@@ -2586,7 +2604,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
             friendly hint so the form doesn't just silently vanish.
             (Audit 13 #26.) */}
         {value.length >= 5 && (
-          <p className="text-xs text-muted-foreground rounded-xl border border-border bg-card px-3 py-2 mt-3">
+          <p className="text-xs text-muted-foreground rounded-lg border border-border bg-card px-3 py-2 mt-3">
             {tFallback('onboarding.injury.capReached', "You've logged the max of 5. Add more later from Profile → My Injuries.")}
           </p>
         )}
@@ -2602,6 +2620,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                     key={m}
                     type="button"
                     onClick={() => setPendingMuscle(p => p === m ? '' : m)}
+                    aria-pressed={pendingMuscle === m}
                     className={[
                       'px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
                       pendingMuscle === m
@@ -2625,6 +2644,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                     key={s.id}
                     type="button"
                     onClick={() => setPendingSeverity(s.id)}
+                    aria-pressed={pendingSeverity === s.id}
                     className={[
                       'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
                       pendingSeverity === s.id ? s.color : 'border-border text-muted-foreground',
@@ -2641,7 +2661,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
               onClick={addEntry}
               disabled={!pendingMuscle}
               className={[
-                'w-full py-2 rounded-xl text-sm font-bold border transition-all',
+                'w-full py-2 rounded-lg text-sm font-bold border transition-all',
                 pendingMuscle
                   ? 'bg-secondary text-foreground border-border hover:border-primary/40'
                   : 'bg-secondary/40 text-muted-foreground/50 border-border/40 cursor-not-allowed',
@@ -2764,7 +2784,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
           onClick={() => setBrowsing(true)}
           // min-h-11: this measured 42px, and it is the escape hatch for
           // anyone the radius search can't serve. (Onboarding polish #5)
-          className="w-full min-h-11 mb-3 py-2.5 rounded-xl text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
+          className="w-full min-h-11 mb-3 py-2.5 rounded-lg text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
         >
           {/* The one hardcoded user-facing string left in the flow — every
               other one on this step goes through tFallback. (Onboarding
@@ -3390,7 +3410,22 @@ export default function Onboarding() {
   const { tFallback, language } = useLanguage();
   const { setWeightUnit } = useWeightUnit();
 
-  const [stepIdx, setStepIdx] = useState(0);
+  // The step is kept per user beside the draft, by NAME so a reorder of
+  // STEPS cannot land someone on the wrong screen. Without it, closing the
+  // app or a reload on the ninth step kept every answer and sent the person
+  // back to the goal screen to tap through all of them again. The loader and
+  // reveal are never restored: they run the save, which needs a fresh visit.
+  const [stepIdx, setStepIdx] = useState(() => {
+    if (!user?.id) return 0;
+    try {
+      // No draft means no answers to come back to, so start at the top.
+      if (!localStorage.getItem(`fn-onboarding-draft-v1.${user.id}`)) return 0;
+      const idx = STEPS.indexOf(localStorage.getItem(`fn-onboarding-step-v1.${user.id}`) || '');
+      return idx >= 1 && idx <= STEPS.indexOf('home_gym') ? idx : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [direction, setDirection] = useState(1);
   // The loader's exit flash lives here, not in the step, because it has to
   // outlive the step it belongs to and cover the reveal's first frame.
@@ -3440,7 +3475,10 @@ export default function Onboarding() {
       age: 26,
       heightCm: 178, heightIn: 70,
       weightKg: 75, weightLb: 165,
-      heightUnit: 'in', weightUnit: 'lb',
+      // Spanish and French speakers mostly live where people measure in
+      // centimetres and kilograms. Both still switch with one tap.
+      heightUnit: language && language !== 'en' ? 'cm' : 'in',
+      weightUnit: language && language !== 'en' ? 'kg' : 'lb',
     },
     days: [],
     // Array — multi-select preferred training times. See DaysStep for
@@ -3509,7 +3547,15 @@ export default function Onboarding() {
     try { localStorage.removeItem('fn-onboarding-draft-v1.anon'); } catch { /* private mode */ }
   }, []);
 
+  useEffect(() => {
+    if (!user?.id || stepIdx < 1) return;
+    try {
+      localStorage.setItem(`fn-onboarding-step-v1.${user.id}`, STEPS[Math.min(stepIdx, STEPS.indexOf('home_gym'))]);
+    } catch { /* private mode / quota */ }
+  }, [stepIdx, user?.id]);
+
   const [usernameError, setUsernameError] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
 
   // Pre-compute the starter regimen the user will see on the Reveal step
   // AND the one we'll actually persist on submit — same object both places,
@@ -3534,11 +3580,15 @@ export default function Onboarding() {
     equipment: data.sharpen?.equipment,
     sessionMinutes: data.sharpen?.sessionMinutes,
     injuries: data.onboardingInjuries || [],
-    age: data.stats?.age,
+    // Only what the person actually set. The wheels open on defaults (26,
+    // 75 kg, 178 cm) that buildProfilePayload deliberately does not save,
+    // so building the plan from them would size a 60 year old's plan for a
+    // 26 year old while the profile says the age is unknown.
+    age: data.stats?.userTouchedAge ? data.stats.age : undefined,
     gender: data.stats?.gender,
-    weightKg: data.stats?.weightKg,
-    heightCm: data.stats?.heightCm,
-  }), [data.goal, data.level, data.days, data.assessment, data.sharpen, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]);
+    weightKg: data.stats?.userTouchedWeight ? data.stats.weightKg : undefined,
+    heightCm: data.stats?.userTouchedHeight ? data.stats.heightCm : undefined,
+  }), [data.goal, data.level, data.days, data.assessment, data.sharpen, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm, data.stats?.userTouchedAge, data.stats?.userTouchedWeight, data.stats?.userTouchedHeight]);
   const previewRegimen = useMemo(() => buildStarterRegimen(starterInputs), [starterInputs]);
   // The level and length the plan is really built at (the lift check can
   // promote the level), for the loader and the reveal to name.
@@ -3739,9 +3789,14 @@ export default function Onboarding() {
     // availability: the user sailed through the remaining steps and found out
     // it was taken when the final save came back 23505, which bounced them
     // from the reveal screen all the way to the age step. (Audit 18 #12.)
-    if (u.length < MIN_USERNAME_LENGTH) return;
-    if (usernameError) return; // already showing a different validation error
+    if (u.length < MIN_USERNAME_LENGTH || usernameError) {
+      // A newer keystroke supersedes any check still out.
+      usernameCheckSeqRef.current += 1;
+      setUsernameChecking(false);
+      return;
+    }
     const seq = ++usernameCheckSeqRef.current;
+    setUsernameChecking(true);
     const timer = setTimeout(async () => {
       try {
         // Cross-user read (other accounts' usernames) — goes through the
@@ -3769,6 +3824,9 @@ export default function Onboarding() {
         setUsernameError(tFallback('onboarding.error.usernameTaken', 'That username is already taken.'));
       } catch { /* network/RLS — fall through silently, the final-submit
                   check will still catch the duplicate via 23505 */ }
+      finally {
+        if (seq === usernameCheckSeqRef.current) setUsernameChecking(false);
+      }
     }, 350);
     return () => clearTimeout(timer);
   }, [data.username, user?.id, usernameError]);
@@ -3904,6 +3962,14 @@ export default function Onboarding() {
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
             toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content. Pick another.'));
+          } else if (isReservedUsernameError(coreErr)) {
+            // Same as tier 1: a reserved handle is a pick-again, not an
+            // outage, so it must not read as "Could not save (P0001)".
+            const msg = tFallback('onboarding.error.usernameReserved', 'That username is reserved. Pick another.');
+            setUsernameError(msg);
+            const ageIdx = STEPS.indexOf('age');
+            if (ageIdx >= 0) goTo(ageIdx);
+            toast.error(msg);
           } else {
             const looksOffline =
               !navigator.onLine ||
@@ -4072,7 +4138,10 @@ export default function Onboarding() {
         }
 
         // Clear the persisted draft now that the profile is in the DB.
-        try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch { /* ignore */ }
+        try {
+          localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+          if (user?.id) localStorage.removeItem(`fn-onboarding-step-v1.${user.id}`);
+        } catch { /* ignore */ }
         navigate('/dashboard', { replace: true });
       }
     }
@@ -4206,6 +4275,7 @@ export default function Onboarding() {
                 <AgeStep step={formStep} total={TOTAL_FORM}
                   username={data.username} onUsernameChange={handleUsernameChange}
                   usernameError={usernameError}
+                  usernameChecking={usernameChecking}
                   stats={data.stats} onChange={s => setData(d => ({ ...d, stats: s }))}
                   onNext={next} onBack={back} />
               )}

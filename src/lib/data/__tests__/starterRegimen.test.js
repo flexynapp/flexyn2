@@ -589,3 +589,19 @@ describe('assessment tiers', () => {
     expect(legacyFoundation.description).toMatch(/returning/i);
   });
 });
+
+describe('buildStarterRegimen: runs fit the training days', () => {
+  const runs = (r) => r.exercises.filter((e) => e.kind === 'cardio').map((e) => e.displayName);
+  it('gives one run to someone who trains once a week, the easy one', () => {
+    const r = buildStarterRegimen({ goals: ['speed', 'endurance'], level: 'consistent', daysCount: 1, cardioEvent: 'half' });
+    expect(runs(r)).toEqual(['Easy Run']);
+  });
+  it('keeps the long run over intervals on two days', () => {
+    const r = buildStarterRegimen({ goals: ['speed', 'endurance'], level: 'consistent', daysCount: 2, cardioEvent: 'marathon' });
+    expect(runs(r)).toEqual(['Easy Run', 'Long Run']);
+  });
+  it('leaves a four day week alone', () => {
+    const r = buildStarterRegimen({ goals: ['speed', 'endurance'], level: 'consistent', daysCount: 4, cardioEvent: 'half' });
+    expect(runs(r)).toHaveLength(4);
+  });
+});

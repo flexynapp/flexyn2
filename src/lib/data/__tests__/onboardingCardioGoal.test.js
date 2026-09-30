@@ -34,4 +34,15 @@ describe('ensureOnboardingCardioGoal', () => {
     expect(p).toBeNull();
     expect(create).not.toHaveBeenCalled();
   });
+
+  it('keeps a real current time in the notes, with a spoken distance', async () => {
+    const p = await ensureOnboardingCardioGoal({ user, goals: ['endurance'], sharpen: { cardioEvent: '10k', cardioCurrent: { distance: '1mi', timeSec: 480 } } });
+    expect(p.notes).toContain('Current 1 mile: 8:00');
+  });
+
+  it('drops a current time the plan rejected as a typo', async () => {
+    const p = await ensureOnboardingCardioGoal({ user, goals: ['endurance'], sharpen: { cardioEvent: '10k', cardioCurrent: { distance: '1mi', timeSec: 5 } } });
+    expect(p.notes).not.toContain('Current');
+    expect(p.notes).toContain('Set from onboarding');
+  });
 });

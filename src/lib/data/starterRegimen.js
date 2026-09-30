@@ -354,7 +354,7 @@ function cardioSession(displayName, detail, { meters = null, minutes = null } = 
 // runningTargets(current5kSec)) is present, each session carries the runner's
 // real pace for that zone — otherwise the detail stays effort-based (which is
 // what onboarding/tests without a known 5K time expect).
-function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
+function buildCardioSessions({ event, speed, distance, level, targets, days } = {}) {
   const scale = CARDIO_EVENT_SCALE[event] || CARDIO_EVENT_SCALE.general;
   const factor = (level === 'newbie' || level === 'returning') ? 0.7
     : level === 'advanced' ? 1.15 : 1;
@@ -384,6 +384,15 @@ function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
   if (sessions.length < 2) {
     const em = mi(scale.easyMi);
     sessions.push(cardioSession('Steady Run', `${em} mi${at('easy')} · steady effort`, { meters: em * MI_TO_M }));
+  }
+  // Never more runs than training days: someone who trains once a week was
+  // handed four runs. Keep the easy run, then the long run (the one a race
+  // plan cannot do without), then the rest in order.
+  const cap = Number.isFinite(days) && days > 0 ? Math.max(1, Math.floor(days)) : sessions.length;
+  if (sessions.length > cap) {
+    const rank = (e) => (e.displayName === 'Easy Run' ? 0 : e.displayName === 'Long Run' ? 1 : 2);
+    const keep = new Set(sessions.map((e, i) => [rank(e), i, e]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, cap).map((x) => x[2]));
+    return sessions.filter((e) => keep.has(e));
   }
   return sessions;
 }
@@ -677,7 +686,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const cardioSafe = !(excludeSet.size && trains('Running', excludeSet));
   const cardioTargets = current5kSec > 0 ? runningTargets(current5kSec) : null;
   const cardioExercises = cardioWanted && cardioSafe
-    ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel, targets: cardioTargets })
+    ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel, targets: cardioTargets, days: safeDays })
     : [];
 
   // Session total. A consistent lifter on one day a week gets 5 x 5 = 25 sets,
