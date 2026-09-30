@@ -6,7 +6,7 @@
 // get_friends_liked_posts returns only (post, liker, time) triples where the
 // liker is a MUTUAL follow who shares likes, nobody is blocking anybody, the
 // post is one the viewer could read in the feed anyway, and the viewer shares
-// too (the switch is reciprocal). See 20260930235000_friends_liked_posts.sql.
+// too (the switch is reciprocal). See 20261001003000_friends_liked_posts.sql.
 //
 // This module only assembles rows. Posts are loaded through the ordinary
 // RLS-scoped read (hubPosts.listByIds), so if the server and the feed ever

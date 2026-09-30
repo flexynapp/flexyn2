@@ -168,7 +168,7 @@ export default function PrivacySection() {
     }
   }, [profile?.read_receipts_enabled]);
 
-  // ── Share likes with friends (20260930235000) ─────────────────────
+  // ── Share likes with friends (20261001003000) ─────────────────────
   // Opt-OUT and reciprocal, like read receipts: off hides your likes from
   // friends AND empties Hub → Activity → Friends for you.
   const [shareLikes, setShareLikes] = useState(true);

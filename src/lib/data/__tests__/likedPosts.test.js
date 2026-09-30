@@ -11,7 +11,7 @@
  * Since 2026-09-30 there is ONE other read path, and it is opt-out rather
  * than open: get_friends_liked_posts shows your likes to MUTUAL friends while
  * user_profiles.share_likes_with_friends is on (see friendLikes.test.js and
- * migration 20260930235000). This file still pins that the owner-scoped
+ * migration 20261001003000). This file still pins that the owner-scoped
  * read below cannot return anyone else's likes.
  *
  * The tests below pin that: the filter is present, it is not parameterised by
