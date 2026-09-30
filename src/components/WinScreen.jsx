@@ -23,6 +23,7 @@ import { triggerHaptic } from '@/lib/haptic';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { useLanguage } from '@/lib/LanguageContext';
 import { formatNumber } from '@/lib/intl';
+import { AnswerLabel, AnswerReason, answerClassName } from '@/components/feedback/buttonAnswer';
 
 // When each beat lands, in ms after open.
 const BEATS = { delta: 900, xp: 1400, level: 2300, stats: 2600, actions: 3000 };
@@ -51,6 +52,7 @@ export default function WinScreen({
   delta = null,
   xp = null,
   stats = [],
+  notes = [],
   primary = null,
   secondary = null,
 }) {
@@ -160,6 +162,20 @@ export default function WinScreen({
                   ))}
                 </motion.div>
               )}
+
+              {/* What else this win earned, as plain lines rather than a
+                  message over the screen. Read only, so hairlines and no
+                  card. A note that arrives after the beat rises in on its own. */}
+              {notes.length > 0 && beat >= 4 && (
+                <ul className="flex flex-col divide-y divide-border border-y border-border">
+                  {notes.map((n) => (
+                    <motion.li key={n.key} {...rise} className="flex flex-col gap-1 py-3 px-1">
+                      <span className="text-sm font-semibold">{n.text}</span>
+                      {n.sub && <span className="text-xs text-muted-foreground">{n.sub}</span>}
+                    </motion.li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <motion.div
@@ -173,11 +189,25 @@ export default function WinScreen({
                   {primary.label}
                 </Button>
               )}
+              {/* A secondary action can answer on its own button: pass
+                  `answer` (from useButtonAnswer) plus doneLabel/failedLabel. */}
               {secondary && (
-                <Button variant="outline" className="h-11" onClick={(e) => { e.stopPropagation(); secondary.onClick(); }}>
-                  {secondary.label}
+                <Button
+                  variant="outline"
+                  className={`h-11 ${answerClassName(secondary.answer?.phase)}`}
+                  onClick={(e) => { e.stopPropagation(); secondary.onClick(); }}
+                >
+                  {secondary.answer ? (
+                    <AnswerLabel
+                      phase={secondary.answer.phase}
+                      idle={secondary.label}
+                      done={secondary.doneLabel}
+                      failed={secondary.failedLabel}
+                    />
+                  ) : secondary.label}
                 </Button>
               )}
+              {secondary?.answer?.reason && <AnswerReason>{secondary.answer.reason}</AnswerReason>}
               <Button variant="ghost" className="h-11 text-muted-foreground" onClick={(e) => { e.stopPropagation(); onClose(); }}>
                 {tFallback('win.done', 'Done')}
               </Button>

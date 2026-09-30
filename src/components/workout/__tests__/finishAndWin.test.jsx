@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils';
+import { render, screen, fireEvent, waitFor } from '@/test/utils';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
 import FinishSheet from '../FinishSheet';
@@ -81,5 +81,32 @@ describe('WorkoutWin', () => {
   it('renders nothing without a win', () => {
     wrap(<WorkoutWin win={null} weightUnit="lbs" onClose={() => {}} onShareWorkout={() => {}} onSharePr={() => {}} onSaveTemplate={() => {}} />);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lists what else the save earned as lines on the screen', async () => {
+    const notes = [
+      { key: 'comeback', text: 'Comeback bonus earned. Good to have you back.', sub: '+50 XP' },
+      { key: 'streak', text: '7-day workout streak! +20 coins' },
+    ];
+    wrap(<WorkoutWin win={{ ...win, notes }} weightUnit="lbs" onClose={() => {}} onShareWorkout={() => {}} onSharePr={() => {}} onSaveTemplate={() => {}} />);
+    expect(await screen.findByText('Comeback bonus earned. Good to have you back.')).toBeInTheDocument();
+    expect(screen.getByText('+50 XP')).toBeInTheDocument();
+    expect(screen.getByText('7-day workout streak! +20 coins')).toBeInTheDocument();
+  });
+
+  it('answers "Save as template" on its own button', async () => {
+    const onSaveTemplate = vi.fn().mockResolvedValue({ ok: true });
+    wrap(<WorkoutWin win={win} weightUnit="lbs" onClose={() => {}} onShareWorkout={() => {}} onSharePr={() => {}} onSaveTemplate={onSaveTemplate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /save as template/i }));
+    expect(await screen.findByRole('button', { name: /saved to regimens/i })).toBeInTheDocument();
+    expect(onSaveTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it('says why a template did not save, under the button', async () => {
+    const onSaveTemplate = vi.fn().mockResolvedValue({ ok: false, reason: 'Session has no exercises to save.' });
+    wrap(<WorkoutWin win={win} weightUnit="lbs" onClose={() => {}} onShareWorkout={() => {}} onSharePr={() => {}} onSaveTemplate={onSaveTemplate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /save as template/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Session has no exercises to save.'));
+    expect(await screen.findByRole('button', { name: /didn't save/i })).toBeInTheDocument();
   });
 });

@@ -4,8 +4,9 @@
 // session's stats land underneath. The share card and "Save as template"
 // hang off it instead of opening on their own or riding on a toast.
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import WinScreen from '@/components/WinScreen';
+import { useButtonAnswer } from '@/components/feedback/buttonAnswer';
 import { useLanguage } from '@/lib/LanguageContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { totalVolume } from '@/lib/workoutVolume';
@@ -20,6 +21,20 @@ export default function WorkoutWin({
   const { tFallback, language } = useLanguage();
   const w = win?.workout;
   const fmt = (n) => formatNumber(n, language);
+  const notes = win?.notes || [];
+  // "Save as template" answers on its own button: a check and "Saved", or
+  // "Didn't save" with the reason under it. It used to raise a message over
+  // the win screen it was pressed on.
+  const templateAnswer = useButtonAnswer();
+  const { reset: resetTemplateAnswer } = templateAnswer;
+  // A new win starts clean, not on the last session's "Didn't save".
+  useEffect(() => { resetTemplateAnswer(); }, [w, resetTemplateAnswer]);
+  const saveTemplate = async () => {
+    templateAnswer.reset();
+    const res = await onSaveTemplate();
+    if (res?.ok) templateAnswer.succeed();
+    else templateAnswer.fail(res?.reason || null);
+  };
 
   const sets = (w?.exercises || []).reduce((n, ex) => n + (ex.kind === 'cardio' ? 0 : (ex.sets || []).length), 0);
   const volLbs = w ? totalVolume(w.exercises || [], { includeBarWeight }) : 0;
@@ -54,6 +69,7 @@ export default function WorkoutWin({
         unit={u}
         delta={delta || null}
         xp={xp}
+        notes={notes}
         stats={volLbs > 0 ? [...stats, { key: 'vol', value: fmt(Math.round(fromLbs(volLbs, weightUnit))), label: tFallback('win.unitMoved', '{unit} moved', { unit }) }] : stats}
         primary={{ label: tFallback('win.sharePr', 'Share this PR'), onClick: () => onSharePr({ pr: top, unit: u }) }}
         secondary={{ label: tFallback('win.shareWorkout', 'Share workout'), onClick: onShareWorkout }}
@@ -77,9 +93,16 @@ export default function WorkoutWin({
       unit={headline.unit}
       delta={win?.checkInBonus ? tFallback('win.checkInBonus', 'Gym check in bonus on your XP') : null}
       xp={xp}
+      notes={notes}
       stats={stats.filter((c) => c.key !== headline.drop)}
       primary={{ label: tFallback('win.shareWorkout', 'Share workout'), onClick: onShareWorkout }}
-      secondary={{ label: tFallback('workout.saveTemplate', 'Save as template'), onClick: onSaveTemplate }}
+      secondary={{
+        label: tFallback('workout.saveTemplate', 'Save as template'),
+        onClick: saveTemplate,
+        answer: templateAnswer,
+        doneLabel: tFallback('workout.templateSavedShort', 'Saved to regimens'),
+        failedLabel: tFallback('workout.templateFailedShort', "Didn't save"),
+      }}
     />
   );
 }
