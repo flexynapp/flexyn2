@@ -87,7 +87,9 @@ export async function reactWithSticker(postId, user, sticker) {
     .upsert({
       post_id:        postId,
       user_id:        user.id,
-      user_email:     user.email,
+      // The email is left out; the database fills it from the profile (migration
+      // 20260930141500). An upsert that sets a column also has to be able
+      // to READ it, and other people's emails are being made unreadable.
       user_name:      user.username ?? 'User',
       user_avatar_url: user.avatar_url ?? null,
       item_id:        sticker.item_id,

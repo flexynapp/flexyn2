@@ -49,11 +49,11 @@ it('the crew regimen copy reads only what it copies', () => {
   expect(src).toMatch(/user\.id !== source\.user_id/);
 });
 
-// The database grants SELECT on these column by column (migration
-// 20260930140000), so a '*' or a bare .select() anywhere in the app is a
+// These tables are moving to column-by-column SELECT grants that leave out
+// the email, after which a '*' or a bare .select() anywhere in the app is a
 // 42501 at runtime, not just a leak. Scan every statement that starts at
 // .from('<table>') up to the end of that statement.
-describe('tables with column-level SELECT grants', () => {
+describe('tables moving to column-level SELECT grants', () => {
   const GRANTED = [
     'league_members', 'league_season_stats', 'monthly_league_members',
     'marketplace_listings', 'marketplace_bundles', 'post_sticker_reactions',
@@ -75,4 +75,10 @@ describe('tables with column-level SELECT grants', () => {
     }
     expect(offenders).toEqual([]);
   });
+});
+
+it('the sticker upsert does not send user_email (the database fills it)', () => {
+  const src = read('src/lib/data/stickerReactions.js');
+  const upsert = src.slice(src.indexOf('.upsert('), src.indexOf("onConflict: 'post_id,user_id'"));
+  expect(upsert).not.toMatch(/user_email\s*:/);
 });
