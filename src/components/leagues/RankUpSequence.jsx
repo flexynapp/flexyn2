@@ -20,6 +20,11 @@
 // III) runs the same stage turned down: a shorter strain, no break, the crest
 // gains its new ornament and lands.
 //
+// A demotion is its own, sombre sequence (Kegan, 2026-09-30): no sunburst
+// colour, no sparks, no shake. The crest greys and sinks, the lower one
+// rises quietly in its place, and it ends on the road back: the league they
+// left, and the Strength Score it takes to return.
+//
 // The last beat is the point. A promotion that ends on the crest you just
 // got is a trophy; one that ends on the next crest, dimmed, with a bar that
 // is already part full, is a reason to train this week.
@@ -51,6 +56,7 @@ const CRACK_POINTS = CRACK.map(([x, y]) => `${x},${y}`).join(' ');
 const CHARGE_TICKS = [0.25, 0.45, 0.64, 0.68, 0.72];
 
 const CREST = 'w-44 h-44';
+const MUTED = '#89949F';
 const SLAM_MS = 640;
 
 /**
@@ -66,9 +72,11 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const fx = useOpenerFx();
   const drama = rankDramaFor(move);
   const isTier = move.kind === 'tier';
+  const isDown = move.kind === 'down';
   const fromTier = getTier(move.from.tier);
   const toTier = getTier(move.to.tier);
-  const color = toTier.color;
+  // A demotion keeps the stage grey: the only colour on it is the crest.
+  const color = isDown ? MUTED : toTier.color;
 
   const [phase, setPhase] = useState(() => (fx.reduced ? 'landed' : 'enter'));
   const timers = useRef([]);
@@ -99,12 +107,18 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   useEffect(() => {
     if (phase !== 'charge') return;
     fx.aimAt(oldRef.current);
+    if (isDown) {
+      // No tell and no strain: one low pulse as the crest starts to go.
+      triggerHaptic('warning');
+      later(() => setPhase('landed'), drama.charge);
+      return;
+    }
     // The tell: the new league's colour starts turning behind the old
     // crest before it breaks.
     fx.setRays(color, drama.rays * 0.45, { fast: isTier });
     CHARGE_TICKS.forEach((f) => later(() => triggerHaptic('subtle'), Math.round(drama.charge * f)));
     later(() => setPhase(isTier ? 'break' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, later]);
+  }, [phase, fx, color, drama, isTier, isDown, later]);
 
   useLayoutEffect(() => {
     if (phase !== 'break') return;
@@ -131,6 +145,17 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     const point = fx.aimAt(el);
     fx.setRays(color, drama.rays, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
     if (fx.reduced || typeof el?.animate !== 'function') return;
+    if (isDown) {
+      // The lower crest rises quietly into place. Nothing hits.
+      el.animate(
+        [
+          { transform: 'translateY(28px) scale(0.96)', opacity: 0 },
+          { transform: 'none', opacity: 1 },
+        ],
+        { duration: 1000, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' },
+      );
+      return;
+    }
     const big = isTier;
     el.animate(
       big
@@ -180,18 +205,26 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
 
   // ── Words ─────────────────────────────────────────────────────────────────
   const fromName = leagueTierName(fromTier, tFallback, move.from.level);
-  const toName = isTier
+  const toName = isTier || isDown
     ? leagueTierName(toTier, tFallback)
     : leagueTierName(toTier, tFallback, move.to.level);
-  const eyebrow = isTier
-    ? tFallback('rankUp.promoted', 'Promoted')
-    : tFallback('rankUp.newLevel', 'New level');
-  const sub = isTier
+  const eyebrow = isDown
+    ? tFallback('rankUp.demoted', 'Moved down')
+    : isTier
+      ? tFallback('rankUp.promoted', 'Promoted')
+      : tFallback('rankUp.newLevel', 'New level');
+  const sub = isDown
+    ? tFallback('rankUp.subDown', 'Down from {league}.', { league: fromName })
+    : isTier
     ? tFallback('rankUp.subTier', 'Up from {league}.', { league: fromName })
     : tFallback('rankUp.subLevel', 'Another qualified week in {league}.', { league: leagueTierName(toTier, tFallback) });
 
-  // The road ahead.
-  const next = nextTier(toTier.id);
+  // The road ahead. After a demotion it is the road back to the league
+  // they just left.
+  const next = isDown ? fromTier : nextTier(toTier.id);
+  const nextLabel = isDown
+    ? tFallback('rankUp.back', 'Back to {league}', { league: leagueTierName(fromTier, tFallback) })
+    : tFallback('rankUp.next', 'Next: {league}', { league: leagueTierName(next || toTier, tFallback) });
   const score = strength?.score != null ? Math.round(Number(strength.score)) : null;
   let goal = null;
   if (!next) {
@@ -203,20 +236,20 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     const base = toTier.strengthFloor;
     const pct = Math.max(0.04, Math.min(1, (score - base) / Math.max(1, floor - base)));
     goal = {
-      label: tFallback('rankUp.next', 'Next: {league}', { league: leagueTierName(next, tFallback) }),
+      label: nextLabel,
       value: tFallback('rankUp.scoreOf', '{score} of {floor}', { score: fmt(score), floor: fmt(floor) }),
       pct,
       color: next.color,
     };
   } else {
     goal = {
-      label: tFallback('rankUp.next', 'Next: {league}', { league: leagueTierName(next, tFallback) }),
+      label: nextLabel,
       text: tFallback('rankUp.noScore', 'Log a press, squat or deadlift to get your Strength Score.'),
     };
   }
 
   const landed = phase === 'landed';
-  const hit = fx.reduced ? 0 : (isTier ? Math.round(SLAM_MS * 0.62) : 320) + drama.hold;
+  const hit = fx.reduced ? 0 : (isDown ? 600 : isTier ? Math.round(SLAM_MS * 0.62) : 320) + drama.hold;
   const beat = (n) => ({ animationDelay: `${hit + n * 130}ms` });
   const toIndex = TIERS.findIndex((t) => t.id === toTier.id);
 
@@ -252,7 +285,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               crest all sit on exactly the same spot. */}
           <div className="relative mx-auto" style={{ width: 176, height: 176 }}>
             {(phase === 'enter' || phase === 'charge') && (
-              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'charge' ? (isTier ? 'rank-crest-strain-hot' : 'rank-crest-strain') : 'reveal-rise'}`}
+              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'charge' ? (isDown ? 'rank-crest-sink' : isTier ? 'rank-crest-strain-hot' : 'rank-crest-strain') : 'reveal-rise'}`}
                 style={phase === 'charge' ? { animationDuration: `${drama.charge}ms` } : undefined}>
                 <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
                 {isTier && phase === 'charge' && (
@@ -288,10 +321,10 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               )
             ) : (
               <>
-                <p className="reveal-new inline-block text-micro font-bold uppercase tracking-widest" style={{ ...beat(0), color }}>
+                <p className={`${isDown ? 'reveal-rise' : 'reveal-new'} inline-block text-micro font-bold uppercase tracking-widest`} style={{ ...beat(0), color }}>
                   {eyebrow}
                 </p>
-                <h2 id="rank-up-title" className="reveal-stamp font-display text-3xl leading-tight pt-2" style={beat(0.4)}>
+                <h2 id="rank-up-title" className={`${isDown ? 'reveal-rise' : 'reveal-stamp'} font-display text-3xl leading-tight pt-2`} style={beat(0.4)}>
                   {toName}
                 </h2>
                 <p className="reveal-rise text-caption text-muted-foreground pt-2" style={beat(1)}>{sub}</p>
@@ -347,7 +380,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
         {landed && (
           <div className="reveal-rise pb-6 flex flex-col gap-2" style={beat(4)}>
             <Button ref={ctaRef} className="w-full h-12" onClick={onClose}>
-              {tFallback('rankUp.cta', 'Keep climbing')}
+              {isDown ? tFallback('rankUp.ctaDown', 'Win it back') : tFallback('rankUp.cta', 'Keep climbing')}
             </Button>
             {onViewLeague && (
               <Button

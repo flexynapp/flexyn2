@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  detectRankUp, nextSeen, consumeRankUp, readSeenRank, rankDramaFor, RANK_DRAMA, LEVEL_DRAMA,
+  detectRankUp, nextSeen, consumeRankUp, readSeenRank, rankDramaFor, RANK_DRAMA, LEVEL_DRAMA, DOWN_DRAMA,
 } from '@/lib/rankUp';
 import { TIERS } from '@/lib/leagueTiers';
 
@@ -19,8 +19,12 @@ describe('detectRankUp', () => {
     expect(detectRankUp({ tier: 'gold', level: 2 }, { tier: 'gold', level: 3 })?.kind).toBe('level');
   });
 
-  it('never plays for a demotion or a lower level', () => {
-    expect(detectRankUp({ tier: 'gold', level: 1 }, { tier: 'silver', level: 1 })).toBeNull();
+  it('a league down is its own move', () => {
+    expect(detectRankUp({ tier: 'gold', level: 3 }, { tier: 'silver', level: 1 }))
+      .toEqual({ kind: 'down', from: { tier: 'gold', level: 3 }, to: { tier: 'silver', level: 1 } });
+  });
+
+  it('never plays for a lower level inside one league', () => {
     expect(detectRankUp({ tier: 'gold', level: 3 }, { tier: 'gold', level: 1 })).toBeNull();
     expect(detectRankUp({ tier: 'gold', level: 3 }, { tier: 'gold', level: 3 })).toBeNull();
   });
@@ -48,6 +52,8 @@ describe('consumeRankUp', () => {
     expect(consumeRankUp('u1', { tier: 'gold', level: 1 })?.kind).toBe('tier');
     expect(consumeRankUp('u1', { tier: 'gold', level: 1 })).toBeNull();
     expect(consumeRankUp('u1', { tier: 'gold', level: 2 })?.kind).toBe('level');
+    expect(consumeRankUp('u1', { tier: 'silver', level: 1 })?.kind).toBe('down');
+    expect(consumeRankUp('u1', { tier: 'silver', level: 1 })).toBeNull();
   });
 
   it('keeps each user separate on a shared device', () => {
@@ -68,5 +74,9 @@ describe('rank drama', () => {
   it('a level step is lighter than any promotion', () => {
     expect(rankDramaFor({ kind: 'level', to: { tier: 'legend' } })).toBe(LEVEL_DRAMA);
     for (const t of TIERS) expect(LEVEL_DRAMA.shake).toBeLessThan(RANK_DRAMA[t.id].shake);
+  });
+  it('a demotion throws nothing: no sparks, rings, shake or flash', () => {
+    expect(rankDramaFor({ kind: 'down', to: { tier: 'silver' } })).toBe(DOWN_DRAMA);
+    expect([DOWN_DRAMA.sparks, DOWN_DRAMA.rings, DOWN_DRAMA.shake, DOWN_DRAMA.flash]).toEqual([0, 0, 0, 0]);
   });
 });

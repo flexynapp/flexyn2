@@ -46,6 +46,18 @@ describe('RankUpSequence', () => {
     expect(screen.getByText('New level')).toBeInTheDocument();
   });
 
+  it('a demotion is quiet and ends on the way back', () => {
+    const down = { kind: 'down', from: { tier: 'gold', level: 3 }, to: { tier: 'silver', level: 1 } };
+    render(<RankUpSequence move={down} strength={{ score: 220, next_tier: 'gold', next_floor: 250 }} onClose={() => {}} />);
+    step(450, 1800, 10);
+    expect(screen.getByRole('heading', { name: 'Silver League' })).toBeInTheDocument();
+    expect(screen.getByText('Moved down')).toBeInTheDocument();
+    expect(screen.getByText(/Down from Gold League III/)).toBeInTheDocument();
+    expect(screen.getByText(/Back to Gold League/)).toBeInTheDocument();
+    expect(screen.getByText(/220 of 250/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Win it back' })).toBeInTheDocument();
+  });
+
   it('the top league says so instead of a next target', () => {
     const top = { kind: 'tier', from: { tier: 'diamond', level: 2 }, to: { tier: 'legend', level: 1 } };
     render(<RankUpSequence move={top} strength={{ score: 500 }} onClose={() => {}} />);

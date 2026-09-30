@@ -656,7 +656,8 @@ export default function Dashboard() {
   // away, so the sequence plays on the next visit. Same query key as
   // LeagueCard, so this costs no extra round trip, and it re-checks whenever
   // that poll brings back a new league or level. rankUp.js keeps the last
-  // league this device showed; only a move UP plays.
+  // league this device showed; a move up celebrates, a move down gets the
+  // quieter sequence.
   const { data: rankLeague } = useQuery({
     queryKey: ['myLeague', user?.id],
     queryFn: () => leaguesData.getMyLeague(user),

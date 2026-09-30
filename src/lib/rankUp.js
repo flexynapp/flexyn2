@@ -9,13 +9,16 @@
 // is kept per user on this device, the same way Lead Lifter reveals are
 // (`flexyn.<feature>.<userId>`).
 //
-// Two kinds of move up, and only moves UP play anything:
+// Three kinds of move, each its own sequence (Kegan, 2026-09-30: every
+// promotion plays, and a demotion gets a quieter, sombre one):
 //
 //   tier   Silver to Gold, or further in one jump. The big sequence.
 //   level  Gold II to Gold III inside the same league. The lighter one.
+//   down   Gold to Silver. No burst, no sunburst: the crest greys and
+//          sinks, the lower one rises, and it ends on the way back up.
 //
-// A demotion updates the record silently: a sequence for going down reads
-// as the app rubbing it in.
+// A level never drops inside a league (it counts qualified weeks in the
+// stint), so there is no level-down move.
 //
 // No record yet (first open after this shipped, or a new device) records
 // where they are and plays nothing, because there is nothing to compare.
@@ -42,7 +45,7 @@ export function normalizeRank(rank) {
 /**
  * Compare the last rank this device showed with the current one.
  *
- * @returns {null | { kind: 'tier' | 'level', from: {tier, level}, to: {tier, level} }}
+ * @returns {null | { kind: 'tier' | 'level' | 'down', from: {tier, level}, to: {tier, level} }}
  */
 export function detectRankUp(seen, current) {
   const a = normalizeRank(seen);
@@ -51,6 +54,7 @@ export function detectRankUp(seen, current) {
   const ta = TIER_INDEX[a.tier];
   const tb = TIER_INDEX[b.tier];
   if (tb > ta) return { kind: 'tier', from: a, to: b };
+  if (tb < ta) return { kind: 'down', from: a, to: b };
   if (tb === ta && b.level > a.level) return { kind: 'level', from: a, to: b };
   return null;
 }
@@ -120,8 +124,13 @@ export const RANK_DRAMA = {
 /** A level step inside a league: the same stage, turned down. */
 export const LEVEL_DRAMA = { rays: 0.05, rings: 1, sparks: 10, shake: 2, flash: 0, charge: 900, hold: 220 };
 
+/** A demotion: nothing thrown, nothing flashed, a slow sink. `charge` is
+ *  how long the old crest takes to grey and sink. */
+export const DOWN_DRAMA = { rays: 0, rings: 0, sparks: 0, shake: 0, flash: 0, charge: 1800, hold: 500 };
+
 export function rankDramaFor(move) {
   if (!move) return LEVEL_DRAMA;
   if (move.kind === 'level') return LEVEL_DRAMA;
+  if (move.kind === 'down') return DOWN_DRAMA;
   return RANK_DRAMA[move.to.tier] ?? RANK_DRAMA.silver;
 }

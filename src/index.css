@@ -813,6 +813,13 @@
   .rank-crest-strain     { animation: canister-charge 1200ms linear both; }
   .rank-crest-strain-hot { animation: canister-charge-hot 2000ms linear both; }
   .rank-crack { animation: canister-seam-leak 2000ms linear both; }
+  /* A demotion: the crest lifts a breath, then greys and sinks away. */
+  @keyframes rank-crest-sink {
+    0%   { transform: none; opacity: 1; filter: none; }
+    18%  { transform: translateY(-4px); opacity: 1; filter: none; }
+    100% { transform: translateY(34px) scale(0.9); opacity: 0; filter: grayscale(1) brightness(0.55); }
+  }
+  .rank-crest-sink { animation: rank-crest-sink 1800ms cubic-bezier(0.55, 0, 0.8, 0.4) both; }
   @keyframes rank-fill { from { transform: scaleX(0); } }
   .rank-fill { animation: rank-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
@@ -821,7 +828,7 @@
     .canister-charge, .canister-charge-hot, .canister-wait, .canister-lid-fly,
     .opener-rays-main, .opener-rays-back,
     .reveal-stamp, .reveal-rise, .reveal-new,
-    .rank-crest-strain, .rank-crest-strain-hot, .rank-crack, .rank-fill { animation: none; }
+    .rank-crest-strain, .rank-crest-strain-hot, .rank-crest-sink, .rank-crack, .rank-fill { animation: none; }
     .canister-seam { animation: none; opacity: 1; }
     .reveal-sheen { display: none; }
   }
