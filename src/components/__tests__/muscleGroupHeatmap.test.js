@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { buildMuscles } from '@/components/progress/MuscleGroupHeatmap';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 
@@ -162,5 +162,25 @@ describe('buildMuscles — recovery vs the selected window', () => {
   it('reads a just-trained large muscle as needing rest', () => {
     const m = buildMuscles([log([ex('Back Squat', ['Legs'])], 0)], 30);
     expect(m.quads.recovery).toBe(0);
+  });
+});
+
+describe('buildMuscles — last trained is a local calendar day', () => {
+  // workout_logs.date is a bare 'YYYY-MM-DD'. Read as UTC midnight, it is the
+  // previous evening anywhere in the Americas, so every evening a session
+  // logged that day showed as a day old and the muscle as partly recovered.
+  it('reads a session logged today as today, late in the evening in New York', () => {
+    const tz = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(2026, 8, 30, 21, 30));
+      const m = buildMuscles([{ date: '2026-09-30', exercises: [ex('Bench Press', ['Chest'])] }], 30);
+      expect(m.chest.last).toBe(0);
+      expect(m.chest.recovery).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      process.env.TZ = tz;
+    }
   });
 });

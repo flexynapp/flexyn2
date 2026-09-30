@@ -517,7 +517,7 @@ describe('CSV export', () => {
       bodyMetrics: [{ date: '2026-08-07', weight_lbs: 190, body_fat_pct: 18, waist_cm: 82, chest_cm: 104, hip_cm: 96, notes: 'n' }],
       userProfile: USER,
     });
-    fireEvent.click(screen.getByRole('button', { name: /Body Metrics/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Body metrics/ }));
 
     const [rows, filename] = downloadCsvMock.mock.calls[0];
     expect(filename).toBe('flexyn-body-metrics.csv');
@@ -539,7 +539,7 @@ describe('CSV export', () => {
       }],
       userProfile: USER,
     });
-    fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Workout logs/ }));
 
     expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Push Day');
   });
@@ -551,7 +551,7 @@ describe('CSV export', () => {
       logs: [{ date: '2026-08-07', exercises: [{ name: 'Bench', sets: [{ weight: 135, reps: 5 }] }] }],
       userProfile: USER,
     });
-    fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Workout logs/ }));
 
     expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Freestyle session');
   });
@@ -560,14 +560,14 @@ describe('CSV export', () => {
     // Notes used to be run through `.replace(/,/g, ' ')` because the writer
     // did not quote properly. downloadCsv quotes, so the text survives.
     show({ cardioLogs: [{ date: '2026-08-07', activity_type: 'Run', notes: 'easy, windy' }], userProfile: USER });
-    fireEvent.click(screen.getByRole('button', { name: /Cardio Logs/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cardio logs/ }));
 
     expect(downloadCsvMock.mock.calls[0][0][1]).toContain('easy, windy');
   });
 
   it('refuses to hand over an empty file', () => {
     show({ logs: [], userProfile: USER });
-    fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Workout logs/ }));
 
     expect(downloadCsvMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith('No workout data to export.');
@@ -575,7 +575,7 @@ describe('CSV export', () => {
 
   it('counts sessions with the right plural', () => {
     show({ logs: [{ date: d(new Date()), exercises: [] }], userProfile: USER });
-    const btn = screen.getByRole('button', { name: /Workout Logs/ });
+    const btn = screen.getByRole('button', { name: /Workout logs/ });
     expect(within(btn).getByText(/1 session · /)).toBeInTheDocument();
   });
 });
