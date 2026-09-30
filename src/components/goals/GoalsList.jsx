@@ -88,9 +88,14 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
       }
       Icon = ACTIVITY_ICON[goal.cardio_activity] || Activity;
       const activity = goal.cardio_activity ? t(`goals.activity.${goal.cardio_activity}`) : t(`goals.type.${goal.goal_type}`);
-      title = goal.period === 'week' || goal.period === 'month'
-        ? `${activity}, ${t(`goals.period.${goal.period}`).toLowerCase()}`
-        : activity;
+      if (goal.period === 'week' || goal.period === 'month') {
+        title = `${activity}, ${t(`goals.period.${goal.period}`).toLowerCase()}`;
+      } else if (goal.goal_type === 'cardio_distance' && goal.single_session === true) {
+        // The big number is the longest run, so the title has to say so.
+        title = `${activity}, ${tFallback('goals.singleRun', 'in one run')}`;
+      } else {
+        title = activity;
+      }
     } else {
       const r = computeStrengthGoalProgress(goal, logs);
       progress = r.progress;

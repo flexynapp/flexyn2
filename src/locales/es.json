@@ -2214,6 +2214,7 @@
   "goals.save": "Guardar objetivo",
   "goals.selectGoalType": "Seleccionar tipo de objetivo",
   "goals.sessions": "sesiones",
+  "goals.singleRun": "en una sola carrera",
   "goals.strip.nActive": "{n} objetivos activos",
   "goals.strip.oneActive": "1 objetivo activo",
   "goals.strip.openLabel": "Abrir objetivos",
