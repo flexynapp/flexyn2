@@ -5388,6 +5388,7 @@
   "quests.listHeading": "Les quêtes du jour",
   "quests.listSub": "Touchez une quête pour aller là où vous pouvez la terminer.",
   "quests.longest": "Meilleure série",
+  "quests.notMetYet": "Pas encore terminée : {progress} sur {target}",
   "quests.perfectDayToast": "Jour parfait, flamme de {n} jours",
   "quests.perfectDays": "Jours parfaits",
   "quests.streak": "Flamme",

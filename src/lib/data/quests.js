@@ -337,7 +337,26 @@ export async function claimQuest(user, questRowId) {
     coinsAwarded:   data?.coins_awarded ?? 0,
     xpAwarded:      data?.xp_awarded ?? 0,
     crewXpAwarded:  data?.crew_xp_awarded ?? 0,
+    // 'not_met': the server recounted the quest from saved rows and it falls
+    // short. progress / target are the server's figures.
+    reason:         data?.reason ?? null,
+    progress:       data?.progress ?? null,
+    target:         data?.target ?? null,
   };
+}
+
+/**
+ * Bring a quest row back to what the server counted, after a claim the
+ * server refused as not met. Clears completed_at so the row stops offering a
+ * Claim it cannot pay.
+ */
+export async function resyncQuestProgress(questRowId, progress) {
+  if (!questRowId) return;
+  const { error } = await supabase
+    .from('user_daily_quests')
+    .update({ progress: Math.max(0, Number(progress) || 0), completed_at: null })
+    .eq('id', questRowId);
+  if (error) reportError(error, { feature: 'quests.resync', level: 'warning' });
 }
 
 /**

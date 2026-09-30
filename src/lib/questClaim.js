@@ -105,6 +105,17 @@ export async function claimQuestWithFeedback({ user, row, t, tFallback, queryCli
   claiming.add(row.id);
   try {
     const result = await quests.claimQuest(user, row.id);
+    if (result?.reason === 'not_met') {
+      // The server counts the quest from what was actually saved today and
+      // came up short (an edit counted twice, a deleted entry, a second
+      // device). Show its count and put the row back to it.
+      await quests.resyncQuestProgress(row.id, result.progress);
+      queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
+      toast.error(tFallback('quests.notMetYet', 'Not done yet: {progress} of {target}', {
+        progress: result.progress ?? 0, target: result.target ?? row.target,
+      }), { id: `quest-${row.id}` });
+      return null;
+    }
     if (!result?.success) {
       toast.error(t('dashboard.claimError'));
       return null;

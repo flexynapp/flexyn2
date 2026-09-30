@@ -5388,6 +5388,7 @@
   "quests.listHeading": "Las de hoy",
   "quests.listSub": "Toca una misión para ir donde puedas terminarla.",
   "quests.longest": "Mejor racha",
+  "quests.notMetYet": "Aún no está completa: {progress} de {target}",
   "quests.perfectDayToast": "Día perfecto, racha de {n} días",
   "quests.perfectDays": "Días perfectos",
   "quests.streak": "Racha de días",
