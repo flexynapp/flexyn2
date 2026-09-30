@@ -2143,6 +2143,8 @@
   "goals.archive.toastArchived": "Objetivo archivado",
   "goals.archive.toastRestored": "Objetivo restaurado",
   "goals.archive.undo": "Desarchivar",
+  "goals.assist.action": "Ayúdame",
+  "goals.assist.bubble": "Ayúdame a alcanzar mi objetivo: {goal}",
   "goals.badge.almostThere": "¡Casi lo tienes!",
   "goals.badge.completed": "Completado ✓",
   "goals.badge.readyToComplete": "¡Listo para completar!",

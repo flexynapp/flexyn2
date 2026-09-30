@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Target, Dumbbell, Activity, Footprints, PersonStanding, Bike, MoreVertical, Pencil, Archive, ArchiveRestore } from 'lucide-react';
+import { Trash2, Target, Dumbbell, Activity, Footprints, PersonStanding, Bike, MoreVertical, Pencil, Archive, ArchiveRestore, Sparkles } from 'lucide-react';
 import { differenceInDays, startOfToday } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
@@ -16,6 +16,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatWeight, formatWeightNumber } from '@/lib/weightUnit';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
+import { buildGoalAssistMessage } from '@/lib/aiCoach/goalAssist';
 
 // ── Goal rows, restyled 2026-09-27 (Goals redesign, option B) ─────────────
 // Each goal used to be its own card with five stacked strips: name, an orange
@@ -26,7 +27,7 @@ import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 
 const ACTIVITY_ICON = { running: Footprints, biking: Bike, walking: PersonStanding };
 
-export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onArchive, isViewingCompleted = false, isViewingArchived = false }) {
+export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onArchive, onAssist, isViewingCompleted = false, isViewingArchived = false }) {
   // Track which goal IDs have an in-flight delete/archive action so the
   // user can't double-tap. Parent owns the mutation; we just guard the
   // trigger here without requiring isPending to be plumbed through props.
@@ -222,6 +223,23 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {/* "Assist me" opens the AI Coach already asked about this
+                      goal. Sparkles is the Coach's mark, which is why it is
+                      the one icon here that is not a verb. Only a goal still
+                      being chased gets it: a done or parked goal needs no
+                      plan. */}
+                  {onAssist && goal.status === 'active' && !isViewingArchived && (
+                    <DropdownMenuItem
+                      onClick={() => onAssist({
+                        send: buildGoalAssistMessage(goal, { logs, cardioLogs, weightUnit, distanceUnit }),
+                        display: tFallback('goals.assist.bubble', 'Help me reach my goal: {goal}', {
+                          goal: row.target ? `${title}, ${row.target}` : title,
+                        }),
+                      })}
+                    >
+                      <Sparkles className="w-4 h-4 me-2" /> {tFallback('goals.assist.action', 'Assist me')}
+                    </DropdownMenuItem>
+                  )}
                   {!isViewingCompleted && onEdit && (
                     <DropdownMenuItem onClick={() => onEdit(goal)}>
                       <Pencil className="w-4 h-4 me-2" /> {t('common.edit')}

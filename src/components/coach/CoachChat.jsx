@@ -80,13 +80,13 @@ function promptLabel(p, tFallback, generateMode) {
   return tFallback(`${generateMode ? 'coach.generatePrompt' : 'coach.prompt'}.${p.id}`, p.text);
 }
 
-export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
+export default function CoachChat({ mode, onSaveRegimen, onStartWorkout, initialPrompt }) {
   const { user } = useAuth();
 
   // Personalization inputs for the chat path, so asking Coach in chat and
   // tapping Quick pick can't disagree about the same lift. Both served from
   // the shared query keys, so this costs no extra fetch.
-  const { data: userProfile } = useQuery({
+  const { data: userProfile, isFetched: profileFetched } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn:  () => db.auth.me(),
     enabled:  !!user?.email,
@@ -113,7 +113,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   // typing — otherwise every message paid for these reads before the request
   // to the Edge Function even started. Two minutes is well inside a chat
   // session and no workout can land mid-conversation without the user leaving.
-  const { data: coachContext } = useQuery({
+  const { data: coachContext, isFetched: coachContextFetched } = useQuery({
     // The injury rows are in the key, not just the derived set: two different
     // injuries can produce the same exclusion list, and the digest now carries
     // severity and age, so the cached digest has to age out when they change.
@@ -316,6 +316,23 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       setThinking(false);
     }
   };
+
+  // A question handed in by another screen ("Assist me" on a goal) is sent
+  // as if the user had typed it, once. It waits for the training digest so
+  // the first answer reads the user's real numbers. With no email the digest
+  // query never runs, so there is nothing to wait for. A guest past the daily
+  // limit still gets it sent: the rules engine answers with a session aimed
+  // at the goal and the usual "limit" note under it.
+  const initialSentRef = useRef(false);
+  // The digest's key carries the profile, so wait for both or the first
+  // answer is built from a digest that never saw the profile.
+  const digestReady = !user?.email || (profileFetched && coachContextFetched);
+  useEffect(() => {
+    if (!initialPrompt?.send || initialSentRef.current || !digestReady) return;
+    initialSentRef.current = true;
+    handleSend(initialPrompt.send, initialPrompt.display);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt, digestReady]);
 
   // Radix AlertDialog instead of native confirm() so the destructive
   // confirmation matches the rest of the app's visual language and

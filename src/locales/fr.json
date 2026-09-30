@@ -2143,6 +2143,8 @@
   "goals.archive.toastArchived": "Objectif archivé",
   "goals.archive.toastRestored": "Objectif restauré",
   "goals.archive.undo": "Désarchiver",
+  "goals.assist.action": "Aidez-moi",
+  "goals.assist.bubble": "Aidez-moi à atteindre mon objectif : {goal}",
   "goals.badge.almostThere": "Presque !",
   "goals.badge.completed": "Terminé ✓",
   "goals.badge.readyToComplete": "Prêt à valider !",

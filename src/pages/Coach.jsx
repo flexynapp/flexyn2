@@ -9,7 +9,7 @@
 // session (handed off to the Workout page via sessionStorage).
 
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, SlidersHorizontal } from 'lucide-react';
 import CoachChat from '@/components/coach/CoachChat';
@@ -31,6 +31,19 @@ export default function Coach() {
   const generate = !!searchParams.get('generate');
 
   const [tab, setTab] = useState(0); // 0 = chat, 1 = quick pick
+
+  // A question handed over by another screen: "Assist me" on a goal sends
+  // { send, display } here in router state. Read once into state, then the
+  // history entry is replaced without it, so a reload or a back-and-forward
+  // does not ask the same thing twice (and spend a second daily message).
+  const location = useLocation();
+  const [initialPrompt] = useState(() => location.state?.coachPrompt || null);
+  useEffect(() => {
+    if (location.state?.coachPrompt) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The quick generator personalizes on the profile — training goal, diet
   // direction, dietary restrictions and (opt-in) cycle phase. It was mounted
@@ -67,6 +80,7 @@ export default function Coach() {
     <ErrorBoundary label="Coach">
       <CoachChat
         mode={generate ? 'generate' : undefined}
+        initialPrompt={initialPrompt}
         onSaveRegimen={handleSaveRegimen}
         onStartWorkout={handleStartWorkout}
       />
