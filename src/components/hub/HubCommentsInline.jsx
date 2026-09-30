@@ -691,7 +691,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
                   <span className="ms-1 font-normal text-muted-foreground">{author.handle}</span>
                 )}
               </button>
-              {isVerified(author.handle?.replace('@', '')) && (
+              {isVerified(c.user_id) && (
                 <span className="shrink-0 leading-none" style={{ lineHeight: 0 }}>
                   <CrownBadge size={13} />
                 </span>

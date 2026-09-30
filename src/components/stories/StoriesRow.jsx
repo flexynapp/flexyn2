@@ -350,7 +350,7 @@ function StoryAvatarButton({
             for one action — the exact duplication that got the slot removed in
             the first place. This badge was also gated on `noStory`, so it
             vanished once you had posted and left no way to add a second. */}
-        {isVerified(group.username) && (
+        {isVerified(group.user_id) && (
           <div
             className="absolute bottom-0 pointer-events-none w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-background"
             style={{

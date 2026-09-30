@@ -56,7 +56,7 @@ import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
 import { useTheme } from '@/lib/ThemeContext';
-import { isVerified, isPoop } from '@/lib/verifiedUsers';
+import { isVerified, isPoop, hasSnakeEgg, hasBirdEgg, hasSweatEgg } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
@@ -73,9 +73,9 @@ const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'))
 // (gated by showSnakeEgg below). Lazy so its canvas/game code stays out
 // of the entry + Hub bundles for everyone else.
 const SnakeGameModal = lazy(() => import('./SnakeGameModal'));
-// Hidden easter-egg "Heavy Bird" — only on the @keganbergeron profile.
+// Hidden easter-egg "Heavy Bird" — only on its account (see verifiedUsers.js).
 const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
-// Hidden easter-egg "Sweat Jetpack" — only on the @calason44 profile.
+// Hidden easter-egg "Sweat Jetpack" — only on its accounts (see verifiedUsers.js).
 // Fat sweating dude propelled by his own sweat. Pixelated retro look.
 const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
 const LeagueStandingsModal = lazy(() => import('@/components/dashboard/LeagueStandingsModal'));
@@ -1199,25 +1199,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // decision, not a UI one.
   const { league: heroLeague, rival: heroRival, war: heroWar } = useHeroContests({ user, isSelf });
 
-  const isVerifiedUser = isVerified(displayUsername);
-  const isPoopUser = isPoop(displayUsername);
+  // Easter eggs, keyed on the account id (see verifiedUsers.js).
+  const isVerifiedUser = isVerified(targetId);
+  const isPoopUser = isPoop(targetId);
   const noteLiked    = noteLocalLiked ?? !!noteLikedServer;
-
-  // Hidden easter egg — only on the @sean admin profile. isVerified() is
-  // the app's admin signal (maps to the spec's is_admin), so this is the
-  // strict "@sean + admin" gate. Visible to any viewer of that profile.
-  const showSnakeEgg =
-    (ownerUsername === 'sean' || displayHandle === '@sean') && isVerified(ownerUsername);
-
-  // Second hidden egg — "Heavy Bird", only on the @keganbergeron profile.
-  const showBirdEgg =
-    ownerUsername === 'keganbergeron' || ownerUsername === 'kegan' || displayHandle === '@keganbergeron';
-
-  // Third hidden egg — "Sweat Jetpack", on @calason44 and @jaxf profiles.
-  // Fat sweating dude with sweat as the thrust, pixelated retro style.
-  const showSweatEgg =
-    ownerUsername === 'calason44' || displayHandle === '@calason44'
-    || ownerUsername === 'jaxf'   || displayHandle === '@jaxf';
+  const showSnakeEgg = hasSnakeEgg(targetId);
+  const showBirdEgg = hasBirdEgg(targetId);
+  const showSweatEgg = hasSweatEgg(targetId);
 
   // A long press on the avatar opens whichever egg this profile has. The
   // click that ends the press is swallowed, or the same gesture would also
@@ -2488,7 +2476,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </Suspense>
       )}
 
-      {/* 👾 Heavy Bird — easter egg, only on the @keganbergeron profile.
+      {/* 👾 Heavy Bird — easter egg, only on its account (see verifiedUsers.js).
           Mounted on open (the canvas engine runs only while shown). */}
       {showBirdEgg && birdOpen && (
         <Suspense fallback={null}>
@@ -2500,7 +2488,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </Suspense>
       )}
 
-      {/* 👾 Sweat Jetpack — easter egg, only on the @calason44 profile.
+      {/* 👾 Sweat Jetpack — easter egg, only on its accounts (see verifiedUsers.js).
           Mounted on open so the canvas engine isn't burning cycles on
           every other profile's render path. */}
       {showSweatEgg && sweatOpen && (
