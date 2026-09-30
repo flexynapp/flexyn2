@@ -25,10 +25,10 @@ describe('fireFirstRegimenCelebration', () => {
     expect(opts.description).toContain('first session');
   });
 
-  it('falls back to "your first regimen" without a name', () => {
+  it('drops the name without one', () => {
     fireFirstRegimenCelebration({ xpGained: 100 });
     const [msg] = toast.success.mock.calls[0];
-    expect(msg).toContain('your first regimen');
+    expect(msg).toBe('💪 First plan saved · +100 XP');
   });
 
   it('omits the XP line when xpGained is 0', () => {

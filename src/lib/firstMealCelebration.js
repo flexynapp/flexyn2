@@ -35,8 +35,10 @@ export function fireFirstMealCelebration({ mealName, calories, userEmail, t } = 
   try { navigator.vibrate?.([12, 30, 12, 30, 12]); } catch { /* ignore */ }
 
   const calLine = (typeof calories === 'number' && calories > 0) ? ` · ${Math.round(calories)} cal` : '';
-  const name = mealName ? `: ${mealName}` : '';
-  toast.success(`🥗 First meal logged${name}${calLine}`, {
+  const title = mealName
+    ? tf('celebration.firstMeal.titleNamed', '🥗 First meal logged: {name}', { name: mealName })
+    : tf('celebration.firstMeal.title', '🥗 First meal logged');
+  toast.success(`${title}${calLine}`, {
     description: tf('celebration.firstMeal.body', "Nutrition tracking unlocks macro insights as you build up history."),
     duration: 6000,
   });

@@ -37,6 +37,7 @@ import * as userMutesData from '@/lib/data/userMutes';
 import { useSettingsProfile } from './useSettingsProfile';
 import { Group, Row, ToggleRow, Switch, SegmentedControl } from './SettingsPrimitives';
 import { ANALYTICS_CONFIGURED, isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics';
+import { reportError } from '@/lib/reportError';
 
 // A blocked / muted row identifies an account WITHOUT its address.
 //
@@ -284,7 +285,8 @@ export default function PrivacySection() {
       // screen to say so.
       toast.success(tFallback('settings.block.removedPlain', 'Unblocked.'));
     } catch (err) {
-      toast.error(`Could not unblock: ${err.message || 'try again'}`);
+      reportError(err, { feature: 'settings.unblock' });
+      toast.error(tFallback('notice.unblockFailed', "Couldn't unblock them. Try again."));
     }
   };
 
@@ -295,7 +297,8 @@ export default function PrivacySection() {
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       toast.success(tFallback('settings.mute.removedPlain', 'Unmuted.'));
     } catch (err) {
-      toast.error(`Could not unmute: ${err.message || 'try again'}`);
+      reportError(err, { feature: 'settings.unmute' });
+      toast.error(tFallback('notice.unmuteFailed', "Couldn't unmute them. Try again."));
     }
   };
 
@@ -308,7 +311,8 @@ export default function PrivacySection() {
         'They can send you a message request again.'
       ));
     } catch (err) {
-      toast.error(`Could not update: ${err.message || 'try again'}`);
+      reportError(err, { feature: 'settings.request-block' });
+      toast.error(tFallback('notice.requestBlockFailed', "Couldn't update that. Try again."));
     }
   };
 

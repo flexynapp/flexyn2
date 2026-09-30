@@ -62,7 +62,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
       }
 
       setState('joined');
-      toast.success(`You joined ${crewName}!`);
+      toast.success(tFallback('notice.joinedCrew', 'You joined {name}!', { name: crewName }));
       // Navigate to Crews tab
       window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId } }));
     } catch (err) {

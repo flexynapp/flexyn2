@@ -425,7 +425,9 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                               next.delete(user.id);
                               return next;
                             });
-                            toast.error(`Couldn't follow @${user.username || 'user'}. Try again.`);
+                            toast.error(user.username
+                              ? tFallback('notice.followFailedNamed', "Couldn't follow @{username}. Try again.", { username: user.username })
+                              : tFallback('notice.followFailed', "Couldn't follow them. Try again."));
                           }
                         }}
                       />

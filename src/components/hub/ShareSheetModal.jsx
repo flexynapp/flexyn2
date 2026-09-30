@@ -156,7 +156,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
     setCrewSending(crew.id);
     try {
       await sendCrewMessage(crew.id, user.id, 'text', forwardBody);
-      toast.success(`Sent to ${crew.name}!`);
+      toast.success(tFallback('notice.sentTo', 'Sent to {name}', { name: crew.name }));
       onClose();
     } catch {
       toast.error(tFallback('shareSheet.sendFailed', 'Could not send. Try again.'));

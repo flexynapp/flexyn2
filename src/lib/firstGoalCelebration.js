@@ -34,8 +34,10 @@ export function fireFirstGoalCelebration({ targetSummary, userEmail, t } = {}) {
   // patterns used by the other first-X celebrations.
   try { navigator.vibrate?.([10, 30, 80]); } catch { /* ignore */ }
 
-  const label = targetSummary ? `: ${targetSummary}` : '';
-  toast.success(`🎯 First goal set${label}`, {
+  const title = targetSummary
+    ? tf('celebration.firstGoal.titleNamed', '🎯 First goal set: {target}', { target: targetSummary })
+    : tf('celebration.firstGoal.title', '🎯 First goal set');
+  toast.success(title, {
     description: tf('celebration.firstGoal.body', 'Log workouts that match the target and we’ll track your progress automatically.'),
     duration: 6000,
   });

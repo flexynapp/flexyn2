@@ -28,6 +28,18 @@ function nativeAuthFailedMessage() {
   }
 }
 
+const REFERRAL_WELCOME_EN = 'Welcome! +200 coins and an Elite capsule are yours.';
+
+// Same lookup for any other string this provider shows.
+function translated(key, english) {
+  try {
+    const v = getTranslation(document.documentElement.lang || 'en', key);
+    return v && v !== key ? v : english;
+  } catch {
+    return english;
+  }
+}
+
 // A failed read used to be ignored and returned { id, email } alone, which
 // has no onboarding flag and no username, so App.jsx routed a fully
 // onboarded user into Onboarding on a network blip, and its final save
@@ -192,7 +204,7 @@ export function AuthProvider({ children }) {
                   // saved workout; a pending claim stays quiet here.
                   if (res?.ok && res.rewarded !== false) {
                     const { toast } = await import('./toast');
-                    toast.success(`Welcome! +200 coins and an Elite capsule are yours.`);
+                    toast.success(translated('notice.referralWelcome', REFERRAL_WELCOME_EN));
                   }
                   // Silent on failure — already-claimed / self-referral
                   // shouldn't pop a toast. The RPC's error paths are all

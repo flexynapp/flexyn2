@@ -218,7 +218,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     try {
       await crewsData.removeMember(crew.id, user.id);
       queryClient.invalidateQueries({ queryKey: ['myCrews', user.id] });
-      toast.success(`Left ${crew.name}`);
+      toast.success(tFallback('notice.leftCrew', 'Left {name}', { name: crew.name }));
     } catch {
       toast.error(tFallback('hub.messages.leaveCrewError', 'Could not leave crew. Try again.'));
     }

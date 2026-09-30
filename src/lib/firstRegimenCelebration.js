@@ -34,8 +34,10 @@ export function fireFirstRegimenCelebration({ regimenName, xpGained = 0, userEma
   try { navigator.vibrate?.([15, 45, 15, 45]); } catch { /* ignore */ }
 
   const xpLine = xpGained > 0 ? ` · +${xpGained} XP` : '';
-  const name = regimenName ? `"${regimenName}"` : 'your first regimen';
-  toast.success(`💪 First plan saved — ${name}${xpLine}`, {
+  const title = regimenName
+    ? tf('celebration.firstRegimen.titleNamed', '💪 First plan saved: "{name}"', { name: regimenName })
+    : tf('celebration.firstRegimen.title', '💪 First plan saved');
+  toast.success(`${title}${xpLine}`, {
     description: tf('celebration.firstRegimen.body', 'Tap Start on the card to begin your first session.'),
     duration: 6000,
   });

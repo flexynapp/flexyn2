@@ -196,7 +196,7 @@ export default function CardioManualForm({
         notes: notes || null,
       });
       queryClient.invalidateQueries({ queryKey: ['cardioTemplates', user?.email] });
-      toast.success(`Template "${tplName}" saved`);
+      toast.success(tFallback('notice.templateSaved', 'Template "{name}" saved', { name: tplName }));
     } catch (err) {
       reportError(err, { feature: 'cardio.template.save' });
       toast.error(tFallback("cardioManualForm.failedToSaveTemplate", "Failed to save template"));

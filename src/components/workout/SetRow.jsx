@@ -93,7 +93,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     const clamped = Math.min(maxWeight, lbs);
     if (lbs > maxWeight + 0.5) {
       const capDisplay = formatWeightNumber(maxWeight, weightUnit);
-      toast.message(`Capped at ${capDisplay} ${weightUnit}`, {
+      toast.message(tFallback('notice.cappedWeight', 'Capped at {value} {unit}', { value: capDisplay, unit: weightUnit }), {
         description: tFallback('setRow.antiCheatWeight', 'Anti-cheat: weight exceeds realistic limit for your profile.'),
         duration: 2200,
       });
@@ -351,7 +351,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             // isn't clobbered by the stale draft on the next render. (Task 7.)
             setWeightDraft(formatWeightNumber(clampedWeight, weightUnit));
             triggerHaptic?.('light'); // respects per-device haptics toggle (audit B-5)
-            toast.success(`Set parsed — ${formatWeightNumber(clampedWeight, weightUnit)} ${weightUnit} × ${clampedReps}`, { duration: 1500 });
+            toast.success(tFallback('notice.setParsed', 'Set filled in: {weight} {unit} × {reps}', { weight: formatWeightNumber(clampedWeight, weightUnit), unit: weightUnit, reps: clampedReps }), { duration: 1500 });
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
@@ -400,7 +400,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               const clamped = Math.min(maxReps, clean);
               // Audit B-1 — surface the rep clamp the same way as weight.
               if (clean > maxReps) {
-                toast.message(`Capped at ${maxReps} reps`, {
+                toast.message(tFallback('notice.cappedReps', 'Capped at {n} reps', { n: maxReps }), {
                   description: tFallback('setRow.antiCheatReps', 'Anti-cheat: rep count exceeds realistic limit at that weight.'),
                   duration: 2200,
                 });
