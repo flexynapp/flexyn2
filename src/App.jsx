@@ -436,6 +436,10 @@ const AuthenticatedApp = () => {
               8-character Flexyn Code printed on gym signage tells people to
               open it, and printed signage can't be recalled. */}
           <Route path="/my-gyms"      element={<Navigate to="/my-gym" replace />} />
+          {/* The hourly streak-break reminder (run_streak_break_reminders)
+              links to /workouts, so every tap on it landed on the 404.
+              Redirecting also repairs the rows and pushes already sent. */}
+          <Route path="/workouts"     element={<Navigate to="/workout" replace />} />
           <Route path="/my-gym"       element={<ErrorBoundary label="MyGym"><Suspense fallback={<PageLoader />}><MyGym /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />
           <Route path="/gym-map"      element={<ErrorBoundary label="GymMap"><Suspense fallback={<PageLoader />}><GymMap /></Suspense></ErrorBoundary>} />

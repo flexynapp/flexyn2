@@ -51,7 +51,6 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   const pausedTotalMsRef = useRef(0);
   const tickIdRef = useRef(null);
   const wakeLockRef = useRef(null);
-  const hiddenAtRef = useRef(null);
   const frozenElapsedMsRef = useRef(null); // set by finish() — never recalculates after stop
 
   // ── Restore snapshot on mount ──
@@ -60,7 +59,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     if (!snap || snap.kind !== 'indoor' || snap.mode !== mode || snap.env !== env) return;
     startedAtRef.current = snap.startedAt;
     pausedTotalMsRef.current = snap.pausedTotalMs || 0;
-    if (snap.pauseStartedAt) pauseStartedAtRef.current = snap.pauseStartedAt;
+    // Recovery always lands paused, so a pause start is needed even when the
+    // snapshot was taken while tracking. Without one, elapsed read as
+    // null minus startedAt (shown as 0:00) and resume() added Date.now() - null
+    // to the paused total, so the session could never be saved.
+    pauseStartedAtRef.current = snap.pauseStartedAt || snap.savedAt || Date.now();
     if (snap.distanceInputUnits != null) setDistanceInputUnits(snap.distanceInputUnits);
     if (snap.incline != null) setIncline(snap.incline);
     setStatus('paused');
@@ -69,17 +72,13 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
    
   }, []);
 
-  // ── Exclude background time from elapsed ──
+  // Background time COUNTS indoors. A treadmill session keeps going while
+  // the phone plays music or sits locked, and the distance is typed off the
+  // machine at the end, so subtracting hidden time turned a 30 minute run
+  // into a 1 minute one with the full distance. Returning only redraws.
   useEffect(() => {
     const handleVisibility = () => {
-      if (!startedAtRef.current || !tickIdRef.current) return;
-      if (document.visibilityState === 'hidden') {
-        hiddenAtRef.current = Date.now();
-      } else if (hiddenAtRef.current !== null) {
-        pausedTotalMsRef.current += Date.now() - hiddenAtRef.current;
-        hiddenAtRef.current = null;
-        forceTick(n => n + 1);
-      }
+      if (document.visibilityState === 'visible' && startedAtRef.current) forceTick(n => n + 1);
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);

@@ -14,6 +14,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getDateLocale } from '@/lib/dateLocales';
 import * as nutritionData from '@/lib/data/nutrition';
+import * as mealPlans from '@/lib/data/mealPlans';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { filterAfterReset } from '@/lib/accountReset';
@@ -306,10 +307,20 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => nutritionData.remove(id),
+    mutationFn: async (id) => {
+      await nutritionData.remove(id);
+      // Same cleanup as the diary's delete in Nutrition.jsx: a photo-logged
+      // meal is mirrored into the planner, and leaving the copy behind kept
+      // counting a deleted meal in the plan's day total. Best-effort.
+      try { await mealPlans.removeMirrorForLog(id); } catch (mirrorErr) {
+        reportError(mirrorErr, { feature: 'nutrition.mirror-cleanup', level: 'warning', userEmail: user?.email });
+      }
+      return id;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nutritionHistory', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id] });
       setDetail(null);
       toast.success(tFallback("mealHistoryModal.mealRemoved", "Meal removed"));
     },

@@ -241,14 +241,24 @@ function PollCard({ post, userEmail }) {
     try {
       localStorage.setItem(VOTE_KEY(post.id, userEmail), JSON.stringify(idx));
     } catch {}
-    // Try DB insert (graceful fail if table doesn't exist)
-    try {
-      await supabase.from('poll_votes').insert({
-        post_id: post.id,
-        user_email: userEmail,
-        option_index: idx,
-      });
-    } catch { /* table may not exist — local vote already recorded */ }
+    // insert() resolves with { error } instead of throwing, so the old
+    // try/catch never saw a failed vote: the +1 stayed on screen, the choice
+    // stayed in localStorage, and the count reverted on reload. Undo the
+    // optimistic vote whenever the row was not written.
+    const { error } = await supabase.from('poll_votes').insert({
+      post_id: post.id,
+      user_email: userEmail,
+      option_index: idx,
+    });
+    if (error) {
+      setMyVote(null);
+      setCounts(prev => prev.map((c, i) => i === idx ? Math.max(0, c - 1) : c));
+      setTotalVotes(t => Math.max(0, t - 1));
+      try { localStorage.removeItem(VOTE_KEY(post.id, userEmail)); } catch {}
+      toast.error(error.code === '23505'
+        ? tFallback('hubPostCard.pollAlreadyVoted', 'You already voted on this poll.')
+        : tFallback('hubPostCard.pollVoteFailed', 'Your vote did not save. Try again.'));
+    }
     setVoting(false);
   };
 
