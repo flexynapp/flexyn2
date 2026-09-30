@@ -19,7 +19,7 @@ import { selectProfiles } from '@/lib/data/users';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
-import { buildStarterRegimen, ensureStarterRegimen, TRAINING_EQUIPMENT, SESSION_MINUTES } from '@/lib/data/starterRegimen';
+import { buildStarterRegimen, ensureStarterRegimen, starterPlanLevel, starterPlanWeeks, fiveKSecondsFrom, TRAINING_EQUIPMENT, SESSION_MINUTES } from '@/lib/data/starterRegimen';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { translateExerciseName } from '@/lib/exerciseTranslations';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
@@ -43,6 +43,7 @@ const GymMapOverlay = lazy(() => import('@/pages/GymMap'));
 import {
   setHomeGym, setHomeGymFromOsm, resolveHomeGymId,
 } from '@/lib/data/homeGym';
+import { getGym, leaveGym } from '@/lib/data/gymBusinesses';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
 import { track, EVENTS } from '@/lib/analytics';
@@ -1252,7 +1253,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
             // step a user is most likely to want to skip.
             className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-11"
           >
-            {tFallback('onboarding.assessment.skip', 'Skip and generate a generic plan')}
+            {tFallback('onboarding.assessment.skip', 'Skip the lift check')}
           </button>
         )}
       </div>
@@ -1263,7 +1264,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
 /* ═══════════════════════════════════════════════════════════════
    DRAG HOOK — used by Age, Height, Weight steps
 ═══════════════════════════════════════════════════════════════ */
-function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, step: stepSize = 1 }) {
+function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, step: stepSize = 1, invert = false }) {
   const ref = useRef(null);
   const drag = useRef({ active: false, start: 0, startVal: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -1288,11 +1289,14 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
   const onPointerMove = useCallback((e) => {
     if (!drag.current.active) return;
     const pos = axis === 'x' ? e.clientX : e.clientY;
-    const delta = Math.round(-(pos - drag.current.start) / pxPerUnit) * stepSize;
+    // Default: up (or left) raises the value. `invert` is for a tape whose
+    // larger values sit ABOVE the centre, where the tape follows the finger,
+    // so pulling it down brings the taller marks to the line.
+    const delta = Math.round((invert ? 1 : -1) * (pos - drag.current.start) / pxPerUnit) * stepSize;
     const next = Math.min(max, Math.max(min, drag.current.startVal + delta));
     onChangeRef.current(next);
     if (navigator.vibrate) navigator.vibrate(1);
-  }, [axis, pxPerUnit, stepSize, min, max]);
+  }, [axis, pxPerUnit, stepSize, min, max, invert]);
 
   const onPointerUp = useCallback(() => {
     drag.current.active = false;
@@ -1623,7 +1627,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                     {isMajor && (
                       <span style={{
                         position: 'absolute', left: v * PX, top: '72%', transform: 'translateX(-50%)',
-                        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+                        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
                         color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                       }}>{v}</span>
                     )}
@@ -1760,7 +1764,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
     : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
 
-  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX, invert: true });
 
   // Tap-to-type for height.
   //
@@ -1833,18 +1837,18 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     update();
     window.addEventListener('resize', update); return () => window.removeEventListener('resize', update);
   }, [ref]);
-  const offsetY = -value * PX + trackH / 2;
+  // Taller is up: a tick sits at -v * PX, so the tape reads like a wall
+  // chart instead of counting downward.
+  const offsetY = value * PX + trackH / 2;
 
   const displaySecondary = unit === 'cm' ? `${Math.floor(inFromCm(value) / 12)}'${inFromCm(value) % 12}"` : `${cmFromIn(value)} cm`;
-  // Pin minPct against a stable 4ft-7ft window so the silhouette scales
-  // by ACTUAL height, not by position within the (now-wider) input range.
-  // Previously the figure was sized off `value vs [range[0],range[1]]` so
-  // a 6-foot user appeared the same size as a 5-foot user (because both
-  // sat near the middle of the range). The screenshot feedback flagged
-  // that the silhouette didn't visibly change with the selected value.
-  const valueIn = unit === 'cm' ? inFromCm(value) : value;
-  const silhouettePct = Math.max(0, Math.min(1, (valueIn - 48) / 36)); // 4ft → 7ft
-  const silhouetteH = 55 + silhouettePct * 45; // 55%–100% range, very visible
+  // One scale for the figure AND the reference lines, in inches from the
+  // floor: 8 ft fills 90% of the panel. They used to be sized two different
+  // ways (the lines against the input range, the figure against a 4 to 7 ft
+  // window), so a 5'10" figure's head stood above the 6'0" line.
+  const valueIn = unit === 'cm' ? value / 2.54 : value;
+  const panelPct = (inches) => Math.max(0, Math.min(90, (inches / 96) * 90));
+  const silhouetteH = panelPct(valueIn);
 
   const ticks = useMemo(() => {
     const arr = []; for (let v = range[0]; v <= range[1]; v++) arr.push(v); return arr;
@@ -1940,17 +1944,17 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
               { cm: 168, in: 66, cmLabel: '168 cm', inLabel: "5'6\"" },
               { cm: 152, in: 60, cmLabel: '152 cm', inLabel: "5'0\"" },
             ].map(m => {
-              const rv = unit === 'cm' ? m.cm : m.in;
               const label = unit === 'cm' ? m.cmLabel : m.inLabel;
-              const pct = (rv - range[0]) / (range[1] - range[0]);
               return (
-                <div key={label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${pct * 88}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
-                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
+                <div key={label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${panelPct(m.in)}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
+                  <span style={{ position: 'absolute', left: 4, top: -14, fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
                 </div>
               );
             })}
             {/* Silhouette */}
-            <svg viewBox="0 0 100 240" preserveAspectRatio="xMidYMax meet"
+            {/* viewBox cropped to the figure (head top y=8, feet y=230), so
+                the SVG's height IS the person's height on the panel. */}
+            <svg viewBox="0 8 100 222" preserveAspectRatio="xMidYMax meet"
               style={{ width: '74%', height: `${silhouetteH}%`, transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', zIndex: 2 }}>
               <circle cx="50" cy="20" r="12" fill="hsl(var(--primary))" />
               <rect x="46" y="30" width="8" height="6" fill="hsl(var(--primary))" />
@@ -1981,8 +1985,8 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   const isActive = v === value;
                   return (
                     <span key={v}>
-                      <span style={{ position: 'absolute', top: v * PX, left: '50%', transform: 'translate(-50%,-50%)', width: isMajor ? 28 : isMid ? 18 : 10, height: 1.5, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.3)', borderRadius: 1 }} />
-                      {isMajor && <span style={{ position: 'absolute', top: v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
+                      <span style={{ position: 'absolute', top: -v * PX, left: '50%', transform: 'translate(-50%,-50%)', width: isMajor ? 28 : isMid ? 18 : 10, height: 1.5, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.3)', borderRadius: 1 }} />
+                      {isMajor && <span style={{ position: 'absolute', top: -v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
                     </span>
                   );
                 })}
@@ -2006,33 +2010,46 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
 /* ═══════════════════════════════════════════════════════════════
    STEP: WEIGHT — circular gauge + animated barbell (lbs default)
 ═══════════════════════════════════════════════════════════════ */
+// The bar is loaded in the unit on screen. It was always built from kilos
+// (20 kg bar, 25/20/15 kg bumpers), so 165 lb showed a 25 and a 2.5 that added
+// up to 75, which a lb lifter reads as a bar that doesn't match their number.
+// Colours follow each unit's bumper code. The printed numbers are gone: at
+// 7px they were unreadable, and the plate sizes already carry the weight.
+const PLATE_SETS = {
+  kg: { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], colors: { 25: 'hsl(0 75% 50%)', 20: 'hsl(217 80% 50%)', 15: 'hsl(50 90% 55%)', 10: 'hsl(160 60% 42%)', 5: 'hsl(0 0% 90%)', 2.5: 'hsl(0 0% 30%)', 1.25: 'hsl(0 0% 55%)' }, toKg: 1 },
+  lb: { bar: 45, plates: [55, 45, 35, 25, 10, 5, 2.5], colors: { 55: 'hsl(0 75% 50%)', 45: 'hsl(217 80% 50%)', 35: 'hsl(50 90% 55%)', 25: 'hsl(160 60% 42%)', 10: 'hsl(0 0% 90%)', 5: 'hsl(0 0% 30%)', 2.5: 'hsl(0 0% 55%)' }, toKg: 0.4536 },
+};
+
 function WeightPlate({ kg, color, delay }) {
   const h = 24 + Math.min(kg, 25) * 1.4;
   const w = 7 + Math.min(kg, 25) * 0.18;
   return (
-    <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0, position: 'relative' }}>
-      <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', fontFamily: 'var(--font-mono)', fontSize: 7, fontWeight: 700, color: kg === 5 ? 'hsl(0 0% 30%)' : 'white' }}>{kg}</span>
-    </div>
+    <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0 }} />
   );
 }
 
-function BarbellVisualizer({ kg }) {
-  const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
-  const PLATE_COLORS = { 25: 'hsl(0 75% 50%)', 20: 'hsl(217 80% 50%)', 15: 'hsl(50 90% 55%)', 10: 'hsl(160 60% 42%)', 5: 'hsl(0 0% 90%)', 2.5: 'hsl(0 0% 30%)', 1.25: 'hsl(0 0% 55%)' };
-  const plates = useMemo(() => {
-    const result = []; let rem = Math.max(0, (kg - 20) / 2);
-    for (const p of PLATES) { while (rem >= p - 0.001) { result.push(p); rem -= p; } }
-    return result.slice(0, 6);
-  }, [kg]);
+function loadBar(weight, unit) {
+  const set = PLATE_SETS[unit] || PLATE_SETS.kg;
+  const result = []; let rem = Math.max(0, (weight - set.bar) / 2);
+  for (const p of set.plates) { while (rem >= p - 0.001) { result.push(p); rem -= p; } }
+  return result.slice(0, 6);
+}
+
+function BarbellVisualizer({ weight, unit }) {
+  const set = PLATE_SETS[unit] || PLATE_SETS.kg;
+  const plates = useMemo(() => loadBar(weight, unit), [weight, unit]);
+  const plate = (side) => (p, i) => (
+    <WeightPlate key={`${side}${i}-${p}`} kg={p * set.toKg} color={set.colors[p]} delay={i * 0.04} />
+  );
 
   return (
-    <div className="flex items-center justify-center" style={{ height: 56, marginTop: 8 }}>
+    <div className="flex items-center justify-center" style={{ height: 56, marginTop: 8 }} aria-hidden="true">
       <div className="flex items-center" style={{ flexDirection: 'row-reverse' }}>
-        {plates.map((p, i) => <WeightPlate key={`l${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
+        {plates.map(plate('l'))}
       </div>
       <div style={{ width: 100, height: 6, background: 'hsl(0 0% 68%)', borderRadius: 3 }} />
       <div className="flex items-center">
-        {plates.map((p, i) => <WeightPlate key={`r${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
+        {plates.map(plate('r'))}
       </div>
     </div>
   );
@@ -2144,7 +2161,6 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const pct = (value - range[0]) / (range[1] - range[0]);
   const circumference = 2 * Math.PI * 82;
   const dash = pct * circumference;
-  const valueKg = unit === 'kg' ? value : kgFromLb(value);
 
   return (
     <div className="flex flex-col h-full">
@@ -2214,13 +2230,13 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 <NumberReel value={value} />
               </div>
             )}
-            <div className="font-mono text-micro font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
+            <div className="font-mono text-micro font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? tFallback('onboarding.weight.unitKg', 'KG') : tFallback('onboarding.weight.unitLb', 'LBS')}</div>
             <div className="font-mono text-micro text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
           </div>
         </div>
 
         {/* Barbell */}
-        <BarbellVisualizer kg={valueKg} />
+        <BarbellVisualizer weight={value} unit={unit === 'kg' ? 'kg' : 'lb'} />
 
         {/* Dial hint — the gauge above is the input: drag it up/down to set,
             tap the number to type. Replaces the old horizontal scrubber. */}
@@ -2465,16 +2481,26 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
 
   const remove = (idx) => onChange(value.filter((_, i) => i !== idx));
 
+  // A muscle picked but not yet added is still an injury the user told us
+  // about. Continue used to drop it, so tapping Chest + Serious and then
+  // Continue trained the chest anyway. Commit it on the way out.
+  const pendingCounts = !!pendingMuscle && value.length < 5;
+  const handleNext = () => {
+    if (pendingCounts) onChange([...value, { muscleGroup: pendingMuscle, severity: pendingSeverity }]);
+    onNext();
+  };
+  const loggedCount = value.length + (pendingCounts ? 1 : 0);
+
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
-          text={tFallback('onboarding.injury.heading', "We'll work around them from day one.")}
-          accentWord={tFallback('onboarding.injury.accentWord', 'around')}
+          text={tFallback('onboarding.injury.heading', 'Any injuries?')}
+          accentWord={tFallback('onboarding.injury.accentWord', 'injuries')}
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          {tFallback('onboarding.injury.sub', "Anything you flag comes out of your plan until you clear it, whatever the severity. Skip if you're all good.")}
+          {tFallback('onboarding.injury.sub', "We'll work around them from day one. Anything you flag comes out of your plan until you clear it. Skip if you're all good.")}
         </p>
 
         {/* Logged injuries */}
@@ -2588,9 +2614,9 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
       </div>
 
       <div className="pb-2 pt-2 space-y-2 shrink-0">
-        <PrimaryBtn onClick={onNext}>
-          {value.length > 0
-            ? tFallback('onboarding.injury.ctaLogged', 'Continue · {count} logged', { count: value.length })
+        <PrimaryBtn onClick={handleNext}>
+          {loggedCount > 0
+            ? tFallback('onboarding.injury.ctaLogged', 'Continue · {count} logged', { count: loggedCount })
             : tFallback('onboarding.common.continue', 'Continue')}
         </PrimaryBtn>
         <button
@@ -2649,6 +2675,15 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   // knows not to write the same pick a second time.
   const [candidate, setCandidate] = useState(null);
   const [browsing, setBrowsing] = useState(false);
+  // A map pick commits through GymMap itself, so all we learn is the id. The
+  // name is looked up for the CTA, which otherwise read "Continue · " with
+  // nothing after it.
+  const adoptMapPick = async () => {
+    const id = await resolveHomeGymId(null);
+    if (!id) return;
+    const gym = await getGym(id).catch(() => null);
+    onChange({ gymId: id, name: gym?.name || '', applied: true });
+  };
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
@@ -2694,16 +2729,14 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
           <GymMapOverlay
             onClose={async () => {
               setBrowsing(false);
-              const id = await resolveHomeGymId(null);
-              if (id) onChange({ gymId: id, name: '', applied: true });
+              await adoptMapPick();
             }}
             // Swaps the card's "View Hub" for a Continue and hides the
             // register-gym link — both route somewhere App.jsx will not
             // let an unfinished user go.
             onContinue={async () => {
               setBrowsing(false);
-              const id = await resolveHomeGymId(null);
-              if (id) onChange({ gymId: id, name: '', applied: true });
+              await adoptMapPick();
               onNext();
             }}
           />
@@ -2730,7 +2763,9 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         {value ? (
           <>
             <PrimaryBtn onClick={onNext}>
-              {tFallback('onboarding.homeGym.ctaPicked', 'Continue · {name}', { name: value.name })}
+              {value.name
+                ? tFallback('onboarding.homeGym.ctaPicked', 'Continue · {name}', { name: value.name })
+                : tFallback('onboarding.common.continue', 'Continue')}
             </PrimaryBtn>
             <button
               type="button"
@@ -2801,10 +2836,11 @@ const PLATE_STEP = 12;
  *
  * @param {object}   data            onboarding draft, for the printed answers
  * @param {object}   previewRegimen  the plan the reveal will show
+ * @param {number}   planWeeks       the block length the plan is built for
  * @param {function} onDone          advance to the reveal
  * @param {function} onCoach         asks the Coach; resolves either way
  */
-function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
+function LoadingStep({ data, previewRegimen, planWeeks = 8, onDone, onCoach }) {
   const { tFallback, language } = useLanguage();
   const fmtDate = useDateFormatter();
   const reduce = useReducedMotion();
@@ -2883,9 +2919,10 @@ function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
   const rows = useMemo(() => {
     const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
     const goal = GOALS.find(g => g.id === goalIds[0]);
-    const level = LEVELS.find(l => l.id === data.level);
     const days = [...(Array.isArray(data.days) ? data.days : [])].sort((a, b) => a - b);
-    const first = previewRegimen?.exercises?.[0];
+    // The first LIFT. A runner's plan leads with its runs, and exercises[0]
+    // printed "First lift: Easy run".
+    const first = previewRegimen?.exercises?.find(e => e.kind === 'strength');
     const firstName = first ? (first.displayName || translateExerciseName(first.name, language)) : null;
     const firstDose = first?.kind === 'strength' && first.target_sets && first.target_reps
       ? `${first.target_sets} × ${first.target_reps}` : null;
@@ -2894,10 +2931,10 @@ function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
         label: tFallback('onboarding.loading.row.goal', 'Goal'),
         value: tFallback(`onboarding.goal.${goal.id}.title`, goal.title) + (goalIds.length > 1 ? ` +${goalIds.length - 1}` : ''),
       },
-      // Same rule as the reveal's block length, so the two never disagree.
-      level && {
+      // The same number the reveal prints, from the level the plan is built at.
+      {
         label: tFallback('onboarding.loading.row.length', 'Plan length'),
-        value: tFallback('onboarding.loading.weeks', '{n} weeks', { n: (level.bars || 1) >= 3 ? 12 : 8 }),
+        value: tFallback('onboarding.loading.weeks', '{n} weeks', { n: planWeeks }),
       },
       days.length > 0 && {
         label: tFallback('onboarding.loading.row.days', 'Training days'),
@@ -2908,7 +2945,7 @@ function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
         value: firstDose ? `${firstName}, ${firstDose}` : firstName,
       },
     ].filter(Boolean);
-  }, [data.goal, data.level, data.days, previewRegimen, language, tFallback, fmtDate]);
+  }, [data.goal, data.days, planWeeks, previewRegimen, language, tFallback, fmtDate]);
 
   const done = beat >= LOADER_BEATS.length;
   const clearing = phase !== 'build';
@@ -3068,14 +3105,37 @@ function fillNodes(template, values) {
   });
 }
 
-function RevealStep({ data, onNext, saving = false, previewRegimen = null, coachIntro = null }) {
-  const { tFallback } = useLanguage();
+function RevealStep({ data, onNext, saving = false, previewRegimen = null, coachIntro = null, planLevel = null, planWeeks = 8 }) {
+  const { tFallback, language } = useLanguage();
   const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
-  const primaryGoal = GOALS.find(g => g.id === goalIds[0]) || GOALS[0];
-  const extraGoalCount = Math.max(0, goalIds.length - 1);
-  const level = LEVELS.find(l => l.id === data.level) || LEVELS[0];
+  const pickedGoals = goalIds.map(id => GOALS.find(g => g.id === id)).filter(Boolean);
+  const goals = pickedGoals.length ? pickedGoals : [GOALS[0]];
+  // The level the plan was BUILT at, which the lift check can raise above
+  // the one picked. Naming the pick put "for new lifters" over an advanced
+  // plan. Same for the length: it follows the built level.
+  const level = LEVELS.find(l => l.id === (planLevel || data.level)) || LEVELS[0];
   const daysCount = data.days.length;
-  const weeks = (level?.bars || 1) >= 3 ? 12 : 8;
+  const weeks = planWeeks;
+
+  // Every goal, in the order picked, joined the way the language joins a
+  // list ("A, B and C", "A, B y C"). It read "build strength + 1 more block",
+  // which named one goal and made the user count the rest.
+  const goalTitle = (g, i) => {
+    const t = tFallback(`onboarding.goal.${g.id}.title`, g.title);
+    return i === 0 ? t : t.toLowerCase();
+  };
+  const goalList = (() => {
+    const titles = goals.map(goalTitle);
+    let parts;
+    try {
+      parts = new Intl.ListFormat(language || 'en', { type: 'conjunction' }).formatToParts(titles);
+    } catch {
+      parts = titles.flatMap((t, i) => (i ? [{ type: 'literal', value: ', ' }, { type: 'element', value: t }] : [{ type: 'element', value: t }]));
+    }
+    return parts.map((p, i) => (p.type === 'element'
+      ? <span key={i} className="text-primary">{p.value}</span>
+      : p.value));
+  })();
 
   // Real exercises from the regimen we'll persist on submit. Falls back to
   // an empty list if the generator wasn't passed in (legacy / unit-test path).
@@ -3109,26 +3169,12 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
           className="font-heading font-bold leading-[1.1] tracking-tight text-foreground m-0"
           style={{ fontSize: 'var(--fluid-heading-sentence)', marginBottom: 'var(--fluid-section)' }}>
           {fillNodes(
-            tFallback(
-              'onboarding.reveal.summary',
-              // Plural — "for a {level} lifter" rendered "for a advanced
-              // lifter" on the payoff screen. See the key in
-              // `src/locales/*.json`. (Onboarding polish #2) "Your" rather
-              // than "A" because the article depends on the number: it read
-              // "A 8-week" for the eight week block.
-              'Your {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
-            ),
+            daysCount === 1
+              ? tFallback('onboarding.reveal.headlineOneDay', '{goals} in {weeks} weeks. One day a week, set for {level} lifters.')
+              : tFallback('onboarding.reveal.headline', '{goals} in {weeks} weeks. {days} days a week, set for {level} lifters.'),
             {
+              goals: goalList,
               weeks: <span className="text-primary">{weeks}</span>,
-              goal: <span className="text-primary">
-                {tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title).toLowerCase()}
-              </span>,
-              extra: extraGoalCount > 0
-                ? fillNodes(
-                    tFallback('onboarding.reveal.summaryExtra', ' + {count} more'),
-                    { count: <span className="text-primary">{extraGoalCount}</span> },
-                  )
-                : '',
               level: <span className="text-primary">
                 {level ? tFallback(`onboarding.level.${level.id}.label`, level.label).toLowerCase() : ''}
               </span>,
@@ -3153,7 +3199,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
                 in the heading, and "tap a section to explore" described a
                 chevron the user can see. */}
             <div className="text-caption text-muted-foreground">
-              {tFallback('onboarding.reveal.planMeta', 'Saved to Workout → Regimens')}
+              {tFallback('onboarding.reveal.planMeta', "We'll save it to Workout → Regimens.")}
             </div>
             <StarterPlanCoachCard
               regimen={previewRegimen}
@@ -3407,24 +3453,30 @@ export default function Onboarding() {
   // can't lie about what the user is getting. Comment at the call site
   // promised "same object both places" and that promise was broken
   // until this dep was added.
-  const previewRegimen = useMemo(
-    () => buildStarterRegimen({
-      goals: data.goal,
-      level: data.level,
-      daysCount: Array.isArray(data.days) ? data.days.length : 0,
-      assessment: data.assessment || null,
-      cardioEvent: data.sharpen?.cardioEvent,
-      strengthFocus: data.sharpen?.strengthFocus,
-      equipment: data.sharpen?.equipment,
-      sessionMinutes: data.sharpen?.sessionMinutes,
-      injuries: data.onboardingInjuries || [],
-      age: data.stats?.age,
-      gender: data.stats?.gender,
-      weightKg: data.stats?.weightKg,
-      heightCm: data.stats?.heightCm,
-    }),
-    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.sharpen?.equipment, data.sharpen?.sessionMinutes, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
-  );
+  // One set of inputs for the preview AND the plan that gets saved. They were
+  // two hand-copied argument lists, which is how the recent run time came to
+  // be asked for and passed to neither.
+  const starterInputs = useMemo(() => ({
+    goals: data.goal,
+    level: data.level,
+    daysCount: Array.isArray(data.days) ? data.days.length : 0,
+    assessment: data.assessment || null,
+    cardioEvent: data.sharpen?.cardioEvent,
+    current5kSec: fiveKSecondsFrom(data.sharpen?.cardioCurrent),
+    strengthFocus: data.sharpen?.strengthFocus,
+    equipment: data.sharpen?.equipment,
+    sessionMinutes: data.sharpen?.sessionMinutes,
+    injuries: data.onboardingInjuries || [],
+    age: data.stats?.age,
+    gender: data.stats?.gender,
+    weightKg: data.stats?.weightKg,
+    heightCm: data.stats?.heightCm,
+  }), [data.goal, data.level, data.days, data.assessment, data.sharpen, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]);
+  const previewRegimen = useMemo(() => buildStarterRegimen(starterInputs), [starterInputs]);
+  // The level and length the plan is really built at (the lift check can
+  // promote the level), for the loader and the reveal to name.
+  const planLevel = useMemo(() => starterPlanLevel(starterInputs), [starterInputs]);
+  const planWeeks = starterPlanWeeks(planLevel);
 
   // The AI Coach's write-up of that plan. Null until the loading step asks for
   // it, and null forever if the Coach is unreachable — the reveal renders the
@@ -3444,14 +3496,14 @@ export default function Onboarding() {
     if (coachAsked.current) return;
     coachAsked.current = true;
     try {
-      const res = await askStarterPlanCoach({ draft: data, language });
+      const res = await askStarterPlanCoach({ draft: { ...data, level: planLevel }, language });
       if (res.ok) setCoachIntro({ reply: res.reply, model: res.model });
     } catch (err) {
       // askStarterPlanCoach is soft by contract; this is the belt to that
       // brace. A Coach failure must never cost the user their onboarding.
       reportError(err, { feature: 'onboarding.starter-coach' });
     }
-  }, [data, language]);
+  }, [data, planLevel, language]);
 
   // Force Iron Orange theme during onboarding so new/reset users always see
   // the default look regardless of any previously-saved theme.
@@ -3776,8 +3828,8 @@ export default function Onboarding() {
             const detail = coreErr?.message ? `: ${String(coreErr.message).slice(0, 120)}` : '';
             toast.error(
               looksOffline
-                ? tFallback('onboarding.toast.offline', "You're offline. Reconnect and tap Save again.")
-                : tFallback('onboarding.toast.saveFailed', 'Could not save your profile{code}. Tap Save to retry{detail}', { code, detail }),
+                ? tFallback('onboarding.toast.offline', "You're offline. Reconnect and tap Enter Flexyn again.")
+                : tFallback('onboarding.toast.saveFailed', 'Could not save your profile{code}. Tap Enter Flexyn to retry{detail}', { code, detail }),
               { duration: 8000 }
             );
           }
@@ -3802,25 +3854,15 @@ export default function Onboarding() {
           });
         }
         // Starter regimen — idempotent (skips if any regimens exist).
-        ensureStarterRegimen({
-          user,
-          profile: {
-            goals: data.goal,
-            level: data.level,
-            daysCount: Array.isArray(data.days) ? data.days.length : 0,
-            assessment: data.assessment || null,
-            cardioEvent: data.sharpen?.cardioEvent,
-            strengthFocus: data.sharpen?.strengthFocus,
-            equipment: data.sharpen?.equipment,
-            sessionMinutes: data.sharpen?.sessionMinutes,
-            injuries: data.onboardingInjuries || [],
-            age: data.stats?.age,
-                  gender: data.stats?.gender,
-            weightKg: data.stats?.weightKg,
-            heightCm: data.stats?.heightCm,
-          },
-        }).catch(sideErr => {
+        ensureStarterRegimen({ user, profile: starterInputs }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
+          // The reveal just promised the plan would be saved, so a failure
+          // here is one the user will go looking for. Say so, the same way
+          // the injury history does.
+          toast.warning(
+            tFallback('onboarding.toast.planFailed', "We couldn't save your starter plan. Ask the AI Coach to build you a new one."),
+            { duration: 7000 },
+          );
         });
 
         // Cardio goal — if the user picked a running goal + a target event,
@@ -3941,8 +3983,8 @@ export default function Onboarding() {
     return (
       <SignInToContinue
         onBack={() => setShowSignIn(false)}
-        heading="Let's get you set up"
-        subtext="Create an account or sign in. It saves your plan and syncs your progress across devices."
+        heading={tFallback('onboarding.signIn.heading', "Let's get you set up")}
+        subtext={tFallback('onboarding.signIn.subtext', 'Create an account or sign in. It saves your plan and syncs your progress across devices.')}
       />
     );
   }
@@ -4121,12 +4163,21 @@ export default function Onboarding() {
                   onChange={v => setData(d => ({ ...d, homeGym: v }))}
                   onNext={next}
                   onBack={back}
-                  onSkip={() => { setData(d => ({ ...d, homeGym: null })); next(); }}
+                  // A pick made through the join sheet or the map is already a
+                  // membership and a home gym on the server. Skip has to undo
+                  // that, or "Skip and pick later" leaves the user on the
+                  // gym's leaderboard. leaveGym clears the home gym too.
+                  onSkip={() => {
+                    const joined = data.homeGym?.applied ? data.homeGym.gymId : null;
+                    if (joined) leaveGym(joined).catch(err => reportError(err, { feature: 'onboarding.home-gym-skip' }));
+                    setData(d => ({ ...d, homeGym: null }));
+                    next();
+                  }}
                 />
               )}
 
               {stepName === 'loading' && (
-                <LoadingStep data={data} previewRegimen={previewRegimen}
+                <LoadingStep data={data} previewRegimen={previewRegimen} planWeeks={planWeeks}
                   onDone={() => { if (!reduceMotion) setLoaderFlash(true); next(); }}
                   onCoach={requestCoachIntro} />
               )}
@@ -4138,6 +4189,8 @@ export default function Onboarding() {
                   saving={saving}
                   previewRegimen={previewRegimen}
                   coachIntro={coachIntro}
+                  planLevel={planLevel}
+                  planWeeks={planWeeks}
                 />
               )}
 

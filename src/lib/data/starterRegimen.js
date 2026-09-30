@@ -253,6 +253,36 @@ function effectiveLevel(level, assessment, goalKey) {
   return LEVEL_ORDER[idx];
 }
 
+/**
+ * The level the starter plan is actually built at: the one the user picked,
+ * promoted by the lift check. The loader and the reveal name this, not the
+ * raw pick, or a "New" lifter who aces the check reads "for new lifters"
+ * above an advanced plan.
+ */
+export function starterPlanLevel({ goals, level, assessment } = {}) {
+  const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
+  const cardioWanted = goalList.some(g => CARDIO_GOALS.has(g));
+  return effectiveLevel(level, assessment, cardioWanted ? 'endurance' : 'strength');
+}
+
+/** How long the starter block runs: 12 weeks from consistent up, else 8. */
+export function starterPlanWeeks(effLevel) {
+  return LEVEL_ORDER.indexOf(effLevel) >= 2 ? 12 : 8;
+}
+
+/**
+ * A recent run time as a 5K time, which is what `runningTargets` paces from.
+ * A mile or 10K is converted with Riegel's formula (t2 = t1 * (d2/d1)^1.06).
+ * Anything unreadable is null, and the plan falls back to untargeted paces.
+ */
+export function fiveKSecondsFrom(current) {
+  const t = Number(current?.timeSec);
+  if (!Number.isFinite(t) || t <= 0) return null;
+  const km = { '1mi': 1.609, '5k': 5, '10k': 10 }[current?.distance];
+  if (!km) return null;
+  return Math.round(t * Math.pow(5 / km, 1.06));
+}
+
 // Cardio + breath-heavy exercises don't take a literal rep target the way
 // barbell lifts do; we set a higher placeholder so the displayed regimen
 // reads sensibly ("3 × 30") instead of "3 × 5". Logging is still flexible.
@@ -388,7 +418,11 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   let exerciseNames = [...GOAL_EXERCISES[goalKey]];
 
   // Strength focus (onboarding "sharpen") → lead the pool with the user's picks.
-  const focus = Array.isArray(strengthFocus)
+  // Only while a strength or muscle goal is set: that is when the step shows
+  // the lifts, so picks left over from a goal the user has since dropped
+  // must not put Bench Press at the top of a fat loss plan.
+  const focusApplies = goalList.some(g => g === 'strength' || g === 'muscle');
+  const focus = focusApplies && Array.isArray(strengthFocus)
     ? strengthFocus.filter(n => EXERCISE_LIBRARY.some(e => e.name === n))
     : [];
   if (focus.length) exerciseNames = [...focus, ...exerciseNames.filter(n => !focus.includes(n))];

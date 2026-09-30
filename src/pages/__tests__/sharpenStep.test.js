@@ -117,8 +117,13 @@ describe('sharpen step', () => {
     expect(step).toContain('onboarding.sharpen.equipmentPrompt');
     expect(step).toContain('onboarding.sharpen.minutesPrompt');
     expect(step).not.toContain('nothingToAsk');
-    expect(SOURCE.match(/equipment: data\.sharpen\?\.equipment/g)?.length).toBe(2);
-    expect(SOURCE.match(/sessionMinutes: data\.sharpen\?\.sessionMinutes/g)?.length).toBe(2);
+    // Once, into the one input list the preview AND the saved plan share.
+    // They were two hand-copied lists, which is how the recent run time
+    // came to reach neither.
+    expect(SOURCE.match(/equipment: data\.sharpen\?\.equipment/g)?.length).toBe(1);
+    expect(SOURCE.match(/sessionMinutes: data\.sharpen\?\.sessionMinutes/g)?.length).toBe(1);
+    expect(SOURCE).toContain('buildStarterRegimen(starterInputs)');
+    expect(SOURCE).toContain('ensureStarterRegimen({ user, profile: starterInputs })');
   });
 
   it('keeps the lift search on screen once five are picked', () => {
