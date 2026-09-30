@@ -2774,7 +2774,7 @@ const LOADER_PHOTO = '/onboarding/loader-dumbbells.jpg';
 // settles, so a wait there is the thing it says rather than a stall.
 const LOADER_BEATS = [
   { key: 'onboarding.loading.beat.1', en: 'Reading your answers' },
-  { key: 'onboarding.loading.beat.2', en: 'Setting your level' },
+  { key: 'onboarding.loading.beat.2', en: 'Setting your plan length' },
   { key: 'onboarding.loading.beat.3', en: 'Spacing your rest days' },
   { key: 'onboarding.loading.beat.4', en: 'Asking your AI Coach' },
 ];
@@ -2894,9 +2894,10 @@ function LoadingStep({ data, previewRegimen, onDone, onCoach }) {
         label: tFallback('onboarding.loading.row.goal', 'Goal'),
         value: tFallback(`onboarding.goal.${goal.id}.title`, goal.title) + (goalIds.length > 1 ? ` +${goalIds.length - 1}` : ''),
       },
+      // Same rule as the reveal's block length, so the two never disagree.
       level && {
-        label: tFallback('onboarding.loading.row.level', 'Level'),
-        value: tFallback(`onboarding.level.${level.id}.label`, level.label),
+        label: tFallback('onboarding.loading.row.length', 'Plan length'),
+        value: tFallback('onboarding.loading.weeks', '{n} weeks', { n: (level.bars || 1) >= 3 ? 12 : 8 }),
       },
       days.length > 0 && {
         label: tFallback('onboarding.loading.row.days', 'Training days'),
