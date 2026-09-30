@@ -799,10 +799,16 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
 
   // Picking the event also fixes the distance the time is asked at, so the
   // user never answers "which distance?" twice.
-  const pickEvent = (eventId) => set({
-    cardioEvent: eventId,
-    cardioCurrent: { ...cur, distance: TIME_DISTANCE_FOR_EVENT[eventId] || '5k' },
-  });
+  // A time typed for one distance means nothing at another: 25:00 for a 5K
+  // read as a 10K made every pace in the plan far too fast. A new distance
+  // starts the time over.
+  const pickEvent = (eventId) => {
+    const distance = TIME_DISTANCE_FOR_EVENT[eventId] || '5k';
+    set({
+      cardioEvent: eventId,
+      cardioCurrent: distance === cur.distance ? cur : { distance },
+    });
+  };
 
   const timeDistance = TIME_DISTANCES.find(d => d.id === cur.distance);
   const timeDistanceLabel = timeDistance
@@ -1745,8 +1751,11 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const cmFromIn = (inches) => Math.round(inches * 2.54);
 
   const setUnit = (u) => {
-    if (u === 'cm') onChange({ ...stats, heightUnit: 'cm', heightCm: cmFromIn(stats.heightIn) });
-    else onChange({ ...stats, heightUnit: 'in', heightIn: inFromCm(stats.heightCm) });
+    // setValue keeps both units in step, so switching only changes which one
+    // is shown. Rebuilding cm from rounded inches lost a centimetre on every
+    // round trip (171 came back as 170).
+    if (u === 'cm') onChange({ ...stats, heightUnit: 'cm', heightCm: stats.heightCm ?? cmFromIn(stats.heightIn) });
+    else onChange({ ...stats, heightUnit: 'in', heightIn: stats.heightIn ?? inFromCm(stats.heightCm) });
   };
 
   const value = unit === 'cm' ? stats.heightCm : stats.heightIn;
@@ -2072,8 +2081,10 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const lbFromKg = (kg) => Math.round(kg * 2.20462);
 
   const setUnit = (u) => {
-    if (u === 'kg') onChange({ ...stats, weightUnit: 'kg', weightKg: kgFromLb(stats.weightLb) });
-    else onChange({ ...stats, weightUnit: 'lb', weightLb: lbFromKg(stats.weightKg) });
+    // setValue keeps both units in step; switching only changes which one
+    // is shown, so a round trip cannot drift by a pound.
+    if (u === 'kg') onChange({ ...stats, weightUnit: 'kg', weightKg: stats.weightKg ?? kgFromLb(stats.weightLb) });
+    else onChange({ ...stats, weightUnit: 'lb', weightLb: stats.weightLb ?? lbFromKg(stats.weightKg) });
   };
 
   const value = unit === 'kg' ? stats.weightKg : stats.weightLb;
@@ -2157,6 +2168,17 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   // was bound to onGaugeUp, so an interrupted touch that hadn't travelled 6px
   // popped the numeric keyboard the user never asked for. (Audit 18 #10.)
   const onGaugeCancel = (e) => { onPointerUp(e); };
+  const onGaugeKey = (e) => {
+    if (editingWeight) return;
+    const step = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 }[e.key];
+    if (step) {
+      e.preventDefault();
+      setValue(Math.min(range[1], Math.max(range[0], value + step)));
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleWeightTap();
+    }
+  };
 
   const pct = (value - range[0]) / (range[1] - range[0]);
   const circumference = 2 * Math.PI * 82;
@@ -2183,8 +2205,16 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         </div>
 
         {/* Circular gauge — draggable dial (vertical drag sets weight, tap to type) */}
+        {/* A slider to assistive tech and the keyboard. Drag was the only
+            way in, so anyone without a pointer was stuck on 165 lb. */}
         <div ref={ref} onPointerDown={onGaugeDown} onPointerMove={onGaugeMove} onPointerUp={onGaugeUp} onPointerCancel={onGaugeCancel}
-          className="flex flex-col items-center select-none"
+          role="slider" tabIndex={editingWeight ? -1 : 0}
+          aria-label={unit === 'kg'
+            ? tFallback('onboarding.weight.ariaKg', 'Weight in kilograms')
+            : tFallback('onboarding.weight.ariaLb', 'Weight in pounds')}
+          aria-valuemin={range[0]} aria-valuemax={range[1]} aria-valuenow={value}
+          onKeyDown={onGaugeKey}
+          className="flex flex-col items-center select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           style={{ position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}>
           <svg width="220" height="220" viewBox="0 0 200 200" style={{ position: 'relative' }}>
             <circle cx="100" cy="100" r="82" fill="none" stroke="hsl(var(--muted-foreground) / 0.12)" strokeWidth="3" />
@@ -2471,10 +2501,17 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
   const [pendingMuscle, setPendingMuscle] = useState('');
   const [pendingSeverity, setPendingSeverity] = useState('mild');
 
+  // One row per muscle: picking Chest again updates its severity rather than
+  // saving two injury logs for the same chest.
+  const alreadyLogged = value.some(e => e.muscleGroup === pendingMuscle);
+  const withPending = () => [
+    ...value.filter(e => e.muscleGroup !== pendingMuscle),
+    { muscleGroup: pendingMuscle, severity: pendingSeverity },
+  ];
   const addEntry = () => {
     if (!pendingMuscle) return;
-    if (value.length >= 5) return;
-    onChange([...value, { muscleGroup: pendingMuscle, severity: pendingSeverity }]);
+    if (value.length >= 5 && !alreadyLogged) return;
+    onChange(withPending());
     setPendingMuscle('');
     setPendingSeverity('mild');
   };
@@ -2484,12 +2521,12 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
   // A muscle picked but not yet added is still an injury the user told us
   // about. Continue used to drop it, so tapping Chest + Serious and then
   // Continue trained the chest anyway. Commit it on the way out.
-  const pendingCounts = !!pendingMuscle && value.length < 5;
+  const pendingCounts = !!pendingMuscle && (value.length < 5 || alreadyLogged);
   const handleNext = () => {
-    if (pendingCounts) onChange([...value, { muscleGroup: pendingMuscle, severity: pendingSeverity }]);
+    if (pendingCounts) onChange(withPending());
     onNext();
   };
-  const loggedCount = value.length + (pendingCounts ? 1 : 0);
+  const loggedCount = value.length + (pendingCounts && !alreadyLogged ? 1 : 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -2663,6 +2700,14 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
    membership behind for a user who never finished signing up.
 ═══════════════════════════════════════════════════════════════ */
 
+// leaveGym reports failure as { ok: false } rather than throwing, so a
+// .catch alone never saw a leave that did not happen.
+function leaveJoinedGym(gymId) {
+  leaveGym(gymId)
+    .then(res => { if (!res?.ok) reportError(new Error('leaveGym returned not ok'), { feature: 'onboarding.home-gym-leave' }); })
+    .catch(err => reportError(err, { feature: 'onboarding.home-gym-leave' }));
+}
+
 function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   const { tFallback } = useLanguage();
   // Picking opens a confirmation sheet rather than committing silently.
@@ -2678,12 +2723,25 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   // A map pick commits through GymMap itself, so all we learn is the id. The
   // name is looked up for the CTA, which otherwise read "Continue · " with
   // nothing after it.
+  // Joining a second gym here replaces the first rather than adding to it.
+  // Both the sheet and the map add a membership without removing the old
+  // one, so without this a user who changed their mind trained at two gyms.
+  const replaceJoined = (nextId) => {
+    const prev = value?.applied ? value.gymId : null;
+    if (prev && prev !== nextId) leaveJoinedGym(prev);
+  };
   const adoptMapPick = async () => {
     const id = await resolveHomeGymId(null);
     if (!id) return;
+    replaceJoined(id);
     const gym = await getGym(id).catch(() => null);
     onChange({ gymId: id, name: gym?.name || '', applied: true });
   };
+  // Whether the open sheet has joined its gym. Cancelling a sheet that never
+  // joined must leave the earlier pick alone: it used to clear it on screen
+  // while the membership stayed, so Skip had nothing left to undo.
+  const [sheetJoined, setSheetJoined] = useState(false);
+  const pickCandidate = (c) => { setSheetJoined(false); setCandidate(c); };
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
@@ -2713,7 +2771,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
 
         <NearbyGymPicker
           value={value}
-          onChange={setCandidate}
+          onChange={pickCandidate}
           emptyHint={tFallback('onboarding.homeGym.emptyHint', "Try Browse map above, or skip for now. You can pick your gym any time from Profile \u2192 My Gym.")}
         />
       </div>
@@ -2746,8 +2804,13 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
       <GymJoinSheet
         pick={candidate}
         open={!!candidate}
-        onCancel={() => { setCandidate(null); onChange(null); }}
-        onJoined={(gymId) => onChange({ ...candidate, gymId, applied: true })}
+        // After a join the sheet has already left that gym again.
+        onCancel={() => { setCandidate(null); if (sheetJoined) onChange(null); setSheetJoined(false); }}
+        onJoined={(gymId) => {
+          replaceJoined(gymId);
+          setSheetJoined(true);
+          onChange({ ...candidate, gymId, applied: true });
+        }}
         onContinue={() => { setCandidate(null); onNext(); }}
       />
 
@@ -3487,23 +3550,28 @@ export default function Onboarding() {
   // and they have to be reproducible. This is the same split coach.js runs
   // everywhere else: the model writes, the builder builds.
   const [coachIntro, setCoachIntro] = useState(null);
-  const coachAsked = useRef(false);
+  // Which plan the intro was asked about. It was a plain once-only flag, so
+  // a user sent back by a taken username who then changed their goals got
+  // the intro written for the old ones.
+  const coachAsked = useRef(null);
 
   // Returns a promise so LoadingStep can wait on it. Guarded because every
   // call spends one of the user's daily Coach turns (migration 305), and
   // React 18's StrictMode double-mounts effects in development.
   const requestCoachIntro = useCallback(async () => {
-    if (coachAsked.current) return;
-    coachAsked.current = true;
+    const key = `${language}|${JSON.stringify(starterInputs)}`;
+    if (coachAsked.current === key) return;
+    coachAsked.current = key;
+    setCoachIntro(null);
     try {
       const res = await askStarterPlanCoach({ draft: { ...data, level: planLevel }, language });
-      if (res.ok) setCoachIntro({ reply: res.reply, model: res.model });
+      if (res.ok && coachAsked.current === key) setCoachIntro({ reply: res.reply, model: res.model });
     } catch (err) {
       // askStarterPlanCoach is soft by contract; this is the belt to that
       // brace. A Coach failure must never cost the user their onboarding.
       reportError(err, { feature: 'onboarding.starter-coach' });
     }
-  }, [data, planLevel, language]);
+  }, [data, planLevel, language, starterInputs]);
 
   // Force Iron Orange theme during onboarding so new/reset users always see
   // the default look regardless of any previously-saved theme.
@@ -4169,7 +4237,7 @@ export default function Onboarding() {
                   // gym's leaderboard. leaveGym clears the home gym too.
                   onSkip={() => {
                     const joined = data.homeGym?.applied ? data.homeGym.gymId : null;
-                    if (joined) leaveGym(joined).catch(err => reportError(err, { feature: 'onboarding.home-gym-skip' }));
+                    if (joined) leaveJoinedGym(joined);
                     setData(d => ({ ...d, homeGym: null }));
                     next();
                   }}

@@ -435,6 +435,14 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const dedupe = (names) => [...new Set(names.filter(Boolean))];
   exerciseNames = dedupe(exerciseNames.map(fits));
 
+  // Someone who just told us they can't do ten pull-ups was still handed
+  // Pull-Up 3x10. Give them the regression their kit allows. A pull-up they
+  // searched for by name stays: they asked for it.
+  const pullUpSwap = { gym: 'Machine Lat Pulldown', minimal: 'Assisted Pull-Up' }[kit];
+  if (assessment?.pullups_10 === 'not_yet' && pullUpSwap && !focus.includes('Pull-Up')) {
+    exerciseNames = dedupe(exerciseNames.map(n => (n === 'Pull-Up' ? pullUpSwap : n)));
+  }
+
   // ── Injuries. EVERY severity is excluded, mild included.
   //
   // Mild used to stay in with an "Ease in — mild legs flagged." note, on the

@@ -766,7 +766,7 @@
   "coach.onboarding.home_gym.prompt.nofind": "I can't find my gym",
   "coach.onboarding.home_gym.prompt.skip": "Can I skip this?",
   "coach.onboarding.home_gym.prompt.why": "Why pick a gym?",
-  "coach.onboarding.injury.explain": "Anything you log here gets pulled out of your plan, along with the muscles that work with it. Flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one.",
+  "coach.onboarding.injury.explain": "Anything you log here comes out of your plan, whatever the severity. Flag a shoulder and the shoulder work goes, so you won't be handed an Overhead Press on a shoulder that can't take one. Mark it serious and your workouts also rest chest and triceps, because they load the same joint.",
   "coach.onboarding.injury.freeOld": "If it's fully healed and doesn't bother you under load, leave it out. The exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Profile → My Injuries the moment it stops mattering.",
   "coach.onboarding.injury.intro": "Anything currently injured or bothering you? This is the one step I'd really rather you didn't skip.",
   "coach.onboarding.injury.prompt.old": "What about an old injury?",

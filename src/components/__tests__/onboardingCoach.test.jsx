@@ -36,7 +36,7 @@ describe('OnboardingCoachSheet', () => {
   it('answers a typed question', () => {
     render(<LanguageProvider><OnboardingCoachSheet open stepId={OB.INJURY} onClose={() => {}} /></LanguageProvider>);
     ask('why does this matter?');
-    expect(screen.getByText(/pulled out of your plan/i)).toBeTruthy();
+    expect(screen.getByText(/comes out of your plan, whatever the severity/i)).toBeTruthy();
   });
 
   it('offers an Apply button and hands the payload back', () => {
