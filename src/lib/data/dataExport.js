@@ -66,8 +66,8 @@ const EXPORT_TABLES = [
   // Social membership + interactions
   { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id', select: 'id, gym_id, user_id, joined_at' },
   { name: 'gym_event_rsvps',      table: 'gym_event_rsvps',      column: 'user_id',      via: 'id' },
-  { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_email', via: 'email' },
-  { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'author_id',    via: 'id' },
+  { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_id',    via: 'id', select: 'id, gym_id, author_id, body, media_url, like_count, comment_count, reaction_count, created_at, edited_at, is_pinned, pinned_at' },
+  { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'author_id',    via: 'id', select: 'id, post_id, parent_id, author_id, body, created_at, edited_at' },
   { name: 'crew_messages_sent',   table: 'crew_messages',        column: 'sender_id',    via: 'id' },
   // Mig 130 actually names the table `crew_message_reactions` (singular
   // "message") and the owning column is `user_id` (UUID), not user_email.
