@@ -1,8 +1,9 @@
 // src/components/dashboard/LeagueStandingsModal.jsx
 //
-// Full league standings — all 30 (or fewer) members ranked by weekly XP.
-// Promotion zone is highlighted green at the top, demotion zone red at the
-// bottom, holding-position grey in the middle.
+// Full league standings: all 30 (or fewer) members of this week's bracket,
+// ranked by days trained and then XP. The prize zone is highlighted green at
+// the top. The race pays coins and never moves anyone's league; that is the
+// Strength Score's job, shown in the header.
 
 import React, { useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -10,14 +11,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle } from 'lucide-react';
+import { ArrowUp, Crown, Dumbbell, Trophy, HelpCircle } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
-import { MIN_QUALIFIED_TO_MOVE, leagueTierName } from '@/lib/leagueTiers';
+import { MIN_QUALIFIED_FOR_PRIZE, getTier, leagueTierName } from '@/lib/leagueTiers';
 import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
@@ -45,6 +46,13 @@ export default function LeagueStandingsModal({ open, onClose }) {
     queryFn: () => leagues.getMyLeague(user),
     enabled: !!user?.id && open,
     staleTime: 15_000,
+  });
+
+  const { data: strength } = useQuery({
+    queryKey: ['myLeagueStrength', user?.id],
+    queryFn: () => leagues.getMyStrength(user),
+    enabled: !!user?.id && open,
+    staleTime: 60_000,
   });
 
   // Season rides alongside the bracket rather than inside it: the week decides
@@ -79,7 +87,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} season={season} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} onOpenInfo={() => setInfoOpen(true)} />
+          <Body data={data} season={season} strength={strength} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} onOpenInfo={() => setInfoOpen(true)} />
         )}
       </DialogContent>
 
@@ -92,7 +100,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
   );
 }
 
-function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInfo }) {
+function Body({ data, season, strength, userId, t, tFallback, fmt, onOpenMember, onOpenInfo }) {
   // Defensive: if anything's missing, render an empty-state instead of crashing
   if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return (
@@ -104,14 +112,12 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
     );
   }
   const { league, tier, members, totalMembers, level = 1 } = data;
-  // Zone sizes are proportional to the QUALIFIED field and computed by the
-  // data layer, which mirrors migration 310. Reading tier.promote here — an
-  // absolute count that no longer exists — is what let a 6-person bracket
-  // render "top 10 promote" over every row on the board.
+  // The prize zone is proportional to the QUALIFIED field and computed by
+  // the data layer, which mirrors resolve_league_bracket_internal.
   const qualifiedCount = Number(data.qualifiedCount) || 0;
-  const promoteN = Number(data.promoteN) || 0;
-  const demoteN  = Number(data.demoteN) || 0;
+  const prizeN = Number(data.prizeN) || 0;
   const bracketTooSmall = !!data.bracketTooSmall;
+  const mixed = !!data.mixedBracket;
   const endDate  = parseISO(league.week_end + 'T23:59:59');
   const daysLeft = Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1);
   const preSeason = leagueSeasons.isPreSeason(season);
@@ -183,6 +189,32 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             </span>
           </div>
         )}
+        {/* Strength: the number that decides this league. The bracket below
+            is only the week's race. */}
+        {strength && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Dumbbell className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+            {strength.score != null ? (
+              <p className="min-w-0">
+                <span className="font-heading font-bold tabular-nums">{fmt(Math.round(strength.score))}</span>{' '}
+                <span className="text-muted-foreground">
+                  {strength.next_tier
+                    ? tFallback('league.strength.headerNext', 'Strength Score. {tier} at {floor}', {
+                        tier: leagueTierName(getTier(strength.next_tier), tFallback),
+                        floor: fmt(strength.next_floor),
+                      })
+                    : tFallback('league.strength.headerTop', 'Strength Score. The top of the ladder')}
+                </span>
+              </p>
+            ) : (
+              <p className="text-muted-foreground min-w-0">
+                {strength.reason === 'no_bodyweight'
+                  ? tFallback('league.strength.needBodyweight', 'Add your bodyweight to get placed by strength')
+                  : tFallback('league.strength.needLifts', 'Log a squat, bench, deadlift or overhead press in two sessions to get placed')}
+              </p>
+            )}
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-4 text-sm flex-wrap">
           <div className="flex items-center gap-1.5">
             <Trophy className="w-4 h-4" />
@@ -194,39 +226,24 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
           </div>
-          {promoteN > 0 && (
+          {prizeN > 0 && (
             <div className="flex items-center gap-1 text-muted-foreground">
               <ArrowUp className="w-3.5 h-3.5 text-success" />
               <span className="text-xs">
-                {/* The {n} placeholder in the fallback string is
-                    substituted by tFallback's vars argument. The
-                    previous code template-literal'd promoteN INTO the
-                    fallback, baked the number into the English copy,
-                    AND tried to replace {n} which wasn't there — so
-                    translators using {n} got "{n}" rendered verbatim.
-                    (Audit 08 #22.) */}
-                {tFallback('league.topPromoted', 'Top {n} promoted', { n: promoteN })}
+                {tFallback('league.topPrize', 'Top {n} win the prize', { n: prizeN })}
               </span>
             </div>
           )}
-          {demoteN > 0 && (
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <ArrowDown className="w-3.5 h-3.5 text-destructive" />
-              <span className="text-xs">
-                {tFallback('league.bottomDemoted', 'Bottom {n} demoted', { n: demoteN })}
-              </span>
-            </div>
-          )}
-          {/* Below the minimum qualified field nobody moves, in either
-              direction. Saying so is the difference between "the league is
-              broken" and "the league has a rule". */}
+          {/* Below the minimum qualified field nobody takes the top prize.
+              Saying so is the difference between "the league is broken" and
+              "the league has a rule". */}
           {bracketTooSmall && (
             <div className="flex items-center gap-1 text-muted-foreground">
               <span className="text-xs">
                 {tFallback(
-                  'league.gate.bracketHeld',
-                  '{n} qualified. {need} needed before anyone moves',
-                  { n: qualifiedCount, need: MIN_QUALIFIED_TO_MOVE },
+                  'league.gate.prizeHeld',
+                  '{n} qualified. {need} needed for the top prize',
+                  { n: qualifiedCount, need: MIN_QUALIFIED_FOR_PRIZE },
                 )}
               </span>
             </div>
@@ -247,14 +264,14 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             <div className="space-y-1.5">
               {members.map((m, idx) => {
                 // Unqualified members carry rankInBracket === null and render
-                // as "Unranked". They are not competing, so they can be in
-                // neither zone no matter where they sit in the list.
+                // as "Unranked". They are not competing, so they cannot be in
+                // the prize zone no matter where they sit in the list.
                 const rank = m.rankInBracket ?? null;
                 const unranked = !m.isQualified;
                 const isMe = m.user_id === userId;
-                const isPromote = !unranked && promoteN > 0 && rank <= promoteN;
-                const isDemote  = !unranked && demoteN > 0 && rank > qualifiedCount - demoteN;
+                const isPrize = !unranked && prizeN > 0 && rank <= prizeN;
                 const isFirst = rank === 1;
+                const days = Number(m.active_days) || 0;
 
                 // m.email never existed on these rows (the column is
                 // user_email), so no row ever opened a profile. The id is what
@@ -278,10 +295,8 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
                       interactive ? 'cursor-pointer hover:bg-secondary/40 active:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40' : '',
                       isMe
                         ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
-                        : isPromote
+                        : isPrize
                         ? 'bg-success/5 border-success/20'
-                        : isDemote
-                        ? 'bg-destructive/5 border-destructive/20'
                         : unranked
                         ? 'bg-transparent border-border/30'
                         : 'bg-card border-border/40',
@@ -299,6 +314,11 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
                         </span>
                       )}
                     </div>
+                    {/* In a mixed bracket each member's own league shows,
+                        because it is what sets their purse. */}
+                    {mixed && (
+                      <LeagueTierBadge tier={getTier(m.tier || league.tier).id} size={20} />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm truncate">
                         {/* Prefer username over email-local-part. The
@@ -325,6 +345,9 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
                     </div>
                     <div className="text-end">
                       <p className="font-heading font-bold text-sm tabular-nums">
+                        {tFallback('league.daysShort', '{n}d', { n: days })}
+                      </p>
+                      <p className="text-micro text-muted-foreground tabular-nums">
                         {fmt(m.weekly_xp || 0)} XP
                       </p>
                     </div>
@@ -335,23 +358,13 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
           </AnimatePresence>
         )}
 
-        {/* Legend. A key for a zone this week does not have describes
-            colours nobody can see, so each entry shows only when its zone
-            is drawn above (a held bracket has neither). */}
-        {(promoteN > 0 || demoteN > 0) && (
+        {/* Key. Only when the prize zone is drawn above. */}
+        {prizeN > 0 && (
           <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-micro text-muted-foreground flex-wrap">
-            {promoteN > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm bg-success/30" />
-                <span>{tFallback('league.promoteZone', 'Promotion zone')}</span>
-              </div>
-            )}
-            {demoteN > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm bg-destructive/30" />
-                <span>{tFallback('league.demoteZone', 'Demotion zone')}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-success/30" />
+              <span>{tFallback('league.prizeZone', 'Prize zone')}</span>
+            </div>
           </div>
         )}
       </div>
