@@ -118,7 +118,7 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, userProfile, now,
-  onPrimary, t, tFallback, plan = null,
+  onPrimary, t, tFallback, plan = null, resume = null,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   //
@@ -187,6 +187,8 @@ function HeroCard({
           <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
         </span>
       </motion.button>
+
+      {resume}
     </motion.div>
   );
 }
@@ -1744,19 +1746,11 @@ export default function Dashboard() {
         </AnimatePresence>
       </motion.div>
 
-      {/* "Continue where you left off" — only renders when there's a
-          paused workout in localStorage. Peace-of-mind affordance for
-          users interrupted mid-workout. Auto-evicts drafts >24h old
-          so it doesn't degrade into "you have nothing to do" noise. */}
-      <ResumeWorkoutBanner />
-
       {/* ── Streak banners — sit between the greeting and the hero so
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
       {/* ── Hero ───────────────────────────────────────────────── */}
-      {/* mt-5 gives the hero breathing room below the greeting when no
-          Resume banner sits between them; when the banner IS present its
-          own margin collapses with this one, so the gap stays consistent. */}
+      {/* mt-5 gives the hero breathing room below the greeting. */}
       <div className="mt-5 [@media(max-height:700px)]:mt-2 mb-6">
         <HeroCard
           streak={streak}
@@ -1777,6 +1771,10 @@ export default function Dashboard() {
             : navigate('/workout?freestyle=1'))}
           t={t}
           tFallback={tFallback}
+          // "Continue where you left off": renders only when there is a
+          // paused workout, and sits under the day's button (Kegan,
+          // 2026-09-30) so the week ring stays the first thing on the page.
+          resume={<ResumeWorkoutBanner />}
         />
       </div>
 

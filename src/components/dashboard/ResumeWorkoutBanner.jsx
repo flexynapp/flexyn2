@@ -1,7 +1,7 @@
 // src/components/dashboard/ResumeWorkoutBanner.jsx
 //
-// "Continue where you left off" banner — shown at the top of the
-// Dashboard when there's an in-progress workout the user paused (by
+// "Continue where you left off" banner — shown under the hero's
+// button on the Dashboard when there's an in-progress workout the user paused (by
 // navigating away from /workout without saving). Tap "Continue" to
 // jump back into the workout with all logged sets intact. Tap × to
 // discard the draft.
@@ -142,7 +142,7 @@ export default function ResumeWorkoutBanner() {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
         // Neutral surface, not orange (2026-09-26). The hero's "Today" button
-        // directly below is the screen's one primary action, and an orange
+        // directly above is the screen's one primary action, and an orange
         // tinted resume card above it made two orange calls to act that
         // competed for the same thumb. The card keeps every behaviour
         // (tap to resume, x to discard) and says "Resume" in words; the
@@ -150,7 +150,7 @@ export default function ResumeWorkoutBanner() {
         // Rerouting the hero button to resume instead was the alternative,
         // and it was rejected as the riskier change: it would hide the
         // plan and freestyle starts behind a paused draft.
-        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-lg border border-border bg-card cursor-pointer hover:bg-secondary/40 active:bg-secondary/60 active:scale-[0.99] motion-reduce:active:scale-100 transition-[background-color,transform] duration-150"
+        className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer hover:bg-secondary/40 active:bg-secondary/60 active:scale-[0.99] motion-reduce:active:scale-100 transition-[background-color,transform] duration-150"
         aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >
         <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
