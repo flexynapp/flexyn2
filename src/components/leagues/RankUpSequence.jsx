@@ -32,7 +32,7 @@
 // Presentation only. The server moved the league; nothing here writes.
 // Reduced motion lands straight on the final frame.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -51,13 +51,48 @@ const LEFT_CLIP = `polygon(0 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', '
 const RIGHT_CLIP = `polygon(100% 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', ')}, 100% 100%)`;
 const CRACK_POINTS = CRACK.map(([x, y]) => `${x},${y}`).join(' ');
 
-// Where the strain jolts land in the charge keyframes, so a haptic tick
-// arrives with each one.
-const CHARGE_TICKS = [0.25, 0.45, 0.64, 0.68, 0.72];
+// Haptic ticks through the strain, closer together as it builds.
+const CHARGE_TICKS = [0.3, 0.5, 0.64, 0.75, 0.83, 0.89, 0.94, 0.98];
+
+/**
+ * The strain as one continuous motion rather than a rattle: a tremor whose
+ * size and speed both climb, while the crest swells. The heat is a white
+ * copy of the crest fading in over it (see Hot), because opacity composites
+ * on the GPU where an animated filter repaints the whole SVG every frame.
+ * Generated as dense keyframes so the browser interpolates between points
+ * a few frames apart, which is what keeps it smooth on a phone.
+ */
+function strainFrames({ amp }) {
+  const N = 64;
+  const frames = [];
+  let theta = 0;
+  for (let i = 0; i <= N; i++) {
+    const p = i / N;
+    // Frequency rises from 3 to 17 cycles a second's worth of the charge.
+    theta += (2 * Math.PI * (3 + 14 * p)) / N;
+    const a = amp * (0.12 + 0.88 * p * p);
+    const x = i === N ? 0 : a * Math.sin(theta);
+    const r = i === N ? 0 : a * 0.55 * Math.sin(theta * 1.3 + 0.6);
+    const sc = 1 + 0.07 * Math.pow(p, 1.6);
+    frames.push({ transform: `translateX(${x.toFixed(2)}px) rotate(${r.toFixed(2)}deg) scale(${sc.toFixed(4)})` });
+  }
+  return frames;
+}
 
 const CREST = 'w-44 h-44';
 const MUTED = '#89949F';
-const SLAM_MS = 640;
+const SLAM_MS = 760;
+
+/** A white silhouette of a crest, laid over it. Its filter is static (drawn
+ *  once); only its opacity animates, which is how the crest heats up. */
+const Hot = forwardRef(function Hot({ tier, level, start = 0 }, ref) {
+  return (
+    <div ref={ref} data-hot="" className="absolute inset-0 pointer-events-none"
+      style={{ opacity: start, filter: 'brightness(0) invert(1)' }} aria-hidden="true">
+      <LeagueTierIcon tier={tier} level={level} className={CREST} />
+    </div>
+  );
+});
 
 /**
  * @param {object}   props
@@ -83,6 +118,8 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const oldRef = useRef(null);
   const newRef = useRef(null);
   const leftRef = useRef(null);
+  const oldHotRef = useRef(null);
+  const newHotRef = useRef(null);
   const rightRef = useRef(null);
   const ctaRef = useRef(null);
 
@@ -96,6 +133,26 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     timers.current = [];
   }, []);
   useEffect(() => clearTimers, [clearTimers]);
+
+  const implode = useCallback((c, duration) => {
+    const host = fx.sparkRef.current;
+    const pt = fx.aimAt(oldRef.current);
+    if (!host || !pt || typeof host.animate !== 'function') return;
+    const size = 420;
+    const n = document.createElement('div');
+    Object.assign(n.style, {
+      position: 'absolute', left: `${pt.x}px`, top: `${pt.y}px`, width: `${size}px`, height: `${size}px`,
+      marginLeft: `${-size / 2}px`, marginTop: `${-size / 2}px`, borderRadius: '9999px',
+      border: `2px solid ${c}`, opacity: '0', pointerEvents: 'none',
+    });
+    host.appendChild(n);
+    const a = n.animate(
+      [{ transform: 'scale(1)', opacity: 0 }, { transform: 'scale(0.7)', opacity: 0.8, offset: 0.35 }, { transform: 'scale(0.28)', opacity: 0 }],
+      { duration, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'both' },
+    );
+    a.onfinish = () => n.remove();
+    a.oncancel = () => n.remove();
+  }, [fx]);
 
   // ── The timeline ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -117,25 +174,59 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     // crest before it breaks.
     fx.setRays(color, drama.rays * 0.45, { fast: isTier });
     CHARGE_TICKS.forEach((f) => later(() => triggerHaptic('subtle'), Math.round(drama.charge * f)));
+    const el = oldRef.current;
+    if (typeof el?.animate === 'function') {
+      el.animate(strainFrames({ amp: isTier ? 5 : 2.5 }), {
+        duration: drama.charge, easing: 'linear', fill: 'forwards',
+      });
+    }
+    oldHotRef.current?.animate?.(
+      [{ opacity: 0 }, { opacity: 0.08, offset: 0.5 }, { opacity: isTier ? 0.7 : 0.3 }],
+      { duration: drama.charge, easing: 'cubic-bezier(0.6, 0, 0.9, 0.6)', fill: 'forwards' },
+    );
+    // Energy pulled in: rings in the new league's colour contract onto the
+    // crest, faster as the break nears. The capsule's rings go out; these
+    // come in, so the break reads as the release of something gathered.
+    if (isTier) {
+      [0.3, 0.55, 0.74, 0.88].forEach((f, i) => later(() => implode(color, 700 - i * 110), Math.round(drama.charge * f)));
+    }
     later(() => setPhase(isTier ? 'break' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, isDown, later]);
+  }, [phase, fx, color, drama, isTier, isDown, later, implode]);
 
   useLayoutEffect(() => {
     if (phase !== 'break') return;
     const point = fx.aimAt(oldRef.current);
-    fx.burst(point, null, { color, drama, scale: 0.55, shake: false });
+    fx.burst(point, null, { color, drama: { ...drama, flash: 0 }, scale: 0.7, shake: false });
     triggerHaptic('warning');
-    const fly = (el, dir) => el?.animate?.(
-      [
-        { transform: 'none', opacity: 1 },
-        { transform: `translate(${dir * 16}px, -6px) rotate(${dir * 6}deg)`, opacity: 1, offset: 0.2 },
-        { transform: `translate(${dir * 150}px, 120px) rotate(${dir * 38}deg)`, opacity: 0 },
-      ],
-      { duration: 720, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)', fill: 'forwards' },
-    );
+    // The halves leave white hot (where the strain left them) and cool as
+    // they fall, on one smooth curve out.
+    const fly = (el, dir) => {
+      el?.animate?.(
+        [
+          { transform: 'scale(1.07)', opacity: 1 },
+          { transform: `translate(${dir * 34}px, -10px) rotate(${dir * 9}deg) scale(1.05)`, opacity: 1, offset: 0.25 },
+          { transform: `translate(${dir * 170}px, 150px) rotate(${dir * 42}deg) scale(0.85)`, opacity: 0 },
+        ],
+        { duration: 900, easing: 'cubic-bezier(0.22, 0.8, 0.4, 1)', fill: 'forwards' },
+      );
+      el?.querySelector?.('[data-hot]')?.animate?.(
+        [{ opacity: 0.7 }, { opacity: 0 }],
+        { duration: 450, easing: 'ease-out', fill: 'forwards' },
+      );
+    };
     fly(leftRef.current, -1);
     fly(rightRef.current, 1);
-    later(() => setPhase('landed'), 170);
+    // A flash in the new league's colour, the release of the build.
+    const host = fx.sparkRef.current;
+    if (host && typeof host.animate === 'function') {
+      const f = document.createElement('div');
+      Object.assign(f.style, { position: 'absolute', inset: '0', background: color, opacity: '0', pointerEvents: 'none' });
+      host.appendChild(f);
+      const a = f.animate([{ opacity: 0 }, { opacity: Math.min(0.45, drama.flash * 1.6), offset: 0.15 }, { opacity: 0 }],
+        { duration: 520, easing: 'ease-out', fill: 'both' });
+      a.onfinish = () => f.remove();
+    }
+    later(() => setPhase('landed'), 220);
   }, [phase, fx, color, drama, later]);
 
   // The landing. Runs once, when the new crest mounts.
@@ -160,19 +251,23 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     el.animate(
       big
         ? [
-          { transform: 'perspective(800px) translateY(-40px) scale(2.6) rotateX(28deg)', opacity: 0 },
-          { transform: 'perspective(800px) translateY(-10px) scale(1.5) rotateX(12deg)', opacity: 1, offset: 0.3 },
-          { transform: 'perspective(800px) translateY(6px) scale(0.9) rotateX(0deg)', opacity: 1, offset: 0.62 },
-          { transform: 'perspective(800px) scale(1.04)', offset: 0.8 },
-          { transform: 'none', opacity: 1 },
+          { transform: 'perspective(800px) translateY(-30px) scale(2.4) rotateX(24deg)', opacity: 0 },
+          { transform: 'perspective(800px) translateY(-8px) scale(1.45) rotateX(10deg)', opacity: 1, offset: 0.35 },
+          { transform: 'perspective(800px) translateY(4px) scale(0.93) rotateX(0deg)', opacity: 1, offset: 0.62 },
+          { transform: 'perspective(800px) scale(1.025)', offset: 0.82 },
+          { transform: 'perspective(800px) scale(1)', opacity: 1 },
         ]
         : [
+          { transform: 'scale(1.07)', opacity: 1 },
+          { transform: 'scale(1.22)', opacity: 1, offset: 0.35 },
+          { transform: 'scale(0.96)', offset: 0.62 },
           { transform: 'scale(1)', opacity: 1 },
-          { transform: 'scale(1.28)', opacity: 1, offset: 0.3 },
-          { transform: 'scale(0.94)', offset: 0.62 },
-          { transform: 'none', opacity: 1 },
         ],
-      { duration: big ? SLAM_MS : 520, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'backwards' },
+      { duration: big ? SLAM_MS : 560, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', fill: 'backwards' },
+    );
+    newHotRef.current?.animate?.(
+      [{ opacity: big ? 0.85 : 0.45 }, { opacity: big ? 0.5 : 0.3, offset: 0.5 }, { opacity: 0 }],
+      { duration: big ? SLAM_MS + 200 : 600, easing: 'ease-out', fill: 'forwards' },
     );
     const t = setTimeout(() => {
       fx.burst(point, null, { color, drama, scale: big ? 1 : 0.6, shake: true });
@@ -285,9 +380,10 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               crest all sit on exactly the same spot. */}
           <div className="relative mx-auto" style={{ width: 176, height: 176 }}>
             {(phase === 'enter' || phase === 'charge') && (
-              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'charge' ? (isDown ? 'rank-crest-sink' : isTier ? 'rank-crest-strain-hot' : 'rank-crest-strain') : 'reveal-rise'}`}
-                style={phase === 'charge' ? { animationDuration: `${drama.charge}ms` } : undefined}>
+              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'charge' ? (isDown ? 'rank-crest-sink' : '') : 'reveal-rise'}`}
+                style={phase === 'charge' && isDown ? { animationDuration: `${drama.charge}ms` } : undefined}>
                 <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
+                <Hot ref={oldHotRef} tier={fromTier.id} level={move.from.level} />
                 {isTier && phase === 'charge' && (
                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full rank-crack"
                     style={{ animationDuration: `${drama.charge}ms` }} aria-hidden="true">
@@ -300,15 +396,22 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               <>
                 <div ref={leftRef} className="absolute inset-0" style={{ clipPath: LEFT_CLIP }}>
                   <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
+                  <Hot tier={fromTier.id} level={move.from.level} start={0.7} />
                 </div>
                 <div ref={rightRef} className="absolute inset-0" style={{ clipPath: RIGHT_CLIP }}>
                   <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
+                  <Hot tier={fromTier.id} level={move.from.level} start={0.7} />
                 </div>
               </>
             )}
             {landed && (
               <div ref={newRef} className="absolute inset-0">
-                <LeagueTierIcon tier={toTier.id} level={move.to.level} className={CREST} />
+                {/* Once landed it keeps breathing, so the finished screen is
+                    alive rather than a still. */}
+                <div className="w-full h-full rank-float" style={{ animationDelay: `${hit + 400}ms` }}>
+                  <LeagueTierIcon tier={toTier.id} level={move.to.level} className={CREST} />
+                  <Hot ref={newHotRef} tier={toTier.id} level={move.to.level} />
+                </div>
               </div>
             )}
           </div>
@@ -316,9 +419,12 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
           {/* Under the crest: the old name while it strains, then the new. */}
           <div className="pt-6 text-center min-h-[92px]">
             {!landed ? (
-              phase !== 'break' && (
-                <p className="reveal-rise text-caption font-bold text-muted-foreground">{fromName}</p>
-              )
+              <p
+                className="reveal-rise text-caption font-bold text-muted-foreground transition-opacity duration-300"
+                style={phase === 'break' ? { opacity: 0 } : undefined}
+              >
+                {fromName}
+              </p>
             ) : (
               <>
                 <p className={`${isDown ? 'reveal-rise' : 'reveal-new'} inline-block text-micro font-bold uppercase tracking-widest`} style={{ ...beat(0), color }}>
@@ -343,7 +449,8 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
                     const here = i === toIndex;
                     const ahead = i > toIndex;
                     return (
-                      <li key={t.id} className="flex flex-col items-center gap-1" aria-current={here ? 'step' : undefined}>
+                      <li key={t.id} className={`flex flex-col items-center gap-1 ${here ? 'reveal-stamp' : 'reveal-rise'}`}
+                        style={beat(2.2 + i * 0.35)} aria-current={here ? 'step' : undefined}>
                         <LeagueTierIcon
                           tier={t.id}
                           level={here ? move.to.level : 1}

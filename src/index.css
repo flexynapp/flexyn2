@@ -820,6 +820,11 @@
     100% { transform: translateY(34px) scale(0.9); opacity: 0; filter: grayscale(1) brightness(0.55); }
   }
   .rank-crest-sink { animation: rank-crest-sink 1800ms cubic-bezier(0.55, 0, 0.8, 0.4) both; }
+  @keyframes rank-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+  }
+  .rank-float { animation: rank-float 3.2s ease-in-out infinite both; }
   @keyframes rank-fill { from { transform: scaleX(0); } }
   .rank-fill { animation: rank-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
@@ -828,7 +833,7 @@
     .canister-charge, .canister-charge-hot, .canister-wait, .canister-lid-fly,
     .opener-rays-main, .opener-rays-back,
     .reveal-stamp, .reveal-rise, .reveal-new,
-    .rank-crest-strain, .rank-crest-strain-hot, .rank-crest-sink, .rank-crack, .rank-fill { animation: none; }
+    .rank-crest-strain, .rank-crest-strain-hot, .rank-crest-sink, .rank-crack, .rank-fill, .rank-float { animation: none; }
     .canister-seam { animation: none; opacity: 1; }
     .reveal-sheen { display: none; }
   }

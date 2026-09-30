@@ -24,7 +24,7 @@ describe('RankUpSequence', () => {
     render(<RankUpSequence move={tier} strength={{ score: 262, next_tier: 'platinum', next_floor: 325 }} onClose={() => {}} />);
     expect(screen.getByText(/Silver League IV/)).toBeInTheDocument();
     expect(screen.queryByRole('heading')).toBeNull();
-    step(450, 1700, 200);
+    step(450, 1700, 250);
     expect(screen.getByRole('heading', { name: 'Gold League' })).toBeInTheDocument();
     expect(screen.getByText('Promoted')).toBeInTheDocument();
     // The road ahead: the next league and how far the score is from it.
