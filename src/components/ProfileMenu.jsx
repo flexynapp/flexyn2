@@ -215,8 +215,7 @@ export default function ProfileMenu({ placement = 'header' } = {}) {
       // ref is moot.
       deletingRef.current = false;
       if (err?.partial) {
-        const tableList = (err.failures || []).slice(0, 3).map(f => f.table).join(', ');
-        toast.error(`Deletion incomplete. Some data could not be removed (${tableList}…). Contact support.`);
+        toast.error(tFallback('notice.deletePartial', "Some of your data couldn't be deleted. Contact support."));
       } else {
         toast.error(t('profile.deleteError'));
       }

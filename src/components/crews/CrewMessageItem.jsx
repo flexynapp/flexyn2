@@ -666,7 +666,9 @@ function RegimenMessage({ msg, user, senderProfile }) {
       setState('equipping');
       await crewsData.equipRegimen(msg.regimen_id, user);
       setState('equipped');
-      toast.success(`"${meta.name || 'Regimen'}" added to your routines!`);
+      toast.success(meta.name
+        ? tFallback('notice.routineAddedNamed', '"{name}" added to your routines', { name: meta.name })
+        : tFallback('notice.routineAdded', 'Added to your routines'));
     } catch {
       toast.error(tFallback('crewChat.equipRegimenFailed', 'Could not equip regimen. Try again.'));
       setState('idle');

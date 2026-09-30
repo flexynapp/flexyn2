@@ -25,6 +25,7 @@ import {
 } from '@/lib/aiCoach/workoutGenerator';
 import { sessionToPlan, buildCardioSession, buildHiitSession, CARDIO_STYLES } from '@/lib/aiCoach/planBuilder';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
+import { reportError } from '@/lib/reportError';
 
 const TYPE_OPTIONS = [
   { id: 'strength', label: 'Strength', Icon: Dumbbell },
@@ -132,7 +133,8 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
       }
       setPlan(next);
     } catch (err) {
-      toast.error(`Couldn't generate — ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'coach.quick-generate' });
+      toast.error(tFallback('notice.generateFailed', "Couldn't build the workout. Try again."));
     } finally {
       setGenerating(false);
     }

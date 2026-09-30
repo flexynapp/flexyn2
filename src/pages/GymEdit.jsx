@@ -24,6 +24,7 @@ import EmptyState from '@/components/EmptyState';
 import { getGym } from '@/lib/data/gymBusinesses';
 import GymEquipmentEditor from '@/components/gyms/GymEquipmentEditor';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 
 export default function GymEdit() {
   const { tFallback } = useLanguage();
@@ -143,7 +144,8 @@ export default function GymEdit() {
       // on storage.objects, and the path is already unique (ms timestamp).
       .upload(path, file, { upsert: false, contentType: SAFE_MIMES[ext] });
     if (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      reportError(error, { feature: 'gym.photo-upload' });
+      toast.error(tFallback('notice.photoUploadFailed', "Couldn't upload the photo. Try again."));
       return null;
     }
     const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
@@ -237,7 +239,7 @@ export default function GymEdit() {
     for (const day of DAY_ORDER) {
       const slot = form.hours?.[day];
       if (slot?.open && slot?.close && slot.close <= slot.open) {
-        toast.error(`${DAY_LABEL[day]} close time must be after open time.`);
+        toast.error(tFallback('notice.hoursOrder', '{day}: closing time must be after opening time.', { day: DAY_LABEL[day] }));
         return;
       }
     }

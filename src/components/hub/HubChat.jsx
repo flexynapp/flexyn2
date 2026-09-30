@@ -31,6 +31,7 @@ import { PollBubble, PollComposer } from './PollMessage';
 import { isPollVote, parsePoll, buildPollBody, buildVoteBody, buildVoteIndex, pollResults } from '@/lib/dmPolls';
 import { useSwipeToDelete } from '@/hooks/useSwipeToDelete';
 import { openPickerOnClick } from '@/lib/nativePicker';
+import { reportError } from '@/lib/reportError';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -787,7 +788,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
-      toast.error(`Could not send sticker: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.sticker' });
+      toast.error(tFallback('hub.chat.stickerFailed', "Couldn't send the sticker. Try again."));
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
@@ -805,7 +807,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
-      toast.error(`Could not send GIF: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.gif' });
+      toast.error(tFallback('hub.chat.gifFailed', "Couldn't send the GIF. Try again."));
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
@@ -831,7 +834,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
-      toast.error(`Could not send voice memo: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.voice' });
+      toast.error(tFallback('hub.chat.voiceFailed', "Couldn't send the voice memo. Try again."));
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
@@ -854,7 +858,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
-      toast.error(`Could not create poll: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.poll' });
+      toast.error(tFallback('hub.chat.pollFailed', "Couldn't create the poll. Try again."));
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
@@ -872,7 +877,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
-      toast.error(`Could not record vote: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.vote' });
+      toast.error(tFallback('hub.chat.voteFailed', "Couldn't record your vote. Try again."));
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
@@ -911,7 +917,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       queryClient.invalidateQueries({ queryKey: ['hubChatScheduled', conversation.id, user?.id] });
       toast.success(tFallback('hub.chat.scheduledFor', 'Scheduled for {when}', { when: formatDate(sendAt, language, { dateStyle: 'medium', timeStyle: 'short' }) }));
     } catch (err) {
-      toast.error(`Could not schedule: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.schedule' });
+      toast.error(tFallback('hub.chat.scheduleFailed', "Couldn't schedule the message. Try again."));
     }
   }, [draft, scheduleAt, conversation?.id, otherUser?.email, queryClient, user?.id]);
 
@@ -945,7 +952,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       queryClient.setQueryData(['hubChat', conversation?.id], (rows) =>
         (rows || []).map(r => r.id === msg.id ? { ...r, deleted_at: prev || null } : r)
       );
-      toast.error(`Could not delete: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'hub.chat.delete' });
+      toast.error(tFallback('hub.chat.deleteFailed', "Couldn't delete the message. Try again."));
     }
   }, [conversation?.id, myEmailLc, queryClient]);
 

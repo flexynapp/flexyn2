@@ -91,7 +91,7 @@ function commitPending(id) {
         next.splice(idx, 0, entry.item);
         return next;
       });
-      toast.error(`Couldn't delete — restored.`);
+      toast.error(entry.tf('notice.deleteRestored', "Couldn't delete, so it's back."));
     } catch { /* best-effort */ }
   });
 }
@@ -173,6 +173,9 @@ export function useOptimisticDelete({
       originalIndex: originalIndex >= 0 ? originalIndex : undefined,
       sessionId: sessionIdRef.current,
       feature,
+      // The failure toast fires from module scope after the timer, so it
+      // carries the caller's translator with it.
+      tf,
     });
 
     triggerHaptic('warning');

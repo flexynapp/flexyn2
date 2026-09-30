@@ -150,10 +150,14 @@ export default function LeagueCard({ onClick, stretch = false }) {
   // answered, so a host without the RPC shows the card as before.
   let strengthText = null;
   if (strength) {
-    if (strength.reason === 'no_bodyweight') {
-      strengthText = tFallback('league.strength.needBodyweight', 'Add your bodyweight to get placed by strength');
-    } else if (strength.score == null) {
-      strengthText = tFallback('league.strength.needLifts', 'Log a squat, bench, deadlift or overhead press in two sessions to get placed');
+    if (strength.score == null) {
+      strengthText = strength.basis === 'onboarding'
+        ? tFallback('league.strength.provisional', 'Placed from your answers. Log two sessions of a press, squat or deadlift to confirm')
+        : tFallback('league.strength.needLiftsAny', 'Log two sessions of a press, squat or deadlift to get placed');
+    } else if (strength.bodyweight_given === false) {
+      strengthText = tFallback('league.strength.addBodyweight', 'Strength {score} · add your bodyweight to go past Gold', {
+        score: fmt(Math.round(strength.score)),
+      });
     } else if (strength.next_tier) {
       strengthText = tFallback('league.strength.toNext', 'Strength {score} · {tier} at {floor}', {
         score: fmt(Math.round(strength.score)),

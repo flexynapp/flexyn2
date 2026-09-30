@@ -116,7 +116,9 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
     setExercises(reordered);
     setSelectedIndices(new Set());
     setSelecting(false);
-    toast.success(`${type === 'superset' ? 'Superset' : 'Circuit'} created.`);
+    toast.success(type === 'superset'
+      ? tFallback('notice.supersetCreated', 'Superset created.')
+      : tFallback('notice.circuitCreated', 'Circuit created.'));
   };
 
   const ungroupExercises = (groupId) => {

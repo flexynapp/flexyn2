@@ -33,6 +33,8 @@ const CASES = [
   ['src/lib/data/marketplace.js', 'LISTING_COLUMNS', 'marketplace_listings', ['seller_email']],
   ['src/lib/data/marketplace.js', 'BUNDLE_COLUMNS', 'marketplace_bundles', ['seller_email']],
   ['src/lib/data/regimens.js', 'PUBLIC_COLUMNS', 'regimens', ['created_by', 'original_author_email']],
+  ['src/lib/data/gymBusinesses.js', 'FEED_POST_COLUMNS', 'gym_feed_posts', ['author_email']],
+  ['src/lib/data/gymBusinesses.js', 'FEED_COMMENT_COLUMNS', 'gym_feed_comments', ['author_email']],
 ];
 
 describe.each(CASES)('%s %s', (file, name, table, banned) => {
@@ -67,6 +69,7 @@ describe('tables moving to column-level SELECT grants', () => {
     'hub_live_sessions', 'poll_votes', 'status_note_likes', 'story_likes',
     'story_highlights', 'regimen_reviews',
     'regimens', 'user_trophies', 'gym_members',
+    'gym_feed_posts', 'gym_feed_comments',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));
@@ -131,4 +134,9 @@ it('trophies are looked up by user id, never by email', () => {
   const src = read('src/lib/data/trophies.js');
   expect(src).not.toMatch(/user_email/);
   expect(read('src/lib/leaderboardStats.js')).not.toMatch(/listEarned\([^)]*,\s*true\)/);
+});
+
+it('the gym feed tells your own posts apart by id, not email', () => {
+  const src = read('src/components/gyms/GymFeedTab.jsx');
+  expect(src).not.toMatch(/author_email/);
 });

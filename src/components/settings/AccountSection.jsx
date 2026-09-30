@@ -18,6 +18,7 @@ import TwoFactorSection from '../TwoFactorSection';
 import ConnectedAppsSection from '../ConnectedAppsSection';
 import { requestProfilePanel } from '@/lib/profilePanels';
 import { Group, ActionRow } from './SettingsPrimitives';
+import { reportError } from '@/lib/reportError';
 
 export default function AccountSection() {
   const { tFallback } = useLanguage();
@@ -36,7 +37,8 @@ export default function AccountSection() {
       await mod.downloadExport(data);
       toast.success(tFallback('account.exportDownloaded', 'Data export downloaded.'));
     } catch (err) {
-      toast.error(`Export failed: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'settings.export' });
+      toast.error(tFallback('notice.exportFailed', "Couldn't export your data. Try again."));
     } finally {
       setExporting(false);
     }

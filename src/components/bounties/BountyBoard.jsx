@@ -106,7 +106,7 @@ export default function BountyBoard() {
   const generateMut = useMutation({
     mutationFn: generateDemoBounties,
     onSuccess: (data) => {
-      toast.success(`${data.length} bounties generated!`);
+      toast.success(tFallback('notice.bountiesGenerated', '{n} bounties generated', { n: data.length }));
       qc.invalidateQueries({ queryKey: ['activeBounties'] });
     },
     onError: (err) => toast.error(tFallback("bountyBoard.couldNotGenerateBounties", "Could not generate bounties"), { description: err.message }),
