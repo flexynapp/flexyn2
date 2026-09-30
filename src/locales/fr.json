@@ -3551,7 +3551,7 @@
   "levelUp.fromTo": "Lv. {from} → Lv. {to}",
   "levelUp.skip": "Ignorer",
   "levelUp.tierUnlocked": "Rang {tier}",
-  "levelUp.title": "LEVEL SUPÉRIEUR !",
+  "levelUp.title": "Level supérieur !",
   "levelUp.to": "À",
   "listItemDialog.backToItemPicker": "Retour au sélecteur d'objets",
   "listItemDialog.invalidPrice": "Saisissez un prix valide (au moins 1 pièce).",

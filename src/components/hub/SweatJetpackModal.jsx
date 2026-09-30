@@ -502,7 +502,7 @@ export default function SweatJetpackModal({ onClose, userId }) {
 
         {!gameStarted && (
           <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">{tFallback("sweatJetpackModal.sweatJetpack", "Sweat Jetpack")}</h2>
+            <h2 className="text-2xl font-black text-zinc-100 tracking-wide mb-1">{tFallback("sweatJetpackModal.sweatJetpack", "Sweat Jetpack")}</h2>
             <p className="text-zinc-400 text-xs max-w-[320px] mb-2">{tFallback('sweatJetpack.howTo', 'Hold to fart. Farts lift you. Release to fall.')}</p>
             <p className="text-zinc-500 text-micro max-w-[320px] mb-3">Dodge bars in the air, blocks on the floor and ceiling, and the yellow moving ones. Grab coins.</p>
             <p className="text-zinc-500 text-micro mb-3">📱 turn your phone sideways for more room.</p>
@@ -512,7 +512,7 @@ export default function SweatJetpackModal({ onClose, userId }) {
 
         {gameOver && (
           <div className="absolute inset-0 bg-red-950/75 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">{tFallback("sweatJetpackModal.splat", "Splat")}</h2>
+            <h2 className="text-3xl font-black text-destructive tracking-tight mb-1">{tFallback("sweatJetpackModal.splat", "Splat")}</h2>
             <p className="text-zinc-300 text-xs font-mono mb-2">{distance} m · 🪙 {coinCount}</p>
             <span className="bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">{tFallback("sweatJetpackModal.tapToRetry", "Tap to retry")}</span>
           </div>

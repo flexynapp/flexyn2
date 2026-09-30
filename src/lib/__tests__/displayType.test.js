@@ -45,10 +45,12 @@ describe('display type', () => {
     expect(block).not.toMatch(/text-transform/);
   });
 
-  it('keeps the condensed capitals for the hero style only', () => {
+  // Kegan, 2026-09-30: no title anywhere in the app is all caps. The hero
+  // keeps its condensed face and sets its words as written.
+  it('keeps the condensed face for the hero style, never in capitals', () => {
     const block = rule(read('src/index.css'), 'font-hero');
     expect(block).toMatch(/font-family:\s*var\(--font-display\)/);
-    expect(block).toMatch(/text-transform:\s*uppercase/);
+    expect(block).not.toMatch(/text-transform/);
     expect(block).toMatch(/font-weight:\s*800/);
   });
 
@@ -62,5 +64,22 @@ describe('display type', () => {
     const users = walk('src').filter((f) => /\bfont-hero\b/.test(read(f)));
     expect(users.filter((f) => !allowed.has(f))).toEqual([]);
     for (const f of allowed) expect(users).toContain(f);
+  });
+
+  // Small tracked labels (eyebrows, kickers, .stamp) stay in capitals. A
+  // title is anything set at xl or larger, and none of those may be.
+  it('sets no title-sized text in capitals', () => {
+    const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(rel);
+      return /\.jsx$/.test(e.name) ? [rel] : [];
+    });
+    const offenders = [];
+    for (const f of walk('src')) {
+      for (const cls of read(f).match(/className="[^"]*"/g) || []) {
+        if (/\buppercase\b/.test(cls) && /\b(?:sm:|md:)?text-(?:xl|[2-9]xl|display|title)\b/.test(cls)) offenders.push(`${f}: ${cls}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

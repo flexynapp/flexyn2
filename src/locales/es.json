@@ -3551,7 +3551,7 @@
   "levelUp.fromTo": "Lv. {from} → Lv. {to}",
   "levelUp.skip": "Omitir",
   "levelUp.tierUnlocked": "Rango {tier}",
-  "levelUp.title": "¡SUBISTE DE LEVEL!",
+  "levelUp.title": "¡Subiste de level!",
   "levelUp.to": "A",
   "listItemDialog.backToItemPicker": "Volver al selector de objetos",
   "listItemDialog.invalidPrice": "Introduce un precio válido (al menos 1 moneda).",

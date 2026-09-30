@@ -315,7 +315,7 @@ function ProgressSwoosh({ step, total }) {
 ═══════════════════════════════════════════════════════════════ */
 
 // Every question is set in the hero style (`.font-hero`: the condensed
-// display face at 800, uppercase). Onboarding is the one place that voice
+// display face at 800, as written, never all caps). Onboarding is the one place that voice
 // lives, as a glimpse of what the app is about to be. The size is the fluid
 // heading token scaled by 1.1: condensed capitals are narrower than the
 // mixed-case heading face this replaced, so a question wraps to the same or fewer
@@ -1179,8 +1179,8 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
-          text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
-          accentWord={tFallback('onboarding.assessment.accentWord', 'lift')}
+          text={tFallback('onboarding.assessment.heading', 'Quick Lift Check')}
+          accentWord={tFallback('onboarding.assessment.accentWord', 'Lift')}
         />
         <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.assessment.sub', 'Optional. The more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
@@ -2773,10 +2773,10 @@ const LOADER_PHOTO = '/onboarding/loader-dumbbells.jpg';
 // something happening off the device: it holds until the Coach request
 // settles, so a wait there is the thing it says rather than a stall.
 const LOADER_BEATS = [
-  { key: 'onboarding.loading.beat.1', en: 'Reading your answers' },
-  { key: 'onboarding.loading.beat.2', en: 'Setting your plan length' },
-  { key: 'onboarding.loading.beat.3', en: 'Spacing your rest days' },
-  { key: 'onboarding.loading.beat.4', en: 'Asking your AI Coach' },
+  { key: 'onboarding.loading.beat.1', en: 'Reading Your Answers' },
+  { key: 'onboarding.loading.beat.2', en: 'Setting Your Plan Length' },
+  { key: 'onboarding.loading.beat.3', en: 'Spacing Your Rest Days' },
+  { key: 'onboarding.loading.beat.4', en: 'Asking Your AI Coach' },
 ];
 const LOADER_BEAT_MS = 1100;
 const LOADER_FIRST_BEAT_MS = 900;
@@ -3941,7 +3941,7 @@ export default function Onboarding() {
     return (
       <SignInToContinue
         onBack={() => setShowSignIn(false)}
-        heading="Let's get you set up"
+        heading="Let's Get You Set Up"
         subtext="Create an account or sign in. It saves your plan and syncs your progress across devices."
       />
     );

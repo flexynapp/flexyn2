@@ -237,7 +237,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
 
         {!gameStarted && (
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">{tFallback("heavyBirdModal.gainzBird", "Gainz Bird")}</h2>
+            <h2 className="text-2xl font-black text-zinc-100 tracking-wide mb-1">{tFallback("heavyBirdModal.gainzBird", "Gainz Bird")}</h2>
             <p className="text-zinc-400 text-xs max-w-[240px] mb-6">{tFallback('heavyBird.howTo', 'Tap to contract biceps, dodge heavy racks, and stack plates.')}</p>
             <span className="animate-pulse bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">{tFallback("heavyBirdModal.tapToLift", "Tap to lift")}</span>
           </div>
@@ -245,7 +245,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
 
         {gameOver && (
           <div className="absolute inset-0 bg-red-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">Misfire / Fatigue</h2>
+            <h2 className="text-3xl font-black text-destructive tracking-tight mb-1">Misfire / Fatigue</h2>
             <p className="text-zinc-300 text-xs font-mono mb-4">You got crushed at {currentWeight} lbs.</p>
             <span className="bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">{tFallback("heavyBirdModal.tapToReRack", "Tap to Re-rack")}</span>
           </div>

@@ -611,11 +611,13 @@
      template rather than a voice.
 
      .font-hero is the "glimpse of what's coming" voice: Sofia Sans Extra
-     Condensed at 800, uppercase. Onboarding (the welcome line and every
+     Condensed at 800, set as written (never all caps, Kegan 2026-09-30). Onboarding (the welcome line and every
      question) and the sign in screen that mirrors it, nowhere else. It
      only reads as a big moment while it stays rare, so do not reach for it
-     on an in-app screen. Uppercase through text-transform only: the
-     translated strings stay as written.
+     on an in-app screen. No title in the app is all caps: English headings
+     that are labels are written in title case ("Sign In to Continue"),
+     sentences and questions stay sentences, and es/fr keep their own
+     sentence case.
 
      Neither sets a size. The call site keeps its own, including the fluid
      and short-screen clamps, so a converted title keeps its box. Do not
@@ -634,7 +636,6 @@
   .font-hero {
     font-family: var(--font-display);
     font-weight: 800;
-    text-transform: uppercase;
     line-height: 0.95;
     letter-spacing: -0.01em;
   }

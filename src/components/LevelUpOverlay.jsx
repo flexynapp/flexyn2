@@ -179,7 +179,7 @@ export default function LevelUpOverlay({ event, onDismiss }) {
 
             {/* Headline */}
             <motion.p
-              className="font-heading font-extrabold text-2xl sm:text-3xl tracking-widest text-white drop-shadow-lg uppercase text-center"
+              className="font-heading font-extrabold text-2xl sm:text-3xl tracking-wide text-white drop-shadow-lg text-center"
               initial={reducedMotion ? {} : { opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.4 }}
