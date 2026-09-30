@@ -13,7 +13,8 @@ import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { formatWeight } from '@/lib/weightUnit';
-import { goalProgress, goalTitle } from '@/lib/goalProgress';
+import { goalProgress, goalTitle, goalTargetLabel } from '@/lib/goalProgress';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { workoutTitle } from '@/lib/workoutTitle';
 
 // Recharts-backed widgets live in their own lazy chunk so recharts
@@ -290,6 +291,8 @@ function TopExercisesWidget({ logs, isLoading }) {
 // states; a widget the user explicitly added should always render.)
 function GoalsProgressWidget({ goals, logs, cardioLogs, isLoading }) {
   const { t, tFallback } = useLanguage();
+  const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
   const rows = useMemo(() => {
     // `=== 'active'`: archived goals are parked, not in progress.
     const active = Array.isArray(goals) ? goals.filter((g) => g.status === 'active') : [];
@@ -314,7 +317,14 @@ function GoalsProgressWidget({ goals, logs, cardioLogs, isLoading }) {
           {rows.map(({ goal, progress }) => (
             <div key={goal.id}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium truncate">{goalTitle(goal, { t, tFallback }) || tFallback('widgets.aGoal', 'Goal')}</span>
+                {/* The target rides with the title: two bench goals both read
+                    "Bench Press" without it. Same label GoalsList prints. */}
+                <span className="text-xs font-medium truncate">
+                  {goalTitle(goal, { t, tFallback }) || tFallback('widgets.aGoal', 'Goal')}
+                  {goalTargetLabel(goal, { tFallback, weightUnit, distanceUnit }) && (
+                    <span className="font-normal text-muted-foreground"> {goalTargetLabel(goal, { tFallback, weightUnit, distanceUnit })}</span>
+                  )}
+                </span>
                 <span className="text-xs font-bold tabular-nums text-primary shrink-0 ms-2">{progress}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-secondary overflow-hidden">

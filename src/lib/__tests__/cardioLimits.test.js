@@ -135,6 +135,14 @@ describe('checkDailyHours', () => {
     expect(result.reason).toBe('workout_hours');
   });
 
+  it('reads the saved column, duration_min, from existing workout logs', () => {
+    // workout_logs has duration_min; duration_minutes does not exist on a
+    // saved row, so reading only it counted every saved workout as zero.
+    const result = checkDailyHours([{ duration_min: 180 }], [], 90, 0);
+    expect(result.implausible).toBe(true);
+    expect(result.reason).toBe('workout_hours');
+  });
+
   it('has DAILY_HOUR_LIMITS constants for workoutHours, cardioHours, combinedHours', () => {
     expect(DAILY_HOUR_LIMITS.workoutHours).toBeGreaterThan(0);
     expect(DAILY_HOUR_LIMITS.cardioHours).toBeGreaterThan(0);

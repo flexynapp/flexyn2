@@ -1136,6 +1136,17 @@ export default function Workout() {
             await workouts.update(workoutLog.id, { exercises: cardio.exercises, total_volume: calculateTotalVolume(cardio.exercises) });
             queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
           }
+          // The runs saved here are new, so they earn what they would have
+          // on the first attempt: the server's XP and the cardio quests.
+          xpGained += cardio.xp;
+          if (cardio.sessions > 0) {
+            quests.recordActions(user, [
+              { type: ACTION_TYPES.CARDIO_COMPLETED, amount: cardio.sessions },
+              { type: ACTION_TYPES.CARDIO_SECONDS, amount: cardio.seconds },
+            ])
+              .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+              .catch((err) => reportError(err, { feature: 'workout.cardio-quests', level: 'warning' }));
+          }
         } catch (cardioErr) {
           reportError(cardioErr, { feature: 'workout.cardio-logs', level: 'warning', userEmail: user?.email });
         }

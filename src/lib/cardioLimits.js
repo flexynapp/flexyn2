@@ -12,6 +12,8 @@
 //   Max sustained MET for running ≈ 14 (elite marathon). We allow MET 18 as
 //   the absolute ceiling — generous enough that no real athlete is blocked.
 
+import { workoutDurationMin } from '@/lib/workoutDuration';
+
 /**
  * Speed limits (km/h) per cardio type.
  * Keys match the `type` field stored on CardioLog.
@@ -117,8 +119,11 @@ export function checkCardioSpeed(type, distanceMeters, durationSeconds) {
  * @param {number} newCardioSecs   — seconds being added (0 if workout entry)
  */
 export function checkDailyHours(workoutLogs, cardioLogs, newWorkoutMins = 0, newCardioSecs = 0) {
+  // The saved column is `duration_min`; reading `duration_minutes` here
+  // counted every saved workout as zero minutes. workoutDurationMin reads
+  // the real column and tolerates the in-memory spelling.
   const existingWorkoutMins = workoutLogs.reduce((sum, l) =>
-    sum + (Number(l.duration_minutes) || 0), 0
+    sum + workoutDurationMin(l), 0
   );
   const existingCardioSecs = cardioLogs.reduce((sum, l) =>
     sum + (Number(l.duration_seconds) || 0), 0
