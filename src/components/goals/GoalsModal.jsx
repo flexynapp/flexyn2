@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import * as goalsData from '@/lib/data/goals';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -17,6 +18,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { summarizeGoalTarget } from '@/lib/goalSummary';
 
 export default function GoalsModal({ open, onClose, goals = [], logs = [], cardioLogs = [], userProfile = {}, startWithForm = false }) {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   // Today's "Set a goal" card opens straight onto the form: the person has
   // already said what they want, so the empty list in between is a wasted tap.
@@ -249,6 +251,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], cardi
                       isViewingArchived={activeTab === 'archived'}
                       onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
                       onDelete={onDeleteGoal}
+                      // Close first so the dialog is not left open over the
+                      // Coach; the prompt rides in router state and the Coach
+                      // sends it once, then clears it (see pages/Coach.jsx).
+                      onAssist={(coachPrompt) => { onClose(); navigate('/coach', { state: { coachPrompt } }); }}
                       onArchive={activeTab === 'completed' ? undefined : (id) => archiveMutation.mutateAsync(id)}
                     />
                   )}
