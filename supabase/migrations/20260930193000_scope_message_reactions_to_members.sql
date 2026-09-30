@@ -140,3 +140,17 @@ BEGIN
   END IF;
 END;
 $function$;
+
+-- Fail the migration if any reaction read policy is still open to everyone.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename IN ('crew_message_reactions', 'dm_message_reactions')
+       AND cmd = 'SELECT'
+       AND qual = 'true'
+  ) THEN
+    RAISE EXCEPTION 'a message reaction SELECT policy is still USING (true)';
+  END IF;
+END $$;

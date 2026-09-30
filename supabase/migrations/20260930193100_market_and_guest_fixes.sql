@@ -396,3 +396,18 @@ BEGIN
   RETURN v_id;
 END;
 $function$;
+
+-- Fail the migration rather than ship a half-closed hole.
+DO $$
+BEGIN
+  IF has_table_privilege('authenticated', 'public.marketplace_listings', 'INSERT')
+     OR has_table_privilege('anon', 'public.marketplace_listings', 'INSERT') THEN
+    RAISE EXCEPTION 'marketplace_listings still accepts client INSERT';
+  END IF;
+  IF has_function_privilege('authenticated', 'public._branded_item(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION '_branded_item is callable by clients';
+  END IF;
+  IF (SELECT count(*) FROM public._branded_item('flx_og')) <> 1 THEN
+    RAISE EXCEPTION '_branded_item does not resolve a known sku';
+  END IF;
+END $$;
