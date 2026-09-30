@@ -54,6 +54,7 @@ function commit(pick) {
 }
 
 function StaticMapCard({ lat, lng, label }) {
+  const { tFallback } = useLanguage();
   const card = staticMapCard(lat, lng, { width: 320, height: 150 });
   if (!card) return null;
   return (
@@ -62,7 +63,7 @@ function StaticMapCard({ lat, lng, label }) {
         className="relative w-full rounded-xl overflow-hidden border border-border bg-secondary"
         style={{ height: card.height }}
         role="img"
-        aria-label={`Map showing ${label}`}
+        aria-label={tFallback('gymJoinSheet.mapAria', 'Map showing {name}', { name: label })}
       >
         <div
           className="absolute"
@@ -132,9 +133,9 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
     const res = await commit(pick);
     if (!res.ok) {
       setError({
-        NAME_REJECTED: "That gym's name can't be added automatically.",
-        CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
-      }[res.error] || "Couldn't join that gym — try again.");
+        NAME_REJECTED: tFallback('gymJoinSheet.error.nameRejected', "That gym's name can't be added automatically."),
+        CREATE_LIMIT: tFallback('gymJoinSheet.error.createLimit', "You've added a lot of gyms already. Pick an existing one."),
+      }[res.error] || tFallback('gymJoinSheet.error.generic', "Couldn't join that gym. Try again."));
       setStage('confirm');
       return;
     }
@@ -181,8 +182,10 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
       open={open}
       onClose={stage === 'joining' ? () => {} : cancel}
       title={stage !== 'joined'
-        ? 'Your gym'
-        : firstMember ? 'Founding member' : 'You’re on the floor'}
+        ? tFallback('gymJoinSheet.title.confirm', 'Your gym')
+        : firstMember
+          ? tFallback('gymJoinSheet.title.founding', 'Founding member')
+          : tFallback('gymJoinSheet.title.joined', 'You’re on the floor')}
     >
       <div className="space-y-4 pb-2">
         {/* Identity block — the same on every stage, so the thing the
@@ -195,7 +198,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
             <p className="text-base font-bold truncate">{pick?.name}</p>
             <p className="text-xs text-muted-foreground truncate">
               {Number.isFinite(pick?.distance) && `${fmtDistance(pick.distance)} · `}
-              {pick?.sub || 'On the map'}
+              {pick?.sub || tFallback('gymJoinSheet.onTheMap', 'On the map')}
             </p>
           </div>
         </div>
@@ -207,8 +210,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
         {stage !== 'joined' ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Joining puts you on this gym’s leaderboard and shows you on the
-              Flexyn map here. You can change it any time.
+              {tFallback('gymJoinSheet.confirmBody', 'Joining puts you on this gym’s leaderboard and shows you on the Flexyn map here. You can change it any time.')}
             </p>
             <div className="flex gap-2">
               <button
@@ -225,7 +227,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
                 disabled={stage === 'joining'}
                 className="flex-1 py-3 rounded-xl text-sm font-bold bg-primary text-primary-foreground disabled:opacity-60 transition-all"
               >
-                {stage === 'joining' ? 'Joining…' : 'Join gym'}
+                {stage === 'joining' ? tFallback('gymJoinSheet.joining', 'Joining…') : tFallback('gymJoinSheet.join', 'Join gym')}
               </button>
             </div>
           </>
@@ -244,10 +246,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
                 home gym, and this user is simply the first name on it.
                 "Founding member" is the honest word for that. */}
             <p className="text-sm text-muted-foreground">
-              You’re the first person on Flexyn who trains here. The gym belongs
-              to everyone who shows up — as others make it their home gym they
-              join this leaderboard alongside you, and it starts filling from
-              the day they do.
+              {tFallback('gymJoinSheet.foundingBody', 'You’re the first person on Flexyn who trains here. The gym belongs to everyone who shows up. As others make it their home gym they join this leaderboard alongside you, and it starts filling from the day they do.')}
             </p>
             {/* The colour rule, said once, where it is first true. */}
             <p className="text-xs text-muted-foreground">
@@ -269,7 +268,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
         ) : (
           <>
             <p className="text-micro font-semibold tracking-wide uppercase text-muted-foreground">
-              This week at {pick?.name}
+              {tFallback('gymJoinSheet.thisWeekAt', 'This week at {name}', { name: pick?.name })}
             </p>
             {/* Ranked by active days, not volume — mig 275's reasoning:
                 ranking a local floor by weight moved sorts it by bodyweight
@@ -287,10 +286,10 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
                     {i + 1}
                   </span>
                   <span className="flex-1 min-w-0 text-sm font-semibold truncate">
-                    {row.username || 'Member'}
+                    {row.username || tFallback('gymJoinSheet.member', 'Member')}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {row.active_days ?? 0} days
+                    {tFallback('gymJoinSheet.days', '{n} days', { n: row.active_days ?? 0 })}
                   </span>
                 </motion.div>
               ))}

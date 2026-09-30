@@ -68,8 +68,8 @@ export default function StarterPlanCoachCard({ regimen, coachReply = null }) {
           <span className="block font-heading font-bold text-label leading-tight">{tFallback("hub.coach.title", "AI Coach")}</span>
           <span className="block text-micro text-muted-foreground leading-tight">
             {coachReply
-              ? 'Your starter plan, built around your answers'
-              : 'Your starter plan'}
+              ? tFallback('onboarding.starterCard.subCoach', 'Your starter plan, built around your answers')
+              : tFallback('onboarding.starterCard.sub', 'Your starter plan')}
           </span>
         </span>
       </div>

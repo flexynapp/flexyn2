@@ -71,7 +71,7 @@ describe('reveal step', () => {
     // px value, so it shrinks on a 667pt screen instead of overflowing it.
     const h1 = step.slice(step.indexOf('<motion.h1'), step.indexOf('</motion.h1>'));
     expect(h1).toContain("fontSize: 'var(--fluid-heading-sentence)'");
-    expect(h1).toContain('onboarding.reveal.summary');
+    expect(h1).toContain('onboarding.reveal.headline');
     // And nothing on the step is pinned to the old 38px hero size.
     expect(step).not.toContain('text-[38px]');
   });
@@ -139,16 +139,22 @@ describe('reveal step', () => {
     // word order into a sentence eleven other languages have to reorder.
     const step = revealStep();
     expect(step).toContain('fillNodes(');
-    for (const slot of ['{weeks}', '{goal}', '{extra}', '{level}', '{days}']) {
+    for (const slot of ['{weeks}', '{goals}', '{level}', '{days}']) {
       expect(step).toContain(slot);
     }
+    // Every goal is named, joined the way the language joins a list. It
+    // used to name one and say "+ 1 more".
+    expect(step).toContain('Intl.ListFormat');
+    expect(hasKey('onboarding.reveal.summaryExtra')).toBe(false);
   });
 
   it('spends the accent on the answered values, not the prose', () => {
-    // The point of the swap: the emphasis lands on what the user chose.
+    // The point of the swap: the emphasis lands on what the user chose. The
+    // goals carry theirs from the list builder above the heading.
     const step = revealStep();
     const h1 = step.slice(step.indexOf('<motion.h1'), step.indexOf('</motion.h1>'));
-    expect([...h1.matchAll(/className="text-primary"/g)].length).toBeGreaterThanOrEqual(4);
+    expect([...h1.matchAll(/className="text-primary"/g)].length).toBeGreaterThanOrEqual(3);
+    expect(step).toMatch(/<span key=\{i\} className="text-primary">\{p\.value\}<\/span>/);
     expect(h1).toContain('text-foreground');
   });
 

@@ -35,6 +35,18 @@ describe('parseHeightInput', () => {
     });
   });
 
+  describe('regression — onboarding audit 2026-09-30', () => {
+    it("reads 6' as six feet instead of rejecting it", () => {
+      expect(parseHeightInput("6'", 'in')).toBe(72);
+      expect(parseHeightInput('5’', 'in')).toBe(60);
+    });
+    it('rejects a number that is neither feet nor inches', () => {
+      // "34" was read as 34 feet and clamped to 8'0".
+      expect(parseHeightInput('34', 'in')).toBeNull();
+      expect(parseHeightInput('9', 'in')).toBeNull();
+    });
+  });
+
   describe('regression — audit 18 #9', () => {
     // The old regex matched (\d{1,2}) then (\d{0,2}), so "511" became 51 feet
     // 1 inch = 613 in, which the caller clamped to the 96 in ceiling. Someone
