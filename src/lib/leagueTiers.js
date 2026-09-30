@@ -63,18 +63,16 @@ export const DECAY_GRACE_WEEKS = 2;
 /** Lifetime cap on purchased shields. Mirrors `c_lifetime_cap` in grant_league_shield. */
 export const SHIELD_LIFETIME_CAP = 3;
 
+// Each tier's colour lives in its emblem (LeagueTierIcon, which carries
+// a lighter and darker step of it) and the trophy plate's accent. There
+// are no tier gradients behind UI; a
+// full-bleed tier gradient behind white text failed contrast on Gold and
+// Platinum and put violet on Diamond.
 export const TIERS = [
   {
     id: 'bronze',
     label: 'Bronze',
-    icon: '🥉',
     color: '#cd7f32',
-    // Lighter, slightly polished bronze — shifts the previous very-dark
-    // brown ramp (orange-700 → yellow-800) up two steps so it reads as
-    // "shiny patina" instead of "rust." Pairs with a bronze ring border
-    // on the card to outline it without making it look heavy.
-    gradient: 'from-amber-500 via-orange-500 to-yellow-700',
-    ringClass: 'ring-2 ring-amber-400/70',
     promotePct: 0.50,
     demotePct: 0,      // never demoted out of bronze — it is the floor
     minWorkouts: 1,
@@ -85,9 +83,7 @@ export const TIERS = [
   {
     id: 'silver',
     label: 'Silver',
-    icon: '🥈',
     color: '#c0c0c0',
-    gradient: 'from-slate-300 via-slate-400 to-slate-500',
     promotePct: 0.40,
     demotePct: 0.10,
     minWorkouts: 1,
@@ -98,9 +94,7 @@ export const TIERS = [
   {
     id: 'gold',
     label: 'Gold',
-    icon: '🥇',
     color: '#facc15',
-    gradient: 'from-yellow-300 via-amber-400 to-yellow-600',
     promotePct: 0.30,
     demotePct: 0.15,
     minWorkouts: 2,
@@ -111,9 +105,7 @@ export const TIERS = [
   {
     id: 'platinum',
     label: 'Platinum',
-    icon: '💠',
     color: '#67e8f9',
-    gradient: 'from-cyan-300 via-teal-400 to-cyan-600',
     promotePct: 0.25,
     demotePct: 0.20,
     minWorkouts: 2,
@@ -124,9 +116,9 @@ export const TIERS = [
   {
     id: 'diamond',
     label: 'Diamond',
-    icon: '💎',
-    color: '#a5b4fc',
-    gradient: 'from-indigo-300 via-violet-400 to-purple-500',
+    // Blue, not the violet it shipped as: purple is reserved for rarity
+    // (loot and XP tiers), and a league is a standing, not a drop.
+    color: '#60a5fa',
     promotePct: 0.20,
     demotePct: 0.20,
     minWorkouts: 3,
@@ -137,9 +129,10 @@ export const TIERS = [
   {
     id: 'legend',
     label: 'Legend',
-    icon: '👑',
-    color: '#f0abfc',
-    gradient: 'from-fuchsia-400 via-rose-400 to-pink-500',
+    // Rose, not fuchsia, for the same reason. The top tier needs a hue
+    // no lower tier or state colour owns: warm enough to read as a prize,
+    // clear of the destructive red the demotion zone uses.
+    color: '#fb7185',
     promotePct: 0,     // terminal tier — the season board is the endgame
     demotePct: 0.20,
     minWorkouts: 3,
@@ -158,10 +151,51 @@ const TIER_INDEX = Object.fromEntries(TIERS.map((t, i) => [t.id, i]));
  * {tier}"). Surfaces used to pass the English `label` straight in ("Liga
  * Bronze") or append the word League themselves ("Bronce Liga").
  */
-export function leagueTierName(tier, tFallback) {
+export function leagueTierName(tier, tFallback, level) {
   if (!tier?.id) return tFallback('league.leagueSuffix', 'League');
   const name = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
+  // With a level it reads "Bronze League II". The numeral is the same in
+  // every locale; the translator still owns where it sits.
+  if (level) {
+    return tFallback('league.tierLevelName', '{tier} League {level}', {
+      tier: name,
+      level: levelNumeral(level),
+    });
+  }
   return tFallback('league.tierName', '{tier} League', { tier: name });
+}
+
+/** Levels inside a league, I to IV. Display only: the bracket, promotion and
+ * payouts never read it. */
+export const MAX_LEAGUE_LEVEL = 4;
+
+/**
+ * Your level inside your current league, from 1 to MAX_LEAGUE_LEVEL.
+ *
+ * Every week you QUALIFY in the league adds a level, and moving to a
+ * different league (promotion, demotion, decay or the season reset) starts
+ * you at I again. Derived from resolved `league_members` rows rather than
+ * stored, so nothing has to keep a counter in step with the resolver.
+ *
+ * @param {string} currentTierId  the tier you are in this week
+ * @param {{ tier: string, qualified: boolean|null }[]} history
+ *        resolved weeks, NEWEST FIRST
+ */
+export function leagueLevel(currentTierId, history) {
+  let earned = 0;
+  for (const week of history || []) {
+    // The stint in this league ends at the first week spent in another one.
+    if (week?.tier !== currentTierId) break;
+    // qualified is NULL on a voided week (migration 310), which never ran
+    // through the resolver and earns nothing.
+    if (week.qualified === true) earned += 1;
+  }
+  return Math.min(MAX_LEAGUE_LEVEL, 1 + earned);
+}
+
+/** Roman numeral for a league level. Reads the same in every locale. */
+export function levelNumeral(level) {
+  return ['I', 'II', 'III', 'IV'][Math.min(MAX_LEAGUE_LEVEL, Math.max(1, level || 1)) - 1];
 }
 
 export function getTier(id) {

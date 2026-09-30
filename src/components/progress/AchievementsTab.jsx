@@ -52,6 +52,7 @@ import {
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
+import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
 
 // How many "closest rung" cards lead the page. Three is enough to offer a
 // choice without turning the top of the page into a second full list.
@@ -86,7 +87,13 @@ function Medallion({ trophy, earned, size = 44 }) {
           ...(earned ? {} : { filter: 'grayscale(1) brightness(0.5)', opacity: 0.75 }),
         }}
       >
-        {trophy.emoji}
+        {trophy.leagueTier ? (
+          <LeagueTierIcon
+            tier={trophy.leagueTier}
+            style={{ width: Math.round(size * 0.8), height: Math.round(size * 0.8) }}
+            className=""
+          />
+        ) : trophy.emoji}
       </span>
       {earned && <TierStripe tier={trophy.tier} />}
     </div>

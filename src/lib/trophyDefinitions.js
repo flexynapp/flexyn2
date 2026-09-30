@@ -425,6 +425,10 @@ export function parseSeasonTrophy(id) {
     category: 'league',
     tier: SEASON_TIER_MAP[kind] || 'bronze',
     emoji: SEASON_EMOJI[kind] || '🎖️',
+    // The league tier this trophy marks, so trophy surfaces can draw the
+    // tier's own icon (LeagueTierIcon) instead of the emoji. The emoji
+    // stays for text-only places such as a shared achievement post.
+    leagueTier: isChampion ? 'legend' : kind,
     name: isChampion ? `Champion, S${season}` : `Season ${season} ${label}`,
     description: isChampion
       ? `Won season ${season} outright. Minted once, and nobody else can earn it.`

@@ -8,21 +8,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ChevronRight, Globe, Medal } from 'lucide-react';
-
-// Tier colours run from dark bronze (#cd7f32) to pale legend (#f0abfc),
-// so a fixed white or black glyph on the tier badge fails at one end or
-// the other. Pick per tier from relative luminance instead.
-function onTierColor(hex) {
-  const h = (hex || '').replace('#', '');
-  if (h.length !== 6) return '#fff';
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
-  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  // 0.42 rather than 0.5: dark text wins ties, because the light tiers
-  // (gold, platinum, legend) are where a white glyph disappears fastest.
-  return L > 0.42 ? '#1a1d23' : '#ffffff';
-}
+import { ChevronRight, Globe } from 'lucide-react';
+import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -94,7 +81,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
     return null;
   }
 
-  const { league, tier, members } = data;
+  const { league, tier, members, level = 1 } = data;
   // Default totalMembers to the loaded members.length so the "rank / N"
   // line never renders "/undefined" or "/0" when the RPC omits the count.
   const totalMembers = Number(data.totalMembers) || members.length || 0;
@@ -174,10 +161,9 @@ export default function LeagueCard({ onClick, stretch = false }) {
           whole card, sitting immediately below the orange "Start a
           workout" CTA — two saturated orange blocks stacked, with the
           league shouting louder than the primary action on the screen.
-          It's a normal card now. Tier identity moved onto the 32px medal
-          badge, which is the smallest surface that still says "bronze";
-          confining it there also keeps the Master/Legend tiers' pink and
-          violet down to a chip instead of a full-width banner.
+          It's a normal card now. Tier identity lives in the 40px league
+          emblem, the smallest surface that still says "bronze", which
+          keeps the tier colours to one object instead of a banner.
 
           When stretching, flex-1 + items-center absorbs the spare height
           so the card matches its row neighbour (the Readiness square).
@@ -192,20 +178,14 @@ export default function LeagueCard({ onClick, stretch = false }) {
               on top of the rank. Stacked, the title gets the full width.
               See the .dash-slot / cq-* block in index.css. */}
           <div className="flex items-center gap-2.5 w-full cq-stack">
-            <span
-              className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
-              style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
-              aria-hidden="true"
-            >
-              <Medal className="w-4 h-4" />
-            </span>
+            <LeagueTierBadge tier={tier.id} level={level} size={40} />
             <div className="flex-1 min-w-0">
               {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
                   the card's title, so it gets the title treatment. */}
               <p className="font-heading font-bold text-sm leading-tight truncate">
                 {/* leagueTierName translates the tier and lets the
                     translator own the word order (es: Liga Bronce). */}
-                {leagueTierName(tier, tFallback)}
+                {leagueTierName(tier, tFallback, level)}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

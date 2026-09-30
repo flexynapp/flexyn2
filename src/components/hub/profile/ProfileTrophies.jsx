@@ -24,6 +24,7 @@ import {
   trophyName,
   trophyDescription,
 } from '@/lib/trophyDefinitions';
+import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
 
 function SectionLabel({ children, aside }) {
   return (
@@ -163,7 +164,11 @@ export default function ProfileTrophies({
                   title={`${trophyName(trophy, tFallback)}. ${trophyDescription(trophy, tFallback)}`}
                   className="relative aspect-square rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden"
                 >
-                  <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
+                  {trophy.leagueTier ? (
+                    <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
+                  ) : (
+                    <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
+                  )}
                   <span className="sr-only">{`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}</span>
                   {/* Tier as a stripe, not a 7px caption. */}
                   <span

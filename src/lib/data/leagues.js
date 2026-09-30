@@ -34,6 +34,8 @@ import { supabase } from '@/api/supabaseClient';
 import {
   getTier,
   isQualified,
+  leagueLevel,
+  MAX_LEAGUE_LEVEL,
   promoteCount,
   demoteCount,
   MIN_QUALIFIED_TO_MOVE,
@@ -275,6 +277,7 @@ export async function getMyLeague(user) {
 
   const qualifiedCount = members.filter(m => m.isQualified).length;
   const me = members.find(m => m.user_id === user.id) || null;
+  const level = await getMyLeagueLevel(user, tierId);
 
   return {
     league: ctx.league,
@@ -289,7 +292,39 @@ export async function getMyLeague(user) {
     demoteN: demoteCount(tierId, qualifiedCount),
     bracketTooSmall: qualifiedCount < MIN_QUALIFIED_TO_MOVE,
     tier,
+    level,
   };
+}
+
+/**
+ * Your level (1 to 4) inside the league you are in this week. See
+ * leagueLevel() for the rule. Reads your last few resolved weeks, which RLS
+ * already lets you see. Falls back to level 1 on any failure, because a
+ * missing level is cosmetic and must never hide the league card.
+ */
+export async function getMyLeagueLevel(user, tierId) {
+  if (!user?.id || !tierId) return 1;
+  try {
+    const { data, error } = await supabase
+      .from('league_members')
+      .select('qualified, joined_at, leagues!inner(tier, week_start, is_resolved)')
+      .eq('user_id', user.id)
+      .eq('leagues.is_resolved', true)
+      // joined_at falls inside its bracket's week, so it orders weeks the
+      // same way getLastResolvedLeague does. week_start re-sorts below.
+      .order('joined_at', { ascending: false })
+      // A stint can hold unqualified weeks between the qualified ones, so
+      // read past the cap, not just MAX_LEAGUE_LEVEL rows.
+      .limit(MAX_LEAGUE_LEVEL * 4);
+    if (error || !Array.isArray(data)) return 1;
+    const history = data
+      .map((r) => ({ tier: r.leagues?.tier, qualified: r.qualified, week: r.leagues?.week_start || '' }))
+      .sort((a, b) => (a.week < b.week ? 1 : a.week > b.week ? -1 : 0));
+    return leagueLevel(tierId, history);
+  } catch (err) {
+    reportError(err, { feature: 'league.level' });
+    return 1;
+  }
 }
 
 /**

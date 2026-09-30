@@ -18,6 +18,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { MIN_QUALIFIED_TO_MOVE, leagueTierName } from '@/lib/leagueTiers';
+import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
 const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
@@ -68,15 +69,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      {/* The X sits on the tier's coloured hero, not on --background, so it
-          takes black rather than the default foreground colour — and no
-          focus halo, which on a touch device stays drawn after the tap and
-          reads as a circle around the icon. Keyboard focus still lands on
-          it; it just isn't ringed. */}
-      <DialogContent
-        className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
-        closeClassName="text-black opacity-100 hover:opacity-100 focus:ring-0 focus:ring-offset-0"
-      >
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0">
         {/* Skeleton only while loading. getMyLeague resolves null on an
             error or when the user has no league, and gating on !data here
             left that case on a skeleton forever. Body has the empty state. */}
@@ -92,7 +85,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
       {infoOpen && (
         <Suspense fallback={null}>
-          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} />
+          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} />
         </Suspense>
       )}
     </Dialog>
@@ -110,7 +103,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
       </div>
     );
   }
-  const { league, tier, members, totalMembers } = data;
+  const { league, tier, members, totalMembers, level = 1 } = data;
   // Zone sizes are proportional to the QUALIFIED field and computed by the
   // data layer, which mirrors migration 310. Reading tier.promote here — an
   // absolute count that no longer exists — is what let a 6-person bracket
@@ -128,12 +121,15 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
 
   return (
     <>
-      {/* Hero */}
-      <div className={`relative bg-gradient-to-br ${tier.gradient} px-5 pt-6 pb-7 text-white`}>
+      {/* Header. It was a full-bleed tier gradient under white text, which
+          failed contrast on Gold and Platinum and put violet on Diamond.
+          The tier colour now lives in the league emblem, the same one the
+          Today card uses, and the rest sits on the dialog surface. */}
+      <div className="relative px-5 pt-6 pb-5 border-b border-border">
         <DialogHeader>
-          <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pe-8">
-            <span className="text-2xl">{tier.icon}</span>
-            {leagueTierName(tier, tFallback)}
+          <DialogTitle className="font-heading text-xl flex items-center gap-2 pe-8">
+            <LeagueTierBadge tier={tier.id} level={level} size={40} />
+            {leagueTierName(tier, tFallback, level)}
           </DialogTitle>
         </DialogHeader>
         {/* The header states the rules of THIS week ("0 qualified — 5 needed")
@@ -143,7 +139,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
         <button
           type="button"
           onClick={onOpenInfo}
-          className="absolute top-12 end-3 w-11 h-11 flex items-center justify-center rounded-full text-black/70 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+          className="absolute top-12 end-3 w-11 h-11 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={tFallback('league.info.open', 'How it works')}
         >
           <HelpCircle className="w-5 h-5" aria-hidden="true" />
@@ -154,26 +150,26 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             migration 312 rather than rendering a placeholder. */}
         {season?.season_number != null && (
           <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-white/95">{season.name}</span>
+            <span className="text-xs font-semibold">{season.name}</span>
             {/* Pre-season counts DOWN to the opening rather than reporting a
                 progress bar nobody can move yet. Weekly promotion still runs
                 throughout — only the season reward is waiting. */}
             {preSeason ? (
-              <span className="text-micro text-white/70">
+              <span className="text-micro text-muted-foreground">
                 {seasonDaysUntil != null
                   ? tFallback('league.season.startsIn', 'starts in {n}d', { n: seasonDaysUntil })
                   : tFallback('league.season.notStarted', 'not started yet')}
               </span>
             ) : (
               seasonDaysLeft != null && (
-                <span className="text-micro text-white/70">
+                <span className="text-micro text-muted-foreground">
                   {tFallback('league.season.endsIn', 'ends in {n}d', { n: seasonDaysLeft })}
                 </span>
               )
             )}
             <span
               className={`text-micro font-bold px-1.5 py-0.5 rounded-full ${
-                seasonEligible ? 'bg-white/25 text-white' : 'bg-black/25 text-white/85'
+                seasonEligible ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
               }`}
             >
               {preSeason
@@ -193,14 +189,14 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             <span>{totalMembers} {tFallback('league.members', 'members')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-micro font-bold uppercase tracking-wider opacity-80">
+            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
               {tFallback('league.daysLeft', 'Days left')}
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
           </div>
           {promoteN > 0 && (
-            <div className="flex items-center gap-1 text-white/90">
-              <ArrowUp className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <ArrowUp className="w-3.5 h-3.5 text-success" />
               <span className="text-xs">
                 {/* The {n} placeholder in the fallback string is
                     substituted by tFallback's vars argument. The
@@ -214,8 +210,8 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
             </div>
           )}
           {demoteN > 0 && (
-            <div className="flex items-center gap-1 text-white/90">
-              <ArrowDown className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <ArrowDown className="w-3.5 h-3.5 text-destructive" />
               <span className="text-xs">
                 {tFallback('league.bottomDemoted', 'Bottom {n} demoted', { n: demoteN })}
               </span>
@@ -225,7 +221,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
               direction. Saying so is the difference between "the league is
               broken" and "the league has a rule". */}
           {bracketTooSmall && (
-            <div className="flex items-center gap-1 text-white/90">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <span className="text-xs">
                 {tFallback(
                   'league.gate.bracketHeld',
