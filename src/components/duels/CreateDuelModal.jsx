@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
-  createDuel, createSessionDuel, getFrequentOpponents, sendDuelDM, duelErrorMessage, searchDuelOpponents,
+  createDuel, createSessionDuel, getFrequentOpponents, getMatchedDuelOpponents, sendDuelDM, duelErrorMessage, searchDuelOpponents,
 } from '@/lib/data/duels';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/lib/toast';
@@ -191,10 +191,21 @@ export default function CreateDuelModal({
   });
   const statsById = useMemo(() => Object.fromEntries(frequent.map((f) => [f.id, f])), [frequent]);
 
+  // People close to your strength, ranked on the server. A failure here
+  // just leaves the section out; search and follows still work.
+  const { data: matched = [] } = useQuery({
+    queryKey:  ['duelMatchedOpponents', user?.id],
+    queryFn:   getMatchedDuelOpponents,
+    enabled:   !!user?.id && step === 'pick',
+    staleTime: 5 * 60_000,
+  });
+
   const typing   = term.length >= 2 && (term !== debounced || isFetching);
   const recent   = searching ? [] : frequent;
   const recentIds = new Set(recent.map((f) => f.id));
-  const listed   = candidates.filter((c) => !recentIds.has(c.id));
+  const close    = searching ? [] : matched.filter((m) => !recentIds.has(m.id));
+  const closeIds = new Set(close.map((m) => m.id));
+  const listed   = candidates.filter((c) => !recentIds.has(c.id) && !closeIds.has(c.id));
 
   // Synchronous double-tap guard: `sendingId` state lags React renders, and
   // a fast double-tap used to create two duels and send two DMs.
@@ -396,13 +407,16 @@ export default function CreateDuelModal({
                   ) : (
                     <div className="px-2"><SkeletonRow /><SkeletonRow /></div>
                   )
-                ) : recent.length + listed.length > 0 ? (
+                ) : recent.length + close.length + listed.length > 0 ? (
                   <div className="space-y-3">
                     {recent.length > 0 && (
                       <Section title={tFallback('createDuelModal.recentOpponents', 'Recent opponents')}>{rowsFor(recent)}</Section>
                     )}
+                    {close.length > 0 && (
+                      <Section title={tFallback('createDuelModal.closeToYou', 'Close to your strength')}>{rowsFor(close, recent.length)}</Section>
+                    )}
                     {listed.length > 0 && (
-                      <Section title={tFallback('createDuelModal.following', 'People you follow')}>{rowsFor(listed, recent.length)}</Section>
+                      <Section title={tFallback('createDuelModal.following', 'People you follow')}>{rowsFor(listed, recent.length + close.length)}</Section>
                     )}
                   </div>
                 ) : (

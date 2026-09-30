@@ -129,7 +129,7 @@ function NoWar({ crew, memberCount, tFallback }) {
       <p className="text-label text-muted-foreground mt-2 leading-relaxed max-w-[300px] mx-auto">
         {tFallback(
           'crewWars.noWarBody',
-          "Your crew isn't in a war right now. Open your crew page to enter matchmaking, and you'll be paired against a crew of similar size, age and strength.",
+          "Your crew isn't in a war right now. Open your crew page to enter matchmaking, and you'll be paired against a crew of similar strength, size and age.",
         )}
       </p>
       <Standing crew={crew} memberCount={memberCount} tFallback={tFallback} />
@@ -149,7 +149,7 @@ function Queued({ tFallback }) {
       <p className="text-label text-muted-foreground mt-2 leading-relaxed max-w-[310px] mx-auto">
         {tFallback(
           'crewWars.queuedBody',
-          "You're in the queue. We're looking for a crew whose roster looks like yours. The war starts the moment we find one.",
+          "You're in the queue. We're looking for a crew about as strong as yours, with a similar roster. The war starts the moment we find one.",
         )}
       </p>
 
@@ -161,10 +161,12 @@ function Queued({ tFallback }) {
       </p>
       <div className="flex flex-wrap justify-center gap-2 mt-2">
         {[
-          tFallback('crewWars.matchSize',     'Roster size'),
-          tFallback('crewWars.matchAge',      'Age band'),
+          // Strength leads: it is the main key since the skill matchmaking
+          // migration (20261001030000); the rest refine inside it.
           tFallback('crewWars.matchStrength', 'Strength'),
+          tFallback('crewWars.matchSize',     'Roster size'),
           tFallback('crewWars.matchCadence',  'Cadence'),
+          tFallback('crewWars.matchAge',      'Age band'),
         ].map(label => (
           <span
             key={label}
@@ -175,7 +177,7 @@ function Queued({ tFallback }) {
         ))}
       </div>
       <p className="text-micro text-muted-foreground mt-6 leading-relaxed">
-        {tFallback('crewWars.queueWidens', 'If nobody close is waiting, the search widens every 12 hours.')}
+        {tFallback('crewWars.queueWidens', 'If nobody close is waiting, the search widens every 12 hours. Crews far apart in strength are never paired.')}
       </p>
     </div>
   );
