@@ -5457,6 +5457,7 @@
   "quests.listHeading": "Today's set",
   "quests.listSub": "Tap a quest to go where you can finish it.",
   "quests.longest": "Best run",
+  "quests.notMetYet": "Not done yet: {progress} of {target}",
   "quests.perfectDayToast": "Perfect day, {n} day streak",
   "quests.perfectDays": "Perfect days",
   "quests.streak": "Day streak",
