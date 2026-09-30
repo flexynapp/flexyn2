@@ -307,9 +307,23 @@ export function detectImplausibleWorkout(
 
   // ── Rule E: combined active hours on this date exceed daily limits ──
   // Includes all same-date workout sessions + cardio sessions + this new session.
-  const newWorkoutMins = workoutDurationMin(workout) || estimateWorkoutMinutes(exercises);
+  //
+  // A run logged inside a workout is saved as its own cardio_logs row
+  // (workoutCardio.js) and keeps that row's id. When the row is already in
+  // sameDateCardio, its minutes are counted there, so they come out of the
+  // workout's duration here rather than counting the run twice.
+  const cardioSecondsById = new Map(
+    sameDateCardio.filter(c => c?.id).map(c => [c.id, Number(c.duration_seconds) || 0]),
+  );
+  const linkedRunMins = (list) => (list || []).reduce((sum, ex) =>
+    sum + (ex?.kind === 'cardio' && ex.cardio_log_id ? (cardioSecondsById.get(ex.cardio_log_id) || 0) / 60 : 0), 0);
+  const workoutMins = (log, list) => {
+    const stated = workoutDurationMin(log);
+    return stated ? Math.max(0, stated - linkedRunMins(list)) : estimateWorkoutMinutes(list);
+  };
+  const newWorkoutMins = workoutMins(workout, exercises);
   const existingWorkoutMins = sameDateLogs.reduce((sum, l) =>
-    sum + (workoutDurationMin(l) || estimateWorkoutMinutes(l.exercises || [])), 0
+    sum + workoutMins(l, l.exercises || []), 0
   );
 
   const hoursCheck = checkDailyHours(

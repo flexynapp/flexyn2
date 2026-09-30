@@ -12,6 +12,7 @@ vi.mock('@/lib/LanguageContext', async () => {
   return languageMock();
 });
 vi.mock('@/lib/WeightUnitContext', () => ({ useWeightUnit: () => ({ weightUnit: 'lbs' }) }));
+vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'km' }) }));
 vi.mock('@/lib/analytics', () => ({ track: () => {}, EVENTS: {} }));
 
 HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: () => () => ({ width: 0 }) });
@@ -40,6 +41,23 @@ describe('the finish screen', () => {
     render(<WorkoutShareCard open workout={WORKOUT} onClose={() => {}} summary={{ xpGained: 0, prs: [] }} />);
     expect(screen.queryByText('Time')).toBeNull();
     expect(screen.queryByText(/XP/)).toBeNull();
+  });
+
+  it('counts a run by its distance and time, never as sets', () => {
+    const run = { kind: 'cardio', activity: 'running', name: 'Running', sets: [], segments: [{ duration_s: 1500, distance_m: 5100 }] };
+    render(<WorkoutShareCard open workout={{ ...WORKOUT, exercises: [...WORKOUT.exercises, run] }} onClose={() => {}}
+      summary={{ xpGained: 0, prs: [] }} />);
+    expect(screen.getByText('3')).toBeTruthy();           // sets: the run adds none
+    expect(screen.getByText('5.1 km')).toBeTruthy();
+    expect(screen.getByText('25 min')).toBeTruthy();      // the run's time, with no stated duration
+  });
+
+  it('shows a run-only session without a zero sets cell', () => {
+    const run = { kind: 'cardio', activity: 'running', name: 'Running', sets: [], segments: [{ duration_s: 1800, distance_m: 5000 }] };
+    render(<WorkoutShareCard open workout={{ date: '2026-09-26', exercises: [run] }} onClose={() => {}}
+      summary={{ xpGained: 0, prs: [] }} />);
+    expect(screen.getByText('5 km')).toBeTruthy();
+    expect(screen.queryByText('Sets')).toBeNull();
   });
 
   it('Done closes it', () => {

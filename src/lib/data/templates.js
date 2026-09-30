@@ -2,6 +2,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { ownedRows } from './ownedRows';
+import { blankCardioEntry } from './workoutCardio';
 
 const rows = ownedRows('workout_templates');
 
@@ -37,6 +38,10 @@ function assertNoTextProfanity(fields) {
 export function stripTemplateNumbers(exercises) {
   if (!Array.isArray(exercises)) return [];
   return exercises.map((ex) => {
+    // A run keeps its activity and loses its time, distance and the
+    // cardio_logs row it was saved as. That id belongs to one session, and
+    // a workout started from the template must save its own run.
+    if (ex?.kind === 'cardio') return blankCardioEntry(ex);
     if (!Array.isArray(ex?.sets) || ex.sets.length === 0) return ex;
     return {
       ...ex,

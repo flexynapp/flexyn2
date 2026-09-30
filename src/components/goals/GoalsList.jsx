@@ -11,7 +11,7 @@ import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
-import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal } from '@/lib/goalProgress';
+import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal, goalTitle } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatWeight, formatWeightNumber } from '@/lib/weightUnit';
@@ -88,22 +88,14 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         toGo = tCount('goals.row.sessionsToGo', left, '{n} session to go', '{n} sessions to go');
       }
       Icon = ACTIVITY_ICON[goal.cardio_activity] || Activity;
-      const activity = goal.cardio_activity ? t(`goals.activity.${goal.cardio_activity}`) : t(`goals.type.${goal.goal_type}`);
-      if (goal.period === 'week' || goal.period === 'month') {
-        title = `${activity}, ${t(`goals.period.${goal.period}`).toLowerCase()}`;
-      } else if (goal.goal_type === 'cardio_distance' && goal.single_session === true) {
-        // The big number is the longest run, so the title has to say so.
-        title = `${activity}, ${tFallback('goals.singleRun', 'in one run')}`;
-      } else {
-        title = activity;
-      }
+      title = goalTitle(goal, { t, tFallback });
     } else {
       const r = computeStrengthGoalProgress(goal, logs);
       progress = r.progress;
       const tw = Number(goal.target_weight) > 0 ? Number(goal.target_weight) : 0;
       const tr = Number(goal.target_reps) > 0 ? Number(goal.target_reps) : 0;
       Icon = Dumbbell;
-      title = goal.exercise_name || tFallback('goals.unknownLift', 'Unknown lift');
+      title = goalTitle(goal, { t, tFallback });
       if (tw && tr) {
         // One set: show the set closest to the target, "215 × 5".
         value = r.bestSet

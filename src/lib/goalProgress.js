@@ -155,6 +155,31 @@ export function isCardioGoal(goal) {
 }
 
 /**
+ * A goal's name in the reader's language, built from what the goal IS rather
+ * than from its stored `title`. The title is written once, in whatever
+ * language onboarding or the form ran in, so printing it raw showed an
+ * English title under a Spanish screen. GoalsList and the dashboard's goal
+ * widget both name goals through this.
+ *
+ * @param {object} goal
+ * @param {{ t: Function, tFallback: Function }} i18n
+ */
+export function goalTitle(goal, { t, tFallback }) {
+  if (isCardioGoal(goal)) {
+    const activity = goal.cardio_activity ? t(`goals.activity.${goal.cardio_activity}`) : t(`goals.type.${goal.goal_type}`);
+    if (goal.period === 'week' || goal.period === 'month') {
+      return `${activity}, ${t(`goals.period.${goal.period}`).toLowerCase()}`;
+    }
+    if (goal.goal_type === 'cardio_distance' && goal.single_session === true) {
+      // The big number is the longest run, so the title has to say so.
+      return `${activity}, ${tFallback('goals.singleRun', 'in one run')}`;
+    }
+    return activity;
+  }
+  return goal?.exercise_name || tFallback('goals.unknownLift', 'Unknown lift');
+}
+
+/**
  * Does a cardio_logs row count toward a goal scoped to `activity`?
  *
  * The underscore matters. `cardio_logs.type` is `<mode>_<env>` —

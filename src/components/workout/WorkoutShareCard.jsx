@@ -21,6 +21,9 @@ import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { workoutDurationMin } from '@/lib/workoutDuration';
+import { workoutCardioTotals } from '@/lib/data/workoutCardio';
+import { metersTo } from '@/lib/distanceUnit';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { track, EVENTS } from '@/lib/analytics';
 import { shareCardHost, shareCardLink } from '@/lib/appOrigin';
 
@@ -40,7 +43,11 @@ function computeStats(workout, opts = {}) {
   let totalSets = 0;
   let totalReps = 0;
   let topLift = null;
-  for (const ex of workout?.exercises || []) {
+  // A run logged in the workout is not a lift: it has no sets and must not
+  // count as an exercise. Its time and distance are reported on their own.
+  const lifts = (workout?.exercises || []).filter((ex) => ex?.kind !== 'cardio');
+  const cardio = workoutCardioTotals(workout?.exercises);
+  for (const ex of lifts) {
     for (const s of ex.sets || []) {
       const w = Number(s.weight) || 0;
       const r = Number(s.reps) || 0;
@@ -52,11 +59,13 @@ function computeStats(workout, opts = {}) {
     }
   }
   return {
-    totalVolume: computeTotalVolume(workout?.exercises || [], opts),
+    totalVolume: computeTotalVolume(lifts, opts),
     totalSets,
     totalReps,
-    exercises: (workout?.exercises || []).length,
-    duration: workoutDurationMin(workout),
+    exercises: lifts.length,
+    // A run-only session with no stated duration still took the run's time.
+    duration: workoutDurationMin(workout) || Math.round(cardio.seconds / 60),
+    cardioMeters: cardio.meters,
     topLift,
   };
 }
@@ -178,7 +187,16 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
     boxX += boxW + 20;
   }
 
-  // ── Top lift highlight (if any) ────────────────────────────────────────
+  // ── Top lift highlight (if any), else the distance of a run ────────────
+  if (!stats.topLift && stats.cardioMeters > 0) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = canvasFont('bold 28px');
+    ctx.fillText(tf('cardio.field.distance', 'Distance').toUpperCase(), 80, 850);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = canvasFont('bold 56px');
+    ctx.fillText(stats.cardioDistance, 80, 920);
+  }
   if (stats.topLift) {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -214,17 +232,25 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// "5.1 km" in the person's distance unit, one decimal, localised digits.
+function formatRunDistance(meters, distanceUnit, language) {
+  const u = distanceUnit === 'km' ? 'km' : 'mi';
+  return `${formatNumber(Math.round(metersTo(u, meters) * 10) / 10, language)} ${u}`;
+}
+
 // The finish screen's numbers, above the image. Only what the session
 // actually has: a duration nobody recorded is left out rather than drawn
 // as "0 min" (CLAUDE.md: a section with no data must not render zeros).
-function FinishStats({ workout, includeBarWeight, weightUnit, summary, tFallback, language }) {
+function FinishStats({ workout, includeBarWeight, weightUnit, distanceUnit, summary, tFallback, language }) {
   const raw = computeStats(workout, { includeBarWeight });
   const fmt = (n) => formatNumber(n, language);
   const unit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
   const cells = [
     raw.duration > 0 && { label: tFallback('finish.time', 'Time'), value: `${fmt(raw.duration)} ${tFallback('finish.min', 'min')}` },
+    raw.cardioMeters > 0 && { label: tFallback('cardio.field.distance', 'Distance'), value: formatRunDistance(raw.cardioMeters, distanceUnit, language) },
     raw.totalVolume > 0 && { label: tFallback('finish.volume', 'Volume'), value: `${fmt(Math.round(fromLbs(raw.totalVolume, weightUnit)))} ${unit}` },
-    { label: tFallback('finish.sets', 'Sets'), value: fmt(raw.totalSets) },
+    // A run-only session has no sets, and "0 sets" is not a stat.
+    (raw.totalSets > 0 || raw.cardioMeters <= 0) && { label: tFallback('finish.sets', 'Sets'), value: fmt(raw.totalSets) },
   ].filter(Boolean);
   const prs = summary?.prs || [];
   return (
@@ -260,6 +286,7 @@ function FinishStats({ workout, includeBarWeight, weightUnit, summary, tFallback
 export default function WorkoutShareCard({ open, onClose, workout, username, includeBarWeight = false, summary = null }) {
   const { tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -283,6 +310,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
         weight: Math.round(fromLbs(rawStats.topLift.weight, weightUnit) * 10) / 10,
       } : null,
       unit: weightUnit, // shown as the suffix in drawCard
+      cardioDistance: formatRunDistance(rawStats.cardioMeters, distanceUnit, language),
     };
     // date-fns binds no locale, so this printed an English month onto a
     // fully translated card. Intl is already language-bound.
@@ -307,7 +335,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
       }, 'image/png');
     });
     return () => { cancelled = true; };
-  }, [open, workout, username, language, includeBarWeight, weightUnit, tFallback]);
+  }, [open, workout, username, language, includeBarWeight, weightUnit, distanceUnit, tFallback]);
 
   // Clean up object URL
   useEffect(() => {
@@ -379,7 +407,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
           </DialogHeader>
 
           {summary && workout && (
-            <FinishStats workout={workout} includeBarWeight={includeBarWeight} weightUnit={weightUnit}
+            <FinishStats workout={workout} includeBarWeight={includeBarWeight} weightUnit={weightUnit} distanceUnit={distanceUnit}
               summary={summary} tFallback={tFallback} language={language} />
           )}
 
