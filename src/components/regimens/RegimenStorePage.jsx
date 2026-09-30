@@ -134,7 +134,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
       qc.invalidateQueries({ queryKey: ['regimens', user?.email] });
       qc.invalidateQueries({ queryKey: ['publicTemplates'] });
       qc.invalidateQueries({ queryKey: ['publicRegimens'] });
-      toast.success(`"${regimen.name}" saved to your Regimens!`);
+      toast.success(tFallback('notice.regimenAdopted', '"{name}" saved to your regimens', { name: regimen.name }));
       onAdopted?.();
     },
     onError: () => toast.error(tFallback('regimenStore.adoptFailed', 'Could not adopt regimen. Try again.')),

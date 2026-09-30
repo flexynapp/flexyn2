@@ -79,7 +79,7 @@ export default function RegisterGym() {
       },
       (err) => {
         setGeoLoading(false);
-        toast.error(`Location failed: ${err.message}`);
+        toast.error(tFallback('notice.locationFailed', "Couldn't get your location. Check location access and try again."));
       },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
@@ -111,7 +111,7 @@ export default function RegisterGym() {
       (s) => s.status === 'pending' && (s.business_name || '').trim().toLowerCase() === lowerName,
     );
     if (dupe) {
-      toast.error(`"${name}" is already pending review — no need to resubmit.`);
+      toast.error(tFallback('notice.gymPending', '"{name}" is already waiting for review. No need to send it again.', { name }));
       return;
     }
 

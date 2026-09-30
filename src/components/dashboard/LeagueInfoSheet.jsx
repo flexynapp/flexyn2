@@ -124,10 +124,17 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
           {/* ── The rules ──────────────────────────────────────────── */}
           <div className="pt-6 flex flex-col gap-6">
             <Rule
+              title={tFallback('league.info.startTitle', 'Where you start')}
+              body={tFallback(
+                'league.info.startBody',
+                'Until you have a Strength Score, your onboarding answers pick your first league, up to Gold. Your first real score then replaces that guess, up or down.',
+              )}
+            />
+            <Rule
               title={tFallback('league.info.scoreTitle', 'Your Strength Score')}
               body={tFallback(
-                'league.info.scoreBody',
-                'We read your squat, bench press, deadlift and overhead press from the last 90 days and compare the total to your bodyweight, so a lighter lifter is not ranked below a heavier one for being lighter. Each lift counts at your second best session, so one great day or one typo cannot place you.',
+                'league.info.scoreBodyAll',
+                'We read your presses, squats and deadlifts from the last 90 days, barbell, dumbbell, machine or push-ups, and turn each into a barbell equivalent. The total is compared to your bodyweight and adjusted for age from 40 and under 23, so lifters of every size and age compete fairly. Each lift counts at your second best session, so one great day or one typo cannot place you.',
               )}
             />
             <Rule

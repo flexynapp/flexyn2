@@ -91,7 +91,7 @@ export default function SoloChallengesSection() {
       if (res.already_completed) {
         toast.message(tFallback('soloChallenges.already', 'Already collected.'));
       } else {
-        toast.success(`+${res.coins_awarded} coins · ${tFallback('soloChallenges.collected', 'Challenge complete!')}`);
+        toast.success(tFallback('notice.challengeCoins', 'Challenge complete! +{coins} coins', { coins: res.coins_awarded }));
       }
       qc.invalidateQueries({ queryKey: ['soloChallengeClaims', user?.id] });
       qc.invalidateQueries({ queryKey: ['userProfile', user?.email] });

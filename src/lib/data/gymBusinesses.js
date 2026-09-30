@@ -338,6 +338,12 @@ export async function deleteEvent(eventId) {
   return { ok: !error, error: error?.message };
 }
 
+// author_email is not readable by the app (20260930230000): posts and
+// comments are matched to people by author_id, and the email is filled
+// server side from the author's profile.
+const FEED_POST_COLUMNS = 'id, gym_id, author_id, body, media_url, like_count, comment_count, reaction_count, created_at, edited_at, is_pinned, pinned_at';
+const FEED_COMMENT_COLUMNS = 'id, author_id, body, created_at, parent_id';
+
 export async function listFeedPosts(gymId, limit = 30) {
   if (!gymId) return [];
   // Embed the author's user_profiles row so the UI can show
@@ -349,7 +355,7 @@ export async function listFeedPosts(gymId, limit = 30) {
   const { data, error } = await supabase
     .from('gym_feed_posts')
     .select(`
-      *,
+      ${FEED_POST_COLUMNS},
       author:public_profiles ( username, avatar_url )
     `)
     .eq('gym_id', gymId)
@@ -360,7 +366,7 @@ export async function listFeedPosts(gymId, limit = 30) {
     // to the plain select so the feed still renders.
     const { data: fallback } = await supabase
       .from('gym_feed_posts')
-      .select('*')
+      .select(FEED_POST_COLUMNS)
       .eq('gym_id', gymId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -443,7 +449,7 @@ export async function listFeedComments(postId) {
   const { data, error } = await supabase
     .from('gym_feed_comments')
     .select(`
-      id, author_id, author_email, body, created_at, parent_id,
+      ${FEED_COMMENT_COLUMNS},
       author:public_profiles ( username, avatar_url )
     `)
     .eq('post_id', postId)
@@ -451,7 +457,7 @@ export async function listFeedComments(postId) {
   if (error) {
     const { data: fallback } = await supabase
       .from('gym_feed_comments')
-      .select('id, author_id, author_email, body, created_at, parent_id')
+      .select(FEED_COMMENT_COLUMNS)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
     return fallback || [];

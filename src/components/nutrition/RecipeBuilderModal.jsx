@@ -27,6 +27,7 @@ import {
 import { db } from '@/api/db';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 
 // Factory rather than module-level shared object so each row gets a
 // fresh reference — eliminates a class of subtle aliasing bugs and
@@ -235,7 +236,8 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       }
       onClose?.();
     } catch (err) {
-      toast.error(`Couldn't save: ${err?.message || 'try again'}`);
+      reportError(err, { feature: 'recipes.save' });
+      toast.error(tFallback('notice.recipeSaveFailed', "Couldn't save the recipe. Try again."));
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,9 @@ import TransText from '@/components/TransText';
 import { isNative } from '@/lib/native';
 import FlexynLogo from '@/components/FlexynLogo';
 
+// Brand names, shown as written in every language.
+const PROVIDER_NAMES = { google: 'Google', apple: 'Apple' };
+
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
 // CDN fetches and lets the buttons render before any external request.
 function GoogleGlyph(props) {
@@ -107,7 +110,7 @@ export default function SignInToContinue({
       if (provider === 'apple' && isNative()) {
         toast.error(tFallback('signIn.appleFailed', 'Could not sign in with Apple. Try again.'));
       } else {
-        toast.error(`Couldn't start ${provider} sign-in. Try again.`);
+        toast.error(tFallback('notice.providerSignInFailed', "Couldn't start sign in with {provider}. Try again.", { provider: PROVIDER_NAMES[provider] || provider }));
       }
     }
   };
