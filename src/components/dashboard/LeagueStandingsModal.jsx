@@ -10,14 +10,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle, Medal } from 'lucide-react';
+import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
-import { MIN_QUALIFIED_TO_MOVE, leagueTierName, onTierColor } from '@/lib/leagueTiers';
+import { MIN_QUALIFIED_TO_MOVE, leagueTierName } from '@/lib/leagueTiers';
+import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
 const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
@@ -127,13 +128,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
       <div className="relative px-5 pt-6 pb-5 border-b border-border">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 pe-8">
-            <span
-              className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
-              style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
-              aria-hidden="true"
-            >
-              <Medal className="w-4 h-4" />
-            </span>
+            <LeagueTierBadge tier={tier.id} size={32} />
             {leagueTierName(tier, tFallback)}
           </DialogTitle>
         </DialogHeader>

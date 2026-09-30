@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getTier } from '@/lib/leagueTiers';
+import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
 
 /**
  * The plate. One geometry, two variables: the season numeral and the tier
@@ -70,9 +71,9 @@ function TrophyPlate({ seasonNumber, tier, isChampion, tierColor }) {
           <span className="font-heading font-bold text-2xl" style={{ color: tierColor }}>
             S{seasonNumber}
           </span>
-          <span className="text-micro font-bold text-muted-foreground tracking-wide uppercase">
-            {tier}
-          </span>
+          {/* Was the raw tier id in capitals ("DIAMOND" in every language).
+              The tier's mark says it without a word to translate. */}
+          <LeagueTierIcon tier={tier} className="w-5 h-5 mt-1" style={{ color: tierColor }} />
         </>
       )}
       <span

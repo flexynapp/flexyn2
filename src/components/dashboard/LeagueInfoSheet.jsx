@@ -26,6 +26,7 @@ import {
   DECAY_GRACE_WEEKS,
   SHIELD_LIFETIME_CAP,
 } from '@/lib/leagueTiers';
+import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 
 const pct = (n) => `${Math.round(n * 100)}%`;
 
@@ -35,11 +36,7 @@ function LadderRow({ tier, isLast }) {
     <div className={`flex items-center gap-2 py-2 ${isLast ? '' : 'border-b border-border/50'}`}>
       {/* The tier colour lives here and nowhere else on the sheet — same rule
           the card and the standings follow, so the four-hue budget holds. */}
-      <span
-        className="w-6 h-6 rounded-sm shrink-0"
-        style={{ backgroundColor: tier.color }}
-        aria-hidden="true"
-      />
+      <LeagueTierBadge tier={tier.id} size={24} />
       <span className="text-caption font-bold flex-1 min-w-0 truncate">
         {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)}
       </span>

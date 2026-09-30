@@ -8,13 +8,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ChevronRight, Globe, Medal } from 'lucide-react';
+import { ChevronRight, Globe } from 'lucide-react';
+import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
-import { leagueTierName, onTierColor } from '@/lib/leagueTiers';
+import { leagueTierName } from '@/lib/leagueTiers';
 import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
@@ -178,13 +179,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
               on top of the rank. Stacked, the title gets the full width.
               See the .dash-slot / cq-* block in index.css. */}
           <div className="flex items-center gap-2.5 w-full cq-stack">
-            <span
-              className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
-              style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
-              aria-hidden="true"
-            >
-              <Medal className="w-4 h-4" />
-            </span>
+            <LeagueTierBadge tier={tier.id} size={32} />
             <div className="flex-1 min-w-0">
               {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
                   the card's title, so it gets the title treatment. */}

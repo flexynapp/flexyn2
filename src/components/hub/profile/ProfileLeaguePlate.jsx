@@ -20,6 +20,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Flame } from 'lucide-react';
 import { getTier as getLeagueTier, leagueTierName } from '@/lib/leagueTiers';
+import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
 
 const INK = '#17130d';
 
@@ -43,7 +44,8 @@ export default function ProfileLeaguePlate({ leagueId, level, progress, streak, 
     >
       <div className="absolute inset-x-4 md:inset-x-6 top-4 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="stamp truncate" style={{ color: ink, opacity: 0.7 }}>
+          <p className="stamp truncate flex items-center gap-1" style={{ color: ink, opacity: 0.7 }}>
+            {hasLeague && <LeagueTierIcon tier={league.id} className="w-3.5 h-3.5 shrink-0" />}
             {hasLeague ? leagueTierName(league, tFallback) : tFallback('league.leagueSuffix', 'League')}
           </p>
           <p className="font-display text-5xl !leading-none mt-1 tabular-nums">

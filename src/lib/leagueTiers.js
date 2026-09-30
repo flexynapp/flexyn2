@@ -72,7 +72,6 @@ export const TIERS = [
   {
     id: 'bronze',
     label: 'Bronze',
-    icon: '🥉',
     color: '#cd7f32',
     promotePct: 0.50,
     demotePct: 0,      // never demoted out of bronze — it is the floor
@@ -84,7 +83,6 @@ export const TIERS = [
   {
     id: 'silver',
     label: 'Silver',
-    icon: '🥈',
     color: '#c0c0c0',
     promotePct: 0.40,
     demotePct: 0.10,
@@ -96,7 +94,6 @@ export const TIERS = [
   {
     id: 'gold',
     label: 'Gold',
-    icon: '🥇',
     color: '#facc15',
     promotePct: 0.30,
     demotePct: 0.15,
@@ -108,7 +105,6 @@ export const TIERS = [
   {
     id: 'platinum',
     label: 'Platinum',
-    icon: '💠',
     color: '#67e8f9',
     promotePct: 0.25,
     demotePct: 0.20,
@@ -120,7 +116,6 @@ export const TIERS = [
   {
     id: 'diamond',
     label: 'Diamond',
-    icon: '💎',
     // Blue, not the violet it shipped as: purple is reserved for rarity
     // (loot and XP tiers), and a league is a standing, not a drop.
     color: '#60a5fa',
@@ -134,7 +129,6 @@ export const TIERS = [
   {
     id: 'legend',
     label: 'Legend',
-    icon: '👑',
     // Rose, not fuchsia, for the same reason. The top tier needs a hue
     // no lower tier or state colour owns: warm enough to read as a prize,
     // clear of the destructive red the demotion zone uses.
