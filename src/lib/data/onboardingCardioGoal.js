@@ -60,7 +60,15 @@ export async function ensureOnboardingCardioGoal({ user, goals, sharpen } = {}) 
 
   const payload = event === 'general'
     ? { ...base, goal_type: 'cardio_sessions', target_sessions: 3, period: 'week' }
-    : { ...base, goal_type: 'cardio_distance', target_distance_meters: EVENT_DISTANCE_M[event] || 5000, period: 'lifetime' };
+    // single_session: "Run a Marathon" is met by one run of the full
+    // distance, not by 42 km of runs added together (Kegan, 2026-09-30).
+    : {
+      ...base,
+      goal_type: 'cardio_distance',
+      target_distance_meters: EVENT_DISTANCE_M[event] || 5000,
+      period: 'lifetime',
+      single_session: true,
+    };
 
   return goalsData.create(payload);
 }

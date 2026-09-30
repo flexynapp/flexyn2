@@ -218,6 +218,12 @@ export function computeCardioGoalProgress(goal, cardioLogs) {
   const periodStart = periodStartDate(goal.period);
   const periodFloor = periodStart ? new Date(periodStart).getTime() : null;
 
+  // A single-run distance goal ("Run a Marathon" from onboarding) is met by
+  // the longest run, not the total. The server reads distance_credited_m,
+  // which the credit trigger zeroes for a run with no duration or one too
+  // fast to be real; prefer it here too so the bar agrees with complete_goal.
+  const single = goal.goal_type === 'cardio_distance' && goal.single_session === true;
+
   let total = 0;
   for (const log of (Array.isArray(cardioLogs) ? cardioLogs : [])) {
     if (!log) continue;
@@ -228,7 +234,12 @@ export function computeCardioGoalProgress(goal, cardioLogs) {
       if (new Date(log.date).getTime() < periodFloor) continue;
     }
     if (!matchesActivity(log.type, goal.cardio_activity)) continue;
-    total += cardioAmountOf(goal, log);
+    if (single) {
+      const credited = log.distance_credited_m != null ? Number(log.distance_credited_m) : Number(log.distance_meters);
+      total = Math.max(total, Number.isFinite(credited) ? credited : 0);
+    } else {
+      total += cardioAmountOf(goal, log);
+    }
   }
 
   const target = cardioTargetOf(goal);

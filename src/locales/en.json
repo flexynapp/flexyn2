@@ -2217,6 +2217,7 @@
   "goals.save": "Save Goal",
   "goals.selectGoalType": "Select goal type",
   "goals.sessions": "sessions",
+  "goals.singleRun": "in one run",
   "goals.strip.nActive": "{n} active goals",
   "goals.strip.oneActive": "1 active goal",
   "goals.strip.openLabel": "Open goals",

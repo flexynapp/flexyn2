@@ -300,3 +300,31 @@ describe('metThisPeriod', () => {
     expect(metThisPeriod(goal({ period: 'lifetime', period_met_start: '2099-01-01' }))).toBe(false);
   });
 });
+
+describe('single-run distance goals', () => {
+  const race = (o) => goal({ target_distance_meters: 42195, single_session: true, ...o });
+
+  it('reads the longest run, not the total', () => {
+    const logs = [log({ distance_meters: 20000 }), log({ distance_meters: 25000 })];
+    const r = computeCardioGoalProgress(race(), logs);
+    expect(r.currentValue).toBe(25000);
+    expect(r.progress).toBeLessThan(100);
+    // The same runs against an ordinary goal still add up.
+    expect(computeCardioGoalProgress(race({ single_session: false }), logs).progress).toBe(100);
+  });
+
+  it('is met by one run of the full distance', () => {
+    const r = computeCardioGoalProgress(race(), [log({ distance_meters: 3000 }), log({ distance_meters: 42300 })]);
+    expect(r.progress).toBe(100);
+  });
+
+  it('prefers the credited distance, like the server', () => {
+    const forged = log({ distance_meters: 42195, duration_seconds: 60, distance_credited_m: 0 });
+    expect(computeCardioGoalProgress(race(), [forged]).currentValue).toBe(0);
+  });
+
+  it('only applies to distance goals', () => {
+    const g = goal({ goal_type: 'cardio_sessions', target_sessions: 3, single_session: true });
+    expect(computeCardioGoalProgress(g, [log(), log(), log()]).progress).toBe(100);
+  });
+});
