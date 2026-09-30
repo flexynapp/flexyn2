@@ -157,12 +157,14 @@ export default function GymRivalCard({ currentUserId }) {
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row, type) => {
       if (!row) {
-        // The roll clears a stuck match server-side even when it finds
-        // nobody, so refetch before saying so, or the stalled card stays up
+        // Nobody fits the caller's skill band. The server keeps them waiting
+        // for 48 hours (rival_seekers), so the next close roller is matched
+        // to them. The roll also clears a stuck match server-side even when
+        // it finds nobody, so refetch before saying so, or the stalled card stays up
         // until the query goes stale.
         setMenuOpen(false);
         qc.invalidateQueries({ queryKey: ['myGymRival'] });
-        toast.info(tFallback('gymRivalCard.noRivalsGhost', 'No human rivals are free right now. Race Past You instead.'), {
+        toast.info(tFallback('gymRivalCard.noRivalsGhost', "No rival close to your level is free right now. You'll be matched when one looks in the next 48 hours, or race Past You now."), {
           action: { label: tFallback('pastYou.race', 'Race Past You'), onClick: () => startMut.mutate(type) },
         });
         return;
