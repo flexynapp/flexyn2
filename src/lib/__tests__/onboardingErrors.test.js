@@ -73,3 +73,14 @@ describe('isUniqueViolation', () => {
     expect(isUniqueViolation({ code: '42703', message: 'undefined column' })).toBe(false);
   });
 });
+
+describe('isReservedUsernameError', () => {
+  it('matches the reserved handle trigger and nothing else', async () => {
+    const { isReservedUsernameError, isProfaneUsernameError } = await import('../onboardingErrors');
+    const reserved = { code: '23514', message: 'username is reserved' };
+    expect(isReservedUsernameError(reserved)).toBe(true);
+    expect(isProfaneUsernameError(reserved)).toBe(false);
+    expect(isReservedUsernameError({ code: '23514', message: 'username_profanity' })).toBe(false);
+    expect(isReservedUsernameError({ code: '23505', message: 'username is reserved' })).toBe(false);
+  });
+});

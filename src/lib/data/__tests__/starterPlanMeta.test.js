@@ -98,3 +98,44 @@ describe('pull-up regression for a "Not yet"', () => {
     expect(names(r)).toContain('Pull-Up');
   });
 });
+
+describe('plan sanity from the builder sweep', () => {
+  it('ignores run times no one can run', () => {
+    expect(fiveKSecondsFrom({ distance: '1mi', timeSec: 1 })).toBeNull();
+    expect(fiveKSecondsFrom({ distance: '1mi', timeSec: 59 })).toBeNull();
+    expect(fiveKSecondsFrom({ distance: '1mi', timeSec: 99 * 60 + 59 })).toBeNull();
+    expect(fiveKSecondsFrom({ distance: '5k', timeSec: 25 * 60 })).toBe(1500);
+  });
+
+  it('keeps a teenager off heavy low rep work', () => {
+    const aces = { squat_bw15: 'yes', pullups_10: 'yes', mile_under10: 'yes', pushups_20: 'yes', plank_60s: 'yes' };
+    const thirteen = { goals: ['strength'], level: 'advanced', assessment: aces, age: 13 };
+    expect(starterPlanLevel(thirteen)).toBe('returning');
+    const r = buildStarterRegimen({ ...thirteen, daysCount: 3 });
+    expect(r.exercises.every(e => e.target_reps >= 8)).toBe(true);
+    expect(starterPlanLevel({ ...thirteen, age: 17 })).toBe('consistent');
+    expect(starterPlanLevel({ ...thirteen, age: 30 })).toBe('advanced');
+  });
+
+  it('does not promote a lifting plan on a quick mile', () => {
+    expect(starterPlanLevel({ goals: ['strength'], level: 'newbie', assessment: { squat_bw15: 'yes', mile_under10: 'yes' } })).toBe('newbie');
+  });
+
+  it('builds plans the workout page will save', async () => {
+    const { detectImplausibleWorkout } = await import('@/lib/workoutFatigue');
+    const cases = [
+      { goals: ['speed', 'endurance'], level: 'newbie', daysCount: 1, cardioEvent: 'marathon', age: 70, gender: 'female', weightKg: 45, heightCm: 150 },
+      { goals: ['muscle'], daysCount: 1, equipment: 'minimal', age: 70, gender: 'female', weightKg: 45, heightCm: 150,
+        injuries: [{ muscleGroup: 'Chest', severity: 'mild' }, { muscleGroup: 'Core', severity: 'mild' }, { muscleGroup: 'Glutes', severity: 'mild' }] },
+    ];
+    for (const input of cases) {
+      const r = buildStarterRegimen(input);
+      const exercises = r.exercises.map(e => ({
+        name: e.name, muscle_groups: e.muscle_groups,
+        sets: Array.from({ length: e.target_sets || 0 }, () => ({ reps: 0, weight: 0 })),
+      }));
+      const verdict = detectImplausibleWorkout({ exercises }, { age: input.age, gender: input.gender, weight_lbs: input.weightKg * 2.20462 }, []);
+      expect(verdict?.implausible ?? false, `${JSON.stringify(input)} ${verdict?.i18nKey}`).toBe(false);
+    }
+  });
+});

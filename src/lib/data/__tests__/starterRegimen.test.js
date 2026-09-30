@@ -534,14 +534,20 @@ describe('buildStarterRegimen — body-fat conditioning nudge', () => {
 describe('assessment tiers', () => {
   const base = { goals: ['strength'], level: 'newbie', daysCount: 3 };
 
-  it('promotes on two strength answers and on acing them', () => {
+  it('promotes a lifting plan on the two lift answers, not the mile', () => {
     const solid = buildStarterRegimen({ ...base, assessment: { squat_bw15: 'yes', pullups_10: 'yes' } });
     const aces = buildStarterRegimen({
       ...base,
       assessment: { squat_bw15: 'yes', pullups_10: 'yes', mile_under10: 'yes' },
     });
+    const mileAndSquat = buildStarterRegimen({ ...base, assessment: { squat_bw15: 'yes', mile_under10: 'yes' } });
     expect(solid.description).toMatch(/consistent/i);
-    expect(aces.description).toMatch(/advanced/i);
+    // A quick mile says nothing about a squat, so it adds no lifting level.
+    expect(aces.description).toMatch(/consistent/i);
+    expect(mileAndSquat.description).not.toMatch(/consistent|advanced/i);
+    // A profile answered when bench_bw was asked keeps its advanced plan.
+    const legacy = buildStarterRegimen({ ...base, assessment: { squat_bw15: 'yes', pullups_10: 'yes', bench_bw: 'yes' } });
+    expect(legacy.description).toMatch(/advanced/i);
   });
 
   it('lifts a self-declared newbie off the floor on foundation answers', () => {

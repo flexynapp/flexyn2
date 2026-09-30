@@ -41,3 +41,13 @@ export function isProfaneUsernameError(err) {
   return err?.code === '23514' &&
     /username_profanity|prohibited content/i.test(errorText(err));
 }
+
+/**
+ * True when enforce_reserved_operator_handles refused the name. Also 23514,
+ * but the message is "username is reserved", which the profanity check
+ * does not match, so the user got a raw error on every retry instead of
+ * being sent back to pick another name.
+ */
+export function isReservedUsernameError(err) {
+  return err?.code === '23514' && /username is reserved/i.test(errorText(err));
+}
