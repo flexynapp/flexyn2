@@ -29,15 +29,22 @@
 -- 1. One skill profile per person per contest kind
 -- ---------------------------------------------------------------------------
 
-DROP TYPE IF EXISTS public.match_skill CASCADE;
-CREATE TYPE public.match_skill AS (
-  strength   numeric,  -- Strength Score; NULL = unrated
-  league     integer,  -- league_tier_rank, 1 bronze .. 6 legend
-  days_week  numeric,  -- distinct training days per week, last 28 days
-  output     numeric,  -- weekly volume (lb) or weekly distance (m)
-  pace       numeric,  -- seconds per km over recent runs; NULL = none
-  age        numeric
-);
+-- Created only if absent: a retry must not DROP ... CASCADE, which would
+-- take every function below that takes this type with it.
+DO $type$
+BEGIN
+  IF to_regtype('public.match_skill') IS NULL THEN
+    CREATE TYPE public.match_skill AS (
+      strength   numeric,  -- Strength Score; NULL = unrated
+      league     integer,  -- league_tier_rank, 1 bronze .. 6 legend
+      days_week  numeric,  -- distinct training days per week, last 28 days
+      output     numeric,  -- weekly volume (lb) or weekly distance (m)
+      pace       numeric,  -- seconds per km over recent runs; NULL = none
+      age        numeric
+    );
+  END IF;
+END;
+$type$;
 
 -- Strength: the stored score when there is one. A league above Bronze with
 -- no score is a placement made some other way (the provisional placement
