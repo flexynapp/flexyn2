@@ -4,7 +4,15 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { ownedRows } from './ownedRows';
 import { selectProfiles } from './users';
 
-const rows = ownedRows('regimens');
+// Nobody reads created_by (the owner's email) or original_author_email back:
+// other users cannot, because the table grants SELECT column by column, so
+// select('*') would be refused. The owner is user_id.
+export const PUBLIC_COLUMNS = 'id, user_id, name, description, days, created_at, created_date, is_public, is_public_free, copy_count, original_template_id, original_author_username, exercises, is_template, template_id, difficulty';
+
+/** A person's own regimens also carry the fields only their editor uses. */
+export const OWN_COLUMNS = `${PUBLIC_COLUMNS}, is_active, updated_at, copied_from_post_id`;
+
+const rows = ownedRows('regimens', { columns: OWN_COLUMNS });
 
 // The user's own regimens, newest first. Every reader of the
 // ['regimens', email] cache calls this with no limit, so whichever page
@@ -47,10 +55,6 @@ export const remove = (id) => rows.remove(id);
  * a strict filter on either column missed regimens published under the
  * other flag. We OR them with a single raw .or() call.
  */
-// Public templates are read by everyone, so the owner's email (created_by)
-// and a copied author's email (original_author_email) are left out. The
-// owner is user_id.
-const PUBLIC_COLUMNS = 'id, user_id, name, description, days, created_at, created_date, is_public, is_public_free, copy_count, original_template_id, original_author_username, exercises, is_template, template_id, difficulty';
 
 export const listPublic = async (limit = 100) => {
   const { data, error } = await supabase

@@ -40,9 +40,8 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
     // has no grant path (mig 189 removed the client INSERT policy and
     // nothing server-side replaced it), so counting it put every user on
     // the achievements leaderboard at zero.
-    const earned = me?.id
-      ? await listEarned(me.id)
-      : await listEarned(userEmail, true);
+    // By id only; with no profile yet there is nothing to count.
+    const earned = await listEarned(me?.id);
     const unlockedCount = earned.length;
 
     if ((Number(me?.achievements_unlocked_count) || 0) !== unlockedCount) {

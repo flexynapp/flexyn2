@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStrengthGoalProgress, goalProgress } from '../goalProgress';
+import { computeStrengthGoalProgress, goalProgress, goalTargetLabel } from '../goalProgress';
 
 const GOAL_CREATED = '2026-01-01T00:00:00Z';
 const AFTER_GOAL   = '2026-01-15T00:00:00Z';
@@ -213,5 +213,34 @@ describe('goalProgress — dispatches on type', () => {
   it('reads strength goals from workout logs', () => {
     const goal = { exercise_name: 'Deadlift', target_weight: 400, created_date: GOAL_CREATED };
     expect(goalProgress(goal, [log(AFTER_GOAL, [{ name: 'Deadlift', sets: [{ weight: 200, reps: 1 }] }])], [])).toBe(50);
+  });
+});
+
+describe('goalTargetLabel', () => {
+  // Stub that interpolates, so a dropped {n} would show.
+  const tFallback = (_key, english, vars = {}) => english.replace(/\{(\w+)\}/g, (_, k) => String(vars[k]));
+  const opts = { tFallback, weightUnit: 'lbs', distanceUnit: 'km' };
+
+  it('names a set goal as weight × reps, so two bench goals differ', () => {
+    expect(goalTargetLabel({ exercise_name: 'Bench Press', target_weight: 225, target_reps: 5 }, opts)).toMatch(/225.*× 5$/);
+    expect(goalTargetLabel({ exercise_name: 'Bench Press', target_weight: 185, target_reps: 8 }, opts)).toMatch(/185.*× 8$/);
+  });
+
+  it('names a rep only goal in words', () => {
+    expect(goalTargetLabel({ exercise_name: 'Pull-ups', target_reps: 15 }, opts)).toBe('15 reps in one set');
+  });
+
+  it('names a distance goal in the reader\'s unit', () => {
+    const marathon = { goal_type: 'cardio_distance', cardio_activity: 'running', single_session: true, target_distance_meters: 42195 };
+    expect(goalTargetLabel(marathon, opts)).toMatch(/^42\.2/);
+    expect(goalTargetLabel(marathon, { ...opts, distanceUnit: 'mi' })).toMatch(/^26\.2/);
+  });
+
+  it('names a sessions goal with its count', () => {
+    expect(goalTargetLabel({ goal_type: 'cardio_sessions', target_sessions: 3 }, opts)).toBe('3 sessions');
+  });
+
+  it('is empty for a goal with no target', () => {
+    expect(goalTargetLabel({ exercise_name: 'Squat' }, opts)).toBe('');
   });
 });

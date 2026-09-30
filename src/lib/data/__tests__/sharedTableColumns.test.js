@@ -66,6 +66,7 @@ describe('tables moving to column-level SELECT grants', () => {
     'marketplace_listings', 'marketplace_bundles', 'post_sticker_reactions',
     'hub_live_sessions', 'poll_votes', 'status_note_likes', 'story_likes',
     'story_highlights', 'regimen_reviews',
+    'regimens', 'user_trophies', 'gym_members',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));
@@ -106,4 +107,28 @@ it.each([
     expect(statement(src, i)).not.toContain(col);
     i = src.indexOf(`from('${table}')`, i + 1);
   }
+});
+
+// regimens is read through ownedRows, which the scan above cannot see.
+it('the regimens module reads its own rows with named columns', () => {
+  const src = read('src/lib/data/regimens.js');
+  expect(src).toMatch(/ownedRows\('regimens', \{ columns: OWN_COLUMNS \}\)/);
+  const own = src.match(/OWN_COLUMNS = `\$\{PUBLIC_COLUMNS\}, ([^`]+)`/);
+  expect(own).toBeTruthy();
+  for (const b of ['created_by', 'original_author_email']) expect(own[1]).not.toContain(b);
+});
+
+it('the data export names columns for every column-granted table', () => {
+  const src = read('src/lib/data/dataExport.js');
+  for (const table of ['regimens', 'user_trophies', 'gym_members', 'marketplace_listings']) {
+    const line = src.split('\n').find((l) => l.includes(`table: '${table}'`));
+    expect(line, table).toMatch(/select:/);
+    expect(line, table).toMatch(/via: 'id'/);
+  }
+});
+
+it('trophies are looked up by user id, never by email', () => {
+  const src = read('src/lib/data/trophies.js');
+  expect(src).not.toMatch(/user_email/);
+  expect(read('src/lib/leaderboardStats.js')).not.toMatch(/listEarned\([^)]*,\s*true\)/);
 });

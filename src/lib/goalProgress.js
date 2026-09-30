@@ -45,6 +45,9 @@
 // a month completed a five-rep goal. Rep-only goals ("Pull-ups 15") are one
 // set too, for the same reason: the goal names a set, not a tally.
 
+import { formatWeight } from './weightUnit';
+import { formatDistance, formatDuration } from './distanceUnit';
+
 /**
  * Compute progress for a single strength goal.
  *
@@ -180,6 +183,35 @@ export function goalTitle(goal, { t, tFallback }) {
 }
 
 /**
+ * The goal itself as one short label: "225 lb × 5", "42.2 km", "3 sessions".
+ * GoalsList prints it beside the progress and the dashboard's goal widget
+ * appends it to the title, because a title alone cannot tell two bench goals
+ * apart. Units follow the reader's settings; the stored values are lb and m.
+ *
+ * @param {object} goal
+ * @param {{ tFallback: Function, weightUnit: string, distanceUnit: string }} opts
+ */
+export function goalTargetLabel(goal, { tFallback, weightUnit, distanceUnit }) {
+  if (!goal) return '';
+  const tCount = (base, n, oneEn, otherEn) => (
+    tFallback(`${base}.${n === 1 ? 'one' : 'other'}`, n === 1 ? oneEn : otherEn, { n })
+  );
+  if (isCardioGoal(goal)) {
+    const raw = cardioTargetOf(goal);
+    const target = Number.isFinite(raw) && raw > 0 ? raw : 0;
+    if (goal.goal_type === 'cardio_distance') return formatDistance(target, distanceUnit, 1);
+    if (goal.goal_type === 'cardio_duration') return formatDuration(target);
+    return tCount('goals.row.sessions', target, '{n} session', '{n} sessions');
+  }
+  const tw = Number(goal.target_weight) > 0 ? Number(goal.target_weight) : 0;
+  const tr = Number(goal.target_reps) > 0 ? Number(goal.target_reps) : 0;
+  if (tw && tr) return `${formatWeight(tw, weightUnit)} × ${tr}`;
+  if (tw) return formatWeight(tw, weightUnit);
+  if (tr) return tCount('goals.row.repsInSet', tr, '{n} rep in one set', '{n} reps in one set');
+  return '';
+}
+
+/**
  * Does a cardio_logs row count toward a goal scoped to `activity`?
  *
  * The underscore matters. `cardio_logs.type` is `<mode>_<env>` —
@@ -200,10 +232,24 @@ function cardioTargetOf(goal) {
   return 0;
 }
 
+/**
+ * The distance a log is CREDITED with, in metres. The server's goal_is_met
+ * reads distance_credited_m, which the credit trigger zeroes for a run with
+ * no duration or one too fast to be real; a row that predates the column
+ * falls back to the raw distance.
+ */
+function creditedDistanceOf(log) {
+  const credited = log.distance_credited_m != null ? Number(log.distance_credited_m) : Number(log.distance_meters);
+  return Number.isFinite(credited) ? credited : 0;
+}
+
+// goal_is_met counts at most twelve hours of one log toward a duration goal.
+const MAX_CREDITED_DURATION_S = 43200;
+
 /** What one log contributes to a goal of this type. */
 function cardioAmountOf(goal, log) {
-  if (goal.goal_type === 'cardio_distance') return Number(log.distance_meters) || 0;
-  if (goal.goal_type === 'cardio_duration') return Number(log.duration_seconds) || 0;
+  if (goal.goal_type === 'cardio_distance') return creditedDistanceOf(log);
+  if (goal.goal_type === 'cardio_duration') return Math.min(Number(log.duration_seconds) || 0, MAX_CREDITED_DURATION_S);
   if (goal.goal_type === 'cardio_sessions') return 1;
   return 0;
 }
@@ -260,8 +306,7 @@ export function computeCardioGoalProgress(goal, cardioLogs) {
     }
     if (!matchesActivity(log.type, goal.cardio_activity)) continue;
     if (single) {
-      const credited = log.distance_credited_m != null ? Number(log.distance_credited_m) : Number(log.distance_meters);
-      total = Math.max(total, Number.isFinite(credited) ? credited : 0);
+      total = Math.max(total, creditedDistanceOf(log));
     } else {
       total += cardioAmountOf(goal, log);
     }

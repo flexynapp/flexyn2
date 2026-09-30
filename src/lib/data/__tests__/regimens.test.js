@@ -54,7 +54,7 @@ describe('regimens reads', () => {
     results = [{ data: [{ id: 'r1' }], error: null }];
     expect(await regimens.list('u1')).toEqual([{ id: 'r1' }]);
     expect(calls).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'user_id', 'u1'],
+      [T, 'from'], [T, 'select', regimens.OWN_COLUMNS], [T, 'eq', 'user_id', 'u1'],
       [T, 'order', 'created_date', { ascending: false }], [T, 'limit', 1000],
     ]);
   });
@@ -95,7 +95,7 @@ describe('regimens writes', () => {
     await regimens.update('r1', { is_active: true });
     await regimens.remove('r1');
     expect(calls).toEqual([
-      [T, 'from'], [T, 'update', { is_active: true }], [T, 'eq', 'id', 'r1'], [T, 'select'], [T, 'single'],
+      [T, 'from'], [T, 'update', { is_active: true }], [T, 'eq', 'id', 'r1'], [T, 'select', regimens.OWN_COLUMNS], [T, 'single'],
       [T, 'from'], [T, 'delete'], [T, 'eq', 'id', 'r1'],
     ]);
   });
@@ -129,7 +129,7 @@ describe('regimens get', () => {
   it('reads one row by id', async () => {
     calls = []; results = [{ data: { id: 'x1' }, error: null }];
     expect(await regimens.get('x1')).toEqual({ id: 'x1' });
-    expect(calls).toEqual([['regimens', 'from'], ['regimens', 'select', '*'], ['regimens', 'eq', 'id', 'x1'], ['regimens', 'maybeSingle']]);
+    expect(calls).toEqual([['regimens', 'from'], ['regimens', 'select', regimens.OWN_COLUMNS], ['regimens', 'eq', 'id', 'x1'], ['regimens', 'maybeSingle']]);
   });
 });
 
@@ -141,7 +141,7 @@ describe('public templates', () => {
     ];
     expect(await regimens.listPublic(20)).toEqual([{ id: 'p1' }]);
     expect(calls.slice(-5)).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'is_public', true],
+      [T, 'from'], [T, 'select', regimens.OWN_COLUMNS], [T, 'eq', 'is_public', true],
       [T, 'order', 'copy_count', { ascending: false }], [T, 'limit', 20],
     ]);
   });

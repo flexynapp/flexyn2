@@ -11,7 +11,7 @@ import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
-import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal, goalTitle } from '@/lib/goalProgress';
+import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal, goalTitle, goalTargetLabel } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatWeight, formatWeightNumber } from '@/lib/weightUnit';
@@ -65,7 +65,8 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
     const cardio = isCardioGoal(goal);
     let progress = 0;
     let value = null;      // the big number: where you are
-    let target = '';       // "225 lb × 5", the goal itself
+    // "225 lb × 5", the goal itself. Shared with the dashboard goal widget.
+    const target = goalTargetLabel(goal, { tFallback, weightUnit, distanceUnit });
     let toGo = null;       // "10 lb to go"
     let Icon = Target;
     let title;
@@ -76,15 +77,12 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
       const left = Math.max(0, r.target - r.currentValue);
       if (goal.goal_type === 'cardio_distance') {
         value = formatDistance(r.currentValue, distanceUnit, 1);
-        target = formatDistance(r.target, distanceUnit, 1);
         toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatDistance(left, distanceUnit, 1) });
       } else if (goal.goal_type === 'cardio_duration') {
         value = formatDuration(r.currentValue);
-        target = formatDuration(r.target);
         toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatDuration(left) });
       } else {
         value = String(r.currentValue);
-        target = tCount('goals.row.sessions', r.target, '{n} session', '{n} sessions');
         toGo = tCount('goals.row.sessionsToGo', left, '{n} session to go', '{n} sessions to go');
       }
       Icon = ACTIVITY_ICON[goal.cardio_activity] || Activity;
@@ -101,7 +99,6 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         value = r.bestSet
           ? `${formatWeightNumber(r.bestSet.weight, weightUnit)} × ${r.bestSet.reps}`
           : null;
-        target = `${formatWeight(tw, weightUnit)} × ${tr}`;
         if (r.bestSet && r.bestSet.weight >= tw) {
           toGo = tCount('goals.row.repsToGo', Math.max(0, tr - r.bestSet.reps), '{n} rep to go', '{n} reps to go');
         } else if (r.bestSet) {
@@ -109,11 +106,9 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         }
       } else if (tw) {
         value = r.maxWeight > 0 ? formatWeightNumber(r.maxWeight, weightUnit) : null;
-        target = formatWeight(tw, weightUnit);
         if (r.maxWeight > 0) toGo = tFallback('goals.row.toGo', '{amount} to go', { amount: formatWeight(Math.max(0, tw - r.maxWeight), weightUnit) });
       } else if (tr) {
         value = r.maxReps > 0 ? String(r.maxReps) : null;
-        target = tCount('goals.row.repsInSet', tr, '{n} rep in one set', '{n} reps in one set');
         if (r.maxReps > 0) toGo = tCount('goals.row.repsToGo', Math.max(0, tr - r.maxReps), '{n} rep to go', '{n} reps to go');
       }
     }

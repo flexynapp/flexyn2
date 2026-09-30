@@ -129,6 +129,50 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
   ctx.font = canvasFont('bold 64px');
   ctx.fillText(username || 'Athlete', 80, 220);
 
+  // A run-only session has no volume, sets or exercises to report, so the
+  // card leads with the run instead of "TOTAL VOLUME —" over "0 EXERCISES"
+  // and "0 SETS". Same pair the on-screen FinishStats shows.
+  const runOnly = stats.exercises === 0 && stats.cardioMeters > 0;
+  if (runOnly) drawRunStats(ctx, { stats, tf, W });
+  else drawLiftStats(ctx, { stats, language, tf, W });
+
+  // ── Top lift highlight (if any), else the distance of a run ────────────
+  // A run-only card already leads with its distance.
+  if (!runOnly && !stats.topLift && stats.cardioMeters > 0) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = canvasFont('bold 28px');
+    ctx.fillText(tf('cardio.field.distance', 'Distance').toUpperCase(), 80, 850);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = canvasFont('bold 56px');
+    ctx.fillText(stats.cardioDistance, 80, 920);
+  }
+  if (stats.topLift) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = canvasFont('bold 28px');
+    ctx.fillText(tf('shareCard.topLift', 'TOP LIFT'), 80, 850);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = canvasFont('bold 56px');
+    const liftUnit = stats.unit === 'kg' ? 'kg' : stats.unit === 'stone' ? 'st' : 'lb';
+    const liftLine = `${stats.topLift.name}: ${stats.topLift.weight} ${liftUnit} × ${stats.topLift.reps}`;
+    // Truncate if too wide
+    let display = liftLine;
+    while (ctx.measureText(display).width > W - 160 && display.length > 10) {
+      display = display.slice(0, -4) + '…';
+    }
+    ctx.fillText(display, 80, 920);
+  }
+
+  // ── Footer brand mark ─────────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = canvasFont('bold 24px');
+  ctx.textAlign = 'center';
+  ctx.fillText(shareCardHost(), W / 2, H - 60);
+}
+
+function drawLiftStats(ctx, { stats, language, tf, W }) {
   // ── Big primary stat: Total Volume ────────────────────────────────────
   const volumeStr = stats.totalVolume > 0
     ? formatNumber(stats.totalVolume, language)
@@ -161,7 +205,33 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
     { label: 'SETS',      value: String(stats.totalSets) },
     { label: 'DURATION',  value: stats.duration > 0 ? `${stats.duration} min` : '—' },
   ];
-  const boxW = (W - 160 - 40) / 3; // 80 padding each side, 20 gap × 2
+  drawStatBoxes(ctx, statBoxes, W);
+}
+
+// The run-only headline: distance big where volume would be, then time.
+function drawRunStats(ctx, { stats, tf, W }) {
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = canvasFont('bold 30px');
+  ctx.fillText(tf('cardio.field.distance', 'Distance').toUpperCase(), 80, 320);
+
+  ctx.fillStyle = '#ffffff';
+  let size = 200;
+  ctx.font = canvasFont(`bold ${size}px`);
+  while (ctx.measureText(stats.cardioDistance).width > W - 160 && size > 80) {
+    size -= 10;
+    ctx.font = canvasFont(`bold ${size}px`);
+  }
+  ctx.fillText(stats.cardioDistance, 80, 490);
+
+  drawStatBoxes(ctx, [
+    { label: tf('finish.time', 'Time').toUpperCase(), value: stats.duration > 0 ? `${stats.duration} min` : '—' },
+  ], W);
+}
+
+function drawStatBoxes(ctx, statBoxes, W) {
+  const n = statBoxes.length;
+  const boxW = (W - 160 - 20 * (n - 1)) / n; // 80 padding each side, 20 gap
   let boxX = 80;
   const boxY = 580;
   const boxH = 200;
@@ -186,40 +256,6 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
 
     boxX += boxW + 20;
   }
-
-  // ── Top lift highlight (if any), else the distance of a run ────────────
-  if (!stats.topLift && stats.cardioMeters > 0) {
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = canvasFont('bold 28px');
-    ctx.fillText(tf('cardio.field.distance', 'Distance').toUpperCase(), 80, 850);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = canvasFont('bold 56px');
-    ctx.fillText(stats.cardioDistance, 80, 920);
-  }
-  if (stats.topLift) {
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = canvasFont('bold 28px');
-    ctx.fillText(tf('shareCard.topLift', 'TOP LIFT'), 80, 850);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = canvasFont('bold 56px');
-    const liftUnit = stats.unit === 'kg' ? 'kg' : stats.unit === 'stone' ? 'st' : 'lb';
-    const liftLine = `${stats.topLift.name}: ${stats.topLift.weight} ${liftUnit} × ${stats.topLift.reps}`;
-    // Truncate if too wide
-    let display = liftLine;
-    while (ctx.measureText(display).width > W - 160 && display.length > 10) {
-      display = display.slice(0, -4) + '…';
-    }
-    ctx.fillText(display, 80, 920);
-  }
-
-  // ── Footer brand mark ─────────────────────────────────────────────────
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = canvasFont('bold 24px');
-  ctx.textAlign = 'center';
-  ctx.fillText(shareCardHost(), W / 2, H - 60);
 }
 
 function roundRect(ctx, x, y, w, h, r) {
