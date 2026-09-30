@@ -4270,6 +4270,7 @@
   "nutrition.plan.plant_power.tagline": "Complete nutrition from whole plant foods. No sacrifice needed",
   "nutrition.plan.veg_strength.name": "Vegetarian Strength",
   "nutrition.plan.veg_strength.tagline": "High-protein vegetarian eating. Eggs, dairy & plants, no meat",
+  "nutrition.plannerPhotoAdded": "Added {name}",
   "nutrition.pointCamera": "Point at a product barcode. Hold steady.",
   "nutrition.prevDay": "Previous day",
   "nutrition.reading": "Reading…",
