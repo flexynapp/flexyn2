@@ -19,6 +19,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { asT } from '@/lib/translatorArg';
 import { LISTING_COLUMNS } from './marketplace';
+import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from './regimens';
 
 // (table, owner-filter-column) pairs we know how to export.
 //
@@ -36,13 +37,13 @@ const EXPORT_TABLES = [
   { name: 'workouts',         table: 'workout_logs',   column: 'created_by',   via: 'email' },
   { name: 'cardio',           table: 'cardio_logs',    column: 'created_by',   via: 'email' },
   { name: 'goals',            table: 'goals',          column: 'created_by',   via: 'email' },
-  { name: 'regimens',         table: 'regimens',       column: 'created_by',   via: 'email' },
+  { name: 'regimens',         table: 'regimens',       column: 'user_id',      via: 'id', select: OWN_REGIMEN_COLUMNS },
   { name: 'nutrition',        table: 'nutrition_logs', column: 'created_by',   via: 'email' },
   { name: 'body_metrics',     table: 'body_metrics',   column: 'created_by',   via: 'email' },
   // Achievements live on the profile row (exported above). There is no
   // `achievements` table; this entry asked for one and every export carried
   // { error: 'fetch_failed' } here. Trophies are their own table.
-  { name: 'trophies',         table: 'user_trophies',  column: 'user_id',      via: 'id' },
+  { name: 'trophies',         table: 'user_trophies',  column: 'user_id',      via: 'id', select: 'id, user_id, trophy_id, earned_at' },
   { name: 'workout_templates',table: 'workout_templates', column: 'created_by', via: 'email' },
   { name: 'hub_posts',        table: 'hub_posts',      column: 'author_email', via: 'email' },
   { name: 'hub_comments',     table: 'hub_comments',   column: 'created_by',   via: 'email' },
@@ -63,7 +64,7 @@ const EXPORT_TABLES = [
   { name: 'step_logs',        table: 'step_logs',      column: 'user_id',      via: 'id' },
   { name: 'journal_entries',  table: 'journal_entries', column: 'user_id',     via: 'id' },
   // Social membership + interactions
-  { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id' },
+  { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id', select: 'id, gym_id, user_id, joined_at' },
   { name: 'gym_event_rsvps',      table: 'gym_event_rsvps',      column: 'user_id',      via: 'id' },
   { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_email', via: 'email' },
   { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'author_id',    via: 'id' },

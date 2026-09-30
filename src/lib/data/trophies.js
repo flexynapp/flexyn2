@@ -1,8 +1,9 @@
 // src/lib/data/trophies.js
 //
 // Earned-trophies data layer. Two operations:
-//   • listEarned(userIdOrEmail) — fetch any user's earned trophies
-//     for display on their profile.
+//   • listEarned(userId) — fetch any user's earned trophies for display
+//     on their profile. By user id only: other people's emails on this
+//     table are not readable, and a filter on a column needs SELECT on it.
 //   • grantEligible() — server-checks every catalog trophy's criteria
 //     against the current user's stats and inserts any newly earned
 //     ones. Returns the array of newly-granted IDs so the caller can
@@ -15,8 +16,8 @@ import { toast } from '@/lib/toast';
 import { getTrophy, trophyName, trophyDescription, asIs } from '@/lib/trophyDefinitions';
 import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
-export async function listEarned(userIdOrEmail, byEmail = false) {
-  if (!userIdOrEmail) return [];
+export async function listEarned(userId) {
+  if (!userId) return [];
   try {
     // The whole chain is rebuilt per attempt rather than a pre-built `q`
     // being reused: safeSelect may call this more than once, and a
@@ -28,7 +29,7 @@ export async function listEarned(userIdOrEmail, byEmail = false) {
       build: (cols) => supabase
         .from('user_trophies')
         .select(cols)
-        .eq(byEmail ? 'user_email' : 'user_id', userIdOrEmail)
+        .eq('user_id', userId)
         .order('earned_at', { ascending: false }),
     });
     if (error) {
