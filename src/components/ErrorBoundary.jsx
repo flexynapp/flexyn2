@@ -52,6 +52,7 @@ import React, { useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { LanguageContext } from '@/lib/LanguageContext';
+import { isChunkLoadError, reloadOnce } from '@/lib/staleDeployGuard';
 
 // A "chunk load" error means the user's cached index bundle points at a
 // hash-named chunk URL that no longer exists on the CDN — almost always
@@ -60,45 +61,18 @@ import { LanguageContext } from '@/lib/LanguageContext';
 // reload to fetch the fresh index.html that references current chunks.
 // One-shot reload guarded by sessionStorage so we never loop forever
 // if the underlying cause is a real bug rather than stale cache.
-const CHUNK_RELOAD_FLAG = 'flexyn.chunkReloadAttemptedAt';
-function isChunkLoadError(error) {
-  if (!error) return false;
-  const msg = (error.message || String(error)).toLowerCase();
-  return (
-    msg.includes('dynamically imported module') ||
-    msg.includes('failed to fetch dynamically imported module') ||
-    msg.includes('loading chunk') ||
-    msg.includes('loading css chunk') ||
-    msg.includes('importing a module script failed')
-  );
-}
-function tryChunkReload() {
-  try {
-    const last = Number(sessionStorage.getItem(CHUNK_RELOAD_FLAG) || '0');
-    // Only reload once per ~minute — if the error fires again within
-    // that window, the cause isn't stale cache and the user should see
-    // the regular boundary so they can copy details / report it.
-    if (Date.now() - last < 60_000) return false;
-    sessionStorage.setItem(CHUNK_RELOAD_FLAG, String(Date.now()));
-  } catch { /* private mode / quota — proceed without the guard */ }
-  // Bypass the SW + HTTP caches by forcing a hard reload of the entry.
-  try {
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-      return true;
-    }
-  } catch { /* ignore */ }
-  return false;
-}
-
+// isChunkLoadError / reloadOnce live in staleDeployGuard so this boundary
+// and the window-level listeners share one reload guard.
 class ErrorBoundaryClass extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, info: null, copied: false };
+    this.state = { hasError: false, error: null, info: null, copied: false, reloading: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    // A chunk error starts out hidden: componentDidCatch either reloads the
+    // page (and it stays hidden) or clears this and shows the fallback.
+    return { hasError: true, error, reloading: isChunkLoadError(error) };
   }
 
   componentDidCatch(error, info) {
@@ -115,9 +89,10 @@ class ErrorBoundaryClass extends React.Component {
     // to pick up the new index.html. If we DO trigger the reload, we
     // skip Sentry capture — repeated stale-cache events would otherwise
     // swamp the error budget with non-actionable noise.
-    if (isChunkLoadError(error) && tryChunkReload()) {
-      return;
-    }
+    // While that reload is in flight the fallback renders nothing, so the
+    // user sees the page refresh rather than a crash card first.
+    if (isChunkLoadError(error) && reloadOnce()) return;
+    if (this.state.reloading) this.setState({ reloading: false });
 
     Sentry.captureException(error, {
       contexts: {
@@ -190,10 +165,11 @@ class ErrorBoundaryClass extends React.Component {
   };
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, info: null, copied: false });
+    this.setState({ hasError: false, error: null, info: null, copied: false, reloading: false });
   };
 
   render() {
+    if (this.state.hasError && this.state.reloading) return null;
     if (this.state.hasError) {
       const { onGoHome, fallback } = this.props;
       // Custom fallback (e.g. for an inline element like a map tile
