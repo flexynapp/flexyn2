@@ -1,8 +1,14 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { PICKER_TYPES, openNativePicker } from "@/lib/nativePicker"
 
-const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+const Input = React.forwardRef(({ className, type, onClick, ...props }, ref) => {
+  // A date or time field opens its picker on a tap anywhere, not only on
+  // the glyph. See src/lib/nativePicker.js.
+  const handleClick = PICKER_TYPES.has(type)
+    ? (e) => { onClick?.(e); if (!e.defaultPrevented) openNativePicker(e.currentTarget); }
+    : onClick;
   return (
     (<input
       type={type}
@@ -11,6 +17,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
         className
       )}
       ref={ref}
+      onClick={handleClick}
       {...props} />)
   );
 })

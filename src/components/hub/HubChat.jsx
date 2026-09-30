@@ -30,6 +30,7 @@ import DuelInviteCard, { parseDuelInvite } from '@/components/duels/DuelInviteCa
 import { PollBubble, PollComposer } from './PollMessage';
 import { isPollVote, parsePoll, buildPollBody, buildVoteBody, buildVoteIndex, pollResults } from '@/lib/dmPolls';
 import { useSwipeToDelete } from '@/hooks/useSwipeToDelete';
+import { openPickerOnClick } from '@/lib/nativePicker';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -1980,6 +1981,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             </p>
             <input
               type="datetime-local"
+              onClick={openPickerOnClick}
               value={scheduleAt}
               onChange={(e) => setScheduleAt(e.target.value)}
               min={format(new Date(Date.now() + 60_000), "yyyy-MM-dd'T'HH:mm")}

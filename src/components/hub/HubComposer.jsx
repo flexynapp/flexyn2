@@ -50,6 +50,7 @@ import CharCountIndicator from '@/components/ui/CharCountIndicator';
 import { compressImage } from '@/lib/imageCompress';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { workoutDurationMin } from '@/lib/workoutDuration';
+import { openPickerOnClick } from '@/lib/nativePicker';
 
 // Trim a GPS track down to ~250 points so the map render stays fast
 // and the post payload stays under reasonable size limits. Preserves
@@ -1597,6 +1598,7 @@ export default function HubComposer({ onClose }) {
           <div className="mt-2">
             <input
               type="datetime-local"
+              onClick={openPickerOnClick}
               value={scheduledAt}
               min={new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16)}
               onChange={e => setScheduledAt(e.target.value)}
