@@ -89,9 +89,9 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
   });
   const communityFiltered = useMemo(
     () => communityPosts
-      .filter(p => (p.body || p.content) && p.author_email !== user?.email)
+      .filter(p => (p.body || p.content) && p.user_id !== user?.id)
       .slice(0, 5),
-    [communityPosts, user?.email],
+    [communityPosts, user?.id],
   );
 
   // ── Composer state ────────────────────────────────────────────────
