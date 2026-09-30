@@ -57,7 +57,7 @@ export default function GauntletStatsModal({
       const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
       const file = new File([blob], 'gauntlet-complete.png', { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: tFallback('gauntletStatsModal.flexynGauntlet', 'Flexyn Gauntlet'), text: `I just cleared "${challengeTitle}" on Flexyn! 🏆` });
+        await navigator.share({ files: [file], title: tFallback('gauntletStatsModal.flexynGauntlet', 'Flexyn Gauntlet'), text: tFallback('gauntletStatsModal.shareText', 'I just cleared "{title}" on Flexyn! 🏆', { title: challengeTitle }) });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -129,10 +129,14 @@ export default function GauntletStatsModal({
                 )}
 
                 <p className="text-xs font-bold uppercase tracking-widest text-purple-400 mb-1">
-                  {type === 'weekly' ? 'Community Gauntlet' : 'Gauntlet Path'}
+                  {type === 'weekly'
+                    ? tFallback('gauntletStatsModal.communityGauntlet', 'Community Gauntlet')
+                    : tFallback('gauntletStatsModal.gauntletPath', 'Gauntlet Path')}
                 </p>
                 <h2 className="text-xl font-black text-white leading-tight mb-1">
-                  {pathCompleted ? 'Path Complete.' : 'Challenge Clear.'}
+                  {pathCompleted
+                    ? tFallback('gauntletStatsModal.pathComplete', 'Path Complete.')
+                    : tFallback('gauntletStatsModal.challengeClear', 'Challenge Clear.')}
                 </h2>
                 <p className="text-sm text-muted-foreground">"{challengeTitle}"</p>
               </div>
@@ -147,7 +151,7 @@ export default function GauntletStatsModal({
                 </div>
                 <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    🪙 Coins
+                    🪙 {tFallback('gauntletStatsModal.coins', 'Coins')}
                   </span>
                   <span className="text-lg font-black text-yellow-400">+{coinsAwarded}</span>
                 </div>
@@ -160,39 +164,37 @@ export default function GauntletStatsModal({
                 </p>
                 <div className="flex gap-2">
                   <StatPill
-                    label="Completion Rate"
+                    label={tFallback('gauntletStatsModal.completionRate', 'Completion Rate')}
                     value={`${completion_rate_pct}%`}
                     accent={completion_rate_pct < 20 ? 'text-rose-400' : completion_rate_pct < 50 ? 'text-amber-400' : 'text-emerald-400'}
                   />
                   <StatPill
-                    label="Total Attempts"
+                    label={tFallback('gauntletStatsModal.totalAttempts', 'Total Attempts')}
                     value={fmt(attempt_count)}
                     accent="text-purple-400"
                   />
                   {user_rank != null && (
                     <StatPill
-                      label="Your Rank"
+                      label={tFallback('gauntletStatsModal.yourRank', 'Your Rank')}
                       value={`#${user_rank}`}
                       accent="text-amber-400"
                     />
                   )}
                 </div>
 
-                {/* Contextual quip. The "Less than 5%" branch used to
-                    fire for `completion_rate_pct === 0` too, which is
-                    actually a more notable moment (literally first) —
-                    surface it with a "You're the FIRST" copy instead.
-                    (Audit 15 #M18.) */}
+                {/* Contextual quip. The popup opens after YOUR completion is
+                    saved, so you are already in completion_count: being the
+                    first means a count of one, not a rate of zero. */}
                 <p className="text-xs text-muted-foreground text-center mt-3 italic">
-                  {completion_rate_pct === 0
-                    ? "You're the FIRST to clear this. Legendary."
+                  {completion_count <= 1
+                    ? tFallback('gauntletStatsModal.quipFirst', "You're the first to clear this. Legendary.")
                     : completion_rate_pct <= 5
-                      ? 'Less than 5% of athletes have done this. Rare.'
+                      ? tFallback('gauntletStatsModal.quipRare', 'Less than 5% of athletes have done this. Rare.')
                       : completion_rate_pct <= 20
-                        ? `Only ${completion_rate_pct}% of athletes have cleared this.`
+                        ? tFallback('gauntletStatsModal.quipFew', 'Only {pct}% of athletes have cleared this.', { pct: completion_rate_pct })
                         : completion_rate_pct <= 50
-                          ? `${completion_rate_pct}% completion rate. You're in the majority — keep climbing.`
-                          : `${completion_rate_pct}% of athletes cleared this. Solid.`}
+                          ? tFallback('gauntletStatsModal.quipHalf', '{pct}% completion rate. Keep climbing.', { pct: completion_rate_pct })
+                          : tFallback('gauntletStatsModal.quipMost', '{pct}% of athletes cleared this. Solid.', { pct: completion_rate_pct })}
                 </p>
               </div>
 
