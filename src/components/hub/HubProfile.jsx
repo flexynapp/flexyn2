@@ -61,6 +61,7 @@ import { isVerified, isPoop, hasSnakeEgg, hasBirdEgg, hasSweatEgg } from '@/lib/
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
+import { NOTE_COLUMNS } from '@/lib/data/statusNotes';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { safeExternalUrl } from '@/lib/safeUrl';
 import { flagSrc } from '@/lib/flags';
@@ -412,7 +413,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('stories')
-        .select('*')
+        .select(storiesData.STORY_COLUMNS)
         .eq('user_id', targetId)
         .is('crew_id', null)  // SECURITY: personal stories only
         .gt('expires_at', now)
@@ -430,7 +431,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('status_notes')
-        .select('*')
+        .select(NOTE_COLUMNS)
         .eq('user_id', targetId)
         .gt('expires_at', now)
         .order('created_at', { ascending: false })
@@ -606,10 +607,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      // Prefer ids so an id-only target (no email in scope) is still
-      // followable and we never depend on the peer's view email.
-      const followerRef = user?.id || user?.email;
-      const followeeRef = targetId || email;
+      // Follows are keyed on user ids only.
+      const followerRef = user?.id;
+      const followeeRef = targetId;
       if (!followerRef || !followeeRef) {
         throw new Error('missing-user');
       }
@@ -640,8 +640,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   const unfollowMutation = useMutation({
     mutationFn: async () => {
-      const followerRef = user?.id || user?.email;
-      const followeeRef = targetId || email;
+      const followerRef = user?.id;
+      const followeeRef = targetId;
       if (!followerRef || !followeeRef) {
         throw new Error('missing-user');
       }
@@ -1104,7 +1104,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
       // block_user_full has just severed the follow rows in BOTH directions.
       invalidateFollowGraph(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.id, targetId] });
     } catch (err) {
       reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: targetId });

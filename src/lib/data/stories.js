@@ -7,6 +7,11 @@ import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import { selectProfiles } from './users';
 import { findOrCreateConversation, sendMessage } from './hubMessages';
+import { NOTE_COLUMNS } from './statusNotes';
+
+// user_email is the story owner's email and stories are readable by anyone
+// the owner's privacy allows, so the app names its columns without it.
+export const STORY_COLUMNS = 'id, user_id, image_url, media_type, overlay_text, overlay_style, overlays, privacy, crew_id, created_at, expires_at';
 
 /**
  * Fetch everything the StoriesRow needs in one parallel pass:
@@ -27,7 +32,7 @@ export async function getStoriesFeedData(user, followingIds = []) {
   const [storiesRes, profilesRes, viewsRes, likesRes, notesRes, blocksRes] = await Promise.all([
     supabase
       .from('stories')
-      .select('*')
+      .select(STORY_COLUMNS)
       .in('user_id', allIds)
       .is('crew_id', null)   // SECURITY: exclude crew-scoped stories from the personal feed
       .gt('expires_at', now)
@@ -55,7 +60,7 @@ export async function getStoriesFeedData(user, followingIds = []) {
 
     supabase
       .from('status_notes')
-      .select('*')
+      .select(NOTE_COLUMNS)
       .in('user_id', allIds)
       .gt('expires_at', now)
       .order('created_at', { ascending: false }),
@@ -86,7 +91,7 @@ export async function getStoriesFeedData(user, followingIds = []) {
   try {
     const { data: pubStories } = await supabase
       .from('stories')
-      .select('*')
+      .select(STORY_COLUMNS)
       .eq('privacy', 'public')
       .is('crew_id', null)     // crew stories never leak into the personal feed
       .gt('expires_at', now)
@@ -165,10 +170,6 @@ export async function getStoriesFeedData(user, followingIds = []) {
       const userStories = storyMap.get(id)  ?? [];
       return {
         user_id:            id,
-        // Owner email for the story-reply DM path only, sourced from the
-        // story row's own user_email column (NOT the public_profiles view).
-        // Null for no-story groups — you can't reply to those anyway.
-        email:              userStories[0]?.user_email ?? null,
         username:           profile.username || 'Athlete',
         // No name AND no picture: the row can only draw this as "AT" over
         // "Athlete", and a strip of identical anonymous circles reads as
@@ -293,14 +294,14 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
   let { data, error } = await supabase
     .from('stories')
     .insert(insertRow)
-    .select()
+    .select(STORY_COLUMNS)
     .single();
 
   // Pre-111 host: `overlays` column doesn't exist yet — retry without
   // it so the story still saves. The overlay layer is purely additive
   // so dropping it on stale hosts is a clean degradation.
   if (error && (error.code === '42703' || error.code === 'PGRST204') && cleanOverlays?.length) {
-    const retry = await supabase.from('stories').insert(baseInsert).select().single();
+    const retry = await supabase.from('stories').insert(baseInsert).select(STORY_COLUMNS).single();
     data = retry.data;
     error = retry.error;
   }

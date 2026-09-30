@@ -161,13 +161,9 @@ export default function PostActivityBlock({ post }) {
     ? FALLBACK_GET[normalizedType]
     : undefined;
   const needsFallback = !post.linked_entity_snapshot && !!post.linked_entity_id && !!meta && !!fallbackGet;
-  // Match on the id first; the email only when both sides actually have one.
-  // A bare `===` called a post with no author_email "mine" for a viewer with
-  // no email (every guest), since undefined === undefined.
-  const isAuthor = Boolean(
-    (post.user_id && user?.id && post.user_id === user.id)
-    || (user?.email && post.author_email === user.email),
-  );
+  // By id only: the author's email is not readable. Both sides must be set,
+  // or a guard of undefined === undefined calls every post "mine".
+  const isAuthor = Boolean(post.user_id && user?.id && post.user_id === user.id);
 
   const { data: fetchedSnapshot } = useQuery({
     queryKey: ['postActivityFallback', post.id, post.linked_entity_id, normalizedType],

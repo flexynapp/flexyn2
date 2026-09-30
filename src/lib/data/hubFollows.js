@@ -1,24 +1,21 @@
 // src/lib/data/hubFollows.js
 import { ownedRows } from './ownedRows';
 import { notifyFriendFollow } from './notifications';
-import { acceptPendingRequestsFrom } from './conversationRequests';
 import * as users from './users';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
-const e = () => ownedRows('hub_follows');
+// follower_email, followee_email and created_by are not readable by the
+// app: the follow graph is public, so reading them handed anyone the email
+// of everyone who follows or is followed. Rows are named and matched by
+// user id only; the database fills the email columns itself
+// (hub_follows_populate_ids, pin_social_row_identity).
+export const FOLLOW_COLUMNS = 'id, user_id, follower_id, followee_id, created_at, created_date';
+const e = () => ownedRows('hub_follows', { columns: FOLLOW_COLUMNS });
 
-// A follow participant may be passed as a user_id (uuid) or an email.
-// Callers on id-keyed surfaces pass ids so they never have to read another
-// user's email off the public_profiles view; legacy callers still pass
-// emails. The bidirectional hub_follows trigger (mig 208 + 217) fills
-// whichever column is left null, so either form yields a fully-populated
-// row and both id- and email-keyed reads keep working.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const followMatch = (participant, idKey, emailKey) =>
-  UUID_RE.test(String(participant ?? ''))
-    ? { [idKey]: participant }
-    : { [emailKey]: String(participant ?? '').toLowerCase() };
+const isId = (v) => UUID_RE.test(String(v ?? ''));
+const pairMatch = (follower, followee) => ({ follower_id: follower, followee_id: followee });
 
 /**
  * Returns up to N popular active users the caller isn't following.
@@ -37,52 +34,9 @@ export const getSuggestedFollowees = async (limit = 8) => {
   return Array.isArray(data) ? data : [];
 };
 
-/** List emails the given user is following. */
-export const listFollowing = async (email) => {
-  if (!email) return [];
-  const rows = await e().filter({ follower_email: email }, '-created_date', 500).catch(() => []);
-  return rows.map(r => r.followee_email);
-};
-
 /**
- * The follow graph as `{ id, email }` pairs.
- *
- * listFollowing() returns emails only, which is enough for a membership
- * check but not for a PICKER: to render someone you need their id (the key
- * public_profiles is read by), and to address them you need their email
- * (what create_group_conversation takes). Deriving one from the other is
- * exactly what mig 220 removed — email is no longer on the view — so a
- * caller that maps a plain email list into row objects silently gets
- * nothing. NewGroupDMModal did, and its people list was permanently empty.
- *
- * Both columns come off the viewer's OWN hub_follows rows (bidirectionally
- * filled by mig 208/217), so this reads no email off public_profiles.
- */
-export const listFollowingPairs = async (email) => {
-  if (!email) return [];
-  const rows = await e().filter({ follower_email: email }, '-created_date', 500).catch(() => []);
-  return rows
-    .map(r => ({
-      id:    r.followee_id || null,
-      email: String(r.followee_email || '').toLowerCase(),
-    }))
-    .filter(p => p.email);
-};
-
-/** List emails of users following the given user (their followers). */
-export const listFollowers = async (email) => {
-  if (!email) return [];
-  const rows = await e().filter({ followee_email: email }, '-created_date', 500).catch(() => []);
-  return rows.map(r => r.follower_email);
-};
-
-/**
- * List the user_ids the given user is following — the id-keyed twin of
- * listFollowing(). follower_id / followee_id are backfilled and
- * trigger-maintained (mig 208), so this reads the same follow graph
- * without touching emails. Prefer this over listFollowing() on paths that
- * resolve profiles by id (e.g. the stories feed) so they never depend on
- * the public_profiles email column.
+ * List the user_ids the given user is following. follower_id / followee_id
+ * are backfilled and trigger-maintained (mig 208).
  */
 export const listFollowingIds = async (userId) => {
   if (!userId) return [];
@@ -90,21 +44,18 @@ export const listFollowingIds = async (userId) => {
   return rows.map(r => r.followee_id).filter(Boolean);
 };
 
-/** List the user_ids following the given user — id-keyed twin of listFollowers(). */
+/** List the user_ids following the given user. */
 export const listFollowersIds = async (userId) => {
   if (!userId) return [];
   const rows = await e().filter({ followee_id: userId }, '-created_date', 500).catch(() => []);
   return rows.map(r => r.follower_id).filter(Boolean);
 };
 
-/** Check if follower follows target. Each side may be a user id or an email. */
+/** Check if follower follows target. Both are user ids. */
 export const isFollowing = async (follower, followee) => {
-  if (!follower || !followee) return false;
+  if (!isId(follower) || !isId(followee)) return false;
   if (String(follower) === String(followee)) return false;
-  const rows = await e().filter({
-    ...followMatch(follower, 'follower_id', 'follower_email'),
-    ...followMatch(followee, 'followee_id', 'followee_email'),
-  }, '-created_date', 1).catch(() => []);
+  const rows = await e().filter(pairMatch(follower, followee), '-created_date', 1).catch(() => []);
   return rows.length > 0;
 };
 
@@ -122,13 +73,9 @@ export const isFollowing = async (follower, followee) => {
  * when the calendar date matches.
  */
 export const getMutualFollowSince = async (userA, userB) => {
-  if (!userA || !userB || String(userA) === String(userB)) return null;
+  if (!isId(userA) || !isId(userB) || String(userA) === String(userB)) return null;
   // Two single-row reads in parallel — cheaper than a full mutual list.
-  // Each side may be a user id or an email.
-  const pair = (from, to) => ({
-    ...followMatch(from, 'follower_id', 'follower_email'),
-    ...followMatch(to, 'followee_id', 'followee_email'),
-  });
+  const pair = pairMatch;
   const [aFollowsB, bFollowsA] = await Promise.all([
     e().filter(pair(userA, userB), '-created_date', 1).catch(() => []),
     e().filter(pair(userB, userA), '-created_date', 1).catch(() => []),
@@ -157,11 +104,8 @@ export const getMutualFollowSince = async (userA, userB) => {
  * contexts can skip it).
  */
 export const follow = async (follower, followee, { t } = {}) => {
-  if (!follower || !followee || String(follower) === String(followee)) return null;
-  const matchBoth = {
-    ...followMatch(follower, 'follower_id', 'follower_email'),
-    ...followMatch(followee, 'followee_id', 'followee_email'),
-  };
+  if (!isId(follower) || !isId(followee) || String(follower) === String(followee)) return null;
+  const matchBoth = pairMatch(follower, followee);
   const existing = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
   // TOCTOU compensator: between the probe above and this insert, a
@@ -179,23 +123,11 @@ export const follow = async (follower, followee, { t } = {}) => {
     }
     throw err;
   }
-  // "Once they are following them, messages are then direct" — applied
-  // retroactively. Any pending message request the followee already sent
-  // flips to accepted, so it moves out of Requests and into the Inbox.
-  //
-  // Mig 235's AFTER INSERT trigger on hub_follows is the authority here;
-  // this call makes the flip land before the next 15s inbox poll and
-  // covers hosts running the new frontend against un-pasted SQL. Both
-  // paths are idempotent. Non-blocking — a DM bookkeeping failure must
-  // never fail the follow itself.
-  (async () => {
-    try {
-      await acceptPendingRequestsFrom(
-        created?.follower_email,
-        created?.followee_email,
-      );
-    } catch { /* swallow */ }
-  })();
+  // "Once they are following them, messages are then direct": any pending
+  // message request the followee sent flips to accepted. Mig 235's AFTER
+  // INSERT trigger on hub_follows does that inside this insert, so there is
+  // nothing to do here. (This used to repeat it from the client, keyed on
+  // both emails.)
 
   // Notify the followee — non-blocking, fire and forget.
   //
@@ -233,7 +165,7 @@ export const follow = async (follower, followee, { t } = {}) => {
       if (error && (error.code === '42883' || error.code === '42P01')) {
         await notifyFriendFollow({
           recipientUserId: followeeId,
-          recipientEmail:  created?.followee_email ?? null,
+          recipientEmail:  null,
           followerName,
           t,
         });
@@ -245,12 +177,10 @@ export const follow = async (follower, followee, { t } = {}) => {
   return created;
 };
 
-/** Remove a follow relationship. follower/followee may be id or email. */
+/** Remove a follow relationship. Both are user ids. */
 export const unfollow = async (follower, followee) => {
-  const matchBoth = {
-    ...followMatch(follower, 'follower_id', 'follower_email'),
-    ...followMatch(followee, 'followee_id', 'followee_email'),
-  };
+  if (!isId(follower) || !isId(followee)) return;
+  const matchBoth = pairMatch(follower, followee);
   const existing = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
   if (existing.length === 0) return;
   await e().remove(existing[0].id).catch(() => {});
@@ -369,15 +299,3 @@ export const getRecommendations = async (userId, followingIds = [], limit = 6, {
   return Array.from(picked.values()).slice(0, limit);
 };
 
-/** Cascade-delete all follow rows involving a user (in either direction). */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const [asFollower, asFollowing] = await Promise.all([
-    e().filter({ follower_email: email }, '-created_date', 500).catch(() => []),
-    e().filter({ followee_email: email }, '-created_date', 500).catch(() => []),
-  ]);
-  await Promise.all([
-    ...asFollower.map(r => e().remove(r.id).catch(() => {})),
-    ...asFollowing.map(r => e().remove(r.id).catch(() => {})),
-  ]);
-};

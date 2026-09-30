@@ -130,16 +130,16 @@ export default function FollowSuggestionRail() {
   // don't change fast and we already invalidate this key from
   // handleFollow below.
   const { data: followingCount = 0 } = useQuery({
-    queryKey: ['onboardingFollowsCount', user?.email],
+    queryKey: ['onboardingFollowsCount', user?.id],
     queryFn: async () => {
-      if (!user?.email) return 0;
+      if (!user?.id) return 0;
       const { count } = await supabase
         .from('hub_follows')
         .select('id', { count: 'exact', head: true })
-        .eq('follower_email', user.email);
+        .eq('follower_id', user.id);
       return count ?? 0;
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
 
@@ -208,7 +208,7 @@ export default function FollowSuggestionRail() {
       // Update the feed-relevant queries so the new follow shows up
       // immediately in the timeline + the followee counter.
       qc.invalidateQueries({ queryKey: ['hubFeed'] });
-      qc.invalidateQueries({ queryKey: ['onboardingFollowsCount', user.email] });
+      qc.invalidateQueries({ queryKey: ['onboardingFollowsCount', user.id] });
       qc.invalidateQueries({ queryKey: ['suggestedFollowees', user.id] });
       qc.invalidateQueries({ queryKey: ['hubFollowingIds', user.id] });
       invalidateFollowGraph(qc);

@@ -48,7 +48,7 @@ describe('barcode reads', () => {
     results = [{ data: [{ id: 'f1' }], error: null }];
     expect(await foodItems.listByBarcode('0123')).toEqual([{ id: 'f1' }]);
     expect(calls).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'barcode', '0123'],
+      [T, 'from'], [T, 'select', foodItems.FOOD_COLUMNS], [T, 'eq', 'barcode', '0123'],
       [T, 'order', 'created_date', { ascending: false }], [T, 'limit', 10],
     ]);
   });
@@ -63,7 +63,7 @@ describe('barcode reads', () => {
     expect(await foodItems.findByBarcode('0123')).toEqual({ id: 'f1' });
     expect(await foodItems.findByBarcode('0123')).toBeNull();
     expect(calls.slice(0, 5)).toEqual([
-      [T, 'from'], [T, 'select', '*'], [T, 'eq', 'barcode', '0123'],
+      [T, 'from'], [T, 'select', foodItems.FOOD_COLUMNS], [T, 'eq', 'barcode', '0123'],
       [T, 'order', 'created_date', { ascending: false }], [T, 'limit', 1],
     ]);
   });

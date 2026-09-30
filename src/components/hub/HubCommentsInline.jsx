@@ -158,19 +158,19 @@ export default function HubCommentsInline({ post, open, onClose }) {
     if (autoMentionedRef.current) return;
     if (draft.trim() || replyTarget) return;
     if (!postAuthor?.handle) return;
-    if (post.author_email && user?.email && post.author_email === user.email) return;
+    if (post.user_id && user?.id && post.user_id === user.id) return;
     autoMentionedRef.current = true;
     setDraft(`${postAuthor.handle} `);
-  }, [open, draft, replyTarget, postAuthor?.handle, post.author_email, user?.email]);
+  }, [open, draft, replyTarget, postAuthor?.handle, post.user_id, user?.id]);
 
   const { data: likedSet } = useQuery({
-    queryKey: ['hubCommentLikes', post.id, user?.email],
+    queryKey: ['hubCommentLikes', post.id, user?.id],
     queryFn: async () => {
       const ids = comments.map(c => c.id);
-      if (!user?.email || ids.length === 0) return new Set();
-      return hubCommentLikes.listLikedCommentIds(user.email, ids);
+      if (!user?.id || ids.length === 0) return new Set();
+      return hubCommentLikes.listLikedCommentIds(user.id, ids);
     },
-    enabled: !!user?.email && comments.length > 0,
+    enabled: !!user?.id && comments.length > 0,
   });
 
   // ── Like helpers ─────────────────────────────────────────────────────────
@@ -197,13 +197,13 @@ export default function HubCommentsInline({ post, open, onClose }) {
         desiredLikeRef.current.clear();
         await Promise.all(
           entries.map(([cid, target]) =>
-            hubCommentLikes.setLiked(cid, user.email, target)
+            hubCommentLikes.setLiked(cid, user.id, target)
           )
         );
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] }),
-        queryClient.invalidateQueries({ queryKey: ['hubCommentLikes', post.id, user.email] }),
+        queryClient.invalidateQueries({ queryKey: ['hubCommentLikes', post.id, user.id] }),
       ]);
       setPendingLikes(new Map());
     } catch {
@@ -314,7 +314,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const confirmDelete = async () => {
     const comment = pendingDelete;
     setPendingDelete(null);
-    if (!comment || comment.author_email !== user?.email) return;
+    if (!comment || !user?.id || comment.user_id !== user.id) return;
     try {
       await hubComments.remove(comment.id, post.id);
       queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] });
@@ -358,7 +358,6 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   onDelete={() => setPendingDelete(c)}
                   showReply
                   t={t}
-                  postAuthorEmail={post.author_email}
                   onMentionClick={handleMentionClick}
                 />
 
@@ -413,8 +412,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               // the indent never grows past one level.
                               showReply
                               t={t}
-                              postAuthorEmail={post.author_email}
-                              onMentionClick={handleMentionClick}
+                                          onMentionClick={handleMentionClick}
                             />
                           ))}
                         </motion.div>
@@ -599,7 +597,7 @@ function renderCommentBody(text, authorsById, onMentionClick) {
 
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
-function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail, onMentionClick }) {
+function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, onMentionClick }) {
   const { language, tFallback } = useLanguage();
   const [reportOpen, setReportOpen] = useState(false);
   const [translation, setTranslation] = useState(null);
