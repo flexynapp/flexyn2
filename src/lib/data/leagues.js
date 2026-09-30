@@ -5,8 +5,9 @@
 //   • On any XP-earning action, recordWeeklyXp(user) is called. It ensures
 //     the user is placed in this week's bracket, then asks the server to
 //     RE-DERIVE their standing from the XP ledger.
-//   • Rollover is owned by pg_cron (`roll-weekly-leagues`, Mondays 00:10
-//     UTC). The client neither triggers nor participates in it.
+//   • Rollover is owned by pg_cron (`roll-weekly-leagues`, Mondays 12:10
+//     UTC, once Sunday has ended in every time zone). The client neither
+//     triggers nor participates in it.
 //
 // ── Two things this module used to do, and must never do again ──────────────
 //
