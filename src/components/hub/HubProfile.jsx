@@ -98,19 +98,29 @@ function CrownBadge({ size = 18 }) {
   );
 }
 
-// ── QR Code generator ─────────────────────────────────────────────────────────
-// Uses the public qrserver.com API — no package needed, no CORS issues.
-// Returns a URL to a PNG image of the QR code.
-function generateQrUrl(text) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(text)}&margin=10`;
-}
-
 // ── QR Code modal ─────────────────────────────────────────────────────────────
+// The code is drawn on the device with the `qrcode` package, the same one the
+// gym signage card uses. It used to be an <img> from a public QR web service, which
+// sent every shared profile link to a third party and showed a grey box when
+// offline.
 function QRModal({ url, username, onClose }) {
   const { tFallback } = useLanguage();
   const [copied, setCopied] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const qrImgUrl = generateQrUrl(url);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const dataUrl = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 2, width: 512 });
+        if (!cancelled) setQrDataUrl(dataUrl);
+      } catch (err) {
+        reportError(err, { feature: 'profile.qr', level: 'warning' });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
 
   const handleCopy = async () => {
     try {
@@ -150,31 +160,31 @@ function QRModal({ url, username, onClose }) {
         style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between w-full">
-          <h3 className="font-heading font-bold text-base">@{username}'s QR Code</h3>
-          <button type="button" onClick={onClose} className="p-1 rounded text-muted-foreground hover:bg-secondary active:bg-secondary">
+          <h3 className="font-heading font-bold text-base">{tFallback('hub.profile.shareProfile', 'Share profile')}</h3>
+          <button type="button" onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-11 h-11 -me-3 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="relative w-52 h-52 rounded-xl border border-border overflow-hidden bg-white">
-          {!imgLoaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
-          <img loading="lazy" src={qrImgUrl}
-            alt={tFallback("hubProfile.profileQrCode", "Profile QR code")}
-            className="w-full h-full object-contain"
-            onLoad={() => setImgLoaded(true)}
-          />
+          {qrDataUrl
+            ? <img src={qrDataUrl} alt={tFallback('hubProfile.profileQrCode', 'Profile QR code')} className="w-full h-full object-contain" />
+            : <div className="absolute inset-0 bg-muted animate-pulse" />}
         </div>
-        <p className="text-xs text-muted-foreground text-center break-all px-2">{url}</p>
+        <p className="text-sm font-semibold">@{username}</p>
+        <p className="text-xs text-muted-foreground text-center break-all px-2 -mt-3">{url}</p>
         <div className="flex gap-2 w-full">
           <button
+            type="button"
             onClick={handleCopy}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-xl border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors"
           >
             <Copy className="w-4 h-4" />
-            {copied ? 'Copied!' : 'Copy link'}
+            {copied ? tFallback('errorBoundary.copied', 'Copied!') : tFallback('hub.share.copyLink', 'Copy link')}
           </button>
           <button
+            type="button"
             onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+            className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
           >
             {tFallback("achievements.share.label", "Share")}
           </button>
@@ -359,10 +369,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     if (isSelf || !targetLastActive) return null;
     const diff = Date.now() - new Date(targetLastActive).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 5) return { text: 'Active now', color: 'text-success' };
+    // Translated, and told apart by `now` rather than by comparing the
+    // English string, which is what the render below used to do.
+    if (mins < 5) return { now: true, text: tFallback('hub.profile.activeNow', 'Active now') };
     if (diff < 86400000) {
       const h = Math.floor(diff / 3600000);
-      return { text: `Active ${h || 1}h ago`, color: 'text-muted-foreground' };
+      return { now: false, text: tFallback('hub.profile.activeHoursAgo', 'Active {n}h ago', { n: h || 1 }) };
     }
     return null;
   })();
@@ -1633,9 +1645,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <>
                 <span
                   aria-hidden="true"
-                  className={`w-2 h-2 rounded-full shrink-0 ${activeLabel.text === 'Active now' ? 'bg-success' : 'bg-muted-foreground opacity-40'}`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${activeLabel.now ? 'bg-success' : 'bg-muted-foreground opacity-40'}`}
                 />
-                <span className={activeLabel.text === 'Active now' ? 'text-success' : undefined}>{activeLabel.text}</span>
+                <span className={activeLabel.now ? 'text-success' : undefined}>{activeLabel.text}</span>
               </>
             )}
             {activeLabel && isMutualFollow && <span aria-hidden="true">·</span>}
@@ -1737,7 +1749,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             type="button"
             onClick={handleNoteLike}
             className="inline-flex items-center gap-1.5 mt-2 text-sm text-muted-foreground"
-            aria-label={noteLiked ? 'Unlike note' : 'Like note'}
+            aria-label={noteLiked
+              ? tFallback('stories.unlikeNote', 'Unlike note')
+              : tFallback('stories.likeNote', 'Like note')}
           >
             <Heart
               className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-destructive active:text-destructive'}`}
@@ -1925,7 +1939,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   onClick={() => setFlagPickerOpen(true)}
                   className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                 >
-                  {countryFlag ? 'Change flag' : 'Pick country flag →'}
+                  {countryFlag
+                    ? tFallback('hub.profile.changeFlag', 'Change flag')
+                    : tFallback('hub.profile.pickFlag', 'Pick a country flag')}
                 </button>
               </div>
               {/* Signature trophy — pin one trophy-case emoji next to
@@ -1969,7 +1985,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   className="flex-1 py-1.5 text-xs rounded-lg text-white font-semibold disabled:opacity-60"
                   style={{ background: 'hsl(var(--primary))' }}
                 >
-                  {savingProfile ? 'Saving…' : 'Save profile'}
+                  {savingProfile
+                    ? tFallback('common.saving', 'Saving...')
+                    : tFallback('hub.profile.saveProfile', 'Save profile')}
                 </button>
               </div>
             </div>
@@ -2100,12 +2118,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <SummaryRow
                 icon={Medal}
                 label={tFallback('profile.league', 'League')}
-                sub={tFallback('profile.leagueSub', '{tier}, place {r} of {t} this week', {
-                  tier: heroLeague.tierId
+                sub={(() => {
+                  const tier = heroLeague.tierId
                     ? tFallback(`trophy.seasonTier.${heroLeague.tierId}`, heroLeague.tierLabel)
-                    : tFallback('league.leagueSuffix', 'League'),
-                  r: heroLeague.rank, t: heroLeague.total,
-                })}
+                    : tFallback('league.leagueSuffix', 'League');
+                  if (heroLeague.rank) {
+                    return tFallback('profile.leagueSub', '{tier}, place {r} of {t} this week', {
+                      tier, r: heroLeague.rank, t: heroLeague.total,
+                    });
+                  }
+                  return heroLeague.daysToRank === 1
+                    ? tFallback('profile.leagueUnrankedOne', '{tier}, one more training day to get ranked', { tier })
+                    : tFallback('profile.leagueUnranked', '{tier}, {n} more training days to get ranked', { tier, n: heroLeague.daysToRank });
+                })()}
                 onClick={() => setLeagueOpen(true)}
               />
             )}

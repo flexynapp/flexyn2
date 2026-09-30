@@ -12,7 +12,8 @@ import { Share2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
-import { useNumberFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
+import { workoutTitle } from '@/lib/workoutTitle';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import TapToCopy from '@/components/TapToCopy';
 import * as workouts from '@/lib/data/workouts';
@@ -24,6 +25,7 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
+  const fmtDate = useDateFormatter();
 
   const { data: logs = [] } = useQuery({
     queryKey: ['profileLifts', userId],
@@ -92,7 +94,7 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
             </p>
           </div>
         </TapToCopy>
-        <TapToCopy value={longestStreak ? `${longestStreak} day streak` : '—'} label={tFallback('copy.noun.streak', 'streak')}>
+        <TapToCopy value={longestStreak ? `${longestStreak} ${tFallback('profileLifts.longestStreak', 'longest streak')}` : '—'} label={tFallback('copy.noun.streak', 'streak')}>
           <div>
             <p className="font-heading font-bold text-xl tabular-nums leading-none">
               {longestStreak ?? '—'}
@@ -188,9 +190,13 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
               })),
               tonnage: fromLbs(totalVolumeLbs, weightUnit),
               streak: longestStreak || 0,
+              // workoutTitle is what the profile's own list shows, and the
+              // date is read at local noon: `new Date('2026-09-30')` is UTC
+              // midnight, which printed the day before anywhere in the
+              // Americas.
               recentWorkouts: logs.slice(0, 3).map(l => ({
-                title: l.regimen_name || 'Workout',
-                date:  l.date ? new Date(l.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
+                title: workoutTitle(l) || tFallback('profile.workoutFallback', 'Workout'),
+                date:  l.date ? fmtDate(new Date(`${String(l.date).slice(0, 10)}T12:00:00`), { month: 'short', day: 'numeric' }) : '',
               })),
               unit: unitSuffix,
             }}
