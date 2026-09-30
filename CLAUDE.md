@@ -194,7 +194,7 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   and (`20260930163500`) `hub_live_sessions`, `poll_votes`,
   `status_note_likes`, `story_likes`, `story_highlights`, `regimen_reviews`;
   and (`20260930220000`) `regimens` (`created_by`, `original_author_email`),
-  `user_trophies` and `gym_members`; and (`20260930231100`) the gym feed,
+  `user_trophies` and `gym_members`; and (`20260930234100`) the gym feed,
   `gym_feed_posts` and `gym_feed_comments` (`author_email`). `ownedRows(table, { columns })` is how
   a one-person table like `regimens` names its columns.
   On these, `select('*')` (and `.insert().select()` with no list) fails
