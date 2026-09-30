@@ -18,6 +18,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { asT } from '@/lib/translatorArg';
+import { LISTING_COLUMNS } from './marketplace';
 
 // (table, owner-filter-column) pairs we know how to export.
 //
@@ -75,7 +76,9 @@ const EXPORT_TABLES = [
   // emoji reactions. Wave 54 (Settings audit) caught this.
   { name: 'crew_message_reactions', table: 'crew_message_reactions', column: 'user_id', via: 'id' },
   // Marketplace + trainer purchase history
-  { name: 'marketplace_listings', table: 'marketplace_listings', column: 'seller_email', via: 'email' },
+  // Tables that grant SELECT column by column (other people's emails are
+  // not readable) refuse select('*'), so these name their columns.
+  { name: 'marketplace_listings', table: 'marketplace_listings', column: 'seller_user_id', via: 'id', select: LISTING_COLUMNS },
   { name: 'trainer_purchases',    table: 'trainer_purchases',    column: 'user_id',      via: 'id' },
   { name: 'organization_members', table: 'organization_members', column: 'user_id',      via: 'id' },
   // Privacy-list and device subs
@@ -108,7 +111,7 @@ export async function buildExport(user) {
       const value = spec.via === 'id' ? user.id : user.email;
       const { data, error } = await supabase
         .from(spec.table)
-        .select('*')
+        .select(spec.select || '*')
         .eq(spec.column, value)
         .limit(5000);
       if (error) {

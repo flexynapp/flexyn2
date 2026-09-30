@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
 const read = (p) => readFileSync(p, 'utf8');
 const constant = (src, name) => {
@@ -46,4 +47,38 @@ it('the crew regimen copy reads only what it copies', () => {
   const src = read('src/lib/data/crews.js');
   expect(src).not.toMatch(/from\('regimens'\)\s*\.select\('\*'\)/);
   expect(src).toMatch(/user\.id !== source\.user_id/);
+});
+
+// These tables are moving to column-by-column SELECT grants that leave out
+// the email, after which a '*' or a bare .select() anywhere in the app is a
+// 42501 at runtime, not just a leak. Scan every statement that starts at
+// .from('<table>') up to the end of that statement.
+describe('tables moving to column-level SELECT grants', () => {
+  const GRANTED = [
+    'league_members', 'league_season_stats', 'monthly_league_members',
+    'marketplace_listings', 'marketplace_bundles', 'post_sticker_reactions',
+  ];
+  const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
+    .split('\n').filter((f) => f && !f.includes('__tests__'));
+
+  it.each(GRANTED)('%s is never read with * or a bare select()', (table) => {
+    const offenders = [];
+    for (const f of files) {
+      const src = read(f);
+      let i = src.indexOf(`from('${table}')`);
+      while (i !== -1) {
+        const end = src.indexOf(';', i);
+        const chain = src.slice(i, end === -1 ? undefined : end);
+        if (/\.select\(\s*(['"`]\*|\))/.test(chain)) offenders.push(f);
+        i = src.indexOf(`from('${table}')`, i + 1);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+it('the sticker upsert does not send user_email (the database fills it)', () => {
+  const src = read('src/lib/data/stickerReactions.js');
+  const upsert = src.slice(src.indexOf('.upsert('), src.indexOf("onConflict: 'post_id,user_id'"));
+  expect(upsert).not.toMatch(/user_email\s*:/);
 });

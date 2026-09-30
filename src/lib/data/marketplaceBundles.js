@@ -16,6 +16,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
+import { BUNDLE_COLUMNS } from './marketplace';
 
 /** Discount bounds, mirroring the CHECK on marketplace_bundles. */
 export const BUNDLE_DISCOUNT_MIN = 1;
@@ -101,7 +102,7 @@ export async function createBundle({ title, discountPct, listingIds, sellerUserI
       discount_pct:   pct,
       status:         'active',
     })
-    .select('*')
+    .select(BUNDLE_COLUMNS)
     .single();
   if (error) throw error;
 
@@ -154,7 +155,7 @@ export async function listMyBundles(sellerUserId) {
   if (!sellerUserId) return [];
   const { data, error } = await supabase
     .from('marketplace_bundles')
-    .select('*')
+    .select(BUNDLE_COLUMNS)
     .eq('seller_user_id', sellerUserId)
     .order('created_at', { ascending: false });
   if (error) throw error;
