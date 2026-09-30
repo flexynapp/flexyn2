@@ -3,6 +3,10 @@
 
 import { supabase } from '@/api/supabaseClient';
 
+// Active notes are readable by every signed-in user, so the app names its
+// columns without user_email (the author's email).
+export const NOTE_COLUMNS = 'id, user_id, text, created_at, expires_at';
+
 /** Post (or replace) the current user's active status note. */
 export async function postStatusNote(user, text) {
   if (!user?.id || !text?.trim()) return null;
@@ -12,7 +16,7 @@ export async function postStatusNote(user, text) {
   const { data, error } = await supabase
     .from('status_notes')
     .insert({ user_id: user.id, user_email: user.email, text: text.trim().slice(0, 60) })
-    .select()
+    .select(NOTE_COLUMNS)
     .single();
   if (error) { console.warn('[statusNotes] create failed:', error); return null; }
   return data;

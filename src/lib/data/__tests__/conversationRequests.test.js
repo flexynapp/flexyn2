@@ -89,13 +89,30 @@ describe('partitionConversations', () => {
       [{
         id: 'c1',
         participant_emails: [me, 'friend@x.com'],
+        participant_ids: ['id-me', 'id-friend'],
         accepted_emails: [],
       }],
       me,
-      ['friend@x.com']
+      ['id-friend'],
+      'id-me',
     );
     expect(inbox).toHaveLength(1);
     expect(requests).toHaveLength(0);
+  });
+
+  it('does not count following yourself as following the other side', () => {
+    const { requests } = partitionConversations(
+      [{
+        id: 'c1',
+        participant_emails: [me, 'stranger@x.com'],
+        participant_ids: ['id-me', 'id-stranger'],
+        accepted_emails: [],
+      }],
+      me,
+      ['id-me'],
+      'id-me',
+    );
+    expect(requests).toHaveLength(1);
   });
 
   it('routes a conversation from a stranger (no follow, no accept) to requests', () => {
@@ -112,28 +129,30 @@ describe('partitionConversations', () => {
     expect(requests).toHaveLength(1);
   });
 
-  it('is case-insensitive on email comparison', () => {
+  it('is case-insensitive on my own email', () => {
     const { inbox } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: ['ME@example.com', 'Friend@x.COM'],
-        accepted_emails: [],
+        participant_emails: ['ME@example.com', 'stranger@x.com'],
+        accepted_emails: ['Me@Example.com'],
       }],
       me,
-      ['friend@x.com']
+      [],
     );
     expect(inbox).toHaveLength(1);
   });
 
-  it('accepts a Set of follow emails as well as an array', () => {
+  it('accepts a Set of followed ids as well as an array', () => {
     const { inbox } = partitionConversations(
       [{
         id: 'c1',
         participant_emails: [me, 'friend@x.com'],
+        participant_ids: ['id-me', 'id-friend'],
         accepted_emails: [],
       }],
       me,
-      new Set(['friend@x.com'])
+      new Set(['id-friend']),
+      'id-me',
     );
     expect(inbox).toHaveLength(1);
   });

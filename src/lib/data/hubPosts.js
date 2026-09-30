@@ -7,7 +7,13 @@ import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { track, EVENTS } from '@/lib/analytics';
 
-const e = () => ownedRows('hub_posts');
+// Posts are readable by anyone the author's privacy allows, so the app never
+// reads created_by, author_email or collaborator_emails: those are emails.
+// Authors and collaborators are user_id and collaborator_ids. The database
+// fills the email columns itself (pin_social_row_identity,
+// sync_post_collaborator_ids).
+export const POST_COLUMNS = 'id, user_id, author_name, author_avatar, author_avatar_url, content, body, image_url, video_url, workout_log_id, likes_count, like_count, dislike_count, comments_count, comment_count, emoji_reaction_count, created_at, created_date, updated_at, edited_at, publish_at, post_type, privacy, crew_id, linked_entity_type, linked_entity_id, linked_entity_snapshot, original_post_id, hashtags, content_warning, content_warning_label, collaborator_ids';
+const e = () => ownedRows('hub_posts', { columns: POST_COLUMNS });
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -116,23 +122,6 @@ export const incrementCounter = async (postId, field, delta = 1) => {
   return e().update(postId, { [field]: next });
 };
 
-/**
- * Cascade-delete every post by a user. Used by account deletion.
- */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const PAGE = 100;
-   
-  while (true) {
-    const batch = await e()
-      .filter({ author_email: email }, '-created_date', PAGE)
-      .catch(() => []);
-    if (!batch || batch.length === 0) break;
-    await Promise.all(batch.map(r => e().remove(r.id).catch(() => {})));
-    if (batch.length < PAGE) break;
-  }
-};
-
 // ─── Paginated feed window helpers ───
 //
 // Base44's filter API doesn't support cursor-based pagination natively, so
@@ -223,7 +212,7 @@ export const fetchCrewWindow = async (crewIds = []) => {
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('hub_posts')
-    .select('*')
+    .select(POST_COLUMNS)
     .eq('privacy', 'crew')
     .in('crew_id', ids)
     .order('created_date', { ascending: false })
@@ -241,7 +230,7 @@ export const fetchOlderGlobal = async (cursorIso, pageSize = 50) => {
   if (!cursorIso) return [];
   const { data, error } = await supabase
     .from('hub_posts')
-    .select('*')
+    .select(POST_COLUMNS)
     .eq('privacy', 'public')
     .lt('created_date', cursorIso)
     .order('created_date', { ascending: false })
@@ -257,7 +246,7 @@ export const fetchOlderFollowing = async (followingIds = [], cursorIso, pageSize
   if (!cursorIso || ids.length === 0) return [];
   const { data, error } = await supabase
     .from('hub_posts')
-    .select('*')
+    .select(POST_COLUMNS)
     .in('user_id', ids)
     .lt('created_date', cursorIso)
     .order('created_date', { ascending: false })

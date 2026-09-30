@@ -8,6 +8,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { reportError } from '@/lib/reportError';
 import * as workouts from '@/lib/data/workouts';
 import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from '@/lib/data/regimens';
+import { STORY_COLUMNS } from '@/lib/data/stories';
 
 // Display value of one XP-fuel claim. The AUTHORITATIVE number is the
 // constant inside claim_crew_xp_fuel (migration 298) — this is only what
@@ -713,7 +714,7 @@ export async function postCrewStory(userId, userEmail, crewId, imageUrl, mediaTy
       expires_at:    expiresAt,
       privacy:       'crew',
     })
-    .select()
+    .select(STORY_COLUMNS)
     .single();
   if (error) throw error;
   return data;

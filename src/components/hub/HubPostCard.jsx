@@ -102,14 +102,14 @@ function RepostCard({ originalPostId, onAuthorClick }) {
       className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 active:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       onClick={(e) => {
         e.stopPropagation();
-        onAuthorClick?.({ id: original.user_id, email: original.author_email });
+        onAuthorClick?.({ id: original.user_id });
       }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onAuthorClick?.({ id: original.user_id, email: original.author_email });
+          onAuthorClick?.({ id: original.user_id });
         }
       }}
       aria-label={`Open ${displayName}'s profile`}
@@ -770,7 +770,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       // from the viewer's following list AND the followers
       // list immediately, instead of waiting for the next
       // 30s feed refetch. (Audit 10 #12.)
-      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.id] });
       invalidateFollowGraph(queryClient);
     } catch (err) {
       reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.user_id });
@@ -972,7 +972,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                 Sean asked for ("we're posting both the name as well as the
                 proper @name"). With no display name the handle keeps the bold
                 slot on its own, which is every post today. */}
-            <p className={`font-heading font-bold text-sm truncate min-w-0 ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
+            <p className={`font-heading font-bold text-sm truncate min-w-0 ${onAuthorClick && post.user_id ? 'hover:underline' : ''}`}>
               {author.displayName || author.handle}
             </p>
             {author.displayName && (
@@ -1019,20 +1019,20 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             )}
             <span className="capitalize">{post.privacy === 'public' ? t('hub.privacy.public') : t('hub.privacy.followers')}</span>
             {/* Collaborators — "with @username" */}
-            {Array.isArray(post.collaborator_emails) && post.collaborator_emails.length > 0 && (
+            {Array.isArray(post.collaborator_ids) && post.collaborator_ids.length > 0 && (
               <>
                 <span>·</span>
                 <span className="flex items-center gap-0.5">
                   <Users className="w-3 h-3" />
                   {tFallback('hub.post.with', 'with')}{' '}
-                  {post.collaborator_emails.slice(0, 2).map((e, i) => (
+                  {post.collaborator_ids.slice(0, 2).map((id, i) => (
                     <button
-                      key={e}
+                      key={id}
                       type="button"
-                      onClick={(ev) => { ev.stopPropagation(); onAuthorClick?.({ email: e }); }}
+                      onClick={(ev) => { ev.stopPropagation(); onAuthorClick?.({ id }); }}
                       className="font-semibold text-foreground hover:underline"
                     >
-                      @athlete{i < Math.min(post.collaborator_emails.length, 2) - 1 ? ', ' : ''}
+                      @athlete{i < Math.min(post.collaborator_ids.length, 2) - 1 ? ', ' : ''}
                     </button>
                   ))}
                 </span>
@@ -1040,12 +1040,12 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             )}
           </div>
         </div>
-        {onAuthorClick && post.author_email && (
+        {onAuthorClick && post.user_id && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (!doubleTapGuardRef.current) onAuthorClick({ id: post.user_id, email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+              if (!doubleTapGuardRef.current) onAuthorClick({ id: post.user_id, username: author.username, avatar_url: author.avatarUrl });
             }}
             onMouseDown={(e) => { e.stopPropagation(); startAvatarLongPress(); }}
             onMouseUp={cancelAvatarLongPress}
@@ -1556,7 +1556,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                   <button
                     onClick={() => {
                       setAvatarPreviewOpen(false);
-                      onAuthorClick({ id: post.user_id, email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+                      onAuthorClick({ id: post.user_id, username: author.username, avatar_url: author.avatarUrl });
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
                   >

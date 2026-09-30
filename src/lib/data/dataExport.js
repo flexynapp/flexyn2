@@ -20,6 +20,8 @@ import { supabase } from '@/api/supabaseClient';
 import { asT } from '@/lib/translatorArg';
 import { LISTING_COLUMNS } from './marketplace';
 import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from './regimens';
+import { POST_COLUMNS } from './hubPosts';
+import { COMMENT_COLUMNS } from './hubComments';
 
 // (table, owner-filter-column) pairs we know how to export.
 //
@@ -45,8 +47,8 @@ const EXPORT_TABLES = [
   // { error: 'fetch_failed' } here. Trophies are their own table.
   { name: 'trophies',         table: 'user_trophies',  column: 'user_id',      via: 'id', select: 'id, user_id, trophy_id, earned_at' },
   { name: 'workout_templates',table: 'workout_templates', column: 'created_by', via: 'email' },
-  { name: 'hub_posts',        table: 'hub_posts',      column: 'author_email', via: 'email' },
-  { name: 'hub_comments',     table: 'hub_comments',   column: 'created_by',   via: 'email' },
+  { name: 'hub_posts',        table: 'hub_posts',      column: 'user_id',      via: 'id', select: POST_COLUMNS },
+  { name: 'hub_comments',     table: 'hub_comments',   column: 'user_id',      via: 'id', select: COMMENT_COLUMNS },
   { name: 'hub_messages_sent',table: 'hub_messages',   column: 'sender_email', via: 'email' },
   // Health / wellness logs — GDPR Article 20 (right to data portability)
   // covers ALL user-furnished data. The export previously omitted these
