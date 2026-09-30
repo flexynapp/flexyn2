@@ -129,13 +129,16 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
     return map;
   }, [logs]);
 
-  // Build the 26×7 day grid backwards from today, aligned to Sunday.
+  // Build the 26×7 day grid backwards from today, aligned to MONDAY, the
+  // week the hero ring and the period section count. It started on Sunday,
+  // so a Sunday session sat at the top of next week's column here and at
+  // the end of this week everywhere else.
   // Each cell = { date, volume, bucket }.
   const days = useMemo(() => {
     const volMap = buildVolumeMap(logs);
     const today = startOfDay(new Date());
-    const todayDow = today.getDay(); // 0 = Sunday
-    // End the grid on this week's Saturday so today's column is the last one.
+    const todayDow = (today.getDay() + 6) % 7; // 0 = Monday
+    // End the grid on this week's Sunday so today's column is the last one.
     const endDay = subDays(today, -(6 - todayDow));
     const startDay = subDays(endDay, TOTAL_DAYS - 1);
 
@@ -219,10 +222,28 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
               screen reader gets for it — the per-day titles below are on
               children it never reaches. It was the one string on this
               component that never went through the translation layer. */}
-          <div className="inline-flex gap-[3px]" role="img" aria-label={tFallback('calendar.heatmapLabel', 'Workout activity heatmap')}>
+          {/* A group, not an image: only TRAINED days are buttons now, so
+              the ones worth reaching are reachable. Every day used to be a
+              button, which put 182 tab stops in this card, rest days and
+              future days included, all inside a role="img" that told a
+              screen reader there was nothing to operate. */}
+          <div className="inline-flex gap-[3px]" role="group" aria-label={tFallback('calendar.heatmapLabel', 'Workout activity heatmap')}>
             {columns.map((col, ci) => (
               <div key={ci} className="flex flex-col gap-[3px]">
-                {col.map((day) => (
+                {col.map((day) => (!day.trained || day.isFuture) ? (
+                  <span
+                    key={day.key}
+                    aria-hidden="true"
+                    onMouseEnter={() => !day.isFuture && setTooltip(day)}
+                    onMouseLeave={() => setTooltip(null)}
+                    onClick={() => !day.isFuture && setTooltip(tooltip?.key === day.key ? null : day)}
+                    className={[
+                      'w-3 h-3 rounded-sm',
+                      day.isFuture ? 'opacity-30' : '',
+                      day.bucket < 0 ? 'bg-transparent' : BUCKET_BG[day.bucket],
+                    ].join(' ')}
+                  />
+                ) : (
                   <button
                     key={day.key}
                     type="button"
@@ -249,20 +270,14 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                       }
                     }}
                     aria-label={
-                      day.isFuture
-                        ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.future', 'future')}`
-                        : day.volume > 0
-                          ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${fmt(day.volume)} ${unitSuffix}`
-                          : day.trained
-                            ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.logged', 'workout logged')}`
-                            : `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.noWorkout', 'no workout')}`
+                      day.volume > 0
+                        ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${fmt(day.volume)} ${unitSuffix}`
+                        : `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.logged', 'workout logged')}`
                     }
                     className={[
-                      'w-3 h-3 rounded-[3px] transition-transform',
-                      day.isFuture ? 'opacity-30 cursor-default' : 'cursor-pointer hover:scale-125',
-                      day.bucket < 0 ? 'bg-transparent' : BUCKET_BG[day.bucket],
+                      'w-3 h-3 rounded-sm cursor-pointer',
+                      BUCKET_BG[day.bucket],
                     ].join(' ')}
-                    disabled={day.isFuture}
                   />
                 ))}
               </div>
@@ -292,7 +307,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
             {[0, 1, 2, 3, 4].map(b => (
               <span
                 key={b}
-                className={`w-2.5 h-2.5 rounded-[2px] ${BUCKET_BG[b]}`}
+                className={`w-2.5 h-2.5 rounded-sm ${BUCKET_BG[b]}`}
                 aria-hidden="true"
               />
             ))}

@@ -107,9 +107,9 @@ const coarseKeysFor = (raw) => GROUP_LOOKUP[String(raw || '').trim().toLowerCase
    form used to be the raw state id, so '30D' reached the screen untranslated
    in all 15 languages. */
 const RANGES = [
-  { id: '7D', days: 7, key: 'bodyMap.range.7d', en: '7 DAYS', shortKey: 'bodyMap.rangeShort.7d', shortEn: '7D' },
-  { id: '30D', days: 30, key: 'bodyMap.range.30d', en: '30 DAYS', shortKey: 'bodyMap.rangeShort.30d', shortEn: '30D' },
-  { id: '90D', days: 90, key: 'bodyMap.range.90d', en: '90 DAYS', shortKey: 'bodyMap.rangeShort.90d', shortEn: '90D' },
+  { id: '7D', days: 7, key: 'bodyMap.range.7d', en: '7 days', shortKey: 'bodyMap.rangeShort.7d', shortEn: '7D' },
+  { id: '30D', days: 30, key: 'bodyMap.range.30d', en: '30 days', shortKey: 'bodyMap.rangeShort.30d', shortEn: '30D' },
+  { id: '90D', days: 90, key: 'bodyMap.range.90d', en: '90 days', shortKey: 'bodyMap.rangeShort.90d', shortEn: '90D' },
 ];
 const RANGE_DAYS = Object.fromEntries(RANGES.map((r) => [r.id, r.days]));
 
@@ -184,16 +184,29 @@ export function buildMuscles(logs, rangeDays) {
   return out;
 }
 
-/* ---- Colour ramps ---------------------------------------- */
-const lerpStops = (stops, t) => {
-  t = Math.max(0, Math.min(1, t));
-  const n = stops.length - 1, f = t * n, i = Math.min(Math.floor(f), n - 1), r = f - i;
-  const a = stops[i], b = stops[i + 1];
-  const h = a[0] + (b[0] - a[0]) * r, s = a[1] + (b[1] - a[1]) * r, l = a[2] + (b[2] - a[2]) * r;
-  return `hsl(${h.toFixed(1)} ${s.toFixed(1)}% ${l.toFixed(1)}%)`;
+/* ---- Colour ---------------------------------------------- */
+/* Recovery is drawn in the three status hues the detail sheet already
+   names: ready (success), recovering (primary), needs rest (destructive).
+   It was a five-stop rainbow, green through yellow to red, and yellow is
+   not a hue this app has. Three bands also match the three words, so the
+   colour on the body and the word in the sheet can no longer disagree.
+
+   Volume is one hue, the first chart colour, deeper where more work
+   landed. It was a second rainbow (grey, amber, orange, red), which read
+   the heaviest-trained muscle as a warning.
+
+   A muscle with nothing logged keeps the plain body colour in both modes.
+   It used to read as fully recovered, so an untrained body was all green.
+   (Progress audit round 2, 2026-09-30.) */
+const STATUS = {
+  ready: { k: 'bodyMap.status.ready', en: 'Ready to train', v: '--success' },
+  recovering: { k: 'bodyMap.status.recovering', en: 'Recovering', v: '--primary' },
+  needsRest: { k: 'bodyMap.status.needsRest', en: 'Needs rest', v: '--destructive' },
 };
-const VOL_STOPS = [[214, 12, 52], [40, 42, 56], [32, 84, 55], [26, 93, 54], [12, 88, 53], [2, 82, 52]];
-const REC_STOPS = [[150, 46, 44], [104, 44, 46], [44, 90, 52], [22, 92, 53], [2, 82, 52]];
+export const recoveryStatus = (recovery) => (
+  recovery >= 75 ? 'ready' : recovery >= 50 ? 'recovering' : 'needsRest'
+);
+const volumeAlpha = (t) => (0.25 + 0.75 * Math.max(0, Math.min(1, t))).toFixed(2);
 
 const intensityOf = (muscles, id, mode, maxVol) => (
   mode === 'recovery'
@@ -201,18 +214,20 @@ const intensityOf = (muscles, id, mode, maxVol) => (
     : (maxVol ? muscles[id].vol / maxVol : 0)
 );
 const colorFor = (muscles, id, mode, maxVol) => {
-  const t = intensityOf(muscles, id, mode, maxVol);
-  return mode === 'recovery' ? lerpStops(REC_STOPS, t) : lerpStops(VOL_STOPS, t);
+  const m = muscles[id];
+  if (mode === 'recovery') {
+    return m.last == null ? 'hsl(var(--mmap-body))' : `hsl(var(${STATUS[recoveryStatus(m.recovery)].v}))`;
+  }
+  return m.vol > 0 ? `hsl(var(--chart-1) / ${volumeAlpha(intensityOf(muscles, id, mode, maxVol))})` : 'hsl(var(--mmap-body))';
 };
 
 /* ============================================================
-   SVG figure — neutral body base, then heat-coloured tracked
-   groups, dimensional top-light, and crisp guide outlines.
+   SVG figure — neutral body base, then colour-coded tracked
+   groups, and crisp guide outlines.
 
-   Everything that isn't a heat colour reads from the --mmap-*
-   tokens in index.css so the figure follows the user's light /
-   dark choice; the heat ramps above are deliberately fixed, so
-   the same fatigue is the same colour in either theme.
+   Everything reads from tokens: the --mmap-* block in index.css
+   for the body, and the state and chart tokens for the data, so
+   the figure follows the user's light / dark choice.
 
    These are applied through `style`, NOT as fill/stroke
    presentation attributes: var() is not substituted in a
@@ -273,17 +288,6 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis, labelFo
   return (
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label={figureLabel}
       style={{ width: '100%', height: 'auto', maxHeight: FIGURE_MAX_H, overflow: 'visible' }}>
-      <defs>
-        <mask id={`bm-${vid}`}>
-          {allPaths.map((d, i) => <path key={i} d={d} fill="#fff" />)}
-          {mirrorT && <g transform={mirrorT}>{legPaths.map((d, i) => <path key={`m${i}`} d={d} fill="#fff" />)}</g>}
-        </mask>
-        <linearGradient id={`hl-${vid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
-          <stop offset="34%" stopColor="#ffffff" stopOpacity="0.12" />
-          <stop offset="70%" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
 
       {/* 1 · neutral body base */}
       <g aria-hidden="true" style={{ fill: NEUTRAL_FILL, stroke: NEUTRAL_STROKE }} strokeWidth="0.8" strokeLinejoin="round">
@@ -313,10 +317,10 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis, labelFo
         );
       })}
 
-      {/* 3 · dimensional top-light, clipped to the body */}
-      <g aria-hidden="true" mask={`url(#bm-${vid})`} style={{ pointerEvents: 'none', mixBlendMode: 'soft-light' }}>
-        <rect x="-100" y="-100" width="2000" height="2000" fill={`url(#hl-${vid})`} />
-      </g>
+      {/* 3 · The white top-light that sat here is gone. It was a gradient
+             under `mix-blend-mode: soft-light`, which CLAUDE.md records as
+             not surviving iOS Safari, and it was decoration: it shaded the
+             colour that carries the data. */}
 
       {/* 4 · guide outlines per clickable group */}
       <g aria-hidden="true" fill="none" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
@@ -345,16 +349,14 @@ const FrontFigure = (p) => <Figure groups={FRONT_GROUPS} viewBox="105 254 520 10
 const BackFigure = (p) => <Figure groups={BACK_GROUPS} viewBox="824 291 520 1005" vid="b" mirrorAxis={1084} {...p} />;
 
 /* ---- small UI atoms -------------------------------------- */
+/* House type: the body face at the micro step, in sentence case. It was
+   mono at 9.5px in tracked capitals, a type style used nowhere else in the
+   app and under the 11px floor. */
 function Kicker({ children }) {
-  return (
-    <div style={{
-      fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.2em',
-      color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase',
-    }}>{children}</div>
-  );
+  return <div className="text-micro font-semibold text-muted-foreground">{children}</div>;
 }
 
-function Segmented({ options, value, onChange, mono = true }) {
+function Segmented({ options, value, onChange }) {
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`,
@@ -367,10 +369,8 @@ function Segmented({ options, value, onChange, mono = true }) {
             padding: '9px 4px', minHeight: 44, borderRadius: 8, border: 'none', cursor: 'pointer',
             background: on ? 'hsl(var(--card))' : 'transparent',
             color: on ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-            fontFamily: mono ? 'var(--font-mono)' : 'var(--font-heading)',
-            fontSize: mono ? 10 : 12.5, fontWeight: on ? 800 : 700,
-            letterSpacing: mono ? '0.12em' : '-0.01em',
-            boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .2s',
+            fontFamily: 'var(--font-body)', fontSize: 'var(--text-label)', fontWeight: on ? 700 : 600,
+            transition: 'background .2s, color .2s',
           }}>{o.label}</button>
         );
       })}
@@ -441,7 +441,6 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
 
   if (!id) return null;
   const m = muscles[id];
-  const fatigue = (100 - m.recovery) / 100;
   /* Status colour is a TOKEN, unlike the heat ramp above. Two reasons it
      had to change: the pill's tint was built by string-patching the solid
      colour into `hsla(150 50% 38%, 0.12)` — space-separated components
@@ -451,24 +450,21 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
      the red measured ~3.3:1, under AA. The tokens already carry a
      per-theme value for exactly this reason, and these are the hues the
      colour budget assigns: earned/on-track, effort, danger. */
-  const status = m.recovery >= 75 ? { k: 'bodyMap.status.ready', en: 'Ready to train', v: '--success' }
-    : m.recovery >= 50 ? { k: 'bodyMap.status.recovering', en: 'Recovering', v: '--primary' }
-      : { k: 'bodyMap.status.needsRest', en: 'Needs rest', v: '--destructive' };
+  const status = STATUS[recoveryStatus(m.recovery)];
   const statusColor = `hsl(var(${status.v}))`;
-  const statusTint = `hsl(var(${status.v}) / 0.12)`;
   const r = 30, c = 2 * Math.PI * r;
   const volTxt = volumeText(m.vol, weightUnit);
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end',
-      background: 'rgba(15,18,24,0.4)', backdropFilter: 'blur(2px)', animation: 'bh-fade .2s ease',
+      background: 'rgba(0,0,0,0.55)', animation: 'bh-fade .2s ease',
     }}>
       <div role="dialog" aria-modal="true" aria-labelledby={`bh-title-${id}`}
         onClick={(e) => e.stopPropagation()} style={{
           width: '100%', background: 'hsl(var(--card))',
-          borderTopLeftRadius: 26, borderTopRightRadius: 26,
+          borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTop: '1px solid hsl(var(--border))',
           padding: '14px 18px calc(30px + env(safe-area-inset-bottom))',
-          boxShadow: '0 -12px 40px rgba(0,0,0,0.18)', animation: 'bh-rise .32s cubic-bezier(0.16,1,0.3,1)',
+          animation: 'bh-rise .32s cubic-bezier(0.16,1,0.3,1)',
         }}>
         <div aria-hidden="true" style={{ width: 38, height: 5, borderRadius: 3, background: 'hsl(var(--border))', margin: '0 auto 16px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -482,13 +478,14 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
             style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
             <svg width="76" height="76" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="38" cy="38" r={r} fill="none" stroke="hsl(var(--secondary))" strokeWidth="7" />
-              <circle cx="38" cy="38" r={r} fill="none" stroke={lerpStops(REC_STOPS, fatigue)} strokeWidth="7"
+              <circle cx="38" cy="38" r={r} fill="none" stroke={statusColor} strokeWidth="7"
                 strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - m.recovery / 100)}
                 style={{ transition: 'stroke-dashoffset .5s' }} />
             </svg>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.03em', lineHeight: 1 }}>{m.recovery}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>{tFallback('bodyMap.detail.recov', 'RECOV')}</div>
+              {/* The 7.5px "RECOV" caption under this is gone: the status
+                  line beside the ring says what the number is. */}
+              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{m.recovery}%</div>
             </div>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -499,62 +496,55 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
                 ? tFallback('bodyMap.detail.daysAgo', '{n}d ago', { n: m.last })
                 : tFallback('bodyMap.detail.untrained', 'untrained')}
             </Kicker>
-            <div id={`bh-title-${id}`} style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{muscleName(tFallback, m, id)}</div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '4px 10px', borderRadius: 999,
-              background: statusTint,
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: statusColor }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: statusColor }}>{tFallback(status.k, status.en)}</span>
-            </div>
+            <div id={`bh-title-${id}`} className="font-heading font-bold text-2xl leading-tight mt-0.5">{muscleName(tFallback, m, id)}</div>
+            <p className="text-sm font-semibold mt-1" style={{ color: statusColor }}>{tFallback(status.k, status.en)}</p>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 }}>
+        {/* A hairline row, like the page's own stat row. These were three
+            filled tiles with 8.5px tracked-capital captions. Fixed count of
+            three, so a grid is right. */}
+        <div className="grid grid-cols-3 border-y border-border divide-x divide-border rtl:divide-x-reverse mt-6">
           {/* `key` is the id, not the label — a translated label is not a
               stable React key and would remount the tile on a language
               change. */}
           {[
-            { k: 'sets', l: tFallback('bodyMap.detail.sets', 'SETS'), v: m.sets, u: '' },
-            { k: 'volume', l: tFallback('bodyMap.detail.volume', 'VOLUME'), v: volTxt, u: weightUnit === 'lbs' ? 'lb' : weightUnit },
+            { k: 'sets', l: tFallback('bodyMap.detail.sets', 'Sets'), v: m.sets, u: '' },
+            { k: 'volume', l: tFallback('bodyMap.detail.volume', 'Volume'), v: volTxt, u: weightUnit === 'lbs' ? 'lb' : weightUnit },
             {
               k: 'last',
-              l: tFallback('bodyMap.detail.last', 'LAST'),
+              l: tFallback('bodyMap.detail.last', 'Last'),
               v: m.last != null ? m.last : '—',
               u: m.last != null ? tFallback('bodyMap.detail.daysAgoUnit', 'd ago') : '',
             },
           ].map((s) => (
-            <div key={s.k} style={{ background: 'hsl(var(--secondary))', borderRadius: 13, padding: '11px 12px' }}>
-              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                {s.v}<span style={{ fontSize: 10, fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginLeft: 2 }}>{s.u}</span>
+            <div key={s.k} className="py-2 text-center">
+              <div className="font-heading font-bold text-lg tabular-nums">
+                {s.v}{s.u && <span className="text-micro font-semibold text-muted-foreground ms-0.5">{s.u}</span>}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', color: 'hsl(var(--muted-foreground))', marginTop: 3 }}>{s.l} · {rangeLabel}</div>
+              <div className="text-micro text-muted-foreground">{s.k === 'last' ? s.l : `${s.l} · ${rangeLabel}`}</div>
             </div>
           ))}
         </div>
 
         {m.ex.length > 0 && (
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-6">
             <Kicker>{tFallback('bodyMap.detail.topExercises', 'Top exercises')}</Kicker>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
-              {m.ex.map((e) => (
-                <span key={e} style={{
-                  padding: '6px 11px', borderRadius: 999, background: 'hsl(var(--secondary))',
-                  fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'hsl(var(--foreground))',
-                }}>{e === UNNAMED_EXERCISE ? tFallback('bodyMap.detail.unnamedExercise', 'Exercise') : e}</span>
-              ))}
-            </div>
+            {/* Interpunct text, not a row of pills. */}
+            <p className="text-sm mt-1">
+              {m.ex.map((e) => (e === UNNAMED_EXERCISE ? tFallback('bodyMap.detail.unnamedExercise', 'Exercise') : e)).join(' · ')}
+            </p>
           </div>
         )}
 
         {/* Named beyond its visible word: "CLOSE" alone is ambiguous once a
             screen reader has moved away from the title that gives it scope. */}
         <button ref={closeRef} onClick={onClose}
-          aria-label={tFallback('bodyMap.a11y.closeDetail', 'Close muscle details')} style={{
-            width: '100%', marginTop: 20, padding: 14, minHeight: 44, borderRadius: 14, border: 'none', cursor: 'pointer',
-            background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))',
-            fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em',
-          }}>{tFallback('bodyMap.detail.close', 'CLOSE')}</button>
+          aria-label={tFallback('bodyMap.a11y.closeDetail', 'Close muscle details')}
+          // Secondary, not primary: closing a sheet is not the action the
+          // orange is kept for.
+          className="w-full mt-6 min-h-[48px] rounded-lg bg-secondary text-foreground text-sm font-semibold"
+        >{tFallback('bodyMap.detail.close', 'Close')}</button>
       </div>
     </div>
   );
@@ -598,7 +588,10 @@ export default function MuscleGroupHeatmap({ logs }) {
     () => [...FINE_IDS].sort((a, b) => intensityOf(muscles, b, mode, maxVol) - intensityOf(muscles, a, mode, maxVol)),
     [muscles, mode, maxVol],
   );
-  const headline = mode === 'recovery' ? FINE_IDS.filter((id) => muscles[id].recovery < 55).length : ranked.length;
+  // "Need recovery" is every muscle not in the ready band, so the count
+  // matches the colours: it was < 55, which left a 50 to 54 muscle orange
+  // on the body and uncounted in the headline.
+  const headline = mode === 'recovery' ? FINE_IDS.filter((id) => recoveryStatus(muscles[id].recovery) !== 'ready').length : ranked.length;
   // No workouts logged in-range → the figure still renders (all fresh), but
   // swap the data-y headline/status for a "log a workout" invitation.
   const empty = !FINE_IDS.some((id) => muscles[id].sets > 0);
@@ -607,18 +600,13 @@ export default function MuscleGroupHeatmap({ logs }) {
     <div style={{ position: 'relative' }}>
       {/* header */}
       <div style={{ padding: '0 2px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <Kicker>{tFallback('bodyMap.kicker', 'Progress · Muscle map')}</Kicker>
-          <span style={{ flex: 1, height: 1, background: 'hsl(var(--border))' }} />
-          {/* The glyph stays in the JSX; only the word is translated. */}
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: empty ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))' }}>
-            {empty ? `○ ${tFallback('bodyMap.data.noData', 'NO DATA')}` : `● ${tFallback('bodyMap.data.live', 'LIVE')}`}
-          </span>
-        </div>
+        {/* No kicker row. It said "Progress · Muscle map" on the Progress
+            page's Body tab, beside a hairline and an orange "● LIVE" dot for
+            data that is read once from saved logs. */}
         {/* `pre-line` rather than a hardcoded <br />: the break is now a `\n`
             inside the string, so a translator can move it to where their
             text wants to break, or drop it and let the heading wrap. */}
-        <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 30, letterSpacing: '-0.035em', lineHeight: 1.02, color: 'hsl(var(--foreground))', whiteSpace: 'pre-line' }}>
+        <h2 className="font-heading font-bold text-2xl leading-tight text-foreground" style={{ whiteSpace: 'pre-line' }}>
           {empty
             ? tFallback('bodyMap.headline.empty', 'Your muscle\nheat map.')
             : mode === 'recovery'
@@ -628,19 +616,19 @@ export default function MuscleGroupHeatmap({ logs }) {
                 { n: headline },
               )
               : tFallback('bodyMap.headline.volume', 'Where your\nwork landed.')}
-        </h1>
-        <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
+        </h2>
+        <p className="text-sm text-muted-foreground mt-2" style={{ maxWidth: 320 }}>
           {empty
             ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here. Color shows fatigue so you know what’s ready to hit again.')
             : mode === 'recovery'
-              ? tFallback('bodyMap.body.recovery', 'Color shows fatigue right now. Fresh green muscles are ready, hot ones still need rest before you hit them again.')
+              ? tFallback('bodyMap.body.recovery', 'Color shows fatigue right now. Green is ready to train, orange is still recovering, red needs rest.')
               : tFallback('bodyMap.body.volume', 'Color shows training volume over the selected window. Brighter means more work landed there.')}
         </p>
       </div>
 
       {/* controls */}
       <div style={{ padding: '16px 0 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Segmented mono={false} value={mode} onChange={(v) => { setMode(v); setSel(null); }} options={[
+        <Segmented value={mode} onChange={(v) => { setMode(v); setSel(null); }} options={[
           { id: 'recovery', label: tFallback('bodyMap.mode.recovery', 'Recovery') },
           { id: 'volume', label: tFallback('bodyMap.mode.volume', 'Volume') },
         ]} />
@@ -661,44 +649,50 @@ export default function MuscleGroupHeatmap({ logs }) {
             to get DARKER away from the light and a dark theme wants it to
             get darker too — which is the same rule only if the light is
             painted on, not baked into the ramp. */}
-        <div onClick={() => setSel(null)} style={{
-          background: 'radial-gradient(120% 80% at 50% 8%, '
-            + 'hsl(var(--mmap-sheen) / var(--mmap-sheen-a)) 0%, '
-            + 'hsl(var(--mmap-sheen) / var(--mmap-sheen-b)) 68%, '
-            + 'transparent 100%), hsl(var(--mmap-stage))',
-          border: '1px solid hsl(var(--border))', borderRadius: 22, padding: '20px 6px 14px', position: 'relative',
-          boxShadow: 'var(--mmap-shadow)',
+        {/* A flat panel now. The radial sheen and drop shadow over it were
+            a spotlight effect, the kind of decoration CLAUDE.md bans. */}
+        <div onClick={() => setSel(null)} className="rounded-2xl border border-border" style={{
+          background: 'hsl(var(--mmap-stage))', padding: '20px 6px 14px', position: 'relative',
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[
-              { k: 'front', label: tFallback('bodyMap.figure.front', 'FRONT'), F: FrontFigure,
+              { k: 'front', label: tFallback('bodyMap.figure.front', 'Front'), F: FrontFigure,
                 a11y: tFallback('bodyMap.a11y.figureFront', 'Front view, {n} muscles', { n: FRONT_GROUPS.length }) },
-              { k: 'back', label: tFallback('bodyMap.figure.back', 'BACK'), F: BackFigure,
+              { k: 'back', label: tFallback('bodyMap.figure.back', 'Back'), F: BackFigure,
                 a11y: tFallback('bodyMap.a11y.figureBack', 'Back view, {n} muscles', { n: BACK_GROUPS.length }) },
             ].map(({ k, label, F, a11y }) => (
               <div key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ width: '100%' }}>
                   <F getFill={getFill} sel={sel} onSel={setSel} labelFor={muscleLabel} figureLabel={a11y} />
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, letterSpacing: '0.22em', color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>{label}</div>
+                <div className="text-micro font-semibold text-muted-foreground mt-1">{label}</div>
               </div>
             ))}
           </div>
 
-          {/* legend */}
-          <div style={{ marginTop: 10, padding: '0 8px' }}>
-            {/* The ramp itself carries no value — its two ends are labelled
-                in text underneath, and those stay readable. */}
-            <div aria-hidden="true" style={{
-              height: 8, borderRadius: 999, marginBottom: 6,
-              background: mode === 'recovery'
-                ? 'linear-gradient(90deg, hsl(150 46% 44%), hsl(104 44% 46%), hsl(44 90% 52%), hsl(22 92% 53%), hsl(2 82% 52%))'
-                : 'linear-gradient(90deg, hsl(214 12% 52%), hsl(32 84% 55%), hsl(26 93% 54%), hsl(12 88% 53%), hsl(2 82% 52%))',
-            }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>
-              <span>{mode === 'recovery' ? tFallback('bodyMap.legend.fresh', 'FRESH') : tFallback('bodyMap.legend.less', 'LESS')}</span>
-              <span>{mode === 'recovery' ? tFallback('bodyMap.legend.fatigued', 'FATIGUED') : tFallback('bodyMap.legend.more', 'MORE VOLUME')}</span>
-            </div>
+          {/* legend. Recovery names its three colours; volume shows its one
+              colour at the two ends it runs between. */}
+          <div className="mt-3 px-2">
+            {mode === 'recovery' ? (
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-micro text-muted-foreground">
+                {Object.entries(STATUS).map(([key, st]) => (
+                  <span key={key} className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="w-2.5 h-2.5 rounded-sm" style={{ background: `hsl(var(${st.v}))` }} />
+                    {tFallback(st.k, st.en)}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div aria-hidden="true" className="h-2 rounded-full mb-1.5" style={{
+                  background: `linear-gradient(90deg, hsl(var(--chart-1) / ${volumeAlpha(0)}), hsl(var(--chart-1)))`,
+                }} />
+                <div className="flex justify-between text-micro text-muted-foreground">
+                  <span>{tFallback('bodyMap.legend.less', 'Less')}</span>
+                  <span>{tFallback('bodyMap.legend.more', 'More volume')}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -733,10 +727,8 @@ export default function MuscleGroupHeatmap({ logs }) {
             }}>
               <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: 3, background: col, flexShrink: 0 }} />
               <div style={{ width: 84, flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, letterSpacing: '-0.01em', color: 'hsl(var(--foreground))' }}>{muscleName(tFallback, m, id)}</div>
-                {/* CSS uppercase, not `toUpperCase()`: the JS one is
-                    locale-blind and gets Turkish i → I instead of İ. */}
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' }}>{regionName(tFallback, m.region)}</div>
+                <div className="text-sm font-semibold text-foreground">{muscleName(tFallback, m, id)}</div>
+                <div className="text-micro text-muted-foreground">{regionName(tFallback, m.region)}</div>
               </div>
               {/* The bar restates the number beside it, so it has to measure
                   the SAME quantity. In recovery mode it used to be drawn from
@@ -747,8 +739,8 @@ export default function MuscleGroupHeatmap({ logs }) {
               <div aria-hidden="true" style={{ flex: 1, height: 6, borderRadius: 999, background: 'hsl(var(--secondary))', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.max(6, (mode === 'recovery' ? m.recovery / 100 : t) * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
               </div>
-              <div style={{ width: 46, textAlign: 'right', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--foreground))' }}>
-                {valTxt}{mode === 'volume' && <span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}> {weightUnit === 'lbs' ? 'lb' : weightUnit}</span>}
+              <div style={{ width: 46, textAlign: 'end', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--foreground))' }}>
+                {valTxt}{mode === 'volume' && <span className="text-micro text-muted-foreground font-semibold"> {weightUnit === 'lbs' ? 'lb' : weightUnit}</span>}
               </div>
             </button>
           );

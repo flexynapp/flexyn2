@@ -84,10 +84,10 @@ describe('every string on the Body tab goes through the translation layer', () =
 
   it('renders the mode, range, legend and figure labels from keys', () => {
     for (const key of [
-      'bodyMap.kicker', 'bodyMap.data.live',
       'bodyMap.mode.recovery', 'bodyMap.mode.volume',
       'bodyMap.figure.front', 'bodyMap.figure.back',
-      'bodyMap.legend.fresh', 'bodyMap.legend.fatigued',
+      // The recovery legend names the three status colours.
+      'bodyMap.status.ready', 'bodyMap.status.recovering', 'bodyMap.status.needsRest',
       'bodyMap.list.recovery',
     ]) {
       expect(container.textContent, `${key} did not reach the screen`).toContain(`XX:${key}`);
@@ -98,6 +98,7 @@ describe('every string on the Body tab goes through the translation layer', () =
     for (const key of [
       'bodyMap.range.7d', 'bodyMap.range.30d', 'bodyMap.range.90d',
       'bodyMap.list.volume', 'bodyMap.rangeShort.30d',
+      'bodyMap.legend.less', 'bodyMap.legend.more',
     ]) {
       expect(container.textContent, `${key} did not reach the screen`).toContain(`XX:${key}`);
     }
@@ -126,8 +127,8 @@ describe('every string on the Body tab goes through the translation layer', () =
 
   it('translates the detail sheet, including its "{n}d ago"', () => {
     fireEvent.click(screen.getByText('XX:muscleGroups.quads'));
-    expect(screen.getByText('XX:bodyMap.detail.recov')).toBeTruthy();
-    expect(screen.getByText('XX:bodyMap.status.needsRest')).toBeTruthy();
+    // Also in the legend behind the sheet, so more than one.
+    expect(screen.getAllByText('XX:bodyMap.status.needsRest').length).toBeGreaterThan(1);
     expect(screen.getByText('XX:bodyMap.detail.close')).toBeTruthy();
     // Trained today → "0d ago", and a 0 that survives interpolation proves
     // the var was forwarded rather than defaulted.

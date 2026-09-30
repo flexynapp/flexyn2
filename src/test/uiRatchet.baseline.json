@@ -7,10 +7,10 @@
     "sparkles": 72,
     "heavyShadow": 51,
     "colouredShadow": 23,
-    "offScaleRadius": 28,
+    "offScaleRadius": 26,
     "subFloorText": 0,
     "hardcodedFont": 0,
-    "hoverMotion": 49
+    "hoverMotion": 48
   },
   "counts": {
     "purple": {
@@ -208,7 +208,6 @@
       "src/components/nutrition/NutritionTrendsChart.jsx": 1,
       "src/components/onboarding/OnboardingCoach.jsx": 1,
       "src/components/Particles.jsx": 1,
-      "src/components/progress/WorkoutCalendarGrid.jsx": 2,
       "src/components/routines/RoutineCalendarModal.jsx": 2,
       "src/components/routines/RoutineTodayCard.jsx": 1,
       "src/components/stories/StoryViewer.jsx": 1,
@@ -237,7 +236,6 @@
       "src/components/market/ListItemDialog.jsx": 1,
       "src/components/nutrition/NutritionOnboardingModal.jsx": 1,
       "src/components/nutrition/NutritionPlansModal.jsx": 1,
-      "src/components/progress/WorkoutCalendarGrid.jsx": 1,
       "src/components/workout/RegimensSection.jsx": 11,
       "src/pages/Dashboard.jsx": 1,
       "src/pages/Nutrition.jsx": 2,
