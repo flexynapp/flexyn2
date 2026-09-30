@@ -124,7 +124,7 @@ const saveFire = (id, val, userId) => {
 // a button that does nothing.
 function Avatar({ profile, onViewProfile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
-  const verified = isVerified(profile?.username);
+  const verified = isVerified(profile?.id);
   // `id`, not `email` — see CrewMemberDirectory for the same fix and the same
   // reason. CrewChat builds `profilesByUserId` keyed on `u.id` and skips rows
   // without one, so `profile.id` is present whenever `profile` is.

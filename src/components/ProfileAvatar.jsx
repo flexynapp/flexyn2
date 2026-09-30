@@ -22,7 +22,7 @@ export default function ProfileAvatar({ user, size = 36, crown = false }) {
           <User className="w-4 h-4" aria-hidden="true" />
         )}
       </div>
-      {crown && isVerified(user?.username) && (
+      {crown && isVerified(user?.id) && (
         <svg
           width="14" height="11"
           viewBox="0 0 14 11"

@@ -57,6 +57,8 @@ export default function ProfileMetrics({
   followingCount,
   onOpenFollowers,
   onOpenFollowing,
+  onFindPeople,
+  isSelf = false,
   forms,
   language,
   center = false,
@@ -76,14 +78,24 @@ export default function ProfileMetrics({
   // a moment on every profile — including accounts with thousands of
   // followers — before snapping to the real numbers. Requiring an explicit 0
   // means this state can only appear once we actually know the answer.
-  const isBrandNew = followerCount === 0 && followingCount === 0 && postCount === 0;
+  //
+  // Self only. On someone else's page it invited the VIEWER to go find people
+  // from a stranger's profile, and the tap opened that stranger's empty
+  // Following list. A visitor sees the real zeros instead.
+  const isBrandNew = isSelf && followerCount === 0 && followingCount === 0 && postCount === 0;
+
+  // Still loading. Hold the line's height and draw nothing, rather than
+  // three zeros that snap to the real numbers a moment later.
+  if (followerCount == null || followingCount == null || postCount == null) {
+    return <div className="mt-3 h-5" aria-hidden="true" />;
+  }
 
   if (isBrandNew) {
     return (
       <div className={`mt-3 ${center ? 'flex justify-center' : ''}`}>
         <button
           type="button"
-          onClick={onOpenFollowing}
+          onClick={onFindPeople || onOpenFollowing}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
         >
           {tFallback("profileMetrics.findPeopleToFollow", "Find people to follow")}

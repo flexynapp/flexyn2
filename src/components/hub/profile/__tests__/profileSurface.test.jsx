@@ -53,8 +53,10 @@ describe('ProfileMetrics', () => {
     expect(screen.getByText('47')).toBeTruthy();
   });
 
-  it('renders zero rather than a bare label while a count is still null', () => {
-    render(
+  // Loading: hold the space, draw nothing. Zeros that snap to real numbers
+  // a moment later read as a glitch, and a bare noun reads as broken.
+  it('renders neither zeros nor bare labels while a count is still null', () => {
+    const { container } = render(
       <ProfileMetrics
         postCount={null}
         followerCount={undefined}
@@ -63,6 +65,23 @@ describe('ProfileMetrics', () => {
         language="en"
       />
     );
+    expect(screen.queryAllByText('0')).toHaveLength(0);
+    expect(container.textContent).toBe('');
+  });
+
+  // On someone else's page the prompt told the VIEWER to find people, and
+  // the tap opened the stranger's empty Following list.
+  it('shows real zeros, not "Find people to follow", on another profile', () => {
+    render(
+      <ProfileMetrics
+        postCount={0}
+        followerCount={0}
+        followingCount={0}
+        forms={FORMS}
+        language="en"
+      />
+    );
+    expect(screen.queryByText('Find people to follow')).toBeNull();
     expect(screen.getAllByText('0')).toHaveLength(3);
   });
 
@@ -75,6 +94,7 @@ describe('ProfileMetrics', () => {
         postCount={0}
         followerCount={0}
         followingCount={0}
+        isSelf
         onOpenFollowing={vi.fn()}
         forms={FORMS}
         language="en"

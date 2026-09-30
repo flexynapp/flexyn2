@@ -440,6 +440,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   de: new Set([
     // "Leader" is the loanword German uses for the role.
     'crewRank.leader',
+    // "Follower" is the loanword German social apps use.
+    'hub.profile.follower',
     // "Band" is the same word in German.
     'exerciseEquip.filter.band',
     // "Gyms." — the loanword German actually uses, and the app's own term.
@@ -708,11 +710,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'profile.corporate',
     'workout.addCardio',
     'workout.tab.cardio',
-    // Italian uses all three as English loanwords — 'follower' is already
-    // the glossary rendering of Followers, and post/slot are the ordinary
-    // Italian words for these things.
-    'hub.profile.follower',
-    'hub.profile.post',
+    // Italian uses 'slot' as an English loanword, the ordinary Italian word.
     'hub.profile.slot',
     'cardio',
     'cardio.field.hours',
@@ -767,8 +765,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'profile.corporate',
     'workout.addCardio',
     'workout.tab.cardio',
-    // Polish borrows 'post' for a social post.
-    'hub.profile.post',
     'aboutSection.twemoji',
     'analyticsSheet.minutes',
     'analyticsSheet.timesX',

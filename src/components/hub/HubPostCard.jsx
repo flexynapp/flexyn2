@@ -943,7 +943,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               author.initials
             )}
           </div>
-          {isVerified(author.username) && (
+          {isVerified(post.user_id) && (
             <div className="absolute -top-1.5 -start-1.5 flex items-center justify-center" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
               <CrownBadge size={15} />
             </div>

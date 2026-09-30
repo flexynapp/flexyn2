@@ -29,7 +29,7 @@ import { THEMES_ENABLED } from '@/lib/featureFlags';
 // is. Radix handles the anchoring, collision flipping, outside-click,
 // Escape, focus return and RTL side-swapping; the app already wraps it at
 // components/ui/dropdown-menu.
-function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foreground', disabled = false, hint }) {
+function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foreground', disabled = false, hint, description }) {
   return (
     <DropdownMenuItem
       // Synchronous on purpose. The obvious defensive move here is to defer
@@ -47,8 +47,18 @@ function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foregro
       // what turns "greyed out" from a dead end into a promise.
       className={`gap-2.5 py-2.5 ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
-      <Icon className={`w-4 h-4 shrink-0 ${disabled ? 'text-muted-foreground' : iconClass}`} />
-      <span className={disabled ? 'text-muted-foreground' : undefined}>{label}</span>
+      <Icon className={`w-4 h-4 shrink-0 ${disabled ? 'text-muted-foreground' : iconClass} ${description ? 'self-start mt-0.5' : ''}`} />
+      {description ? (
+        // A sentence, so it reads as one: sentence case under the label.
+        // It used to go through `hint`, the caps micro-label meant for two
+        // words like "Coming soon", and wrapped into four lines of capitals.
+        <span className="flex flex-col min-w-0">
+          <span>{label}</span>
+          <span className="text-xs text-muted-foreground">{description}</span>
+        </span>
+      ) : (
+        <span className={disabled ? 'text-muted-foreground' : undefined}>{label}</span>
+      )}
       {hint && (
         <span className="ms-auto text-micro font-semibold uppercase tracking-wide text-muted-foreground">
           {hint}
@@ -244,7 +254,7 @@ export default function ProfileActions({
                       ? tFallback('hub.profile.makePublic', 'Private account · On')
                       : tFallback('hub.profile.makePrivate', 'Private account')}
                     onSelect={onTogglePrivate}
-                    hint={isPrivate
+                    description={isPrivate
                       ? tFallback('hub.profile.privateOnHint', 'Only followers see your stats, posts and badges')
                       : tFallback('hub.profile.privateOffHint', 'Hide your stats, posts and badges from non-followers')}
                   />

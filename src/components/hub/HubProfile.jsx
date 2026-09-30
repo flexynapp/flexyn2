@@ -11,12 +11,11 @@ import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { initialsFor } from '@/lib/initials';
-import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, Bookmark, ChevronLeft, Medal, Swords, Shield, Trophy, Dumbbell } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, Bookmark, ChevronLeft, Medal, Swords, Shield, Trophy, Dumbbell, Lock } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
-import { getTier } from '@/lib/xpTier';
 import { currentStreak } from '@/lib/trainingWeek';
 import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -57,7 +56,7 @@ import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
 import { useTheme } from '@/lib/ThemeContext';
-import { isVerified, isPoop } from '@/lib/verifiedUsers';
+import { isVerified, isPoop, hasSnakeEgg, hasBirdEgg, hasSweatEgg } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
@@ -74,9 +73,9 @@ const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'))
 // (gated by showSnakeEgg below). Lazy so its canvas/game code stays out
 // of the entry + Hub bundles for everyone else.
 const SnakeGameModal = lazy(() => import('./SnakeGameModal'));
-// Hidden easter-egg "Heavy Bird" — only on the @keganbergeron profile.
+// Hidden easter-egg "Heavy Bird" — only on its account (see verifiedUsers.js).
 const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
-// Hidden easter-egg "Sweat Jetpack" — only on the @calason44 profile.
+// Hidden easter-egg "Sweat Jetpack" — only on its accounts (see verifiedUsers.js).
 // Fat sweating dude propelled by his own sweat. Pixelated retro look.
 const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
 const LeagueStandingsModal = lazy(() => import('@/components/dashboard/LeagueStandingsModal'));
@@ -249,7 +248,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [activeHighlightItems, setActiveHighlightItems] = useState([]);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteExpanded, setNoteExpanded] = useState(false);
-  const [noteLocalLiked, setNoteLocalLiked] = useState(false);
+  // null = no local override; the server's answer stands.
+  const [noteLocalLiked, setNoteLocalLiked] = useState(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   // Declared up here rather than beside the avatar because it is read ~950
   // lines below AND inside a deps array; a const read before its declaration
@@ -312,6 +312,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     window.scrollTo({ top: 0, behavior: 'auto' });
     setSection(null);
     setMenuOpen(false);
+    // Everything else scoped to the profile being viewed. The note like was
+    // the visible one: like A's note, open B, and B's heart was filled.
+    setNoteLocalLiked(null);
+    setNoteExpanded(false);
+    setEditProfileOpen(false);
+    setLeagueOpen(false);
+    setTrophyPickerSlot(null);
+    setActiveHighlight(null);
   }, [targetKey]);
 
   // ── last_active_at: update on own profile open, display on others' ────────
@@ -380,7 +388,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
           'trophy_case', 'trophy_case_visible',
-          'website_url', 'signature_trophy', 'workout_streak',
+          'website_url', 'signature_trophy', 'workout_streak', 'is_private',
         ],
         build: (cols) => selectProfiles((from) => from
           .select(cols)
@@ -468,12 +476,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Follower / following lists as user_ids (the modal resolves them by id
   // via User.list().id — never off the view's email). Legacy email-targets
   // (no targetId) show empty lists rather than reading the view.
-  const { data: followerIds = [] } = useQuery({
+  const { data: followerIds = [], isLoading: followersLoading } = useQuery({
     queryKey: ['hubFollowers', targetId],
     queryFn: () => hubFollows.listFollowersIds(targetId),
     enabled: !!targetId,
   });
-  const { data: followingIds = [] } = useQuery({
+  const { data: followingIds = [], isLoading: followingLoading } = useQuery({
     queryKey: ['hubFollowing', targetId],
     queryFn: () => hubFollows.listFollowingIds(targetId),
     enabled: !!targetId,
@@ -516,7 +524,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // loaded yet), we DON'T know whether the user follows the target — so
   // neither "Follow" nor "Unfollow" should be tappable.
   const followStatusReady = isSelf || (!!user?.id && amFollowing !== undefined);
-  const { data: posts = [] } = useQuery({
+  const { data: posts = [], isLoading: postsLoading } = useQuery({
     queryKey: ['hubProfilePosts', targetId, amFollowing, isSelf],
     queryFn: () => hubPosts.listForProfile(targetId, amFollowing, isSelf),
     enabled: !!targetId,
@@ -862,7 +870,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
-    if (hasAnyProfanity(bioDraft, cityDraft)) {
+    if (hasAnyProfanity(bioDraft, cityDraft, displayNameDraft)) {
       toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
@@ -891,7 +899,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       setEditProfileOpen(false);
       toast.success(tFallback('hub.profile.saved', 'Saved. Looking sharp.'));
     } catch (err) {
-      toast.error(err?.message || tFallback('hub.profile.saveFailed', 'Could not save'));
+      // Never err.message: it is a developer string in English, e.g.
+      // 'Profanity detected in field "display_name"'.
+      reportError(err, { feature: 'profile.save', level: 'warning' });
+      toast.error(tFallback('hub.profile.saveFailed', 'Could not save'));
     } finally {
       setSavingProfile(false);
     }
@@ -993,6 +1004,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // the module-level cache and hands back the stale object.)
       patchProfile({ username: res.username, username_changed_at: new Date().toISOString() });
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      // The header and the Done button read the handle from AuthContext,
+      // which the cache patch does not reach. Without this the page kept the
+      // old @handle and Done re-armed, offering to spend the 30 days again.
+      await checkUserAuth?.();
       setUsernameDraft(res.username || next);
       if (res.reason !== 'unchanged') {
         toast.success(tFallback('hub.profile.handleChanged', 'Your handle is now @{handle}.', { handle: res.username }));
@@ -1184,25 +1199,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // decision, not a UI one.
   const { league: heroLeague, rival: heroRival, war: heroWar } = useHeroContests({ user, isSelf });
 
-  const isVerifiedUser = isVerified(displayUsername);
-  const isPoopUser = isPoop(displayUsername);
-  const noteLiked    = noteLocalLiked || noteLikedServer;
-
-  // Hidden easter egg — only on the @sean admin profile. isVerified() is
-  // the app's admin signal (maps to the spec's is_admin), so this is the
-  // strict "@sean + admin" gate. Visible to any viewer of that profile.
-  const showSnakeEgg =
-    (ownerUsername === 'sean' || displayHandle === '@sean') && isVerified(ownerUsername);
-
-  // Second hidden egg — "Heavy Bird", only on the @keganbergeron profile.
-  const showBirdEgg =
-    ownerUsername === 'keganbergeron' || ownerUsername === 'kegan' || displayHandle === '@keganbergeron';
-
-  // Third hidden egg — "Sweat Jetpack", on @calason44 and @jaxf profiles.
-  // Fat sweating dude with sweat as the thrust, pixelated retro style.
-  const showSweatEgg =
-    ownerUsername === 'calason44' || displayHandle === '@calason44'
-    || ownerUsername === 'jaxf'   || displayHandle === '@jaxf';
+  // Easter eggs, keyed on the account id (see verifiedUsers.js).
+  const isVerifiedUser = isVerified(targetId);
+  const isPoopUser = isPoop(targetId);
+  const noteLiked    = noteLocalLiked ?? !!noteLikedServer;
+  const showSnakeEgg = hasSnakeEgg(targetId);
+  const showBirdEgg = hasBirdEgg(targetId);
+  const showSweatEgg = hasSweatEgg(targetId);
 
   // A long press on the avatar opens whichever egg this profile has. The
   // click that ends the press is swallowed, or the same gesture would also
@@ -1246,6 +1249,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // NULL on a private profile you don't follow, and printing "Lv. 1" there
   // would be a guess, so a hidden profile gets no plate at all.
   const showPlate = isSelf || (targetProfile != null && targetProfile.total_xp != null);
+  // A private profile you don't follow. public_profiles hides the stats and
+  // the follow graph is gated, so without this the page read as an empty
+  // account: zero followers, "Nothing posted yet", no trophies. Say what it
+  // is instead of implying there is nothing there.
+  const isHiddenPrivate = !isSelf && targetProfile?.is_private === true && targetProfile.total_xp == null;
   const plateLeagueId = isSelf ? (heroLeague?.tierId ?? user?.league_tier ?? null) : (targetProfile?.league_tier ?? null);
   const levelProgress = Number.isFinite(xpNeeded) && xpNeeded > 0 ? xpInLevel / xpNeeded : 0;
 
@@ -1280,14 +1288,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <div className="flex items-center justify-end mb-3">
               <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-bold">
                 <button type="button"
+                  aria-pressed={profilePostSort === 'newest'}
                   onClick={() => setProfilePostSort('newest')}
                   className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                  {tFallback("coach.onboarding.levelLabel.newbie", "New")}
+                  {tFallback('profile.sortNewest', 'Newest')}
                 </button>
                 <button type="button"
+                  aria-pressed={profilePostSort === 'popular'}
                   onClick={() => setProfilePostSort('popular')}
                   className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                  {tFallback("league.info.terminal", "Top")}
+                  {tFallback('profile.sortTop', 'Top')}
                 </button>
               </div>
             </div>
@@ -1472,6 +1482,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 src={avatarUrl}
                 initials={initials}
                 editable={avatarEditable}
+                // The header reads avatar_url from AuthContext, which the
+                // uploader's query invalidations never touch.
+                onChange={() => checkUserAuth?.()}
                 variant="overlay"
                 neutral
                 size={90}
@@ -1631,7 +1644,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-1 mt-2 text-sm text-muted-foreground">
             {(city || countryFlag) && (
               <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                {/* The pin marks a place. A flag alone is a country, and a
+                    pin beside nothing read as a missing city. */}
+                {city && <MapPin className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
                 {city && <span>{city}</span>}
                 {countryFlag && (
                   <img loading="lazy" src={flagSrc(countryFlag)}
@@ -1665,20 +1680,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
         {/* Metrics as text. Three bordered tiles and three 16ms count-up
             timers used to live here. */}
-        <ProfileMetrics
+        {!isHiddenPrivate && <ProfileMetrics
           center
-          postCount={posts.length}
-          followerCount={followerIds.length}
-          followingCount={followingIds.length}
+          // undefined while loading, so the line holds its space rather
+          // than flashing zeros (or "Find people to follow") first.
+          postCount={postsLoading ? undefined : posts.length}
+          followerCount={followersLoading ? undefined : followerIds.length}
+          followingCount={followingLoading ? undefined : followingIds.length}
+          isSelf={isSelf}
+          onFindPeople={() => navigate('/hub')}
           onOpenFollowers={() => setOpenModal('followers')}
           onOpenFollowing={() => setOpenModal('following')}
           language={language}
           forms={{
-            posts: { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'Posts') },
-            followers: { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'Followers') },
+            posts: { one: tFallback('hub.profile.post', 'Post'), other: tFallback('hub.profile.posts', 'Posts') },
+            followers: { one: tFallback('hub.profile.follower', 'Follower'), other: tFallback('hub.profile.followers', 'Followers') },
             following: { other: tFallback('hub.profile.following', 'Following') },
           }}
-        />
+        />}
 
         {/* Note like — non-own profile with an active note. */}
         {!isSelf && activeNote && (
@@ -2016,6 +2035,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
           {section === 'posts' && postsList}
         </div>
+      ) : isHiddenPrivate ? (
+        <div className="flex flex-col items-center text-center gap-2 py-10" data-testid="profile-private-notice">
+          <Lock className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-base font-semibold">{tFallback('publicProfile.thisProfileIsPrivate', 'This profile is private')}</p>
+          {amFollowing !== true && (
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {tFallback('profile.privateFollowHint', 'Follow to see their stats, posts and trophies.')}
+            </p>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-6">
           <ProfileSummaryList>
@@ -2050,14 +2079,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 sub={tFallback('profile.crewWarSub', 'Your crew {a}, theirs {b}', {
                   a: fmtNumber(Math.round(heroWar.mine)), b: fmtNumber(Math.round(heroWar.theirs)),
                 })}
-                // The crew war lives in the Hub crews section, which listens
-                // for this event (the same hand-off CrewDMInviteCard uses).
-                onClick={() => {
-                  navigate('/hub');
-                  if (heroWar?.crewId) {
-                    window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId: heroWar.crewId } }));
-                  }
-                }}
+                // Router state, not the flexyn:open-crew event. This row
+                // lives on /profile, where Hub is not mounted, so an event
+                // fired beside navigate() landed before anything listened and
+                // the tap opened the Hub feed. Hub reads openCrewId on mount.
+                onClick={() => navigate('/hub', heroWar?.crewId ? { state: { openCrewId: heroWar.crewId } } : undefined)}
               />
             )}
             {isSelf && heroLogs.length > 0 && (
@@ -2450,7 +2476,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </Suspense>
       )}
 
-      {/* 👾 Heavy Bird — easter egg, only on the @keganbergeron profile.
+      {/* 👾 Heavy Bird — easter egg, only on its account (see verifiedUsers.js).
           Mounted on open (the canvas engine runs only while shown). */}
       {showBirdEgg && birdOpen && (
         <Suspense fallback={null}>
@@ -2462,7 +2488,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </Suspense>
       )}
 
-      {/* 👾 Sweat Jetpack — easter egg, only on the @calason44 profile.
+      {/* 👾 Sweat Jetpack — easter egg, only on its accounts (see verifiedUsers.js).
           Mounted on open so the canvas engine isn't burning cycles on
           every other profile's render path. */}
       {showSweatEgg && sweatOpen && (
@@ -2483,7 +2509,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
   // Lock body scroll when modal is open
   useBodyScrollLock();
 
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [], isLoading } = useQuery({
     queryKey: ['hubProfileUsers', ids],
     queryFn: async () => {
       if (!ids.length) return [];
@@ -2493,9 +2519,9 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
       const users = await usersData.listByIds(ids).catch(() => []);
       return users.map(u => ({
         ...u,
-        username: u.username || 'athlete',
-        levelData: calculateLevelFromXp(Number(u.total_xp) || 0),
-        tier: getTier(calculateLevelFromXp(Number(u.total_xp) || 0).level, t),
+        // total_xp is NULL on a private profile you don't follow. That is
+        // "hidden", not "level 1", so no level is printed for it.
+        level: u.total_xp == null ? null : calculateLevelFromXp(Number(u.total_xp) || 0).level,
       }));
     },
     enabled: !!ids.length,
@@ -2521,14 +2547,18 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
           <h2 className="font-heading font-bold text-lg">
             {type === 'followers' ? t('hub.profile.followers') : t('hub.profile.following')}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors">
+          <button onClick={onClose} aria-label={t('common.close')} className="w-11 h-11 -me-2 flex items-center justify-center rounded-lg hover:bg-secondary active:bg-secondary transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* List */}
         <div className="overflow-y-auto flex-1">
-          {allUsers.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            </div>
+          ) : allUsers.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-center">
               <p className="text-sm text-muted-foreground">{t('hub.profile.noUsers')}</p>
             </div>
@@ -2571,17 +2601,14 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
                     <p className="font-heading font-bold text-sm truncate">
                       @{u.username || t('hub.profile.anonymousAthlete')}
                     </p>
-                    {u.tier && (
-                      <p className={`text-xs truncate ${u.tier.text}`}>{u.tier.name}</p>
-                    )}
                   </div>
-                  {u.levelData && u.tier && (
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${u.tier.badge} shadow-sm`}>
-                        <span className="text-xs font-bold text-white drop-shadow">Lv. {u.levelData.level}</span>
-                      </div>
-                      <span className={`text-xs font-bold uppercase tracking-widest ${u.tier.text}`}>{u.tier.name}</span>
-                    </div>
+                  {/* Level only. The XP tier name was printed twice here, in
+                      caps on a gradient pill, and it is a different ladder
+                      from the leagues it shares names with. */}
+                  {u.level != null && (
+                    <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                      {t('levelBar.level', { n: u.level })}
+                    </span>
                   )}
                 </motion.button>
               ))}

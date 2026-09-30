@@ -292,7 +292,7 @@ export default function ThemeSelector({ open, onClose }) {
               </div>
 
               {/* ── Admin-only: Steel USA toggle ── */}
-              {isVerified(user?.username) && (() => {
+              {isVerified(user?.id) && (() => {
                 const steelTheme = THEMES.find(t => t.id === 'brushed-steel');
                 const isSteelActive = !lootThemeId && themeId === 'brushed-steel';
                 return (

@@ -75,12 +75,16 @@ export default function AvatarUploader({ src, initials = '?', seed = '', neutral
       await updateMe({ avatar_url: file_url });
 
       // 3. Backfill hub posts so the avatar updates on all previous posts
-      if (user?.email) {
+      // A supabase query builder is a thenable with no .catch(), so the
+      // old `.catch(() => {})` here threw a TypeError AFTER the photo had
+      // saved: every upload toasted "failed" and skipped the refresh below.
+      // Keyed on the id, not the email (emails are being retired as keys).
+      if (user?.id) {
         await supabase
           .from('hub_posts')
           .update({ author_avatar_url: file_url })
-          .eq('author_email', user.email)
-          .catch(() => {}); // non-critical — posts will still resolve via live lookup
+          .eq('user_id', user.id)
+          .then(() => {}, () => {}); // non-critical — posts will still resolve via live lookup
       }
 
       // 4. Invalidate all caches that carry avatar data
@@ -160,6 +164,12 @@ export default function AvatarUploader({ src, initials = '?', seed = '', neutral
         >
           {src ? (
             <img loading="lazy" src={src} alt="" className="w-full h-full object-cover" />
+          ) : editable && variant === 'overlay' ? (
+            // The overlay's plus sits dead centre, exactly where the
+            // initials are, and a 45% scrim does not hide text: the two
+            // printed on top of each other as "K+E". No photo means the
+            // plus is the only thing the circle needs to say.
+            null
           ) : (
             initials || '?'
           )}
