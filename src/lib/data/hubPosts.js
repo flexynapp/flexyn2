@@ -37,10 +37,25 @@ export const listPublicFeed = async (limit = 50) => {
  */
 export const listForProfile = async (authorId, isFollowing, isSelf, limit = 50) => {
   if (!authorId) return [];
-  const all = await e().filter({ user_id: authorId }, '-created_date', limit).catch(() => []);
-  if (isSelf) return all;
-  if (isFollowing) return all;
-  return all.filter(p => p.privacy === 'public');
+  // The privacy filter goes in the query, not after it. Filtering the first
+  // 50 rows client-side meant a non-follower could see fewer than 50 public
+  // posts, or none, from someone whose recent posts were followers-only.
+  const where = isSelf || isFollowing ? { user_id: authorId } : { user_id: authorId, privacy: 'public' };
+  return e().filter(where, '-created_date', limit).catch(() => []);
+};
+
+/**
+ * How many posts the viewer can see on this profile. The list above stops at
+ * 50, so its length was a count that topped out at 50. Same privacy rule as
+ * the list; RLS still decides what is readable at all.
+ */
+export const countForProfile = async (authorId, isFollowing, isSelf) => {
+  if (!authorId) return 0;
+  let q = supabase.from('hub_posts').select('id', { count: 'exact', head: true }).eq('user_id', authorId);
+  if (!isSelf && !isFollowing) q = q.eq('privacy', 'public');
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
 };
 
 /** Fetch a single post by id. */

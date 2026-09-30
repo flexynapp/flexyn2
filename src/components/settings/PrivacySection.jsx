@@ -217,6 +217,7 @@ export default function PrivacySection() {
       invalidateProfile();
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       queryClient.invalidateQueries({ queryKey: ['hubProfilePosts'] });
+      queryClient.invalidateQueries({ queryKey: ['hubProfilePostCount'] });
       queryClient.invalidateQueries({ queryKey: ['profileStories'] });
       queryClient.invalidateQueries({ queryKey: ['hubProfile'] });
       queryClient.invalidateQueries({ queryKey: ['hubSearch'] });

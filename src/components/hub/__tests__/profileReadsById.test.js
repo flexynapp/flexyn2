@@ -31,7 +31,7 @@ describe('profile reads are keyed by user id', () => {
   });
 
   it('the data layer filters on the id columns', () => {
-    expect(read('src/lib/data/hubPosts.js')).toMatch(/filter\(\{ user_id: authorId \}/);
+    expect(read('src/lib/data/hubPosts.js')).toMatch(/\{ user_id: authorId[ ,}]/);
     expect(read('src/lib/data/storyHighlights.js')).toMatch(/\.eq\('user_id', userId\)/);
   });
 });

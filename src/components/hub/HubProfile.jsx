@@ -11,7 +11,7 @@ import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { initialsFor } from '@/lib/initials';
-import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, Bookmark, ChevronLeft, Medal, Swords, Shield, Trophy, Dumbbell, Lock } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, Bookmark, ChevronLeft, Medal, Swords, Shield, Trophy, Dumbbell, Lock, Ban } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -20,13 +20,13 @@ import { currentStreak } from '@/lib/trainingWeek';
 import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
-import { buildPRIndex } from '@/lib/data/personalRecords';
+import { headlineLift } from '@/lib/headlineLift';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
 import { invalidateFollowGraph } from '@/lib/followGraphCache';
 import * as userMutes from '@/lib/data/userMutes';
-import { blockUserFull } from '@/lib/data/userBlocks';
+import { blockUserFull, unblockUserFull, listBlocks } from '@/lib/data/userBlocks';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubReactions from '@/lib/data/hubReactions';
@@ -46,6 +46,7 @@ import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
 import ProfileMetrics from './profile/ProfileMetrics';
+import { Button } from '@/components/ui/button';
 import ProfileActions from './profile/ProfileActions';
 import ProfileTrophies from './profile/ProfileTrophies';
 import ProfileLeaguePlate from './profile/ProfileLeaguePlate';
@@ -529,6 +530,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryFn: () => hubPosts.listForProfile(targetId, amFollowing, isSelf),
     enabled: !!targetId,
   });
+  // The list stops at 50; the number on the page should not.
+  const { data: postCountServer, isLoading: postCountLoading } = useQuery({
+    queryKey: ['hubProfilePostCount', targetId, amFollowing, isSelf],
+    queryFn: () => hubPosts.countForProfile(targetId, amFollowing, isSelf),
+    enabled: !!targetId,
+  });
+  const postCount = postCountServer ?? posts.length;
   const [profilePostSort, setProfilePostSort] = useState('newest'); // 'newest' | 'popular'
   const sortedPosts = useMemo(() => {
     if (profilePostSort === 'popular') {
@@ -1076,6 +1084,33 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
   };
 
+  // Blocking used to leave the page exactly as it was, with Block still in
+  // the menu and no way back but Settings. Same key and shape as HubFeed's
+  // read, so the two share one cache entry.
+  const { data: myBlockedIds = [] } = useQuery({
+    queryKey: ['userBlocks', user?.id],
+    queryFn: async () => (await listBlocks(user.id)).map(r => r.blocked_id).filter(Boolean),
+    enabled: !isSelf && !!user?.id,
+    staleTime: 60_000,
+  });
+  const isBlockedTarget = !isSelf && !!targetId && myBlockedIds.includes(targetId);
+  const [unblocking, setUnblocking] = useState(false);
+
+  const handleUnblock = async () => {
+    setMenuOpen(false);
+    setUnblocking(true);
+    try {
+      await unblockUserFull(targetId);
+      await queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.profile-unblock', level: 'warning', userEmail: user?.email, target: targetId });
+      toast.error(tFallback('hub.profile.unblockError', 'Could not unblock. Try again.'));
+    } finally {
+      setUnblocking(false);
+    }
+  };
+
   const handleConfirmBlock = async () => {
     setConfirmBlockOpen(false);
     try {
@@ -1178,19 +1213,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // and a client-side week strip will eventually disagree across a timezone
   // boundary, and then the user believes neither.
   const trainingStreak = useMemo(() => currentStreak(heroLogs), [heroLogs]);
-  // The strongest estimated 1RM, for the Workouts row's subtitle. Same
-  // index ProfileLiftStats ranks on, so the row and the page it opens
-  // never name different lifts.
+  // The Workouts row's subtitle: the heaviest barbell set actually lifted
+  // (see headlineLift.js for why not the top estimated 1RM, which named the
+  // leg press). The Stats page it opens still ranks by estimated 1RM.
   const bestLift = useMemo(() => {
-    const top = Object.entries(buildPRIndex(heroLogs))
-      .filter(([, rm]) => rm > 0)
-      .sort((a, b) => b[1] - a[1])[0];
+    const top = headlineLift(heroLogs);
     if (!top) return null;
-    const [key, rm] = top;
     const unit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
     return {
-      name: key.charAt(0).toUpperCase() + key.slice(1),
-      label: `${fmtNumber(Math.round(fromLbs(rm, weightUnit)))} ${unit}`,
+      name: top.name,
+      label: `${fmtNumber(Math.round(fromLbs(top.weight, weightUnit)))} ${unit} × ${top.reps}`,
     };
   }, [heroLogs, weightUnit, fmtNumber]);
 
@@ -1586,7 +1618,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             {displayName && <span>{displayHandle}</span>}
             {displayName && equippedTitle && <span aria-hidden="true"> · </span>}
             {equippedTitle && (
-              <span className="font-semibold" style={{ color: titleRarity?.color }} title={equippedTitle.description}>
+              <span className="font-semibold rarity-ink" style={{ '--rarity': titleRarity?.color }} title={equippedTitle.description}>
                 {equippedTitle.name}
               </span>
             )}
@@ -1680,11 +1712,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
         {/* Metrics as text. Three bordered tiles and three 16ms count-up
             timers used to live here. */}
-        {!isHiddenPrivate && <ProfileMetrics
+        {!isHiddenPrivate && !isBlockedTarget && <ProfileMetrics
           center
           // undefined while loading, so the line holds its space rather
           // than flashing zeros (or "Find people to follow") first.
-          postCount={postsLoading ? undefined : posts.length}
+          postCount={postsLoading || postCountLoading ? undefined : postCount}
           followerCount={followersLoading ? undefined : followerIds.length}
           followingCount={followingLoading ? undefined : followingIds.length}
           isSelf={isSelf}
@@ -1748,6 +1780,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           onMute={!isSelf && targetId ? handleMute : undefined}
           onUnmute={!isSelf && targetId ? handleUnmute : undefined}
           onBlock={!isSelf && targetId ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
+          onUnblock={!isSelf && targetId ? handleUnblock : undefined}
+          isBlocked={isBlockedTarget}
           isMuted={isMutedTarget}
           onToggleTrophyVisibility={handleTrophyVisibility}
           trophyVisible={trophyVisible}
@@ -1981,7 +2015,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           place of the summary, with a back row above it, so there is one
           thing on screen at a time instead of a tab strip over four
           stacked sections. */}
-      {section ? (
+      {isBlockedTarget ? (
+        <div className="flex flex-col items-center text-center gap-2 py-10" data-testid="profile-blocked-notice">
+          <Ban className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-base font-semibold">
+            {tFallback('hub.profile.youBlocked', 'You blocked {handle}', { handle: displayHandle })}
+          </p>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            {tFallback('hub.profile.youBlockedHint', "You won't see each other's posts or stories.")}
+          </p>
+          <Button variant="outline" className="mt-2 min-h-11" onClick={handleUnblock} disabled={unblocking}>
+            {unblocking && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+            {tFallback('hub.profile.unblock', 'Unblock')}
+          </Button>
+        </div>
+      ) : section ? (
         <div className="flex flex-col gap-2">
           <button
             type="button"
@@ -2095,7 +2143,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 onClick={() => setSection('lifts')}
               />
             )}
-            {trophyVisible && (
+            {/* "Hide trophy case" hides the five pinned slots, which is what
+                it says. It used to hide this whole row, so the trophies a
+                person had actually earned vanished with it, even on their
+                own profile. ProfileTrophies applies the setting to the case. */}
+            {(isSelf || trophyVisible || earnedTrophies.length > 0) && (
               <SummaryRow
                 icon={Trophy}
                 label={tFallback('hub.profile.tabTrophies', 'Trophies')}
@@ -2106,7 +2158,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <SummaryRow
               icon={FileText}
               label={tFallback('hub.profile.tabPosts', 'Posts')}
-              value={posts.length > 0 ? fmtNumber(posts.length) : undefined}
+              value={postCount > 0 ? fmtNumber(postCount) : undefined}
               onClick={() => setSection('posts')}
             />
             {isSelf && (
