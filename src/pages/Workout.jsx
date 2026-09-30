@@ -97,6 +97,7 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
 import TransText from '@/components/TransText';
 import { formatDate } from '@/lib/intlFormat';
 import * as workouts from '@/lib/data/workouts';
+import { saveWorkoutCardio, cardioEntryHasData } from '@/lib/data/workoutCardio';
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
 import * as goalsData from '@/lib/data/goals';
@@ -188,7 +189,10 @@ function keepLoggedSets(exercises) {
       const ctx = { isBodyweight: exerciseIsBodyweight(ex), isCardio: exerciseIsCardio(ex) };
       return { ...ex, sets: (ex.sets || []).filter((s) => shouldKeepSet(s, ctx)) };
     })
-    .filter((ex) => (ex.sets?.length || 0) > 0);
+    // A cardio entry has no sets; its work is in `segments`. Filtering on
+    // sets alone threw every run logged in a workout away on save, and made
+    // a run-only workout unsavable. See src/lib/data/workoutCardio.js.
+    .filter((ex) => (ex.sets?.length || 0) > 0 || (ex.kind === 'cardio' && cardioEntryHasData(ex)));
 }
 
 // Whitelist-spread per-set metadata the lifter tagged (warmup, failed,
@@ -1026,6 +1030,41 @@ export default function Workout() {
           comebackXp = credited?.comeback_xp ?? 0;
         } catch (xpErr) {
           reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
+        }
+
+        // Runs, rides, walks and swims logged in this workout become their
+        // own cardio logs, scored by the server exactly as the Cardio
+        // tracker's are, so they count toward running goals and distance.
+        // The entries keep the new ids so deleting the workout takes the
+        // runs with it. Never blocks the save: the workout is already in.
+        if ((data.exercises || []).some((ex) => ex.kind === 'cardio')) {
+          try {
+            const cardio = await saveWorkoutCardio({
+              exercises: data.exercises,
+              date: data.date,
+              userProfile,
+              grantXp: (logId) => db.functions.invoke('updateUserXpAndAchievements', {
+                xp_gained: 0, action_type: 'cardio_completed', log_id: logId,
+              }),
+              onError: (err, step) => reportError(err, { feature: `workout.cardio-${step}`, level: 'warning', userEmail: user?.email }),
+            });
+            if (cardio.changed && workoutLog?.id) {
+              data = { ...data, exercises: cardio.exercises };
+              await workouts.update(workoutLog.id, { exercises: cardio.exercises, total_volume: data.total_volume });
+            }
+            xpGained += cardio.xp;
+            if (cardio.sessions > 0) {
+              quests.recordActions(user, [
+                { type: ACTION_TYPES.CARDIO_COMPLETED, amount: cardio.sessions },
+                { type: ACTION_TYPES.CARDIO_SECONDS, amount: cardio.seconds },
+              ])
+                .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+                .catch((err) => reportError(err, { feature: 'workout.cardio-quests', level: 'warning' }));
+              queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
+            }
+          } catch (cardioErr) {
+            reportError(cardioErr, { feature: 'workout.cardio-logs', level: 'warning', userEmail: user?.email });
+          }
         }
 
         // Bump progress on any active Solo Challenge claims the user

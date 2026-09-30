@@ -2,6 +2,8 @@
 import { supabase } from '@/api/supabaseClient';
 import { ownedRows } from './ownedRows';
 import { containsProfanity } from '@/lib/profanityFilter';
+import * as cardioData from './cardio';
+import { linkedCardioLogIds } from './workoutCardio';
 
 const rows = ownedRows('workout_logs');
 
@@ -85,9 +87,27 @@ export const update = (id, data) => {
   return rows.update(id, data);
 };
 
-/** Delete a workout log by id. */
-export const remove = (id) =>
-  rows.remove(id);
+/**
+ * Delete a workout log by id, and the runs logged inside it.
+ *
+ * Each cardio entry of a workout is saved as its own cardio_logs row
+ * (workoutCardio.js) and keeps its id. Deleting the workout without them
+ * would leave a run in the log, on a running goal and in lifetime distance
+ * for a session the person removed. The runs go first: if the workout
+ * delete then fails, the person can retry, while the reverse order would
+ * strand runs with nothing left pointing at them.
+ */
+export const remove = async (id) => {
+  let ids = [];
+  try {
+    const row = await rows.get(id);
+    ids = linkedCardioLogIds(row?.exercises);
+  } catch { /* no row to read: delete what we were asked to */ }
+  for (const cardioId of ids) {
+    try { await cardioData.remove(cardioId); } catch { /* already gone */ }
+  }
+  return rows.remove(id);
+};
 
 /**
  * Best-effort: reconcile any recent workout_logs that landed on the
