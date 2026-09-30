@@ -26,6 +26,7 @@ import {
   trophyDescription,
 } from '@/lib/trophyDefinitions';
 import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
+import LeadLifterTrophyIcon from '@/components/leagues/LeadLifterTrophyIcon';
 import { useDateFormatter } from '@/lib/intl';
 
 function SectionLabel({ children, aside }) {
@@ -180,7 +181,9 @@ export default function ProfileTrophies({
                       open ? 'bg-secondary ring-2 ring-primary' : 'bg-secondary/40 hover:bg-secondary active:bg-secondary'
                     }`}
                   >
-                    {trophy.leagueTier ? (
+                    {trophy.isLeadLifter ? (
+                      <LeadLifterTrophyIcon tier={trophy.leagueTier} level={trophy.leadLevel} className="w-10 h-10" />
+                    ) : trophy.leagueTier ? (
                       <LeagueTierIcon tier={trophy.leagueTier} className="w-10 h-10" />
                     ) : (
                       <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
