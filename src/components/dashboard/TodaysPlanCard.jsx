@@ -203,7 +203,13 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
                       <span className="flex-1 min-w-0 text-label font-semibold truncate">
                         {ex.displayName || translateExerciseName(ex.name, language)}
                       </span>
-                      {ex.target_sets > 0 && ex.target_reps > 0 && (
+                      {ex.kind === 'cardio' ? (
+                        ex.detail && (
+                          <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
+                            {ex.detail.split(' · ')[0]}
+                          </span>
+                        )
+                      ) : ex.target_sets > 0 && ex.target_reps > 0 && (
                         <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
                           {ex.target_sets} × {ex.target_reps}
                         </span>

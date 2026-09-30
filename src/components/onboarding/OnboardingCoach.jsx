@@ -40,14 +40,14 @@ const MAX_INPUT = 500;
  */
 export function OnboardingCoachButton({ onClick, className = '', size = 'lg' }) {
   const { tFallback } = useLanguage();
-  const box = size === 'sm' ? 'w-9 h-9 rounded-lg' : 'w-11 h-11 rounded-xl';
+  const box = size === 'sm' ? 'w-9 h-9 rounded-lg' : 'w-11 h-11 rounded-lg';
   const glyph = size === 'sm' ? 'w-4 h-4' : 'w-[18px] h-[18px]';
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={tFallback("onboardingCoach.askTheAiCoach", "Ask the AI Coach")}
-      className={`${box} border border-primary/30 bg-primary/10 backdrop-blur-sm flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 active:scale-95 transition-all shrink-0 ${className}`}
+      className={`${box} border border-primary/30 bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 active:scale-95 transition-all shrink-0 ${className}`}
     >
       <Sparkles className={glyph} strokeWidth={2.2} />
     </button>
@@ -136,14 +136,14 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
-            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[60] bg-black/50"
           />
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 38 }}
             role="dialog"
             aria-label={tFallback("hub.coach.title", "AI Coach")}
-            className="fixed inset-x-0 bottom-0 z-[61] mx-auto w-full max-w-[420px] rounded-t-3xl border-t border-x border-border bg-card shadow-2xl flex flex-col"
+            className="fixed inset-x-0 bottom-0 z-[61] mx-auto w-full max-w-[420px] rounded-t-2xl border-t border-x border-border bg-card shadow-md flex flex-col"
             // 82dvh, not vh: the sheet holds a text input, and on iOS the
             // keyboard shrinks the dynamic viewport but not the static one.
             style={{ maxHeight: '82dvh' }}
@@ -158,7 +158,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
               </div>
               <button
                 type="button" onClick={onClose} aria-label={tFallback("onboardingCoach.closeCoach", "Close coach")}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
+                className="w-11 h-11 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -179,7 +179,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                           type="button"
                           onClick={() => handleApply(m.apply, i)}
                           disabled={!!applied[i]}
-                          className="mt-2.5 w-full rounded-lg bg-primary text-primary-foreground text-xs font-bold py-2 px-3 flex items-center justify-center gap-1.5 disabled:opacity-60 hover:opacity-90 transition-opacity"
+                          className="mt-2.5 w-full rounded-lg bg-primary text-primary-foreground text-xs font-bold min-h-11 py-2 px-3 flex items-center justify-center gap-1.5 disabled:opacity-60 hover:opacity-90 transition-opacity"
                         >
                           {applied[i]
                             ? <><Check className="w-3.5 h-3.5" /> {tFallback("onboardingCoach.applied", "Applied")}</>
@@ -200,7 +200,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                       key={p.id}
                       type="button"
                       onClick={() => ask(p.text)}
-                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground/80 hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
+                      className="min-h-11 inline-flex items-center rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground/80 hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
                     >
                       {p.text}
                     </button>
@@ -220,13 +220,13 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                 onChange={(e) => setInput(e.target.value.slice(0, MAX_INPUT))}
                 placeholder={tFallback("onboardingCoach.askOrDescribeYourself", "Ask, or describe yourself…")}
                 aria-label={tFallback("onboardingCoach.askTheAiCoach", "Ask the AI Coach")}
-                className="flex-1 min-w-0 h-10 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:border-primary/60"
+                className="flex-1 min-w-0 h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:border-primary/60"
               />
               <button
                 type="submit"
                 disabled={!input.trim()}
                 aria-label={tFallback("onboardingCoach.send", "Send")}
-                className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 shrink-0"
+                className="w-11 h-11 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>

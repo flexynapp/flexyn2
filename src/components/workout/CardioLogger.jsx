@@ -131,6 +131,16 @@ export default function CardioLogger({ exercise, onChange, gender }) {
         </div>
       </div>
 
+      {/* What the plan asked for, when this run came from one ("Easy Run:
+          2.5 mi, conversational pace"), so the target is on screen while
+          the numbers go in. */}
+      {exercise.detail && (
+        <p className="text-xs text-muted-foreground mb-2 px-1">
+          <span className="font-semibold text-foreground">{exercise.displayName || activity.name}</span>
+          {': '}{exercise.detail}
+        </p>
+      )}
+
       {/* Split column headers */}
       <div className="flex items-center gap-2 text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
         {segments.length > 1 && <span className="w-6 text-center">#</span>}

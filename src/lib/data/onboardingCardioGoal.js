@@ -7,6 +7,7 @@
 // the caller wraps this in .catch(); it must never block onboarding.
 
 import * as goalsData from '@/lib/data/goals';
+import { fiveKSecondsFrom } from '@/lib/data/starterRegimen';
 
 const EVENT_DISTANCE_M = { '5k': 5000, '10k': 10000, half: 21097, marathon: 42195 };
 const EVENT_TITLE = {
@@ -46,8 +47,12 @@ export async function ensureOnboardingCardioGoal({ user, goals, sharpen } = {}) 
 
   const current = sharpen?.cardioCurrent;
   const noteBits = [];
-  if (current?.distance && current?.timeSec) {
-    noteBits.push(`Current ${String(current.distance).toUpperCase()}: ${fmtTime(current.timeSec)}`);
+  // Only a time the plan itself accepted. One it threw out as a typo (a 2:18
+  // mile) was still written here as the runner's baseline. "1MI" also read
+  // as a code, so the distance takes its spoken label.
+  const DIST_LABEL = { '1mi': '1 mile', '5k': '5K', '10k': '10K' };
+  if (current?.distance && current?.timeSec && fiveKSecondsFrom(current) != null) {
+    noteBits.push(`Current ${DIST_LABEL[current.distance] || current.distance}: ${fmtTime(current.timeSec)}`);
   }
   noteBits.push('Set from onboarding');
 
