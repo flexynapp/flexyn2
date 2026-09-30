@@ -15,6 +15,7 @@ import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
+import { useButtonAnswer, AnswerLabel } from '@/components/feedback/buttonAnswer';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
 import { Play, Plus, Dumbbell, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Sparkles, Globe, Swords, Zap, Trophy, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
@@ -452,6 +453,24 @@ export default function Workout() {
   // screen that plays after a save lands.
   const [finishOpen, setFinishOpen] = useState(false);
   const [win, setWin] = useState(null);
+  // Whether the win screen is up, readable from the async tails of a save
+  // (crew war, streak) that resolve after onSuccess has returned. Set by
+  // hand where the screen opens, because the effect would run a render late
+  // for the synchronous notes that follow in the same tick.
+  const winOpenRef = useRef(false);
+  useEffect(() => { winOpenRef.current = !!win; }, [win]);
+  // What else a save earned (a comeback bonus, crew war credit, a streak
+  // milestone, a deload hint) lands as a line on the win screen while it is
+  // open, instead of a message stacking over it. Once the screen is closed
+  // the pill says it, since there is nowhere else for it to go.
+  const noteOnWin = (note, fallback) => {
+    if (winOpenRef.current) {
+      setWin((prev) => (prev ? { ...prev, notes: [...(prev.notes || []), note] } : prev));
+    } else {
+      fallback();
+    }
+  };
+  const layoutDefaultAnswer = useButtonAnswer();
   // Release the level-up hold (see saveWorkout) once the win screen is
   // gone. If the win levelled you up it already said so, so the parked
   // overlay is dropped; otherwise it plays now.
@@ -1158,7 +1177,17 @@ export default function Workout() {
         minutes: sessionMinutes,
         checkInBonus,
         prs: [],
+        // Comeback bonus: paid by grant_workout_xp when the server agrees
+        // the gap was real, so the line shows only what was actually credited.
+        notes: (result?.comebackXp ?? 0) > 0
+          ? [{
+            key: 'comeback',
+            text: tFallback('workout.comebackBonus', 'Comeback bonus earned. Good to have you back.'),
+            sub: tFallback('workout.comebackBonusXp', '+{n} XP', { n: result.comebackXp }),
+          }]
+          : [],
       });
+      winOpenRef.current = true;
       resetWorkout();
 
       // First-workout milestone — detected via the snapshot onMutate
@@ -1252,19 +1281,9 @@ export default function Workout() {
           try {
             const deload = detectDeloadOpportunity([clampedData, ...realPrev]);
             if (deload?.suggest) {
-              toast.info(
-                tFallback(
-                  'deload.suggest',
-                  '3 weeks of high volume in a row. Consider a deload next week.'
-                ),
-                {
-                  description: tFallback(
-                    'deload.suggestDesc',
-                    'Cut working sets ~40% to bank the gains.'
-                  ),
-                  duration: 7000,
-                }
-              );
+              const text = tFallback('deload.suggest', '3 weeks of high volume in a row. Consider a deload next week.');
+              const sub = tFallback('deload.suggestDesc', 'Cut working sets ~40% to bank the gains.');
+              noteOnWin({ key: 'deload', text, sub }, () => toast.info(text, { description: sub, duration: 7000 }));
             }
           } catch { /* non-critical */ }
         } catch (err) {
@@ -1281,14 +1300,6 @@ export default function Workout() {
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
 
-      // Comeback bonus — paid by grant_workout_xp when the server agrees the
-      // gap was real, so the toast shows only what was actually credited.
-      if ((result?.comebackXp ?? 0) > 0) {
-        toast.success(
-          tFallback('workout.comebackBonus', 'Comeback bonus earned. Good to have you back.'),
-          { description: tFallback('workout.comebackBonusXp', '+{n} XP', { n: result.comebackXp }) },
-        );
-      }
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       // Refetch achievements so the modal reflects newly unlocked ones immediately
@@ -1344,10 +1355,9 @@ export default function Workout() {
             if (!res?.ok || !res.wars) return;
             queryClient.invalidateQueries({ queryKey: ['activeWar'] });
             queryClient.invalidateQueries({ queryKey: ['warBreakdown'] });
-            toast.success(tFallback("workout.yourSessionCountedToward", "Your session counted toward the Crew War"), {
-              description: tFallback('workout.crewWarScoresDesc', 'Volume, sessions and days trained all score.'),
-              duration: 4000,
-            });
+            const text = tFallback('workout.yourSessionCountedToward', 'Your session counted toward the Crew War');
+            const sub = tFallback('workout.crewWarScoresDesc', 'Volume, sessions and days trained all score.');
+            noteOnWin({ key: 'crewWar', text, sub }, () => toast.success(text, { description: sub, duration: 4000 }));
           })
           .catch(() => {});
       }
@@ -1370,9 +1380,9 @@ export default function Workout() {
       workoutStreak.recordWorkoutDay(user)
         .then((res) => {
           if (res?.isNewDay && res.coinsAwarded > 0) {
-            toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
-              ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
-              : t('dashboard.workoutStreakMilestone', { day: res.streak, coins: res.coinsAwarded }));
+            const text = tFallback('dashboard.workoutStreakMilestone', '🔥 {day}-day workout streak! +{coins} coins',
+              { day: res.streak, coins: res.coinsAwarded });
+            noteOnWin({ key: 'streak', text }, () => toast.success(text));
             // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30…)
             import('canvas-confetti').then(({ default: confetti }) => {
               const fire = (opts) => confetti({
@@ -1621,10 +1631,10 @@ export default function Workout() {
     setNotes(workout?.title || '');
     setStarted(true);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+    // The session appearing on screen is the confirmation that it loaded.
+    // Only a trim is worth a word, because it changed what the coach wrote.
     if (clampedSomething) {
-      toast.success(tFallback('workout.loadedTrimmed', 'Workout loaded. Some sets were trimmed to realistic limits.'));
-    } else {
-      toast.success(tFallback("workout.workoutLoadedLogYourSets", "Workout loaded. Log your sets!"));
+      toast.warning(tFallback('workout.loadedTrimmed', 'Workout loaded. Some sets were trimmed to realistic limits.'));
     }
   };
 
@@ -1751,13 +1761,13 @@ export default function Workout() {
       name: name.slice(0, 80),
       exercises: sessionSnapshot?.exercises || [],
     });
-    if (res?.ok) {
-      toast.success(tFallback('workout.templateSaved', 'Template saved. Find it in the regimen list.'));
-    } else if (res?.reason === 'no_exercises') {
-      toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
-    } else {
-      toast.error(tFallback('workout.templateFailed', 'Could not save template. Try again.'));
+    // The win screen's button answers with the outcome, so nothing here
+    // raises a message of its own.
+    if (res?.ok) return { ok: true };
+    if (res?.reason === 'no_exercises') {
+      return { ok: false, reason: tFallback('workout.templateNeedExercises', 'Session has no exercises to save.') };
     }
+    return { ok: false, reason: tFallback('workout.templateFailed', 'Could not save template. Try again.') };
   };
 
   // Tags open pre-picked from what was trained, unless the lifter already
@@ -2823,21 +2833,28 @@ export default function Workout() {
                 <div className="flex items-center justify-between mb-3 px-1">
                   <p className="text-micro text-muted-foreground/60 font-medium">{tFallback('workout.dragGripToReorder', 'Drag a card’s grip to reorder')}</p>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success(tFallback('workout.layoutSaved', 'Layout saved.')); resetGridDrag(); }}
+                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); resetGridDrag(); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">{tFallback("common.save", "Save")}</button>
                     {isAppAdmin(user) && (
                       <button
                         onClick={async () => {
+                          layoutDefaultAnswer.reset();
                           const res = await setLayoutDefault('workout', cardOrder, null);
-                          if (res.ok) toast.success(tFallback('workout.layoutDefaultSaved', 'Saved. New users will see this card layout.'));
+                          if (res.ok) layoutDefaultAnswer.succeed();
                           else if (res.error === 'rpc_missing') toast.error(tFallback('workout.layoutMigrationMissing', 'Apply migration 166.'));
                           else if (res.error === 'admin_only')  toast.error(tFallback('workout.adminsOnly', 'Admins only.'));
                           else toast.error(tFallback('workout.layoutDefaultFailed', 'Could not save default layout.'));
                         }}
                         title={tFallback("workout.saveThisLayoutAsDefault", "Save this layout as default for all new users")}
-                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 active:bg-primary/25 transition-colors"
+                        className={`px-2.5 py-1 rounded-lg text-micro font-bold transition-colors ${layoutDefaultAnswer.phase === 'done'
+                          ? 'bg-success text-success-foreground border border-success'
+                          : 'bg-primary/15 border border-primary/40 text-primary dark:text-primary hover:bg-primary/25 active:bg-primary/25'}`}
                       >
-                        {tFallback("dashboard.setDefault", "Set default")}
+                        <AnswerLabel
+                          phase={layoutDefaultAnswer.phase === 'done' ? 'done' : 'idle'}
+                          idle={tFallback('dashboard.setDefault', 'Set default')}
+                          done={tFallback('workout.layoutDefaultDone', 'Default set')}
+                        />
                       </button>
                     )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); resetGridDrag(); }}
@@ -3238,7 +3255,6 @@ export default function Workout() {
                         setExercises(exercises.map((e, idx) => (
                           idx === i || idx === i - 1 ? { ...e, group_id: gid, group_meta: { type: 'superset' } } : e
                         )));
-                        toast.success(tFallback('workout.pairedAsSuperset', 'Paired as superset with the previous exercise.'));
                       }
                       : undefined}
                     onPlateCalc={ex.kind !== 'cardio' ? () => setPlateCalcOpen(true) : undefined}
