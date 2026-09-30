@@ -12,7 +12,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ProfileMetrics from '../ProfileMetrics';
 import ProfileActions from '../ProfileActions';
 import ProfileTrophies from '../ProfileTrophies';
-import ProfileScoreboard from '../ProfileScoreboard';
+import ProfileLeaguePlate from '../ProfileLeaguePlate';
 import ProfileSummaryList, { SummaryRow } from '../ProfileSummaryList';
 import { prCounts } from '../ProfileRecentWorkouts';
 import { Trophy } from 'lucide-react';
@@ -299,25 +299,39 @@ describe('ProfileTrophies', () => {
   });
 });
 
-describe('ProfileScoreboard', () => {
-  it('drops a cell with nothing behind it instead of drawing a zero', () => {
-    render(
-      <ProfileScoreboard
-        cells={[
-          { id: 'level', value: 'Lv. 3', label: 'Bronze' },
-          false,
-          { id: 'trophies', value: '18', label: 'trophies' },
-        ]}
-      />
-    );
-    expect(screen.getByText('Lv. 3')).toBeTruthy();
-    expect(screen.getByText('18')).toBeTruthy();
-    expect(screen.queryByText('day streak')).toBeNull();
+describe('ProfileLeaguePlate', () => {
+  const t = (key, vars) => (key === 'levelBar.level' ? `Lv. ${vars.n}` : key);
+  const tf = (key, en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (_, k) => vars[k]) : en);
+  const fmt = (n) => String(n);
+
+  it('paints the league colour and names the league, never the XP tier', () => {
+    render(<ProfileLeaguePlate leagueId="silver" level={12} progress={0.5} streak={4} t={t} tFallback={tf} fmtNumber={fmt} />);
+    const plate = screen.getByTestId('profile-league-plate');
+    expect(plate.style.background).toBe('rgb(192, 192, 192)');
+    expect(screen.getByText('Silver League')).toBeTruthy();
+    expect(screen.getByText('Lv. 12')).toBeTruthy();
+    expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('50');
   });
 
-  it('renders nothing at all when every cell is empty', () => {
-    const { container } = render(<ProfileScoreboard cells={[false, null]} />);
-    expect(container.firstChild).toBeNull();
+  it('drops the streak when there is none rather than printing a zero', () => {
+    render(<ProfileLeaguePlate leagueId="bronze" level={3} progress={0} streak={0} t={t} tFallback={tf} fmtNumber={fmt} />);
+    expect(screen.queryByText('Streak')).toBeNull();
+  });
+
+  it('falls back to a neutral plate when the league is unknown', () => {
+    render(<ProfileLeaguePlate leagueId={null} level={3} progress={0.2} streak={1} t={t} tFallback={tf} fmtNumber={fmt} />);
+    expect(screen.getByTestId('profile-league-plate').style.background).toBe('hsl(var(--secondary))');
+    expect(screen.getByText('League')).toBeTruthy();
+  });
+
+  it('is a button only when it can open the standings', () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(<ProfileLeaguePlate leagueId="gold" level={3} progress={0} streak={0} t={t} tFallback={tf} fmtNumber={fmt} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    rerender(<ProfileLeaguePlate leagueId="gold" level={3} progress={0} streak={0} onOpenLeague={onOpen} t={t} tFallback={tf} fmtNumber={fmt} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open league standings' }));
+    expect(onOpen).toHaveBeenCalled();
   });
 });
 
