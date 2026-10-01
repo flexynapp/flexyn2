@@ -1,7 +1,7 @@
 // src/lib/data/leaguePoints.js
 //
 // League points are the weekly XP a bracket ranks on after training days.
-// Everything here is credited by the SERVER (migration 20261001140000) from
+// Everything here is credited by the SERVER (migration 20261001170000) from
 // rows it can read; the client only asks it to look.
 //
 //   syncMyLoggingPoints()  photo meals, barcode meals and the daily water

@@ -109,7 +109,7 @@ export const MAX_LEVEL = LEVEL_CONFIG.MAX_LEVEL;
 // ── Flat XP rewards for non-workout actions ───────────────────────────────────
 export const XP_REWARDS = {
   // Water pays nothing per glass. The server pays league points once a day
-  // at the water goal (sync_my_logging_points, migration 20261001140000).
+  // at the water goal (sync_my_logging_points, migration 20261001170000).
 
   // Goals
   goalCompleted: 100,       // completing any active goal (up from 75)
@@ -266,7 +266,7 @@ export function calculateTotalVolume(exercises) {
 //     regimen_created 200 · comeback_bonus 200 · crew_xp_fuel 100
 //     recipe_created 75 · meal_logged 30 · anything unclassified 0
 //
-//   sync_my_logging_points (migration 20261001140000) — league points the
+//   sync_my_logging_points (migration 20261001170000) — league points the
 //     server derives from saved rows: photo_meal 30 · barcode_meal 20 ·
 //     water_goal_met 20 (water pays only at the goal, never per glass);
 //     bounty_completed 100 and league_quest 600 are paid by their own RPCs.
