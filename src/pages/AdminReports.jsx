@@ -22,7 +22,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug, Apple, ScanBarcode } from 'lucide-react';
+import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug, Apple, ScanBarcode, UserX } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
@@ -69,6 +69,20 @@ const REASON_LABEL = {
   inappropriate: 'Inappropriate',
   impersonation: 'Impersonation',
   other:         'Other',
+  cheating:      'Impossible numbers',
+  fake_activity: 'Fake activity',
+};
+
+// Where a player report was filed from (hub_reports.context).
+const CONTEXT_LABEL = {
+  league:       'League bracket',
+  leaderboard:  'Leaderboard',
+  duel:         'Duel',
+  gym_rival:    'Gym Rival',
+  cardio_rival: 'Cardio Rival',
+  crew_war:     'Crew War',
+  gym:          'Gym board',
+  profile:      'Profile',
 };
 
 export default function AdminReports() {
@@ -76,12 +90,15 @@ export default function AdminReports() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [reportKind, setReportKind] = useState('content'); // 'content' | 'bug' | 'food'
+  const [reportKind, setReportKind] = useState('player'); // 'player' | 'content' | 'bug' | 'food'
   const [activeTab, setActiveTab] = useState('pending');
   const isAdmin = isAppAdmin(user);
   const isBug  = reportKind === 'bug';
   const isFood = reportKind === 'food';
-  const TABS = isFood ? FOOD_TABS : isBug ? BUG_TABS : CONTENT_TABS;
+  const isPlayer = reportKind === 'player';
+  // A player report has no content to remove, so it is reviewed or
+  // dismissed, never "actioned" (the server refuses it too).
+  const TABS = isFood ? FOOD_TABS : (isBug || isPlayer) ? BUG_TABS : CONTENT_TABS;
 
   // Hooks must run on every render — the !isAdmin early-return is
   // placed AFTER all hooks below to honor the rules-of-hooks.
@@ -94,7 +111,7 @@ export default function AdminReports() {
       ? listFoodItemRequests({ status: activeTab })
       : isBug
         ? listBugReports({ status: activeTab })
-        : listReports({ status: activeTab }),
+        : listReports({ status: activeTab, kind: reportKind === 'player' ? 'user' : 'content' }),
     enabled:  !!user?.id && isAdmin,
     staleTime: 15_000,
   });
@@ -240,6 +257,7 @@ export default function AdminReports() {
       {/* Kind switch — content reports vs user bug reports (mig 144). */}
       <div className="flex gap-1 mb-4 rounded-lg bg-secondary/50 p-1 w-fit">
         {[
+          { id: 'player',  label: 'Players', Icon: UserX },
           { id: 'content', label: 'Content', Icon: ShieldAlert },
           { id: 'bug',     label: 'Bug reports', Icon: Bug },
           { id: 'food',    label: 'Food requests', Icon: Apple },
@@ -315,6 +333,17 @@ export default function AdminReports() {
                     isPending={activeTab === 'pending'}
                     busy={bugResolveMut.isPending}
                     onResolve={(status) => bugResolveMut.mutate({ id: r.id, status })}
+                  />
+                ))
+              : isPlayer
+              ? reports.map(r => (
+                  <PlayerReportRow
+                    key={r.id}
+                    report={r}
+                    isPending={activeTab === 'pending'}
+                    busy={resolveMut.isPending}
+                    onResolve={(action) => resolveMut.mutate({ id: r.id, action })}
+                    onOpenProfile={() => navigate(`/hub?profile=${encodeURIComponent(r.reported_id)}`)}
                   />
                 ))
               : reports.map(r => (
@@ -428,6 +457,71 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
             <X className="w-3.5 h-3.5" /> {tFallback("discovery.dismiss", "Dismiss")}
+          </button>
+        </div>
+      )}
+    </motion.li>
+  );
+}
+
+// A report about a PLAYER (suspected cheating, fake sessions, harassment).
+// The row carries what a reviewer needs to judge it without leaving the
+// page: where it was filed, the reporter's note, and the player's last 30
+// days (sessions, and how many the plausibility check flagged), plus how
+// many different people have reported them.
+function PlayerReportRow({ report, isPending, busy, onResolve, onOpenProfile }) {
+  const { tFallback } = useLanguage();
+  const name = report.reported_username ? `@${report.reported_username}` : 'Unknown player';
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2 }}
+      className="border border-border rounded-xl p-4 bg-card"
+    >
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+          <UserX className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <button type="button" onClick={onOpenProfile} className="font-heading font-bold text-sm underline-offset-2 hover:underline">
+            {name}
+          </button>
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            <span className="text-micro font-bold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+              {REASON_LABEL[report.reason] || report.reason}
+            </span>
+            {report.context && (
+              <span className="text-micro font-bold px-1.5 py-0.5 rounded bg-secondary">
+                {CONTEXT_LABEL[report.context] || report.context}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">by {report.reporter_email}</span>
+          </div>
+          {report.detail && <p className="text-sm text-foreground mt-2">{report.detail}</p>}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground mb-3">
+        {`Last 30 days: ${report.sessions_30d ?? 0} sessions, ${report.flagged_30d ?? 0} flagged as implausible. Reported by ${report.reports_against ?? 1} ${(report.reports_against ?? 1) === 1 ? 'person' : 'people'}.`}
+      </p>
+
+      {isPending && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onResolve('reviewed')}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
+          >
+            <Check className="w-3.5 h-3.5" /> {tFallback('adminReports.markReviewed', 'Mark reviewed')}
+          </button>
+          <button
+            onClick={() => onResolve('dismissed')}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
+          >
+            <X className="w-3.5 h-3.5" /> {tFallback('discovery.dismiss', 'Dismiss')}
           </button>
         </div>
       )}

@@ -21,10 +21,13 @@ import { supabase } from '@/api/supabaseClient';
  *   content_snippet: string|null, created_at: string,
  * }>>}
  */
-export async function listReports({ status = 'pending', limit = 50 } = {}) {
+export async function listReports({ status = 'pending', limit = 50, kind = null } = {}) {
+  // kind: 'user' = player reports, 'content' = posts/comments/stories,
+  // null = everything.
   const { data, error } = await supabase.rpc('list_reports_for_admin', {
     p_status: status,
     p_limit:  limit,
+    p_kind:   kind,
   });
   if (error) throw error;
   return data || [];
