@@ -1451,7 +1451,7 @@ export default function Workout() {
 
       // League weekly XP — non-blocking
       leagues.recordWeeklyXp(user, xpGained)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
+        .then(() => { ['myLeague', 'myLeagueStrength', 'heroLeague'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k, user?.id] })); })
         .catch(() => {});
 
       // Crew War contribution — one call, no arguments, no client numbers.

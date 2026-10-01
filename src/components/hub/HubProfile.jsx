@@ -1213,7 +1213,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Live contests — self only; there's no server surface exposing another
   // user's rival pairing or their crew's war, and adding one is a privacy
   // decision, not a UI one.
-  const { league: heroLeague, rival: heroRival, war: heroWar } = useHeroContests({ user, isSelf });
+  const { league: heroContestLeague, rival: heroRival, war: heroWar } = useHeroContests({ user, isSelf });
+  // No league before your first workout, so no tier colour and no row.
+  const leagueUnrevealed = !!heroContestLeague?.unrevealed;
+  const heroLeague = leagueUnrevealed ? null : heroContestLeague;
 
   // Easter eggs, keyed on the account id (see verifiedUsers.js).
   const isVerifiedUser = isVerified(targetId);
@@ -1270,7 +1273,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // account: zero followers, "Nothing posted yet", no trophies. Say what it
   // is instead of implying there is nothing there.
   const isHiddenPrivate = !isSelf && targetProfile?.is_private === true && targetProfile.total_xp == null;
-  const plateLeagueId = isSelf ? (heroLeague?.tierId ?? user?.league_tier ?? null) : (targetProfile?.league_tier ?? null);
+  const plateLeagueId = isSelf
+    ? (leagueUnrevealed ? null : (heroLeague?.tierId ?? user?.league_tier ?? null))
+    : (targetProfile?.league_tier ?? null);
   const levelProgress = Number.isFinite(xpNeeded) && xpNeeded > 0 ? xpInLevel / xpNeeded : 0;
 
   // Deleted / reset accounts have username starting with "deleted_".

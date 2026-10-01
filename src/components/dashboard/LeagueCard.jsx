@@ -6,6 +6,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { ChevronRight, Dumbbell, Globe } from 'lucide-react';
@@ -34,6 +35,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -81,6 +83,40 @@ export default function LeagueCard({ onClick, stretch = false }) {
 
   if (isLoading) {
     return <Skeleton className="h-28 rounded-lg" />;
+  }
+
+  // Not placed yet. The league is decided by the first completed workout
+  // (Kegan, 2026-10-01), so until then the card says how to get one and
+  // leads to the workout page instead of the standings.
+  if (data?.unrevealed) {
+    return (
+      <motion.button
+        onClick={() => navigate('/workout')}
+        whileTap={{ scale: 0.985 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+        className={`block w-full text-start ${stretch ? 'h-full' : ''}`}
+        data-testid="league-card-unrevealed"
+      >
+        <Card className={`overflow-hidden border-border/60 theme-card-accent flex flex-col ${stretch ? 'h-full' : ''}`}>
+          <div className={`relative ${stretch ? 'flex-1' : ''} px-3 py-2.5 flex items-center`}>
+            <div className="flex items-center gap-2.5 w-full cq-stack">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-hidden="true">
+                <Dumbbell className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-bold text-sm leading-tight truncate">
+                  {tFallback('league.unrevealed.title', 'Your league')}
+                </p>
+                <p className="text-caption text-muted-foreground leading-snug">
+                  {tFallback('league.unrevealed.body', 'Finish your first workout to get placed')}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
+            </div>
+          </div>
+        </Card>
+      </motion.button>
+    );
   }
 
   // Defensive: bail if data is missing or any required field is absent.
