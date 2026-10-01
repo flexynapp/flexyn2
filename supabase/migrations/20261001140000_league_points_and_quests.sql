@@ -39,6 +39,17 @@
 ------------------------------------------------------------------------------
 -- 1. Daily caps for the new sources
 ------------------------------------------------------------------------------
+-- The ledger only accepts listed action types. Widened, never narrowed:
+-- 'water_logged' stays for the rows already in it.
+ALTER TABLE public.action_xp_ledger DROP CONSTRAINT IF EXISTS action_xp_ledger_action_type_allowed;
+ALTER TABLE public.action_xp_ledger ADD CONSTRAINT action_xp_ledger_action_type_allowed
+  CHECK (action_type = ANY (ARRAY[
+    'workout_completed', 'cardio_completed', 'comeback_bonus', 'water_logged',
+    'meal_logged', 'recipe_created', 'regimen_created', 'goal_completed',
+    'crew_xp_fuel', 'daily_quest', 'quest_perfect_day',
+    'photo_meal', 'barcode_meal', 'water_goal_met', 'bounty_completed', 'league_quest'
+  ]::text[]));
+
 -- The installed body (pg_get_functiondef, 2026-10-01) with five caps added.
 CREATE OR REPLACE FUNCTION public.grant_action_xp_internal(p_action_type text, p_xp integer)
  RETURNS integer
