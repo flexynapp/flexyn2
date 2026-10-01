@@ -1,8 +1,11 @@
 // src/components/market/BundleCard.jsx
 // Shows all sale-type listings in a bundle as a grouped row with a
-// discount badge. "Buy Bundle" fires the purchase_bundle RPC (mig 134).
+// discount badge. "Buy bundle" arms a confirm step, the same two-tap shape
+// as a single listing's Buy in ItemDetailSheet, and only the second tap
+// fires the purchase_bundle RPC (mig 134).
 // Split out of MarketplaceFeed.jsx.
 
+import { Fragment, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Lock } from 'lucide-react';
 import { displayName } from '@/lib/userDisplay';
@@ -34,6 +37,21 @@ export function bundlePrice(bundle, rows) {
   return { total, price: Math.max(1, Math.round(total * (1 - bundle.discount_pct / 100))) };
 }
 
+/**
+ * Render a translated template whose {tokens} are React nodes rather than
+ * strings, so a coin amount keeps its glyph inside a sentence whose word
+ * order belongs to the locale. tFallback is called WITHOUT vars, which
+ * leaves the {tokens} in place for this to split on.
+ */
+function withNodes(template, nodes) {
+  return String(template).split(/(\{\w+\})/).map((part, i) => {
+    const m = /^\{(\w+)\}$/.exec(part);
+    return m && m[1] in nodes
+      ? <Fragment key={i}>{nodes[m[1]]}</Fragment>
+      : part;
+  });
+}
+
 export default function BundleCard({
   bundle, listings, currentUser, flexCoins, onBuyBundle, onCancelBundle,
 }) {
@@ -50,6 +68,22 @@ export default function BundleCard({
   const { total: totalPrice, price: discountedPrice } = bundlePrice(bundle, listings);
   const savings = totalPrice - discountedPrice;
   const canAfford = flexCoins >= discountedPrice;
+  // 'idle' → 'confirm', mirroring ItemDetailSheet's Buy → Confirm. Spending
+  // coins on one tap was the only purchase in the app without a second
+  // look. onBuyBundle resolves true on success, at which point the bundle
+  // leaves the feed and this card unmounts; on failure it drops back to idle.
+  const [step, setStep] = useState('idle');
+  const [busy, setBusy] = useState(false);
+
+  const buy = async () => {
+    if (!canAfford) return;
+    if (step === 'idle') { setStep('confirm'); return; }
+    if (busy) return;
+    setBusy(true);
+    const ok = await onBuyBundle(bundle, listings, discountedPrice);
+    setBusy(false);
+    if (!ok) setStep('idle');
+  };
 
   return (
     <motion.div
@@ -61,7 +95,7 @@ export default function BundleCard({
     >
       {/* Bundle badge */}
       <div className="absolute top-3 end-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-micro font-extrabold uppercase tracking-wide">
-        <Package className="w-3 h-3" /> Bundle · {bundle.discount_pct}% off
+        <Package className="w-3 h-3" /> {tFallback('bundleCard.badge', 'Bundle · {pct}% off', { pct: bundle.discount_pct })}
       </div>
 
       <div>
@@ -74,7 +108,11 @@ export default function BundleCard({
               field it checks and every bundle on the page read "by Athlete".
               Since mig 320 the sold set is restricted to the bundle owner's
               own listings, so any of them carries the right name. */}
-          by {displayName(saleListings[0] ?? bundle)} · {saleListings.length} item{saleListings.length === 1 ? '' : 's'}
+          {tFallback(
+            saleListings.length === 1 ? 'bundleCard.byline_one' : 'bundleCard.byline_other',
+            saleListings.length === 1 ? 'by {name} · {n} item' : 'by {name} · {n} items',
+            { name: displayName(saleListings[0] ?? bundle), n: fmt(saleListings.length) },
+          )}
         </p>
       </div>
 
@@ -98,7 +136,7 @@ export default function BundleCard({
           <CoinAmount value={discountedPrice} />
         </span>
         <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-          Save {fmt(savings)}
+          {tFallback('bundleCard.save', 'Save {n}', { n: fmt(savings) })}
         </span>
       </div>
 
@@ -110,8 +148,10 @@ export default function BundleCard({
            out, since bundling is otherwise irreversible from the UI. */
         <div className="flex flex-col gap-2">
           <p className="text-micro text-muted-foreground">
-            Your bundle · you receive <CoinAmount value={discountedPrice} /> of the{' '}
-            <CoinAmount value={totalPrice} /> listed
+            {withNodes(
+              tFallback('bundleCard.yourBundle', 'Your bundle · you receive {price} of the {total} listed'),
+              { price: <CoinAmount value={discountedPrice} />, total: <CoinAmount value={totalPrice} /> },
+            )}
           </p>
           {onCancelBundle && (
             <button
@@ -123,19 +163,48 @@ export default function BundleCard({
           )}
         </div>
       ) : (
-        <button
-          onClick={() => onBuyBundle(bundle, listings, discountedPrice)}
-          disabled={!canAfford}
-          className={[
-            'w-full py-2 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5',
-            canAfford
-              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 active:bg-amber-500/30'
-              : 'bg-secondary text-muted-foreground border border-border cursor-not-allowed',
-          ].join(' ')}
-        >
-          {!canAfford && <Lock className="w-3.5 h-3.5" />}
-          Buy bundle · <CoinAmount value={discountedPrice} />
-        </button>
+        <div className="flex flex-col gap-2">
+          {step === 'confirm' && (
+            <div className="flex justify-between text-micro">
+              <span className="text-muted-foreground">
+                {tFallback('itemDetail.afterThis', 'After this you have')}
+              </span>
+              <span className="font-semibold">
+                <CoinAmount value={flexCoins - discountedPrice} />
+              </span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={buy}
+            disabled={!canAfford || busy}
+            aria-busy={busy}
+            className={[
+              'w-full py-2 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5',
+              canAfford
+                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 active:bg-amber-500/30'
+                : 'bg-secondary text-muted-foreground border border-border cursor-not-allowed',
+            ].join(' ')}
+          >
+            {!canAfford && <Lock className="w-3.5 h-3.5" />}
+            {step === 'confirm'
+              ? tFallback('itemDetail.confirm', 'Confirm {price}', { price: fmt(discountedPrice) })
+              : withNodes(
+                  tFallback('bundleCard.buyBundle', 'Buy bundle · {price}'),
+                  { price: <CoinAmount value={discountedPrice} /> },
+                )}
+          </button>
+          {step === 'confirm' && (
+            <button
+              type="button"
+              onClick={() => setStep('idle')}
+              disabled={busy}
+              className="w-full py-1.5 text-sm font-semibold text-muted-foreground"
+            >
+              {tFallback('common.cancel', 'Cancel')}
+            </button>
+          )}
+        </div>
       )}
     </motion.div>
   );

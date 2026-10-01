@@ -75,12 +75,19 @@ function ReorderableWidget({ widgetId, logs, cardioLogs, goals, isLoading, editi
   );
 }
 
-export default function DashboardWidgets({ logs, cardioLogs = [], goals, isLoading, userProfile }) {
+export default function DashboardWidgets({ logs, cardioLogs = [], goals, isLoading, userProfile, libraryRequest = 0 }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [activeWidgets, setActiveWidgets] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Today's Widgets quick-action tile bumps `libraryRequest` to open the
+  // library from outside. 0 is "never asked", so a plain mount stays closed;
+  // a mount that arrives already asked (the section was hidden until the
+  // tap restored it, and this chunk is lazy) opens on its first effect.
+  useEffect(() => {
+    if (libraryRequest > 0) setLibraryOpen(true);
+  }, [libraryRequest]);
   // Pins the userId the authoritative load settled for. Guards the save
   // effect (never write User A's state under User B's key on an account
   // switch) and the load effect (don't clobber in-session edits once the

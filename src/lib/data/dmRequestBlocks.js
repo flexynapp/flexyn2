@@ -25,10 +25,18 @@ import { safeSelect } from '@/api/safeSelect';
  * The current user's quiet request blocks, newest first.
  * Returns [] on a pre-234 host (table missing) so Settings just hides
  * the section instead of erroring.
+ *
+ * `blocked_id` is what Settings names the row by (resolved to a live
+ * @username through public_profiles, by id). The table was built keyed on
+ * email only and, as of 2026-09-30, has no id column at all, which is why
+ * every row read "an account": public_profiles has no email column to
+ * match on, by design. The column is asked for anyway and safeSelect strips
+ * it while it is absent, so the rows name themselves the moment the
+ * migration that adds it lands, with no client release in between.
  */
 export async function listMyRequestBlocks() {
   const { data, error } = await safeSelect({
-    columns: ['blocked_email', 'created_at'],
+    columns: ['blocked_email', 'blocked_id', 'created_at'],
     build: (cols) => supabase
       .from('dm_request_blocks')
       .select(cols)

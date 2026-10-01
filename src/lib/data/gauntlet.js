@@ -93,32 +93,17 @@ export async function completeGauntletChallenge(sequenceNumber, workoutLogId = n
 // ── Global stats for a specific challenge ────────────────────────────────────
 
 /**
- * Returns { total_attempts, completions, completion_rate_pct, user_rank }
- * for the given sequence number. Used on the completion stats modal.
+ * Community numbers for one path challenge, for the completion popup:
+ * { attempt_count, completion_count, completion_rate_pct, user_rank }.
+ * Counted on the server, because the progress and completion tables are
+ * readable only for your own rows, so a client count was always 0 or 1.
  */
 export async function getGauntletStats(sequenceNumber) {
-  // Total users who have ever reached or passed this challenge
-  const { count: totalUsers, error: e1 } = await supabase
-    .from('user_gauntlet_progress')
-    .select('*', { count: 'exact', head: true });
-  if (e1) throw e1;
-
-  // How many completed this specific sequence
-  const { count: completions, error: e2 } = await supabase
-    .from('user_gauntlet_completions')
-    .select('*', { count: 'exact', head: true })
-    .eq('sequence_number', sequenceNumber);
-  if (e2) throw e2;
-
-  const total = totalUsers ?? 1;
-  const done  = completions ?? 0;
-  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  return {
-    total_attempts:       total,
-    completions:          done,
-    completion_rate_pct:  pct,
-  };
+  const { data, error } = await supabase.rpc('get_gauntlet_challenge_stats', {
+    p_sequence: sequenceNumber,
+  });
+  if (error) throw error;
+  return data;
 }
 
 // ── Weekly Community Gauntlet ─────────────────────────────────────────────────
@@ -182,7 +167,7 @@ export async function completeCommunityGauntletAttempt(gauntletId, score, workou
   // Fetch the gauntlet to check threshold
   const { data: gauntlet, error: ge } = await supabase
     .from('weekly_gauntlets')
-    .select('passing_threshold, attempt_count, completion_count')
+    .select('passing_threshold')
     .eq('id', gauntletId)
     .single();
   if (ge) throw ge;
@@ -204,24 +189,10 @@ export async function completeCommunityGauntletAttempt(gauntletId, score, workou
     .single();
   if (ae) throw ae;
 
-  // Increment counts on the parent gauntlet. Non-blocking: an RLS deny or
-  // network blip on the counter bump shouldn't drop the attempt row that
-  // just succeeded — but silent failures will skew the leaderboard, so
-  // surface them via the reportError pipeline rather than swallowing.
-  const { error: counterErr } = await supabase
-    .from('weekly_gauntlets')
-    .update({
-      attempt_count:    (gauntlet.attempt_count ?? 0) + 1,
-      completion_count: passed ? (gauntlet.completion_count ?? 0) + 1 : gauntlet.completion_count,
-    })
-    .eq('id', gauntletId);
-  if (counterErr) {
-    // Lazy import to avoid a circular dep — reportError pulls Sentry which
-    // pulls things that pull this module on hot reload in dev.
-    import('@/lib/reportError').then(({ reportError }) => {
-      reportError(counterErr, { feature: 'gauntlet.weekly-counter-bump', level: 'warning' });
-    }).catch(() => { /* reporter unavailable — best-effort */ });
-  }
+  // weekly_gauntlets.attempt_count / completion_count are derived by a
+  // trigger on weekly_gauntlet_attempts. The table has no client UPDATE
+  // policy, so a bump from here matched zero rows and the counters never
+  // moved.
 
   return attempt;
 }

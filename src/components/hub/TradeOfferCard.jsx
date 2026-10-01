@@ -178,7 +178,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           ? tFallback('trade.accepted', 'Traded! Check your bag.')
           : tFallback('trade.declined', 'Offer declined.'));
       } catch (err) {
-        toast.error(tradeOffers.tradeErrorMessage(err));
+        toast.error(tradeOffers.tradeErrorMessage(err, tFallback));
         // Re-read: the failure usually means the offer is no longer
         // pending, and the card should stop offering buttons for it.
         qc.invalidateQueries({ queryKey: ['tradeOffer', payload.offerId] });

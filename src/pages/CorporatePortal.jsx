@@ -115,38 +115,47 @@ export default function CorporatePortal() {
     }
   };
 
+  // The server's rule (trigger enforce_last_admin_leave on
+  // organization_members): an admin may not leave while they are the ONLY
+  // admin AND anyone else is still a member. A sole admin who is also the
+  // sole member may leave. This guard mirrors that rule so the message
+  // arrives before the confirm dialog; the trigger is the enforcement.
+  //
+  // The message used to say "promote another member first, or delete the
+  // organization in Settings". Neither exists: there is no promote control
+  // and no RPC or UPDATE policy behind one, and Settings has no
+  // organization section. So it states the rule and says plainly that
+  // handing admin over is not in the app yet. (Audit 2026-09-30.)
+  const soleAdminMessage = () => tFallback(
+    'corporatePortal.soleAdminBlocked',
+    'You are the only admin of {name}, so you can’t leave while it has other members. Handing admin to someone else isn’t available in the app yet.',
+    { name: activeOrg?.name || '' },
+  );
+
   const handleLeave = async () => {
     if (!activeOrg) return;
-    // Last-admin guard. The CASCADE on the FK + RLS happily let the
-    // sole admin DELETE their membership row, orphaning every other
-    // member of the org with no path back to admin. We block the
-    // self-leave for sole admins with a clear path forward: transfer
-    // (TBD product decision) or delete the entire org instead.
-    // (Audit 12 #23.)
     if (isAdmin) {
       try {
         const { data, error } = await supabase
           .from('organization_members')
-          .select('user_id', { count: 'exact', head: false })
-          .eq('org_id', activeOrg.id)
-          .eq('role', 'admin');
-        const adminCount = error ? null : (data || []).length;
-        if (adminCount === 1) {
-          toast.error(tFallback(
-            'corporatePortal.onlyAdmin',
-            'You are the only admin. Promote another member first, or delete the organization in Settings.',
-          ));
-          return;
+          .select('role')
+          .eq('org_id', activeOrg.id);
+        if (!error && Array.isArray(data)) {
+          const admins = data.filter(m => m.role === 'admin').length;
+          if (admins <= 1 && data.length > 1) {
+            toast.error(soleAdminMessage());
+            return;
+          }
         }
       } catch {
-        // Network failure on the guard — fall through to the delete
-        // attempt; the RPC/RLS will still cascade-protect data even
-        // if our guard couldn't confirm.
+        // Network failure on the guard: fall through. The trigger still
+        // refuses the delete, and the error branch below names the rule.
       }
     }
     if (!confirm(tFallback('corporatePortal.confirmLeave', 'Leave {name}?', { name: activeOrg.name }))) return;
     const res = await leaveOrganization(activeOrg.id, user.id);
     if (res.ok) { toast.success(tFallback('corporatePortal.left', 'Left organization.')); setSelectedId(null); refresh(); }
+    else if (/last_admin_cannot_leave/.test(res.error || '')) toast.error(soleAdminMessage());
     else toast.error(tFallback('corporatePortal.leaveFailed', 'Could not leave. Try again.'));
   };
 

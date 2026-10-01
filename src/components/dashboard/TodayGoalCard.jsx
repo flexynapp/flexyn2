@@ -20,12 +20,13 @@ import { Target, Plus } from 'lucide-react';
 import useCountUp from '@/hooks/useCountUp';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { summarizeGoalTarget } from '@/lib/goalSummary';
-import { goalProgress } from '@/lib/goalProgress';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
+import { goalProgress, goalTitle, goalTargetLabel } from '@/lib/goalProgress';
 
 export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], onOpen, onCreate }) {
-  const { tFallback } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
 
   const view = useMemo(() => {
     const active = goals.filter(g => g.status === 'active');
@@ -80,6 +81,11 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
     ? tFallback('today.goal.pct', '{n}%', { n: shownPct })
     : tFallback('today.goal.notStarted', 'Not started');
   const others = view.count - 1;
+  // Named the way the Goals page names it: the activity through its key
+  // ("Running", not the stored slug "running") and the target in the
+  // reader's units (5 km or 3.1 mi, never the stored 5000m).
+  const name = goalTitle(goal, { t, tFallback }) || tFallback('widgets.aGoal', 'Goal');
+  const target = goalTargetLabel(goal, { tFallback, weightUnit, distanceUnit });
 
   return (
     <div className="flex items-center gap-3 px-4 border-t border-border min-h-[52px]">
@@ -93,7 +99,8 @@ export default function TodayGoalCard({ goals = [], logs = [], cardioLogs = [], 
         <span className="flex-1 min-w-0 flex flex-col gap-1.5">
           <span className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold text-foreground truncate">
-              {summarizeGoalTarget(goal, weightUnit)}
+              {name}
+              {target && <span className="font-normal text-muted-foreground"> {target}</span>}
             </span>
             <span className={`text-xs font-semibold tabular-nums shrink-0 ${hit ? 'text-success' : pct > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
               {status}

@@ -84,8 +84,10 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
       await fn();
       toast.success(successMsg);
       qc.invalidateQueries({ queryKey: ['crewMembers', crewId] });
-    } catch {
-      toast.error(tFallback('crewMembers.actionFailed', 'Action failed. Try again.'));
+    } catch (err) {
+      // A step can throw a message meant for the user (ban explains why it
+      // was refused); anything else gets the generic line.
+      toast.error(err?.userMessage || tFallback('crewMembers.actionFailed', 'Action failed. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -94,7 +96,9 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
   const setRole = (role) =>
     doAction(
       () => crewsData.setMemberRole(crewId, member.user_id, role),
-      role === 'moderator' ? 'Promoted to Moderator!' : 'Role updated.'
+      role === 'moderator'
+        ? tFallback('crewMemberDirectory.promotedToModerator', 'Promoted to Moderator!')
+        : tFallback('crewMemberDirectory.roleUpdated', 'Role updated.')
     );
 
   return (
@@ -166,7 +170,7 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
               {mayRemove && <button
                 onClick={() => doAction(
                   () => crewsData.removeMember(crewId, member.user_id),
-                  'Member removed.'
+                  tFallback('crewMemberDirectory.memberRemoved', 'Member removed.')
                 )}
                 className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
                 title={tFallback("crewMemberDirectory.removeFromCrew", "Remove from crew")}
@@ -181,12 +185,13 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
               {mayHandOver && <button
                 onClick={() => {
                   if (!window.confirm(
-                    `Make ${username} the leader of this crew?\n\n`
-                    + `You become a Member. Only they will be able to hand it back.`
+                    tFallback('crewMemberDirectory.confirmTransfer', 'Make {name} the leader of this crew?', { name: username })
+                    + '\n\n'
+                    + tFallback('crewMemberDirectory.confirmTransferNote', 'You become a Member. Only they will be able to hand it back.')
                   )) return;
                   doAction(
                     () => crewsData.transferLeadership(crewId, member.user_id),
-                    `${username} now leads the crew.`,
+                    tFallback('crewMemberDirectory.nowLeads', '{name} now leads the crew.', { name: username }),
                   );
                 }}
                 className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-primary/70 hover:text-primary active:text-primary transition-colors"
@@ -197,15 +202,17 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
 
               {mayBan && <button
                 onClick={() => {
-                  if (!window.confirm(`Ban ${username}? They'll be removed and can't rejoin.`)) return;
+                  if (!window.confirm(tFallback('crewMemberDirectory.confirmBan', "Ban {name}? They'll be removed and can't rejoin.", { name: username }))) return;
                   doAction(async () => {
                     const res = await banMember(crewId, member.user_id);
                     if (!res?.ok) {
-                      throw new Error(res?.reason === 'target_is_leader'
-                        ? 'Demote them first.'
-                        : 'Could not ban.');
+                      const err = new Error(res?.reason || 'ban_failed');
+                      err.userMessage = res?.reason === 'target_is_leader'
+                        ? tFallback('crewMemberDirectory.demoteFirst', 'Demote them first.')
+                        : tFallback('crewMemberDirectory.couldNotBan', 'Could not ban.');
+                      throw err;
                     }
-                  }, `${username} was banned.`);
+                  }, tFallback('crewMemberDirectory.wasBanned', '{name} was banned.', { name: username }));
                 }}
                 className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
                 title={tFallback("crewMemberDirectory.banFromCrew", "Ban from crew")}

@@ -360,6 +360,16 @@ describe('ProfileLeaguePlate', () => {
     expect(screen.queryByText('Streak')).toBeNull();
   });
 
+  it('sizes itself explicitly, so the tappable plate is not zero wide', () => {
+    // As a button with only absolutely positioned children, w-auto shrank
+    // the plate to nothing and the profile showed an empty band.
+    render(<ProfileLeaguePlate leagueId="gold" level={5} progress={0.3} streak={1} onOpenLeague={() => {}} t={t} tFallback={tf} fmtNumber={fmt} />);
+    const plate = screen.getByTestId('profile-league-plate');
+    expect(plate.tagName).toBe('BUTTON');
+    expect(plate.className).toContain('w-[calc(100%+2rem)]');
+    expect(plate.className).not.toContain('w-auto');
+  });
+
   it('falls back to a neutral plate when the league is unknown', () => {
     render(<ProfileLeaguePlate leagueId={null} level={3} progress={0.2} streak={1} t={t} tFallback={tf} fmtNumber={fmt} />);
     expect(screen.getByTestId('profile-league-plate').style.background).toBe('hsl(var(--secondary))');

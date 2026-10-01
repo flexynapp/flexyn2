@@ -50,13 +50,19 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       return;
     }
     setBusy(true);
+    // Set once create_trade_offer succeeds. From that moment the sticker is
+    // in escrow, so any failure below must pull the offer back: otherwise the
+    // recipient is never told, the sender sees a generic "Trade failed" and
+    // assumes nothing happened, and the sticker stays locked behind an offer
+    // only Trade history can reach.
+    let offerId = null;
     try {
       // Create the REAL offer first. This escrows your item server-side
       // (migration 253) before the recipient ever sees the message, so it
       // can't also be sold or promised to someone else while they decide.
       // If this throws, no DM is sent — the previous flow sent the message
       // first and had nothing behind it either way.
-      const offerId = await tradeOffers.createOffer({
+      offerId = await tradeOffers.createOffer({
         fromInventoryId: selectedOffer.id,
         toInventoryId:   listing.inventory_id,
         listingId:       listing.id,
@@ -121,12 +127,16 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         `For your: ${listing.item_emoji} ${listing.item_name} listed in the Marketplace.`,
         'Accept in the app and the items swap instantly.',
       ].join('\n');
-      await sendMessage({
+      const sent = await sendMessage({
         conversationId: conv.id,
         senderEmail: user.email,
         recipientId: listing.seller_user_id,
         body,
       });
+      // sendMessage returns null WITHOUT throwing when it has nothing to
+      // send from (no senderEmail). That is a delivery failure too, and
+      // treating it as success would announce an offer nobody received.
+      if (!sent) throw new Error('trade_offer_dm_not_sent');
       toast.success(tFallback('tradeOfferDialog.offerSent', 'Trade offer sent. Your item is held until they answer.'));
       onClose();
     } catch (err) {
@@ -134,7 +144,21 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         feature: 'marketplace.trade-offer', level: 'warning',
         userEmail: user?.email, listingId: listing?.id,
       });
-      toast.error(tradeOffers.tradeErrorMessage(err));
+      if (!offerId) {
+        toast.error(tradeOffers.tradeErrorMessage(err, tFallback));
+        return;
+      }
+      // The offer exists and is escrowed, but the DM that tells the seller
+      // about it did not go out. Withdraw it with the same RPC Trade history
+      // uses, which releases the sticker.
+      try {
+        await tradeOffers.cancel(offerId);
+        toast.error(tFallback('tradeOfferDialog.deliveryFailedWithdrawn', "Couldn't deliver your offer, so it was withdrawn and your sticker is free again. Try again."));
+      } catch {
+        // cancel() already reported. Point at the one screen that lists the
+        // offer and can pull it back.
+        toast.error(tFallback('tradeOfferDialog.deliveryFailedHeld', "Couldn't deliver your offer. Open Trade history to pull it back and free your sticker."));
+      }
     } finally {
       setBusy(false);
     }
@@ -170,7 +194,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
 
         <div className="p-5 flex flex-col gap-4">
           <div className="text-sm text-muted-foreground">
-            Offering for:{' '}
+            {tFallback('tradeOfferDialog.offeringFor', 'Offering for:')}{' '}
             <span className="text-foreground font-semibold">
               {listing.item_emoji} {listing.item_name}
             </span>
@@ -221,7 +245,9 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
             disabled={!selectedOffer || busy}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
           >
-            {busy ? 'Sending…' : 'Send Trade Offer via DM'}
+            {busy
+              ? tFallback('tradeOfferDialog.sending', 'Sending…')
+              : tFallback('tradeOfferDialog.sendViaDm', 'Send trade offer by DM')}
           </button>
         </div>
       </motion.div>
