@@ -127,7 +127,7 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
               title={tFallback('league.info.startTitle', 'Where you start')}
               body={tFallback(
                 'league.info.startBody',
-                'Until you have a Strength Score, your onboarding answers pick your first league, up to Silver. Your first real score then replaces that guess, up or down.',
+                'You get your first league when you finish your first workout. Until you have a Strength Score, your onboarding answers pick it, up to Silver. Your first real score then replaces that guess, up or down.',
               )}
             />
             <Rule
