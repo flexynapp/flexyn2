@@ -26,6 +26,7 @@ vi.mock('@/api/supabaseClient', () => ({
         select: (cols) => { _sb.lastSelect = cols; return chain; },
         order: (col, opts) => {
           _sb.lastOrder = { col, opts };
+          if (_sb.onOrder) _sb.onOrder();
           return Promise.resolve({ data: _sb.nextData, error: _sb.nextError });
         },
         delete: () => { _sb.deleteCalled = true; return chain; },
@@ -50,6 +51,7 @@ beforeEach(() => {
   _sb.nextData = [];
   _sb.nextError = null;
   _sb.nextDeleteError = null;
+  _sb.onOrder = null;
 });
 
 describe('listMyRequestBlocks', () => {
@@ -62,6 +64,31 @@ describe('listMyRequestBlocks', () => {
     expect(_sb.lastTable).toBe('dm_request_blocks');
     expect(_sb.lastOrder).toEqual({ col: 'created_at', opts: { ascending: false } });
     expect(rows.map(r => r.blocked_email)).toEqual(['b@x.com', 'a@x.com']);
+  });
+
+  // The row is named by blocked_id (resolved through public_profiles), so
+  // the id has to be asked for. Settings never matches people by email.
+  it('asks for blocked_id so Settings can name the account', async () => {
+    await listMyRequestBlocks();
+    expect(String(_sb.lastSelect)).toMatch(/\bblocked_id\b/);
+  });
+
+  it('still returns rows when blocked_id does not exist yet', async () => {
+    // First read fails on the missing column; safeSelect strips it and retries.
+    let calls = 0;
+    _sb.nextError = { code: '42703', message: 'column dm_request_blocks.blocked_id does not exist' };
+    _sb.nextData = null;
+    _sb.onOrder = () => {
+      calls += 1;
+      if (calls > 1) {
+        _sb.nextError = null;
+        _sb.nextData = [{ blocked_email: 'a@x.com', created_at: 't' }];
+      }
+    };
+    const rows = await listMyRequestBlocks();
+    expect(calls).toBe(2);
+    expect(String(_sb.lastSelect)).not.toMatch(/blocked_id/);
+    expect(rows).toEqual([{ blocked_email: 'a@x.com', created_at: 't' }]);
   });
 
   // RLS is owner-only, so no blocker_email filter is needed or wanted —

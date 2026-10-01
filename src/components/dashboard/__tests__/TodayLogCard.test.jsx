@@ -34,13 +34,17 @@ vi.mock('@/lib/data/logMoodAction', () => ({ logMoodAction: (...a) => logMoodAct
 
 import TodayLogCard, { glassesFor } from '../TodayLogCard';
 
+let lastQc = null;
 function show(props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  lastQc = qc;
+  const ui = (p) => (
     <QueryClientProvider client={qc}>
-      <TodayLogCard readiness={null} onOpenReadiness={vi.fn()} {...props} />
-    </QueryClientProvider>,
+      <TodayLogCard readiness={null} onOpenReadiness={vi.fn()} {...p} />
+    </QueryClientProvider>
   );
+  const r = render(ui(props));
+  return { ...r, rerenderWith: (p = props) => r.rerender(ui(p)) };
 }
 
 beforeEach(() => {
@@ -108,5 +112,32 @@ describe('TodayLogCard', () => {
     });
     expect(await screen.findByText('Everything logged for today')).toBeTruthy();
     expect(screen.getByText('5 of 5')).toBeTruthy();
+  });
+
+  it('keys the steps read by the local date, so a new day is a new cache entry', async () => {
+    stepLog = { steps: 4200 };
+    show();
+    await screen.findByText('4200');
+    const keys = lastQc.getQueryCache().getAll().map(q => q.queryKey);
+    expect(keys).toContainEqual(['stepLogToday', 'u1', '2026-09-27']);
+    expect(keys).not.toContainEqual(['stepLogToday', 'u1']);
+  });
+
+  it('drops an optimistic mood picked before midnight once the day turns', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 8, 27, 23, 59, 30));
+      logMoodAction.mockImplementationOnce(() => new Promise(() => {})); // still saving
+      const { rerenderWith } = show();
+      fireEvent.click(screen.getByRole('button', { name: 'Log mood' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Good' }));
+      expect(screen.getByRole('button', { name: 'Mood logged. Open readiness' })).toBeTruthy();
+
+      vi.setSystemTime(new Date(2026, 8, 28, 0, 0, 30));
+      rerenderWith();
+      expect(screen.getByRole('button', { name: 'Log mood' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
