@@ -21,6 +21,7 @@ import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
+import { getFlexCoins } from '@/lib/data/coinShop';
 import { ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
 import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
@@ -682,8 +683,31 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   const fThemes = q ? themes.filter(nameMatch) : themes;
   const fCapsules = q ? capsuleRows.filter(r => (r?.capsule_type || '').toLowerCase().includes(q)) : capsuleRows;
 
-  // Flex coins from auth user profile
-  const flexCoins = Number(user?.flex_coins ?? 0);
+  // ── Coin balance ────────────────────────────────────────────────────────────
+  // NOT `user.flex_coins` alone. That is AuthContext's bootstrap snapshot and
+  // nothing a sale does re-renders it, so the header kept the pre-sale number
+  // after every sale (audit 2026-09-30). This reads the same ['flexCoins', id]
+  // query the Market and Capsules pages use, and each sale writes the balance
+  // the sell_inventory_item RPC RETURNED into it. Never a client sum: 264's
+  // ledger trigger can clamp a credit, so only the server knows what landed.
+  // Falls back to the snapshot while the query loads, never to 0.
+  const { data: liveCoins } = useQuery({
+    queryKey: ['flexCoins', user?.id],
+    queryFn:  () => getFlexCoins(user.id),
+    enabled:  !!user?.id && open,
+    staleTime: 15_000,
+  });
+  const flexCoins = Number(liveCoins ?? user?.flex_coins ?? 0);
+
+  // Apply a balance the server returned, then refetch to be sure. inventory.
+  // sellItem has already patched the profile cache with the same value.
+  const applyServerBalance = useCallback((newBalance) => {
+    if (!user?.id) return;
+    if (typeof newBalance === 'number' && Number.isFinite(newBalance)) {
+      qc.setQueryData(['flexCoins', user.id], newBalance);
+    }
+    qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
+  }, [qc, user?.id]);
 
   // ── Sell a duplicate ────────────────────────────────────────────────────────
   const handleSell = useCallback(async (inventoryRow) => {
@@ -692,7 +716,8 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     try {
       // The server prices the sale and reports what it actually credited,
       // so the toast shows that number rather than the one on the card.
-      const { coins } = await inventory.sellItem(inventoryRow.id);
+      const { coins, newBalance } = await inventory.sellItem(inventoryRow.id);
+      applyServerBalance(newBalance);
       qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
       toast.success(tFallback('userBag.soldOne', 'Sold {item} for {coins} coins.', { item: inventoryRow.item_name, coins }));
@@ -706,7 +731,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     } finally {
       setSelling(false);
     }
-  }, [user?.id, user?.email, qc, tFallback]);
+  }, [user?.id, user?.email, qc, tFallback, applyServerBalance]);
 
   // ── Sell every duplicate at once ────────────────────────────────────────────
   // The per-card flow is arm-then-confirm, two taps per copy. A user
@@ -741,12 +766,14 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     let sold = 0;
     let earned = 0;
     let capped = false;
+    let lastBalance = null;
     // Sequential on purpose: each sale credits coins, and the daily mint cap
     // is checked per sale. Stop at the cap instead of burning through the
     // rest, every one of which the server would refuse anyway.
     for (const { row } of duplicateSales) {
       try {
-        const { coins } = await inventory.sellItem(row.id);
+        const { coins, newBalance } = await inventory.sellItem(row.id);
+        if (typeof newBalance === 'number') lastBalance = newBalance;
         sold += 1;
         earned += coins;
       } catch (err) {
@@ -754,6 +781,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
         console.warn('[UserBag] bulk sell failed for', row.id, err?.message);
       }
     }
+    applyServerBalance(lastBalance);
     qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
     qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
     setSelling(false);
@@ -767,7 +795,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     } else if (sold < duplicateSales.length) {
       toast.error(tFallback('userBag.someUnsold', '{n} could not be sold. Try again.', { n: duplicateSales.length - sold }));
     }
-  }, [user?.id, user?.email, duplicateSales, qc, tFallback]);
+  }, [user?.id, user?.email, duplicateSales, qc, tFallback, applyServerBalance]);
 
   // ── Capsules grouped by type, for the batch-open bars ───────────────────────
   const capsulesByType = fCapsules.reduce((acc, row) => {

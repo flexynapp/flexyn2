@@ -229,8 +229,10 @@ export default function MarketplaceFeed({ onStartConversation, onOpenCollection 
     return ids;
   }, [bundleMap]);
 
+  // Resolves true on success, false otherwise: BundleCard's confirm step
+  // reads it to decide whether to drop back to idle.
   const handleBuyBundle = useCallback(async (bundle) => {
-    if (!user?.id) return;
+    if (!user?.id) return false;
     try {
       const result = await marketplace.purchaseBundle(bundle.id);
       toast.success(tFallback('marketplaceFeed.bundleBought', 'Bundle bought for {price} coins. The items are in your bag.', { price: result.paid_price }));
@@ -238,6 +240,7 @@ export default function MarketplaceFeed({ onStartConversation, onOpenCollection 
       await qc.invalidateQueries({ queryKey: ['marketplaceBundles'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       await qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
+      return true;
     } catch (err) {
       // Every branch the RPC can raise gets its own line. The two that were
       // missing both landed on "try again", which is advice that cannot
@@ -252,6 +255,7 @@ export default function MarketplaceFeed({ onStartConversation, onOpenCollection 
         : raw.includes('bundle_not_found')        ? tFallback('marketplaceFeed.bundleGone', 'This bundle is no longer available.')
         : tFallback('marketplaceFeed.bundleFailed', 'Could not buy the bundle. Try again.');
       toast.error(msg);
+      return false;
     }
   }, [user?.id, user?.email, qc, tFallback]);
 

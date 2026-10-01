@@ -72,11 +72,17 @@ function invalidationsIn(source) {
 describe('daily-log cards invalidate a key their readers can hear', () => {
   const readerKeys = READERS.flatMap(f => keysIn(read(f)));
 
-  it('has readers subscribing to the 2-element prefix', () => {
+  it('has readers subscribing with the user AND the local date', () => {
     // Guards the test itself: if the readers change shape, the contract below
     // is measuring nothing.
+    //
+    // Three elements, ['k', uid, date]. The date is what makes a Today screen
+    // left open past midnight start the new day empty: with ['k', uid] alone
+    // the key never changed and yesterday's sleep, mood and steps stayed on
+    // screen (audit, 2026-09-30). The writers' 2-element invalidation still
+    // reaches it, which the per-writer cases below check.
     expect(readerKeys.length).toBeGreaterThan(0);
-    for (const k of readerKeys) expect(k.length).toBe(2);
+    for (const k of readerKeys) expect(k.length, k.raw).toBe(3);
   });
 
   for (const file of WRITERS) {

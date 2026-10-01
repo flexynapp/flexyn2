@@ -220,9 +220,13 @@ export default function LeagueCard({ onClick, stretch = false }) {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 >
+                  {/* This is the WEEKLY bracket rank, not the league: the
+                      league comes from the Strength Score. A bare
+                      "Unranked" under "Gold League I" read as having no
+                      league at all, so it names the week. */}
                   {myRank
                     ? `#${myRank}`
-                    : tFallback('league.gate.unranked', 'Unranked')}
+                    : tFallback('league.gate.unranked', 'Not ranked this week')}
                   {myRank && qualifiedCount > 0 && (
                     <span className="text-micro font-normal opacity-75 ms-0.5">/{qualifiedCount}</span>
                   )}
@@ -268,9 +272,12 @@ export default function LeagueCard({ onClick, stretch = false }) {
 
         {/* Strength line: the number that sets the league. */}
         {strengthText && (
-          <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
-            <Dumbbell className="w-2.5 h-2.5 text-muted-foreground shrink-0" aria-hidden="true" />
-            <span className="text-micro text-muted-foreground truncate tabular-nums">
+          <div className={`shrink-0 px-2.5 py-1 border-t border-border/50 flex gap-1.5 min-w-0 ${stretch ? 'items-center' : 'items-start'}`}>
+            <Dumbbell className={`w-2.5 h-2.5 text-muted-foreground shrink-0 ${stretch ? '' : 'mt-[3px]'}`} aria-hidden="true" />
+            {/* Wraps at full width (the level sheet), where the provisional
+                hint is a whole sentence that matters; truncates in the
+                paired half on Today, where the row height is shared. */}
+            <span className={`text-micro text-muted-foreground tabular-nums ${stretch ? 'truncate' : 'leading-snug'}`}>
               {strengthText}
             </span>
           </div>

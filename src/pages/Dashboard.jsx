@@ -550,6 +550,26 @@ export default function Dashboard() {
     });
   };
 
+  // The Widgets quick-action tile. The widget list and its library live in
+  // the 'customize' section, which Today hides by default, so scrolling to
+  // it (all the tile used to do) found nothing and the tap did nothing. The
+  // tile now brings the section back, opens it if collapsed, and asks
+  // DashboardWidgets to open its library. Restoring the section is what lets
+  // a widget added from the library appear anywhere.
+  const [widgetLibraryRequest, setWidgetLibraryRequest] = useState(0);
+  const openWidgetLibrary = () => {
+    if (hiddenSections.has('customize')) restoreSection('customize');
+    if (collapsedSections.has('customize')) toggleCollapsed('customize');
+    setWidgetLibraryRequest((n) => n + 1);
+  };
+  useEffect(() => {
+    if (!widgetLibraryRequest) return;
+    try {
+      document.getElementById('dash-widget-library')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch { /* older WebViews: no-op */ }
+  }, [widgetLibraryRequest]);
+
   // The Readiness sheet — score breakdown AND the sleep / mood / steps
   // loggers. `focus` is which signal to scroll to, set when the user taps a
   // column of the Tonight row rather than the Readiness card itself.
@@ -1595,12 +1615,7 @@ export default function Dashboard() {
           { key: 'addPhoto',      icon: Camera,       label: tFallback('dashboard.addPhotoShort', 'Add photo'),
             onClick: () => setPhotoCaptureOpen(true) },
           { key: 'widgets',       icon: LayoutGrid,   label: tFallback('dashboard.actions.widgets', 'Widgets'),
-            onClick: () => {
-              try {
-                document.getElementById('dash-widget-library')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } catch { /* older WebViews — no-op */ }
-            } },
+            onClick: openWidgetLibrary },
         ];
         return (
           <React.Fragment key="actions">
@@ -1686,7 +1701,7 @@ export default function Dashboard() {
           <SectionLabel label={tFallback('dashboard.section.customize', 'Widget library')} />
           {/* id is the scroll target for the Widgets action tile. */}
           <div id="dash-widget-library">
-            <Suspense fallback={null}><DashboardWidgets logs={logs} cardioLogs={cardioLogs} goals={goals} isLoading={isLoading} userProfile={userProfile} /></Suspense>
+            <Suspense fallback={null}><DashboardWidgets logs={logs} cardioLogs={cardioLogs} goals={goals} isLoading={isLoading} userProfile={userProfile} libraryRequest={widgetLibraryRequest} /></Suspense>
           </div>
         </React.Fragment>
       );

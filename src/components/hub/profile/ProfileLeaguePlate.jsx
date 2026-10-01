@@ -38,7 +38,12 @@ export default function ProfileLeaguePlate({ leagueId, level, progress, streak, 
       onClick={onOpenLeague}
       aria-label={onOpenLeague ? tFallback('profile.openLeague', 'Open league standings') : undefined}
       data-testid="profile-league-plate"
-      className="block w-auto -mx-4 md:-mx-6 relative overflow-hidden text-start"
+      // An explicit width, not w-auto. When the plate is a button (your own
+      // profile, with a league to open) w-auto shrinks it to its content,
+      // and every child here is absolutely positioned, so the button came
+      // out zero pixels wide: 148px of empty space where the plate should
+      // be. The calc is the column plus the two negative margins.
+      className="block w-[calc(100%+2rem)] md:w-[calc(100%+3rem)] -mx-4 md:-mx-6 relative overflow-hidden text-start"
       style={{ height: 148, background: bg, color: ink }}
     >
       <div className="absolute inset-x-4 md:inset-x-6 top-4 flex items-start justify-between gap-4">

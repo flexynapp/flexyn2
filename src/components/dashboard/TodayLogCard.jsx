@@ -34,6 +34,7 @@ import { triggerHaptic } from '@/lib/haptic';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import useCountUp from '@/hooks/useCountUp';
+import { localDateKey } from '@/hooks/useLocalDateKey';
 import { useTodayFuel } from '@/hooks/useTodayFuel';
 import * as nutritionData from '@/lib/data/nutrition';
 import { waterFoodName } from '@/lib/waterEntries';
@@ -60,10 +61,6 @@ export function glassesFor(waterOz, waterGoalOz) {
   return { total, full };
 }
 
-const localDateKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 /** The pill at the end of an unlogged row. A real button, so it is its own tap target. */
 function AddPill({ label, onClick, ariaLabel, expanded }) {
@@ -163,8 +160,10 @@ export default function TodayLogCard({ userProfile = {}, readiness, onOpenReadin
   // ── Sleep, mood, steps ────────────────────────────────────────────
   // Sleep and mood arrive through the Dashboard's useReadiness; steps is the
   // one signal it does not hold, so it is the one query this card adds.
+  // `today` (from useTodayFuel, which rolls over at local midnight) is in the
+  // key, or yesterday's steps stay cached on a screen left open overnight.
   const { data: stepLog } = useQuery({
-    queryKey: ['stepLogToday', user?.id],
+    queryKey: ['stepLogToday', user?.id, today],
     queryFn: getTodayStepLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
@@ -184,14 +183,17 @@ export default function TodayLogCard({ userProfile = {}, readiness, onOpenReadin
 
   // Mood logs in the row. Optimistic, so the choice shows while it saves.
   const [moodOpen, setMoodOpen] = useState(false);
+  // The optimistic pick carries its date, so one made just before midnight
+  // cannot stand in for the new day's mood.
   const [optimisticMood, setOptimisticMood] = useState(null);
-  const mood = optimisticMood ?? serverMood;
+  const mood = (optimisticMood?.date === localDateKey() ? optimisticMood.n : null) ?? serverMood;
   useEffect(() => { if (serverMood != null) setOptimisticMood(null); }, [serverMood]);
   const pickMood = async (n) => {
+    const date = localDateKey();
     setMoodOpen(false);
-    setOptimisticMood(n);
+    setOptimisticMood({ n, date });
     triggerHaptic('primary');
-    const res = await logMoodAction({ user, mood: n, date: localDateKey(), qc, t: tFallback });
+    const res = await logMoodAction({ user, mood: n, date, qc, t: tFallback });
     if (!res.ok) setOptimisticMood(null);
   };
   const moodLabel = (n) => tFallback(`mood.label.${n}`, MOOD_LABELS[n - 1]);

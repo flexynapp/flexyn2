@@ -17,19 +17,24 @@ import { computeRecoveryScore } from '@/lib/recoveryScore';
 import { getTodaySleepLog } from '@/lib/data/sleepLogs';
 import { getTodayMoodLog } from '@/lib/data/moodLogs';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { useLocalDateKey } from '@/hooks/useLocalDateKey';
 
 export function useReadiness(logs = []) {
   const { user } = useAuth();
+  // The local date is in the key so a Today screen left open past midnight
+  // starts the new day empty instead of showing last night's sleep and mood.
+  const dateKey = useLocalDateKey();
 
-  // 2-key prefix so a MoodLogCard / SleepLogCard invalidate reaches us.
+  // The writers invalidate the 2-element prefix (name and user id), which
+  // still reaches this 3-key form: React Query matches keys by prefix.
   const { data: sleep } = useQuery({
-    queryKey: ['sleepLogToday', user?.id],
+    queryKey: ['sleepLogToday', user?.id, dateKey],
     queryFn: getTodaySleepLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
   const { data: mood } = useQuery({
-    queryKey: ['moodLogToday', user?.id],
+    queryKey: ['moodLogToday', user?.id, dateKey],
     queryFn: getTodayMoodLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
