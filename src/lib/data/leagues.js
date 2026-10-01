@@ -246,6 +246,14 @@ export async function getMyLeague(user) {
   const ctx = await ensureCurrentLeague(user);
   if (!ctx) return null;
 
+  // Refresh my own standing before reading the board. Only workouts and cardio
+  // call recordWeeklyXp, so points from meals, water, bounties and quests
+  // would otherwise sit unseen until the next session. Best effort: the board
+  // still renders on the last synced number.
+  try {
+    await supabase.rpc('sync_my_weekly_league');
+  } catch { /* read the stored standing */ }
+
   // NOTE: there is deliberately no resolve-on-read here. Rollover belongs to
   // the `roll-weekly-leagues` cron (migration 310) because a bracket has to
   // settle whether or not anyone in it opens the app. The branch that used to

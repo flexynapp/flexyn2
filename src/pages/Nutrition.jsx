@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
+import { syncMyLoggingPoints } from '@/lib/data/leaguePoints';
 import { track, EVENTS } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
@@ -606,6 +607,15 @@ export default function Nutrition() {
           .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
           .catch(() => {});
 
+        // League points for a scanned photo or barcode meal. The server
+        // decides whether this save earned any; most meals earn nothing here.
+        syncMyLoggingPoints().then((res) => {
+          if (res?.xp > 0) {
+            queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['myLeagueQuests', user?.id] });
+          }
+        });
+
         // Server-side achievement evaluation (meal-count milestones, log
         // streak, barcode-scanner unlock, daily-protein-goal unlock).
         // Fire-and-forget — a failed RPC just delays the achievement
@@ -1116,6 +1126,9 @@ export default function Nutrition() {
       vitamin_d_iu:    v.vitamin_d_iu   ?? null,
       vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
       meal_type: mealType,
+      // The server pays league points per different scanned product a day
+      // (sync_my_logging_points), and this is how it knows one was scanned.
+      ai_meta: scannedProduct.barcode ? { source: 'barcode', barcode: String(scannedProduct.barcode) } : null,
       _via_barcode: true, // telemetry-only, stripped in mutationFn
     });
     setScannedProduct(null);

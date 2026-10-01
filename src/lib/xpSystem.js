@@ -108,8 +108,8 @@ export const MAX_LEVEL = LEVEL_CONFIG.MAX_LEVEL;
 
 // ── Flat XP rewards for non-workout actions ───────────────────────────────────
 export const XP_REWARDS = {
-  // Nutrition / hydration — small but consistent
-  waterGlass: 3,            // logging a glass of water
+  // Water pays nothing per glass. The server pays league points once a day
+  // at the water goal (sync_my_logging_points, migration 20261001140000).
 
   // Goals
   goalCompleted: 100,       // completing any active goal (up from 75)
@@ -264,8 +264,12 @@ export function calculateTotalVolume(exercises) {
 //     bucketed by the LIFTER'S local date, returning what it credited:
 //     workout_completed 4000 · cardio_completed 2400 · goal_completed 500
 //     regimen_created 200 · comeback_bonus 200 · crew_xp_fuel 100
-//     recipe_created 75 · meal_logged 30 · water_logged 24 ·
-//     anything unclassified 1000
+//     recipe_created 75 · meal_logged 30 · anything unclassified 0
+//
+//   sync_my_logging_points (migration 20261001140000) — league points the
+//     server derives from saved rows: photo_meal 30 · barcode_meal 20 ·
+//     water_goal_met 20 (water pays only at the goal, never per glass);
+//     bounty_completed 100 and league_quest 600 are paid by their own RPCs.
 //
 //   increment_user_xp      (migrations 203, 261) — global 50,000 per rolling
 //     24h, enforced against xp_grant_log, and not callable by `authenticated`.
