@@ -34,6 +34,37 @@ describe('detectRankUp', () => {
   });
 });
 
+describe('first placement', () => {
+  const gold = { tier: 'gold', level: 1 };
+  it('plays when this device saw the unplaced state', () => {
+    expect(detectRankUp({ unplaced: true }, gold)).toEqual({ kind: 'placed', from: null, to: gold });
+  });
+  it('plays without a record only when the server placement is fresh', () => {
+    const now = Date.parse('2026-10-01T12:00:00Z');
+    expect(detectRankUp(null, gold, { placedAt: '2026-09-30T12:00:00Z', now })?.kind).toBe('placed');
+    expect(detectRankUp(null, gold, { placedAt: '2026-08-01T12:00:00Z', now })).toBeNull();
+    expect(detectRankUp(null, gold, { placedAt: 'nonsense', now })).toBeNull();
+  });
+  it('a known league is never mistaken for a placement', () => {
+    const now = Date.parse('2026-10-01T12:00:00Z');
+    expect(detectRankUp({ tier: 'gold', level: 1 }, gold, { placedAt: '2026-09-30T12:00:00Z', now })).toBeNull();
+  });
+  it('records unplaced, plays once, then behaves like any league', () => {
+    localStorage.clear();
+    expect(consumeRankUp('p', { unplaced: true })).toBeNull();
+    expect(readSeenRank('p')).toEqual({ unplaced: true });
+    expect(consumeRankUp('p', gold)?.kind).toBe('placed');
+    expect(consumeRankUp('p', gold)).toBeNull();
+    expect(consumeRankUp('p', { tier: 'platinum', level: 1 })?.kind).toBe('tier');
+  });
+  it('a failed read (null) records nothing, so it cannot arm a placement', () => {
+    localStorage.clear();
+    consumeRankUp('q', gold);
+    expect(consumeRankUp('q', null)).toBeNull();
+    expect(readSeenRank('q')).toEqual(gold);
+  });
+});
+
 describe('nextSeen', () => {
   it('keeps the higher level inside one league, so a failed level read cannot replay a step', () => {
     expect(nextSeen({ tier: 'gold', level: 3 }, { tier: 'gold', level: 1 })).toEqual({ tier: 'gold', level: 3 });

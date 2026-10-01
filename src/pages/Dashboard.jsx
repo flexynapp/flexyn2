@@ -677,7 +677,9 @@ export default function Dashboard() {
   // LeagueCard, so this costs no extra round trip, and it re-checks whenever
   // that poll brings back a new league or level. rankUp.js keeps the last
   // league this device showed; a move up celebrates, a move down gets the
-  // quieter sequence.
+  // quieter sequence. A first placement (the league appearing after the first
+  // workout, where the server said { placed: false } before) plays its own
+  // reveal; see rankUp.js for why that needs an explicit flag, not null.
   const { data: rankLeague } = useQuery({
     queryKey: ['myLeague', user?.id],
     queryFn: () => leaguesData.getMyLeague(user),
@@ -693,15 +695,18 @@ export default function Dashboard() {
   const [rankUp, setRankUp] = useState(null);
   const rankTier = rankLeague?.tier?.id;
   const rankLevel = rankLeague?.level;
+  const rankUnplaced = rankLeague?.placed === false;
+  const rankPlacedAt = rankLeague?.placedAt ?? null;
   useEffect(() => {
-    if (!user?.id || !rankTier) return undefined;
+    if (!user?.id || (!rankTier && !rankUnplaced)) return undefined;
     // After first paint settles, like the other reveals here.
     const t = setTimeout(() => {
-      const move = consumeRankUp(user.id, { tier: rankTier, level: rankLevel });
+      const current = rankUnplaced ? { unplaced: true } : { tier: rankTier, level: rankLevel };
+      const move = consumeRankUp(user.id, current, { placedAt: rankPlacedAt });
       if (move) enqueueReveal(() => { setRankUp(move); return 0; });
     }, 2800);
     return () => clearTimeout(t);
-  }, [user?.id, rankTier, rankLevel]);
+  }, [user?.id, rankTier, rankLevel, rankUnplaced, rankPlacedAt]);
 
   // ── Lead Lifter reveal ────────────────────────────────────────────────────
   //

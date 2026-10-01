@@ -17,6 +17,18 @@
 //   down   Gold to Silver. No burst, no sunburst: the crest greys and
 //          sinks, the lower one rises, and it ends on the way back up.
 //
+//   placed The first league anyone gives them (Kegan, 2026-10-01: nobody
+//          sees a league until their first workout, and that first
+//          placement plays its own reveal). The same stage as a
+//          promotion, reading "Your league" rather than "Promoted".
+//
+// A placement needs the server to say "not placed yet" out loud: getMyLeague
+// returns { placed: false } until the first workout. A plain null is NOT that
+// signal, because null is also what a failed read returns, and treating it
+// as "unplaced" would replay a placement to someone in Gold for weeks.
+// When the device never saw the unplaced state (a reinstall, a second phone),
+// a server `placedAt` under PLACED_FRESH_DAYS old still plays it.
+//
 // A level never drops inside a league (it counts qualified weeks in the
 // stint), so there is no level-down move.
 //
@@ -36,8 +48,12 @@ function clampLevel(level) {
   return Math.min(MAX_LEAGUE_LEVEL, Math.max(1, n));
 }
 
-/** A {tier, level} the rest of this file can trust, or null. */
+export const UNPLACED = Object.freeze({ unplaced: true });
+export const PLACED_FRESH_DAYS = 14;
+
+/** A {tier, level} the rest of this file can trust, UNPLACED, or null. */
 export function normalizeRank(rank) {
+  if (rank?.unplaced) return UNPLACED;
   if (!rank || TIER_INDEX[rank.tier] === undefined) return null;
   return { tier: rank.tier, level: clampLevel(rank.level) };
 }
@@ -45,12 +61,20 @@ export function normalizeRank(rank) {
 /**
  * Compare the last rank this device showed with the current one.
  *
- * @returns {null | { kind: 'tier' | 'level' | 'down', from: {tier, level}, to: {tier, level} }}
+ * @param {object} [opts]
+ * @param {string} [opts.placedAt]  when the server first placed them
+ * @returns {null | { kind: 'tier' | 'level' | 'down' | 'placed', from: {tier, level} | null, to: {tier, level} }}
  */
-export function detectRankUp(seen, current) {
+export function detectRankUp(seen, current, { placedAt, now = Date.now() } = {}) {
   const a = normalizeRank(seen);
   const b = normalizeRank(current);
-  if (!a || !b) return null;
+  if (!b || b.unplaced) return null;
+  if (a?.unplaced) return { kind: 'placed', from: null, to: b };
+  if (!a) {
+    const at = placedAt ? Date.parse(placedAt) : NaN;
+    const fresh = Number.isFinite(at) && now - at >= 0 && now - at < PLACED_FRESH_DAYS * 86400000;
+    return fresh ? { kind: 'placed', from: null, to: b } : null;
+  }
   const ta = TIER_INDEX[a.tier];
   const tb = TIER_INDEX[b.tier];
   if (tb > ta) return { kind: 'tier', from: a, to: b };
@@ -69,7 +93,8 @@ export function nextSeen(seen, current) {
   const a = normalizeRank(seen);
   const b = normalizeRank(current);
   if (!b) return a;
-  if (a && a.tier === b.tier) return { tier: b.tier, level: Math.max(a.level, b.level) };
+  if (b.unplaced) return a && !a.unplaced ? a : b;
+  if (a && !a.unplaced && a.tier === b.tier) return { tier: b.tier, level: Math.max(a.level, b.level) };
   return b;
 }
 
@@ -96,10 +121,10 @@ export function writeSeenRank(userId, rank) {
  * return the move to play (or null). Writing before the sequence plays means
  * a crash or a closed tab mid-sequence never replays it on every open.
  */
-export function consumeRankUp(userId, current) {
+export function consumeRankUp(userId, current, opts) {
   if (!userId || !normalizeRank(current)) return null;
   const seen = readSeenRank(userId);
-  const move = detectRankUp(seen, current);
+  const move = detectRankUp(seen, current, opts);
   writeSeenRank(userId, nextSeen(seen, current));
   return move;
 }
@@ -132,5 +157,8 @@ export function rankDramaFor(move) {
   if (!move) return LEVEL_DRAMA;
   if (move.kind === 'level') return LEVEL_DRAMA;
   if (move.kind === 'down') return DOWN_DRAMA;
-  return RANK_DRAMA[move.to.tier] ?? RANK_DRAMA.silver;
+  // A first placement lands like a promotion into that league, held a
+  // little longer: it is the first crest they have ever had.
+  const row = RANK_DRAMA[move.to.tier] ?? RANK_DRAMA.silver;
+  return move.kind === 'placed' ? { ...row, hold: row.hold + 120 } : row;
 }

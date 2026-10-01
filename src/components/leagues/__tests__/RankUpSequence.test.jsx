@@ -58,6 +58,17 @@ describe('RankUpSequence', () => {
     expect(screen.getByRole('button', { name: 'Win it back' })).toBeInTheDocument();
   });
 
+  it('a first placement breaks a blank shield and names the league', () => {
+    const placed = { kind: 'placed', from: null, to: { tier: 'silver', level: 1 } };
+    render(<RankUpSequence move={placed} strength={{ score: 180, next_tier: 'gold', next_floor: 250 }} onClose={() => {}} />);
+    expect(screen.getByText('Your first league')).toBeInTheDocument();
+    step(450, 1500, 250);
+    expect(screen.getByRole('heading', { name: 'Silver League' })).toBeInTheDocument();
+    expect(screen.getByText('Your league')).toBeInTheDocument();
+    expect(screen.getByText('Set by your first workout.')).toBeInTheDocument();
+    expect(screen.getByText(/Next: Gold League/)).toBeInTheDocument();
+  });
+
   it('the top league says so instead of a next target', () => {
     const top = { kind: 'tier', from: { tier: 'diamond', level: 2 }, to: { tier: 'legend', level: 1 } };
     render(<RankUpSequence move={top} strength={{ score: 500 }} onClose={() => {}} />);

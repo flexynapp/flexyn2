@@ -59,6 +59,8 @@ const CRACK_POINTS = CRACK.map(([x, y]) => `${x},${y}`).join(' ');
 const LeagueTierIcon = memo(TierIcon);
 
 const CREST = 'w-44 h-44';
+// What a first placement breaks open: the plainest shield, greyed.
+const BLANK = { tier: 'bronze', level: 1 };
 const MUTED = '#89949F';
 const SLAM_MS = 900;
 const LEVEL_MS = 720;
@@ -84,7 +86,7 @@ const Tint = forwardRef(function Tint({ tier, level, start = 0, tone = 'hot' }, 
 
 /**
  * @param {object}   props
- * @param {{ kind: 'tier'|'level'|'down', from: {tier, level}, to: {tier, level} }} props.move
+ * @param {{ kind: 'tier'|'level'|'down'|'placed', from: {tier, level}|null, to: {tier, level} }} props.move
  * @param {object}   [props.strength]  my_league_strength's payload, for the road ahead
  * @param {Function} props.onClose
  * @param {Function} [props.onViewLeague]
@@ -94,9 +96,14 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const fmt = useNumberFormatter();
   const fx = useOpenerFx();
   const drama = rankDramaFor(move);
-  const isTier = move.kind === 'tier';
+  // A first placement runs the promotion's stage: there is no league to
+  // break, so a blank shield stands in for it, charges and breaks open.
+  const isPlaced = move.kind === 'placed';
+  const isTier = move.kind === 'tier' || isPlaced;
   const isDown = move.kind === 'down';
-  const fromTier = getTier(move.from.tier);
+  const motion = isTier ? 'tier' : move.kind;
+  const from = move.from ?? BLANK;
+  const fromTier = getTier(from.tier);
   const toTier = getTier(move.to.tier);
   // A demotion keeps the stage grey: the only colour on it is the crest.
   const color = isDown ? MUTED : toTier.color;
@@ -179,13 +186,13 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     }
     // The tell: the new league's colour starts turning behind the old crest.
     fx.setRays(color, drama.rays * 0.45, { fast: isTier });
-    const c = chargeFrames({ kind: move.kind, duration: drama.charge });
+    const c = chargeFrames({ kind: motion, duration: drama.charge });
     charge.current = c;
     el?.animate?.(c.crest, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
     oldTintRef.current?.animate?.(c.hot, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
     // Every heartbeat lands with a haptic tick and, on a promotion, a ring
     // pulled in to arrive on it.
-    chargeBeats(move.kind).forEach((at, i) => {
+    chargeBeats(motion).forEach((at, i) => {
       const t = Math.round(drama.charge * at);
       later(() => triggerHaptic('subtle'), t);
       if (isTier) {
@@ -194,7 +201,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       }
     });
     later(() => setPhase(isTier ? 'break' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, isDown, move.kind, later, implode]);
+  }, [phase, fx, color, drama, isTier, isDown, motion, later, implode]);
 
   useLayoutEffect(() => {
     if (phase !== 'break') return;
@@ -208,7 +215,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       if (!el?.animate) return;
       el.style.opacity = '1';
       el.animate(flyFrames(dir, end), { duration: 950, easing: 'linear', fill: 'forwards' });
-      el.querySelector('[data-tint]')?.animate?.(
+      el.querySelector('[data-tint="hot"]')?.animate?.(
         [{ opacity: charge.current?.hotEnd ?? 0.6 }, { opacity: 0 }],
         { duration: 500, easing: 'ease-out', fill: 'forwards' },
       );
@@ -248,7 +255,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     }
     const duration = isTier ? SLAM_MS : LEVEL_MS;
     const { frames, impact } = landingFrames({
-      kind: move.kind, duration, startScale: charge.current?.end?.scale ?? 1, startY: charge.current?.end?.y ?? 0,
+      kind: motion, duration, startScale: charge.current?.end?.scale ?? 1, startY: charge.current?.end?.y ?? 0,
     });
     el.animate(frames, { duration, easing: 'linear', fill: 'backwards' });
     newHotRef.current?.animate?.(
@@ -290,16 +297,22 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   };
 
 // ── Words ─────────────────────────────────────────────────────────────────
-  const fromName = leagueTierName(fromTier, tFallback, move.from.level);
+  const fromName = isPlaced
+    ? tFallback('rankUp.unplaced', 'Your first league')
+    : leagueTierName(fromTier, tFallback, from.level);
   const toName = isTier || isDown
     ? leagueTierName(toTier, tFallback)
     : leagueTierName(toTier, tFallback, move.to.level);
-  const eyebrow = isDown
+  const eyebrow = isPlaced
+    ? tFallback('rankUp.placed', 'Your league')
+    : isDown
     ? tFallback('rankUp.demoted', 'Moved down')
     : isTier
       ? tFallback('rankUp.promoted', 'Promoted')
       : tFallback('rankUp.newLevel', 'New level');
-  const sub = isDown
+  const sub = isPlaced
+    ? tFallback('rankUp.subPlaced', 'Set by your first workout.')
+    : isDown
     ? tFallback('rankUp.subDown', 'Down from {league}.', { league: fromName })
     : isTier
     ? tFallback('rankUp.subTier', 'Up from {league}.', { league: fromName })
@@ -337,7 +350,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const landed = phase === 'landed';
   const charging = phase === 'enter' || phase === 'charge';
   const impactAt = isDown ? 600
-    : landingFrames({ kind: move.kind, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
+    : landingFrames({ kind: motion, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
   const hit = fx.reduced ? 0 : Math.round(impactAt) + drama.hold;
   const beat = (n) => ({ animationDelay: `${hit + n * 130}ms` });
   const toIndex = TIERS.findIndex((t) => t.id === toTier.id);
@@ -382,8 +395,9 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
             {!fx.reduced && (
               <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'enter' ? 'reveal-rise' : ''}`}
                 style={{ ...LAYER, opacity: charging ? undefined : 0 }} aria-hidden="true">
-                <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                <Tint ref={oldTintRef} tier={fromTier.id} level={move.from.level} tone={isDown ? 'grey' : 'hot'} />
+                <LeagueTierIcon tier={fromTier.id} level={from.level} className={CREST} />
+                {isPlaced && <Tint tier={fromTier.id} level={from.level} start={0.92} tone="grey" />}
+                <Tint ref={oldTintRef} tier={fromTier.id} level={from.level} tone={isDown ? 'grey' : 'hot'} />
                 {isTier && (
                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`absolute inset-0 w-full h-full ${phase === 'charge' ? 'rank-crack' : 'opacity-0'}`}
                     style={{ animationDuration: `${drama.charge}ms` }} aria-hidden="true">
@@ -395,12 +409,14 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
             {isTier && !fx.reduced && (
               <>
                 <div ref={leftRef} className="absolute inset-0 rank-crest pointer-events-none" style={{ ...LAYER, clipPath: LEFT_CLIP, opacity: PARKED }} aria-hidden="true">
-                  <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                  <Tint tier={fromTier.id} level={move.from.level} start={0.6} />
+                  <LeagueTierIcon tier={fromTier.id} level={from.level} className={CREST} />
+                  {isPlaced && <Tint tier={fromTier.id} level={from.level} start={0.92} tone="grey" />}
+                  <Tint tier={fromTier.id} level={from.level} start={0.6} />
                 </div>
                 <div ref={rightRef} className="absolute inset-0 rank-crest pointer-events-none" style={{ ...LAYER, clipPath: RIGHT_CLIP, opacity: PARKED }} aria-hidden="true">
-                  <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                  <Tint tier={fromTier.id} level={move.from.level} start={0.6} />
+                  <LeagueTierIcon tier={fromTier.id} level={from.level} className={CREST} />
+                  {isPlaced && <Tint tier={fromTier.id} level={from.level} start={0.92} tone="grey" />}
+                  <Tint tier={fromTier.id} level={from.level} start={0.6} />
                 </div>
               </>
             )}
