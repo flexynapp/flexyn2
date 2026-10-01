@@ -361,6 +361,7 @@ export default function Duels() {
             opponentUsername="someone"
             onClose={() => setShowCreate(false)}
             onCreated={() => qc.invalidateQueries({ queryKey: ['myDuels'] })}
+            onInviteLink={() => { setShowCreate(false); if (isGuest) setConnectOpen(true); else setShowInviteLink(true); }}
           />
         )}
         {selectedDuel && (

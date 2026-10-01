@@ -279,10 +279,10 @@ export default function MyGym() {
 
     if (!res.ok) {
       const msg = {
-        NAME_REJECTED: "That gym's name can't be added automatically.",
-        CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
-        GYM_INACTIVE: 'That gym is no longer active on Flexyn.',
-        GYM_NOT_FOUND: "We couldn't find that gym any more.",
+        NAME_REJECTED: tFallback('myGym.error.nameRejected', "That gym's name can't be added automatically."),
+        CREATE_LIMIT: tFallback('myGym.error.createLimit', "You've added a lot of gyms already. Pick an existing one."),
+        GYM_INACTIVE: tFallback('myGym.error.gymInactive', 'That gym is no longer active on Flexyn.'),
+        GYM_NOT_FOUND: tFallback('myGym.error.gymNotFound', "We couldn't find that gym any more."),
       }[res.error];
       toast.error(msg || tFallback('gym.setGymFailed', "Couldn't set your gym. Try again."));
       setPending(null);
@@ -312,7 +312,7 @@ export default function MyGym() {
     // RPC also joins the gym, so the list below has changed too.
     load();
     refreshGyms();
-  }, [saving, load, refreshGyms]);
+  }, [saving, load, refreshGyms, tFallback]);
 
   // Shared join handler — used by both the typed-code form submit and
   // the QR scanner's onDetect. Wraps the same joinByCode + UX flow so
@@ -334,11 +334,12 @@ export default function MyGym() {
       else refreshGyms();
     } else {
       const map = {
-        INVALID_CODE: "That code doesn't look right (8 letters/numbers).",
-        CODE_NOT_FOUND: 'No gym matches that code.',
-        PIPELINE_MISSING: 'Gym features are rolling out — try again shortly.',
+        INVALID_CODE: tFallback('myGym.error.invalidCode', "That code doesn't look right (8 letters or numbers)."),
+        CODE_NOT_FOUND: tFallback('myGym.error.codeNotFound', 'No gym matches that code.'),
+        PIPELINE_MISSING: tFallback('myGym.error.pipelineMissing', 'Gym features are rolling out. Try again shortly.'),
       };
-      toast.error(map[res.error] || `Couldn't join: ${res.error || 'try again'}`);
+      // Never show a raw error code; unknown failures get the generic line.
+      toast.error(map[res.error] || tFallback('myGym.error.joinFailed', "Couldn't join the gym. Try again."));
     }
   };
 

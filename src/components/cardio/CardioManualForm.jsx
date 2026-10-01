@@ -429,7 +429,7 @@ export default function CardioManualForm({
         calories:         payload.calories,
       });
       leagues.recordWeeklyXp(user, cardioXp)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
+        .then(() => { ['myLeague', 'myLeagueStrength', 'heroLeague'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k, user?.id] })); })
         .catch(err => reportError(err, { feature: 'cardio.league-xp', level: 'warning', userEmail: user?.email, cardioXp }));
       workoutStreak.recordWorkoutDay(user)
         .then(() => {

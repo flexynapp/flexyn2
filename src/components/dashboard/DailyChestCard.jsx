@@ -91,7 +91,7 @@ export default function DailyChestCard() {
         const coins = data?.coins_awarded ?? 75;
         toast.success(
           tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'),
-          { description: `+${coins} coins · 1 standard capsule` },
+          { description: tFallback('marketplace.dailyChest.claimSuccessBody', '+{coins} coins · 1 standard capsule', { coins }) },
         );
         requestOpenBag(); // instant-open: jump straight to the Bag
       }

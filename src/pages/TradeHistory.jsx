@@ -118,7 +118,7 @@ export default function TradeHistory() {
       qc.invalidateQueries({ queryKey: ['tradeHistory'] });
       qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
     } catch (err) {
-      toast.error(tradeOffers.tradeErrorMessage(err));
+      toast.error(tradeOffers.tradeErrorMessage(err, tFallback));
     } finally {
       setBusyId(null);
     }

@@ -17,26 +17,26 @@ import { reportError } from '@/lib/reportError';
  * messages leak schema detail and read like a stack trace; every branch
  * here is a real state a user can legitimately hit.
  */
-export function tradeErrorMessage(err) {
+export function tradeErrorMessage(err, t = (_key, english) => english) {
   const msg = err?.message || '';
-  if (/not_authenticated/.test(msg))           return 'Sign in to trade.';
-  if (/cannot_trade_with_self/.test(msg))      return "You can't trade with yourself.";
-  if (/offer_item_not_found/.test(msg))        return 'That item is no longer in your bag.';
-  if (/not_your_item/.test(msg))               return "That item isn't yours.";
-  if (/offer_item_in_escrow/.test(msg))        return "You've already offered that item in another trade.";
-  if (/offer_item_is_listed/.test(msg))        return 'Unlist that item before offering it.';
-  if (/target_item_not_found/.test(msg))       return 'That item no longer exists.';
-  if (/target_item_in_escrow/.test(msg))       return 'That item is tied up in another trade right now.';
-  if (/offer_not_found/.test(msg))             return 'That offer no longer exists.';
-  if (/not_your_offer/.test(msg))              return "That offer isn't addressed to you.";
-  if (/offer_not_pending/.test(msg))           return 'That offer has already been answered.';
-  if (/item_no_longer_exists/.test(msg))       return 'One of the items is gone — the trade was cancelled.';
-  if (/offer_item_changed_hands/.test(msg))    return 'They no longer own the item they offered.';
-  if (/offer_item_not_escrowed/.test(msg))     return 'That offer expired — ask them to send it again.';
-  if (/your_item_changed_hands/.test(msg))     return 'You no longer own the item they asked for.';
-  if (/your_item_in_escrow/.test(msg))         return "Your item is tied up in another trade — resolve that one first.";
-  if (/item_in_escrow/.test(msg))              return "That item is locked in a trade offer and can't be sold.";
-  return 'Trade failed — try again.';
+  if (/not_authenticated/.test(msg)) return t('tradeError.notAuthenticated', "Sign in to trade.");
+  if (/cannot_trade_with_self/.test(msg)) return t('tradeError.cannotTradeWithSelf', "You can't trade with yourself.");
+  if (/offer_item_not_found/.test(msg)) return t('tradeError.offerItemNotFound', "That item is no longer in your bag.");
+  if (/not_your_item/.test(msg)) return t('tradeError.notYourItem', "That item isn't yours.");
+  if (/offer_item_in_escrow/.test(msg)) return t('tradeError.offerItemInEscrow', "You've already offered that item in another trade.");
+  if (/offer_item_is_listed/.test(msg)) return t('tradeError.offerItemIsListed', "Unlist that item before offering it.");
+  if (/target_item_not_found/.test(msg)) return t('tradeError.targetItemNotFound', "That item no longer exists.");
+  if (/target_item_in_escrow/.test(msg)) return t('tradeError.targetItemInEscrow', "That item is tied up in another trade right now.");
+  if (/offer_not_found/.test(msg)) return t('tradeError.offerNotFound', "That offer no longer exists.");
+  if (/not_your_offer/.test(msg)) return t('tradeError.notYourOffer', "That offer isn't addressed to you.");
+  if (/offer_not_pending/.test(msg)) return t('tradeError.offerNotPending', "That offer has already been answered.");
+  if (/item_no_longer_exists/.test(msg)) return t('tradeError.itemNoLongerExists', "One of the items is gone, so the trade was cancelled.");
+  if (/offer_item_changed_hands/.test(msg)) return t('tradeError.offerItemChangedHands', "They no longer own the item they offered.");
+  if (/offer_item_not_escrowed/.test(msg)) return t('tradeError.offerItemNotEscrowed', "That offer expired. Ask them to send it again.");
+  if (/your_item_changed_hands/.test(msg)) return t('tradeError.yourItemChangedHands', "You no longer own the item they asked for.");
+  if (/your_item_in_escrow/.test(msg)) return t('tradeError.yourItemInEscrow', "Your item is tied up in another trade. Resolve that one first.");
+  if (/item_in_escrow/.test(msg)) return t('tradeError.itemInEscrow', "That item is locked in a trade offer and can't be sold.");
+  return t('tradeError.failed', 'Trade failed. Try again.');
 }
 
 /**
