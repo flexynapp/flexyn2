@@ -116,7 +116,12 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
         <Users className="w-4 h-4 text-primary" />
         <span className="text-sm font-bold">{tFallback('hub.pymk.title', 'People you may know')}</span>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+      {/* The rail bleeds to the card's edges (-mx-4 px-4), so a suggestion
+          that does not fit runs under the card border rather than being cut
+          off inside the padding, where it read as broken on a phone. pt-0.5
+          gives each avatar's ring room: a scroll box clips both axes, and
+          ring-2 draws 2px outside the circle. */}
+      <div className="-mx-4 px-4 scroll-px-4 pt-0.5 flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
         {candidates.map((candidate, i) => (
           <PYMKCard
             key={candidate.id}
