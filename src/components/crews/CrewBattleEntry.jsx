@@ -155,8 +155,7 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
             <>
               <p className="text-sm font-bold mb-1">{tFallback("crewBattleEntry.waitingForARival", "Waiting for a rival")}</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                You're in the queue. The next crew to enter gets matched against you,
-                and the battle starts the moment they do.
+                {tFallback('crewBattleEntry.queuedDesc', "You're in the queue. We pair you with a crew close to your strength, size and training, and the war starts the moment one is found. The queue closes after 3 days.")}
               </p>
               {canStartWar && <button
                 onClick={() => leaveMut.mutate()}
@@ -174,8 +173,7 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
             <>
               <p className="text-sm font-bold mb-1">{tFallback("crewBattleEntry.noActiveBattle", "No Active Battle")}</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                Enter matchmaking to get paired with a rival crew in your division. Wars run
-                for 7 days, scored on volume lifted, sessions logged and days trained.
+                {tFallback('crewBattleEntry.enterDesc', 'Enter matchmaking to be paired with a crew close to your strength and size. Wars run for 7 days, scored on volume lifted, sessions logged and days trained.')}
               </p>
               {/* Starting a war is a rank-2 act, enforced in
                   join_crew_war_queue (migration 357). A member who taps this
