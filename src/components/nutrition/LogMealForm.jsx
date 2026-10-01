@@ -11,6 +11,12 @@ import { useAuth } from '@/lib/AuthContext';
 import * as nutritionData from '@/lib/data/nutrition';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
+
+// The micronutrient columns a diary row can carry (migration 20260927174000).
+const MICRO_FIELDS = [
+  'cholesterol_mg', 'iron_mg', 'magnesium_mg', 'calcium_mg', 'potassium_mg',
+  'vitamin_a_iu', 'vitamin_c_mg', 'vitamin_d_iu', 'vitamin_b12_mcg',
+];
 import { useButtonAnswer, answerClassName, AnswerLabel, AnswerReason } from '@/components/feedback/buttonAnswer';
 
 // TABS are built inside the component to support t()
@@ -146,7 +152,14 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
         fat_g:     Number(e.fat_g ?? e.fat) || 0,
         fiber_g:   Number(e.fiber_g ?? e.fiber) || 0,
         sodium_mg: Number(e.sodium_mg ?? e.sodium) || 0,
-        sugar_g:   Number(e?.ai_meta?.sugar_g) || 0,
+        // Manual and scanned meals store sugar in the column; photo meals
+        // only in ai_meta. Reading ai_meta alone re-logged them at 0 g.
+        sugar_g:   Number(e.sugar_g ?? e?.ai_meta?.sugar_g) || 0,
+        // Carried so "log it again" keeps them. Missing stays missing.
+        ...MICRO_FIELDS.reduce((acc, k) => {
+          acc[k] = e[k] ?? null;
+          return acc;
+        }, {}),
       });
       if (out.length >= 40) break;
     }

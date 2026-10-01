@@ -14,7 +14,8 @@
 // ────────────────
 //   { focus: 'legs' | 'chest' | 'back' | 'shoulders' | 'arms' |
 //            'core' | 'cardio' | 'recovery',
-//     reason: human-readable string (i18n at the call site),
+//     reason: English sentence; reasonKey + reasonVars translate it
+//       (group vars are slugs, the card names them via suggestion.group.*),
 //     intensity: 'light' | 'medium' | 'heavy' }
 //
 // Returns null when there's not enough data (< 2 workouts in the past
@@ -133,8 +134,10 @@ export function computeSuggestion({ logs = [], cardioLogs = [], now = new Date()
     return {
       focus: hasCardio ? 'recovery' : 'cardio',
       reason: hasCardio
-        ? 'You hit a heavy day — take a recovery walk or mobility session.'
-        : 'You hit a heavy day — light cardio is the right next move.',
+        ? 'You hit a heavy day. Take a recovery walk or a mobility session.'
+        : 'You hit a heavy day. Light cardio is the right next move.',
+      reasonKey: hasCardio ? 'suggestion.why.heavyRecovery' : 'suggestion.why.heavyCardio',
+      reasonVars: {},
       intensity: 'light',
     };
   }
@@ -156,7 +159,9 @@ export function computeSuggestion({ logs = [], cardioLogs = [], now = new Date()
   if (leastCount === 0) {
     return {
       focus: leastGroup,
-      reason: `You haven't trained ${leastGroup} this week — try ${leastGroup} tomorrow.`,
+      reason: `You haven't trained ${leastGroup} this week. Try ${leastGroup} tomorrow.`,
+      reasonKey: 'suggestion.why.untrained',
+      reasonVars: { group: leastGroup },
       intensity: 'medium',
     };
   }
@@ -176,8 +181,12 @@ export function computeSuggestion({ logs = [], cardioLogs = [], now = new Date()
   return {
     focus: leastGroup,
     reason: mostGroup && mostCount > leastCount
-      ? `You've trained ${mostGroup} ${mostCount}× this week — balance with ${leastGroup} tomorrow.`
-      : `${leastGroup} is your least-trained group this week — try it tomorrow.`,
+      ? `You've trained ${mostGroup} ${mostCount}× this week. Balance it with ${leastGroup} tomorrow.`
+      : `Your least trained group this week is ${leastGroup}. Try it tomorrow.`,
+    reasonKey: mostGroup && mostCount > leastCount ? 'suggestion.why.balance' : 'suggestion.why.least',
+    reasonVars: mostGroup && mostCount > leastCount
+      ? { most: mostGroup, n: mostCount, group: leastGroup }
+      : { group: leastGroup },
     intensity: 'medium',
   };
 }

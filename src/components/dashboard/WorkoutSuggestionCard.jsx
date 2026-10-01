@@ -43,6 +43,16 @@ const FOCUS_META = {
   recovery:  { Icon: Leaf,       label: 'Recovery day' },
 };
 
+// The reason's group names arrive as slugs ("chest"); name them in the
+// reader's language before they go into the sentence.
+function groupVars(vars = {}, tFallback) {
+  const out = { ...vars };
+  for (const k of ['group', 'most']) {
+    if (out[k]) out[k] = tFallback(`suggestion.group.${out[k]}`, out[k]);
+  }
+  return out;
+}
+
 export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
   const { tFallback } = useLanguage();
   const navigate = useNavigate();
@@ -88,7 +98,9 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
               <span className="text-sm font-heading font-bold">{label}</span>
             </div>
             <p className="text-micro text-muted-foreground leading-snug mt-0.5 truncate">
-              {tFallback(`suggestion.reason.${suggestion.focus}`, suggestion.reason)}
+              {suggestion.reasonKey
+                ? tFallback(suggestion.reasonKey, suggestion.reason, groupVars(suggestion.reasonVars, tFallback))
+                : suggestion.reason}
             </p>
           </div>
           {/* The whole row is the tap target. */}
