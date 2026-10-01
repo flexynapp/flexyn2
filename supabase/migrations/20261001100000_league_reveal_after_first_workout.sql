@@ -18,12 +18,13 @@
 -- device. While unrevealed, ensure_my_league() joins no weekly bracket and
 -- returns {"revealed": false}, and every placement path answers 'unrevealed'.
 --
--- Existing accounts: anyone with a completed session is marked revealed and
--- seen, so nobody who already sees a league gets it replayed. Accounts with
--- no session (139 on 2026-10-01) go back to unplaced: their onboarding
--- placement is cleared and their league reset to Bronze, the default every
--- unplaced account already has. No notification is sent for that. No rows
--- are deleted.
+-- Existing accounts keep what they have: anyone with a completed session or
+-- an existing placement is marked revealed and seen, so nobody loses a
+-- league they were shown and nobody gets it replayed. Only accounts that
+-- were never placed (no answers, no session) wait for their first workout.
+-- Whether placed accounts that never trained should also go back to
+-- unplaced is Kegan's call and, if wanted, a follow-up migration.
+-- No rows are deleted.
 
 ALTER TABLE public.league_strength ADD COLUMN IF NOT EXISTS revealed_at timestamptz;
 ALTER TABLE public.league_strength ADD COLUMN IF NOT EXISTS reveal_seen_at timestamptz;
@@ -430,38 +431,16 @@ GRANT EXECUTE ON FUNCTION public.mark_my_league_reveal_seen() TO authenticated;
 -- Existing accounts
 ------------------------------------------------------------------------------
 
--- Already trained: revealed, and the reveal counts as seen.
+-- Already trained, or already placed: revealed, and the reveal counts as seen.
 INSERT INTO public.league_strength (user_id, score, detail, computed_at, revealed_at, reveal_seen_at)
 SELECT up.id, NULL, '{}'::jsonb, now(), now(), now()
   FROM public.user_profiles up
  WHERE public.league_has_completed_session(up.id)
+    OR EXISTS (SELECT 1 FROM public.league_strength ls
+                WHERE ls.user_id = up.id AND ls.placed_at IS NOT NULL)
 ON CONFLICT (user_id) DO UPDATE
   SET revealed_at    = COALESCE(public.league_strength.revealed_at, now()),
       reveal_seen_at = COALESCE(public.league_strength.reveal_seen_at, now());
-
--- Not trained yet: unplaced, Bronze by default, no notification.
-DO $unplace$
-DECLARE v_uid uuid; v_tier text;
-BEGIN
-  FOR v_uid, v_tier IN
-    SELECT up.id, COALESCE(up.league_tier, 'bronze')
-      FROM public.user_profiles up
-     WHERE NOT public.league_has_completed_session(up.id)
-  LOOP
-    BEGIN
-      UPDATE public.league_strength
-         SET placed_at = NULL, basis = NULL, revealed_at = NULL, reveal_seen_at = NULL
-       WHERE user_id = v_uid;
-      IF v_tier <> 'bronze' THEN
-        UPDATE public.user_profiles SET league_tier = 'bronze' WHERE id = v_uid;
-        PERFORM public.league_sync_open_member_tier(v_uid, 'bronze');
-      END IF;
-    EXCEPTION WHEN OTHERS THEN
-      RAISE WARNING 'league unplace failed for %: %', v_uid, SQLERRM;
-    END;
-  END LOOP;
-END;
-$unplace$;
 
 ------------------------------------------------------------------------------
 -- Probe: the whole path as a real authenticated account, rolled back.
@@ -474,10 +453,9 @@ DECLARE
   v_s     jsonb;
   v_e     jsonb;
 BEGIN
-  IF EXISTS (SELECT 1 FROM public.user_profiles up
-              WHERE NOT public.league_is_revealed(up.id)
-                AND COALESCE(up.league_tier, 'bronze') <> 'bronze') THEN
-    RAISE EXCEPTION 'probe: an unrevealed account is above Bronze';
+  IF EXISTS (SELECT 1 FROM public.league_strength
+              WHERE placed_at IS NOT NULL AND revealed_at IS NULL) THEN
+    RAISE EXCEPTION 'probe: an existing placement was hidden';
   END IF;
   IF EXISTS (SELECT 1 FROM public.user_profiles up
               WHERE public.league_has_completed_session(up.id)
