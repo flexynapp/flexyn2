@@ -68,38 +68,48 @@ describe('dmPolls — votes', () => {
 
 describe('dmPolls — tally', () => {
   const msgs = [
-    { sender_email: 'A@x.com', body: buildVoteBody('p1', 0) },
-    { sender_email: 'B@x.com', body: buildVoteBody('p1', 1) },
-    { sender_email: 'A@x.com', body: buildVoteBody('p1', 1) }, // A changed their vote
-    { sender_email: 'C@x.com', body: buildVoteBody('p2', 0) },
-    { sender_email: 'D@x.com', body: 'a normal message' },
+    { user_id: 'id-a', body: buildVoteBody('p1', 0) },
+    { user_id: 'id-b', body: buildVoteBody('p1', 1) },
+    { user_id: 'id-a', body: buildVoteBody('p1', 1) }, // A changed their vote
+    { user_id: 'id-c', body: buildVoteBody('p2', 0) },
+    { user_id: 'id-d', body: 'a normal message' },
   ];
 
   it('keeps each voter latest vote per poll', () => {
     const index = buildVoteIndex(msgs);
     const p1 = index.get('p1');
-    expect(p1.get('a@x.com')).toBe(1); // changed from 0 → 1
-    expect(p1.get('b@x.com')).toBe(1);
-    expect(index.get('p2').get('c@x.com')).toBe(0);
+    expect(p1.get('id-a')).toBe(1); // changed from 0 → 1
+    expect(p1.get('id-b')).toBe(1);
+    expect(index.get('p2').get('id-c')).toBe(0);
   });
 
   it('computes counts, total and my vote', () => {
     const index = buildVoteIndex(msgs);
-    const res = pollResults(index.get('p1'), 2, 'A@x.com');
+    const res = pollResults(index.get('p1'), 2, 'id-a');
     expect(res.counts).toEqual([0, 2]); // both A and B on option 1
     expect(res.total).toBe(2);
     expect(res.myVote).toBe(1);
   });
 
+  it('skips votes with no user_id', () => {
+    const index = buildVoteIndex([{ body: buildVoteBody('p', 0) }]);
+    expect(index.get('p')).toBeUndefined();
+  });
+
+  it('matches my vote against a non-string id as a string', () => {
+    const index = buildVoteIndex([{ user_id: 7, body: buildVoteBody('p', 1) }]);
+    expect(pollResults(index.get('p'), 2, 7).myVote).toBe(1);
+  });
+
   it('ignores out-of-range option indices', () => {
-    const index = buildVoteIndex([{ sender_email: 'A@x.com', body: buildVoteBody('p', 9) }]);
-    const res = pollResults(index.get('p'), 2, 'A@x.com');
+    const index = buildVoteIndex([{ user_id: 'id-a', body: buildVoteBody('p', 9) }]);
+    const res = pollResults(index.get('p'), 2, 'id-a');
     expect(res.total).toBe(0);
     expect(res.myVote).toBeNull();
   });
 
   it('handles a poll with no votes', () => {
-    const res = pollResults(undefined, 3, 'A@x.com');
+    const res = pollResults(undefined, 3, 'id-a');
     expect(res.counts).toEqual([0, 0, 0]);
     expect(res.total).toBe(0);
     expect(res.myVote).toBeNull();

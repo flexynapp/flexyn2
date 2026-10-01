@@ -70,8 +70,8 @@ export default function ShareSheetModal({ post, open, onClose }) {
   // Load conversation list for DM tab
   const { data: conversations = [] } = useQuery({
     queryKey: ['hubConversations', user?.email],
-    queryFn: () => hubMessages.listMyConversations(user.email),
-    enabled: !!user?.email && tab === 'dm',
+    queryFn: () => hubMessages.listMyConversations(user.id),
+    enabled: !!user?.email && !!user?.id && tab === 'dm',
     staleTime: 60_000,
   });
 
@@ -132,14 +132,14 @@ export default function ShareSheetModal({ post, open, onClose }) {
 
   const handleSendDm = async (conv) => {
     if (!user?.email || dmSending) return;
-    const otherEmail = (conv.participant_emails || []).find(e => e?.toLowerCase() !== user.email?.toLowerCase());
-    if (!otherEmail) return;
+    const otherId = (conv.participant_ids || []).find(id => id && id !== user.id);
+    if (!otherId && !conv.is_group) return;
     setDmSending(conv.id);
     try {
       await hubMessages.sendMessage({
         conversationId: conv.id,
         senderEmail: user.email,
-        recipientEmail: otherEmail,
+        recipientId: conv.is_group ? null : otherId,
         body: forwardBody,
       });
       toast.success(tFallback("shareSheetModal.sentInDm", "Sent in DM!"));
