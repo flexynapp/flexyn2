@@ -60,6 +60,14 @@ describe('the finish screen', () => {
     expect(screen.queryByText('Sets')).toBeNull();
   });
 
+  it('shows a run logged by time only without a zero sets cell', () => {
+    const swim = { kind: 'cardio', activity: 'swimming', name: 'Swimming', sets: [], segments: [{ duration_s: 1800 }] };
+    render(<WorkoutShareCard open workout={{ date: '2026-09-26', exercises: [swim] }} onClose={() => {}}
+      summary={{ xpGained: 0, prs: [] }} />);
+    expect(screen.getByText('30 min')).toBeTruthy();
+    expect(screen.queryByText('Sets')).toBeNull();
+  });
+
   it('Done closes it', () => {
     const onClose = vi.fn();
     render(<WorkoutShareCard open workout={WORKOUT} onClose={onClose} summary={{ xpGained: 10, prs: [] }} />);
