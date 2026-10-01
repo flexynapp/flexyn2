@@ -618,7 +618,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         calories:         payload.calories,
       });
       leagues.recordWeeklyXp(_user, cardioXp)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', _user?.id] }))
+        .then(() => { ['myLeague', 'myLeagueStrength', 'heroLeague'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k, _user?.id] })); })
         .catch(err => reportError(err, {
           feature: 'cardio.live-outside.league-xp',
           level: 'warning',
