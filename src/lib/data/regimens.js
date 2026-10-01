@@ -47,6 +47,22 @@ export const update = async (id, data) => {
 export const remove = (id) => rows.remove(id);
 
 /**
+ * Make one regimen the active plan. Nothing in the database keeps a single
+ * active row, so the others are switched off first; doing that only in the
+ * query cache let the old active rows come back on the next refetch.
+ */
+export const setOnlyActive = async (id, userId) => {
+  const { error } = await supabase
+    .from('regimens')
+    .update({ is_active: false })
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .neq('id', id);
+  if (error) throw error;
+  return rows.update(id, { is_active: true });
+};
+
+/**
  * Fetch all public templates from any user, sorted by copy count.
  *
  * Reads from a UNION of is_public=true and is_public_free=true. The two

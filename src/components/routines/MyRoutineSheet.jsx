@@ -70,7 +70,12 @@ export default function MyRoutineSheet({ open, onClose }) {
   // Reset to list whenever the sheet re-opens.
   useEffect(() => { if (open) { setView('list'); setDraft(null); setExpandedDay(null); } }, [open]);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['routines', user?.id] });
+  // ['activeRoutine'] feeds the week view and Today's routine card, which stay
+  // mounted behind this sheet, so it has to be cleared along with the list.
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['routines', user?.id] });
+    qc.invalidateQueries({ queryKey: ['activeRoutine', user?.id] });
+  };
 
   const openEditor = (routine) => {
     setDraft({
@@ -104,7 +109,13 @@ export default function MyRoutineSheet({ open, onClose }) {
   };
 
   const activate = useMutation({
-    mutationFn: (id) => setActiveRoutine(id),
+    // The data layer reports failure as { ok: false } rather than throwing,
+    // so turn it into a throw or onSuccess claims a write that never landed.
+    mutationFn: async (id) => {
+      const res = await setActiveRoutine(id);
+      if (!res?.ok) throw new Error(res?.reason || 'activate_failed');
+      return res;
+    },
     onSuccess: () => {
       invalidate();
       toast.success(tFallback('myRoutineSheet.activated', 'Active routine set. It now drives your week.'));
@@ -113,8 +124,13 @@ export default function MyRoutineSheet({ open, onClose }) {
   });
 
   const remove = useMutation({
-    mutationFn: (id) => deleteRoutine(id),
+    mutationFn: async (id) => {
+      const res = await deleteRoutine(id);
+      if (!res?.ok) throw new Error('delete_failed');
+      return res;
+    },
     onSuccess: () => { invalidate(); toast.success(tFallback("myRoutineSheet.routineDeleted", "Routine deleted")); },
+    onError: () => toast.error(tFallback('myRoutineSheet.deleteFailed', 'Could not delete. Try again.')),
   });
 
   // ── day editing helpers (operate on draft.days) ───────────────────────────

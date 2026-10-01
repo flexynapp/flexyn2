@@ -138,7 +138,9 @@ export default function RegimensSection({ onStartRegimen }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => regimensData.update(id, data),
+    mutationFn: ({ id, data, onlyActive }) => (onlyActive
+      ? regimensData.setOnlyActive(id, user?.id)
+      : regimensData.update(id, data)),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
       const previous = queryClient.getQueryData(['regimens', user?.email]);
@@ -207,8 +209,8 @@ export default function RegimensSection({ onStartRegimen }) {
 
   // is_active toggle — marks a regimen as the "currently running" plan.
   // Only one regimen should be active at a time; activating one deactivates
-  // all others optimistically. The DB has no constraint enforcing single-
-  // active, so the UI enforces it client-side and the server stays idempotent.
+  // all others, in the cache and in the database (setOnlyActive). The DB has
+  // no constraint enforcing single-active, so the write has to do it.
   const toggleActive = (r) => {
     const next = !r.is_active;
     // Optimistically deactivate all others when activating this one
@@ -218,7 +220,7 @@ export default function RegimensSection({ onStartRegimen }) {
       );
     }
     updateMutation.mutate(
-      { id: r.id, data: { is_active: next } },
+      { id: r.id, data: { is_active: next }, onlyActive: next },
       {
         onSuccess: () => toast.success(next
           ? tFallback('regimens.setActive', '✅ Set as active plan')

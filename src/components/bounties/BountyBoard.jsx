@@ -55,7 +55,7 @@ function ClaimRow({ claim }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-foreground leading-snug">
-          {bountyDescription(bounty, language, weightUnit)}
+          {bountyDescription(bounty, language, weightUnit, tFallback)}
         </p>
         <p className="text-micro text-muted-foreground mt-0.5">
           @{bounty.target_username} · {tFallback(`bounty.difficulty.${bounty.difficulty}`, cfg.label)}
@@ -127,7 +127,7 @@ export default function BountyBoard() {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-amber-600">{tFallback("bountyBoard.activeBounty", "Active Bounty")}</p>
             <p className="text-xs text-muted-foreground truncate">
-              {bountyDescription(activeClaim.bounties, language, weightUnit)}
+              {bountyDescription(activeClaim.bounties, language, weightUnit, tFallback)}
               {' · '}
               {tFallback('bountyBoard.rewardCoins', 'Reward: {n} 🪙', { n: DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward })}
             </p>
