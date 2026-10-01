@@ -12,7 +12,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   X, Swords, Dumbbell, Timer, Target, Loader2, Search, UserCircle2,
-  ArrowLeft, SendHorizonal, Check, ChevronRight,
+  ArrowLeft, SendHorizonal, Check, ChevronRight, Link as LinkIcon,
 } from 'lucide-react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
@@ -150,12 +150,26 @@ export default function CreateDuelModal({
   opponentUsername: initialOpponentUsername,
   onClose,
   onCreated,
+  // Optional. When given, the empty states offer an invite link: the fallback
+  // when nobody in the app fits, which the matchmaking rules promise.
+  onInviteLink,
 }) {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc = useQueryClient();
   const reduceMotion = useReducedMotion();
   const tap = reduceMotion ? undefined : { scale: 0.97 };
+  const inviteButton = onInviteLink ? (
+    <motion.button
+      type="button"
+      whileTap={tap}
+      onClick={() => { haptic('subtle'); onInviteLink(); }}
+      className="mt-4 inline-flex items-center justify-center gap-2 px-4 min-h-[44px] rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
+    >
+      <LinkIcon className="w-4 h-4" />
+      {tFallback('duels.inviteByLink', 'Challenge someone by link')}
+    </motion.button>
+  ) : null;
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
 
@@ -403,6 +417,7 @@ export default function CreateDuelModal({
                     <div className="py-10 text-center">
                       <UserCircle2 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                       <p className="text-sm text-muted-foreground">{tFallback('createDuelModal.noUsersFound', 'No one found for "{query}"', { query: debounced })}</p>
+                      {inviteButton}
                     </div>
                   ) : (
                     <div className="px-2"><SkeletonRow /><SkeletonRow /></div>
@@ -424,6 +439,7 @@ export default function CreateDuelModal({
                     <Search className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">{tFallback('createDuelModal.searchForSomeoneToChallenge', 'Search for someone to challenge')}</p>
                     <p className="text-xs text-muted-foreground/70 mt-1">{tFallback('createDuelModal.typeTwoLetters', 'Type at least two letters of their username.')}</p>
+                    {inviteButton}
                   </div>
                 )}
               </div>
