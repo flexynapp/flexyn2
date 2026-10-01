@@ -22,7 +22,7 @@ const statement = (src, i) => {
   return src.slice(i, ends.length ? Math.min(...ends) : undefined);
 };
 const constant = (src, name) => {
-  const m = src.match(new RegExp(`const ${name} = '([^']+)'`));
+  const m = src.match(new RegExp(`const ${name} =\\s*'([^']+)'`));
   expect(m, `${name} is defined`).toBeTruthy();
   return m[1].split(',').map((c) => c.trim());
 };
@@ -43,6 +43,10 @@ const CASES = [
   ['src/lib/data/statusNotes.js', 'NOTE_COLUMNS', 'status_notes', ['user_email']],
   ['src/lib/data/foodItems.js', 'FOOD_COLUMNS', 'food_items', ['created_by']],
   ['src/lib/data/templates.js', 'TEMPLATE_COLUMNS', 'workout_templates', ['created_by']],
+  ['src/lib/data/hubMessages.js', 'CONVERSATION_COLUMNS', 'hub_conversations',
+    ['participant_emails', 'accepted_emails', 'participant_key', 'created_by']],
+  ['src/lib/data/hubMessages.js', 'MESSAGE_COLUMNS', 'hub_messages',
+    ['sender_email', 'recipient_email', 'created_by', 'read_by']],
 ];
 
 describe.each(CASES)('%s %s', (file, name, table, banned) => {
@@ -80,6 +84,7 @@ describe('tables moving to column-level SELECT grants', () => {
     'gym_feed_posts', 'gym_feed_comments',
     'hub_follows', 'hub_posts', 'hub_comments', 'hub_comment_likes',
     'stories', 'status_notes', 'food_items', 'workout_templates',
+    'hub_conversations', 'hub_messages',
   ];
   const files = execSync("git ls-files 'src/*.js' 'src/*.jsx'", { encoding: 'utf8' })
     .split('\n').filter((f) => f && !f.includes('__tests__'));

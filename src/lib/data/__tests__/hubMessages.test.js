@@ -153,7 +153,7 @@ describe('findOrCreateConversation', () => {
     _sbState.rpcByName.start_dm_conversation = { data: 'conv-99', error: null };
     _convState.filterByConditions = (conditions) =>
       (conditions.id === 'conv-99'
-        ? [{ id: 'conv-99', participant_emails: [me, them], accepted_emails: [me] }]
+        ? [{ id: 'conv-99', participant_ids: ['id-me', 'id-them'], accepted_ids: ['id-me'] }]
         : []);
 
     const row = await hubMessages.findOrCreateConversation(me, them);
@@ -202,26 +202,25 @@ describe('findOrCreateConversation', () => {
       .toEqual({ p_other_email: them });
   });
 
-  it('falls back to the legacy client insert when the RPC is missing (42883)', async () => {
+  it('throws and inserts nothing when the RPC is missing (42883)', async () => {
+    // There is no legacy client-insert fallback any more: the email
+    // columns it wrote are unreadable, and the RPC is the only door.
     _sbState.rpcByName.start_dm_conversation = {
       data: null,
       error: { code: '42883', message: 'function does not exist' },
     };
     _convState.filterByConditions = () => []; // nothing exists yet
 
-    const row = await hubMessages.findOrCreateConversation(me, them);
-
-    expect(row).toMatchObject({ id: 'legacy-conv' });
-    expect(_convState.createCalls).toHaveLength(1);
-    expect(_convState.createCalls[0].participant_emails).toEqual([me, them]);
+    await expect(hubMessages.findOrCreateConversation(me, them))
+      .rejects.toMatchObject({ code: '42883' });
+    expect(_convState.createCalls).toHaveLength(0);
   });
 
   it('does NOT fall back to a client insert when the RPC refuses', async () => {
     // The request-block gate lives inside start_dm_conversation. If a
-    // refusal fell through to the legacy find-then-insert path, a
+    // refusal fell through to a client-side find-then-insert path, a
     // blocked sender could create the conversation anyway — the whole
-    // point of the gate. Anything other than "function not deployed"
-    // has to propagate.
+    // point of the gate. Every RPC error has to propagate.
     _sbState.rpcByName.start_dm_conversation = {
       data: null,
       error: { code: '42501', message: 'conversation_unavailable' },
@@ -280,6 +279,9 @@ describe('listOlderMessages', () => {
     ];
     const rows = await hubMessages.listOlderMessages('conv-1', '2026-06-10T01:00:00Z', 100);
     expect(_sbState.lastTable).toBe('hub_messages');
+    // Named columns, never '*': the email columns are not readable.
+    expect(_sbState.lastSelect).toBe(hubMessages.MESSAGE_COLUMNS);
+    expect(_sbState.lastSelect).not.toMatch(/email/);
     expect(_sbState.lastEq).toEqual({ col: 'conversation_id', val: 'conv-1' });
     expect(_sbState.lastLt).toEqual({ col: 'created_date', val: '2026-06-10T01:00:00Z' });
     expect(_sbState.lastOrder).toEqual({ col: 'created_date', opts: { ascending: false } });
@@ -312,15 +314,18 @@ describe('markRead', () => {
   // prevent. This test pins that the client stays dumb here.
   it('always calls mark_message_read and never passes a receipts flag', async () => {
     _msgState.filterReturn = [
-      { id: 'm1', conversation_id: 'c1', sender_email: 'other@x.com', read_at: null },
+      { id: 'm1', conversation_id: 'c1', user_id: 'id-other', read_at: null },
+      { id: 'm2', conversation_id: 'c1', user_id: 'id-me', read_at: null },
     ];
     _sbState.rpcByName.mark_message_read = { data: null, error: null };
 
-    await hubMessages.markRead('c1', 'me@x.com');
+    await hubMessages.markRead('c1', 'id-me');
 
     const call = _sbState.rpcCalls.find(c => c.name === 'mark_message_read');
     expect(call).toBeTruthy();
     expect(call.args).toEqual({ p_message_id: 'm1' });
+    // My own message (by user_id) is never marked read by me.
+    expect(_sbState.rpcCalls.filter(c => c.name === 'mark_message_read')).toHaveLength(1);
   });
 
   it('clears the local unread marker even when the server skips the stamp', async () => {
@@ -328,7 +333,7 @@ describe('markRead', () => {
     // markRead writes the per-device marker before the RPC, so a
     // server-side no-op cannot leave the reader stuck at unread.
     _msgState.filterReturn = [];
-    await hubMessages.markRead('conv-xyz', 'me@x.com');
+    await hubMessages.markRead('conv-xyz', 'id-me');
     expect(localStorage.getItem('fn-conv-read-conv-xyz')).toBeTruthy();
   });
 });
@@ -339,7 +344,7 @@ describe('unreadCountFor', () => {
     localStorage.setItem('unrelated-key', '123');
     _sbState.rpcReturn = { data: 7, error: null };
 
-    const count = await hubMessages.unreadCountFor('me@x.com');
+    const count = await hubMessages.unreadCountFor('id-me');
 
     expect(count).toBe(7);
     expect(_sbState.lastRpc.name).toBe('dm_unread_count');
@@ -353,19 +358,19 @@ describe('unreadCountFor', () => {
   it('falls back to the legacy window count when the RPC is missing (42883)', async () => {
     _sbState.rpcReturn = { data: null, error: { code: '42883', message: 'function does not exist' } };
     _msgState.filterReturn = [
-      { id: 'm1', conversation_id: 'c1', sender_email: 'other@x.com', read_at: null, created_date: '2026-07-15T00:00:00Z' },
-      { id: 'm2', conversation_id: 'c1', sender_email: 'me@x.com',    read_at: null, created_date: '2026-07-15T00:01:00Z' },
-      { id: 'm3', conversation_id: 'c2', sender_email: 'other@x.com', read_at: '2026-07-15T00:02:00Z', created_date: '2026-07-15T00:00:30Z' },
+      { id: 'm1', conversation_id: 'c1', user_id: 'id-other', read_at: null, created_date: '2026-07-15T00:00:00Z' },
+      { id: 'm2', conversation_id: 'c1', user_id: 'id-me',    read_at: null, created_date: '2026-07-15T00:01:00Z' },
+      { id: 'm3', conversation_id: 'c2', user_id: 'id-other', read_at: '2026-07-15T00:02:00Z', created_date: '2026-07-15T00:00:30Z' },
     ];
 
-    const count = await hubMessages.unreadCountFor('me@x.com');
+    const count = await hubMessages.unreadCountFor('id-me');
 
     // m1 only: m2 is my own, m3 is read
     expect(count).toBe(1);
     expect(_msgState.lastFilterLimit).toBe(400);
   });
 
-  it('returns 0 without any call when email is missing', async () => {
+  it('returns 0 without any call when the user id is missing', async () => {
     const count = await hubMessages.unreadCountFor(null);
     expect(count).toBe(0);
     expect(_sbState.lastRpc).toBeNull();

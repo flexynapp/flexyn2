@@ -3,15 +3,22 @@
 // SECURITY: Messages are protected by Supabase RLS — read access requires
 // the requester to be a participant in the conversation.
 //
+// Both DM tables are read with named columns that leave out every email:
+// hub_conversations.participant_emails / accepted_emails / participant_key /
+// created_by and hub_messages.sender_email / recipient_email / created_by.
+// Everything here works by user id instead: participant_ids and accepted_ids
+// on the conversation, user_id (the sender) and recipient_id on the message.
+// Those email columns are on their way out of reach for clients, after which
+// a '*' read of either table is refused with 42501.
+//
 // hub_messages column reference (see migrations 001 + 004):
 //   body             TEXT  — message content (primary write field)
 //   content          TEXT  — kept in sync with body by migration 004 backfill
 //   created_date     TIMESTAMPTZ (default now())
 //   created_at       TIMESTAMPTZ (original, same value)
-//   recipient_email  TEXT
+//   user_id          UUID  — the sender
+//   recipient_id     UUID
 //   read_at          TIMESTAMPTZ — set when recipient reads the message
-//   read_by          TEXT[]      — array version (base schema)
-//   sender_email     TEXT
 //   conversation_id  UUID
 
 import { ownedRows } from './ownedRows';
@@ -20,8 +27,18 @@ import { getProfile } from '@/api/profileCache';
 import { isPollVote } from '@/lib/dmPolls';
 import { reportError } from '@/lib/reportError';
 
-const conv = () => ownedRows('hub_conversations');
-const msg  = () => ownedRows('hub_messages');
+export const CONVERSATION_COLUMNS =
+  'id, user_id, participant_ids, accepted_ids, last_message_at, last_message_preview, title, is_group, created_at, created_date, updated_at';
+export const MESSAGE_COLUMNS =
+  'id, user_id, conversation_id, recipient_id, sender_name, sender_avatar, body, content, read_at, delivered_at, created_at, created_date, is_pinned, replied_to_message_id, replied_to_snippet, attachment_url, deleted_at, scheduled_at, status, message_type, sticker_id, duration_ms';
+
+const conv = () => ownedRows('hub_conversations', { columns: CONVERSATION_COLUMNS });
+const msg  = () => ownedRows('hub_messages', { columns: MESSAGE_COLUMNS });
+
+/** True when the signed-in user (by id) sent this message. */
+export function isMyMessage(m, myId) {
+  return !!m && !!myId && String(m.user_id || '') === String(myId);
+}
 
 // ── Per-conversation last-read tracking ───────────────────────────────────────
 // Stored in localStorage so the badge clears instantly when a conversation is
@@ -36,10 +53,10 @@ function _isControl(m) {
   return isPollVote(m?.body || m?.content || '');
 }
 
-/** Returns true if a message is unread by myEmailLc. */
-function _isUnread(m, myEmailLc) {
+/** Returns true if a message is unread by the user with id myId. */
+function _isUnread(m, myId) {
   if (_isControl(m)) return false; // votes never ping the recipient
-  if (m.sender_email?.toLowerCase() === myEmailLc) return false;
+  if (isMyMessage(m, myId)) return false;
   const lastRead = _getLastRead(m.conversation_id);
   if (lastRead > 0) {
     // localStorage entry beats DB — gives instant badge clearing
@@ -49,8 +66,9 @@ function _isUnread(m, myEmailLc) {
   return !m.read_at; // fall back to DB column
 }
 
-/** Build a stable participant_key from two emails. */
-const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
+/** One key per set of people, so duplicate rows for a pair collapse. */
+const peopleKey = (c) => (Array.isArray(c.participant_ids) ? c.participant_ids : [])
+  .map(String).filter(Boolean).sort().join('|');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -85,18 +103,17 @@ export const createGroupConversation = async (userIds, title = null) => {
  * request-vs-direct decision is made SERVER-SIDE, from the follow graph,
  * at the moment the row is inserted:
  *
- *   • recipient already follows the sender → accepted_emails holds BOTH
- *     participants, so the thread lands directly in the recipient's Inbox
- *   • otherwise → accepted_emails holds only the sender, so the thread
+ *   • recipient already follows the sender → both participants have
+ *     accepted, so the thread lands directly in the recipient's Inbox
+ *   • otherwise → only the sender has accepted, so the thread
  *     lands in the recipient's Requests folder and the sender is capped
  *     at one message until it's accepted (RESTRICTIVE RLS policy).
  *
  * The RPC is also what clears a stale "declined" tombstone when the
  * decliner later starts the conversation themselves.
  *
- * Pre-234 hosts (RPC missing, 42883/42P01) fall through to the legacy
- * client-side find-then-insert path below so a partial deploy doesn't
- * break messaging.
+ * There is no client-side insert: the RPC is the only way a
+ * conversation is created.
  */
 export const findOrCreateConversation = async (myEmail, other) => {
   if (!myEmail || !other) return null;
@@ -119,80 +136,40 @@ export const findOrCreateConversation = async (myEmail, other) => {
     const rows = await conv().filter({ id: convId }, '-last_message_at', 1).catch(() => []);
     return rows[0] ?? null;
   }
-  const otherEmail = other;
-  if (!otherEmail) return null;
-  if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null;
-  // Lower-case both emails on insert so RLS membership checks
-  // (`auth.email() = ANY(participant_emails)`) succeed when the
-  // signed-in user's JWT email differs in case (OAuth display-case
-  // vs DB-canonical). Mig 116's group RPC already lowercases; the
-  // 1:1 path was the inconsistency. Wave 57 (Messages audit) caught.
-  const me = String(myEmail).toLowerCase();
-  const otherLc = String(otherEmail).toLowerCase();
-  const key = buildKey(me, otherLc);
-
-  // Server-authoritative create/find. Only the PEER is passed — the
-  // caller's identity comes from auth.uid()/auth.email() inside the RPC,
-  // never from a client-supplied email (mig 108's lesson).
+  // An email: start_dm_conversation(p_other_email) looks it up server-side.
+  const otherLc = String(other).toLowerCase();
+  if (String(myEmail).toLowerCase() === otherLc) return null;
   const { data: rpcConvId, error: rpcError } = await supabase
     .rpc('start_dm_conversation', { p_other_email: otherLc });
-  if (!rpcError && rpcConvId) {
-    const fromRpc = await conv().filter({ id: rpcConvId }, '-last_message_at', 1).catch(() => []);
-    if (fromRpc.length > 0) return fromRpc[0];
-  }
-  if (rpcError && rpcError.code !== '42883' && rpcError.code !== '42P01') {
-    // The RPC is a GATE, not just a convenience — it enforces the
-    // request block (mig 234's dm_request_blocks). Falling through to
-    // the legacy client insert on a refusal would let a blocked sender
-    // create the conversation anyway, so anything other than
-    // "function not deployed" has to stop here.
+  if (rpcError) {
+    // The RPC is a GATE (it enforces mig 234's request block), so a refusal
+    // stops here. There is no client-side insert to fall back to.
     reportError(rpcError, { feature: 'dm.startConversation', level: 'warning' });
     throw rpcError;
   }
-
-  const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
-  if (existing.length > 0) return existing[0];
-  try {
-    return await conv().create({
-      participant_key: key,
-      participant_emails: [me, otherLc].sort(),
-      last_message_at: new Date().toISOString(),
-      last_message_preview: '',
-    });
-  } catch (err) {
-    // Concurrent-tap race: two near-simultaneous "Message" taps both
-    // see no existing row + both attempt insert. The UNIQUE index on
-    // participant_key rejects the second with 23505. Re-query and
-    // return the row the OTHER tap just inserted — both calls now
-    // resolve to the same conversation. Wave 57 (Messages audit)
-    // caught this; previously the second tap got a misleading "Could
-    // not start conversation" toast even though a conversation existed.
-    if (err?.code === '23505' || /duplicate key/i.test(err?.message || '')) {
-      const retry = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
-      if (retry.length > 0) return retry[0];
-    }
-    throw err;
-  }
+  if (!rpcConvId) return null;
+  const rows = await conv().filter({ id: rpcConvId }, '-last_message_at', 1).catch(() => []);
+  return rows[0] ?? null;
 };
 
 /**
  * List conversations the user is in, sorted by most recent activity.
  * RLS guarantees only their own conversations are returned.
  */
-export const listMyConversations = async (myEmail, limit = 50) => {
-  if (!myEmail) return [];
-  const myEmailLc = myEmail.toLowerCase();
+export const listMyConversations = async (myId, limit = 50) => {
+  if (!myId) return [];
 
   // 1. Fetch all conversations the user is in
   const all = await conv().filter({}, '-last_message_at', 200).catch(() => []);
   const mine = all.filter(c =>
-    (c.participant_emails || []).some(e => e?.toLowerCase() === myEmailLc)
+    (c.participant_ids || []).some(id => String(id) === String(myId))
   );
 
-  // 2. Group duplicates by participant_key
+  // 2. Group duplicates by who is in them. A group conversation is its own
+  // thread even when the same people are in another one, so it keys on id.
   const groups = new Map();
   for (const c of mine) {
-    const key = c.participant_key;
+    const key = c.is_group ? `group:${c.id}` : peopleKey(c);
     if (!key) continue;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(c);
@@ -259,7 +236,7 @@ export const listMyConversations = async (myEmail, limit = 50) => {
         }
       }
       // Count unread: incoming messages I haven't read yet
-      unreadCount += msgs.filter(m => _isUnread(m, myEmailLc)).length;
+      unreadCount += msgs.filter(m => _isUnread(m, myId)).length;
     }
 
     // Fallback: no messages — pick the most recently created conversation
@@ -330,7 +307,7 @@ export const listOlderMessages = async (conversationId, beforeCreatedDate, limit
   if (!conversationId || !beforeCreatedDate) return [];
   const { data, error } = await supabase
     .from('hub_messages')
-    .select('*')
+    .select(MESSAGE_COLUMNS)
     .eq('conversation_id', conversationId)
     .lt('created_date', beforeCreatedDate)
     .order('created_date', { ascending: false })
@@ -364,10 +341,9 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
     ...(senderName   ? { sender_name:   senderName }   : {}),
     ...(senderAvatar ? { sender_avatar: senderAvatar } : {}),
     // recipient_email is optional metadata — DM delivery, block checks and
-    // the dm_received notification all run off the conversation's
-    // participant_emails, not this column. id-keyed callers pass
-    // recipientId (the backfilled recipient_id) so they never read the
-    // peer's email off the public_profiles view.
+    // the dm_received notification all run off the conversation, not this
+    // column. Callers pass recipientId instead; the email is accepted only
+    // from the few that still hold one in hand (a legacy trade payload).
     ...(recipientEmail ? { recipient_email: recipientEmail } : {}),
     ...(recipientId ? { recipient_id: recipientId } : {}),
     body: body || '',
@@ -431,21 +407,18 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
  * because read_at drift is a soft UX issue (the badge clears via the
  * localStorage write above either way).
  */
-export const markRead = async (conversationId, myEmail) => {
-  if (!conversationId || !myEmail) return;
+export const markRead = async (conversationId, myId) => {
+  if (!conversationId || !myId) return;
 
   // ① Instant local clear — badge drops to 0 even before the DB round-trip
   _setLastRead(conversationId);
 
-  const myEmailLc = myEmail.toLowerCase();
   const all = await msg().filter(
     { conversation_id: conversationId },
     '-created_date', 300
   ).catch(() => []);
 
-  const unread = all.filter(m =>
-    m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
-  );
+  const unread = all.filter(m => !isMyMessage(m, myId) && !m.read_at);
 
   // RPC fan-out — server validates membership + column-restricts to read_at.
   // Pre-141 fallback: try the direct UPDATE so the soft UX path doesn't
@@ -471,7 +444,7 @@ export const markRead = async (conversationId, myEmail) => {
 
 /**
  * Total unread message count for inbox badge.
- * Uses read_at (null = unread) and sender_email to exclude own messages.
+ * Uses read_at (null = unread) and the sender's user id to exclude own messages.
  * RLS ensures only messages in the user's conversations are returned.
  *
  * Limit reduced 500 → 100. Inbox badges over 99+ are capped anyway, so
@@ -480,9 +453,8 @@ export const markRead = async (conversationId, myEmail) => {
  * `SELECT COUNT(*) FROM hub_messages WHERE ...` server-side instead of
  * pulling rows over the wire.
  */
-export const unreadCountFor = async (myEmail) => {
-  if (!myEmail) return 0;
-  const myEmailLc = myEmail.toLowerCase();
+export const unreadCountFor = async (myId) => {
+  if (!myId) return 0;
 
   // Server-side COUNT via dm_unread_count (mig 223) — replaces the
   // 400-newest-rows pull with a single integer over the wire, and is
@@ -515,7 +487,7 @@ export const unreadCountFor = async (myEmail) => {
 
   // Fallback path — pre-migration-223 legacy window count.
   const recent = await msg().filter({}, '-created_date', 400).catch(() => []);
-  return recent.filter(m => _isUnread(m, myEmailLc)).length;
+  return recent.filter(m => _isUnread(m, myId)).length;
 };
 
 /**
@@ -536,14 +508,13 @@ export async function togglePinDmMessage(messageId) {
  * had with someone else would wipe that conversation for the other person
  * too, so we leave those intact (the user's messages are already removed).
  */
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const emailLc = email.toLowerCase();
-  const sentMessages = await msg().filter({ sender_email: email }, '-created_date', 1000).catch(() => []);
+export const purgeForUser = async (myId) => {
+  if (!myId) return;
+  const sentMessages = await msg().filter({ user_id: myId }, '-created_date', 1000).catch(() => []);
   await Promise.all(sentMessages.map(m => msg().remove(m.id).catch(() => {})));
   const myConvs = await conv().filter({}, '-created_date', 500).catch(() => []);
   const orphanConvs = myConvs.filter(c => {
-    const others = (c.participant_emails || []).filter(e => e && e.toLowerCase() !== emailLc);
+    const others = (c.participant_ids || []).filter(id => id && String(id) !== String(myId));
     return others.length === 0; // only the leaving user (or empty) → safe to delete
   });
   await Promise.all(orphanConvs.map(c => conv().remove(c.id).catch(() => {})));

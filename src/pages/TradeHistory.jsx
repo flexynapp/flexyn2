@@ -90,8 +90,8 @@ export default function TradeHistory() {
 
   const { data: legacyRows = [], isLoading: loadingLegacy } = useQuery({
     queryKey: ['tradeHistory', 'legacy', user?.email],
-    queryFn:  () => tradeHistory.listMyTrades(user.email),
-    enabled:  !!user?.email,
+    queryFn:  () => tradeHistory.listMyTrades(user.id),
+    enabled:  !!user?.email && !!user?.id,
     staleTime: 60_000,
   });
 

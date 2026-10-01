@@ -42,7 +42,7 @@ export const DM_STATUS_READ      = 'read';
  * honestly know. Only the read/eye state is withheld.
  *
  * @param {object|null} message       the conversation's latest message row
- * @param {string} myEmail            the viewer's email
+ * @param {string} myId               the viewer's user id
  * @param {object} [opts]
  * @param {boolean} [opts.isGroup]    suppress ticks on group threads
  * @param {boolean} [opts.readReceiptsEnabled]  the VIEWER's own setting;
@@ -52,10 +52,10 @@ export const DM_STATUS_READ      = 'read';
  */
 export function deriveDeliveryStatus(
   message,
-  myEmail,
+  myId,
   { isGroup = false, readReceiptsEnabled = true } = {},
 ) {
-  if (!message || !myEmail) return null;
+  if (!message || !myId) return null;
   if (isGroup) return null;
 
   // Optimistic rows carry a temp id and `_optimistic`; the insert may
@@ -63,9 +63,8 @@ export function deriveDeliveryStatus(
   if (message._optimistic) return null;
   if (typeof message.id === 'string' && message.id.startsWith('temp-')) return null;
 
-  const myLc = String(myEmail).toLowerCase();
-  const senderLc = String(message.sender_email || message.created_by || '').toLowerCase();
-  if (!senderLc || senderLc !== myLc) return null;
+  // user_id is the sender (the email columns are not readable).
+  if (!message.user_id || String(message.user_id) !== String(myId)) return null;
 
   if (message.read_at) {
     // Reciprocity: receipts off means no eye, in either direction.

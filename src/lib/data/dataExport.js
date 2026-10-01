@@ -8,7 +8,7 @@
 //   The fetches use the regular supabase client, so RLS enforces that
 //   we never include another user's rows even if a bug here asked for
 //   them. Each table is filtered explicitly on a user-owning column
-//   (created_by / user_id / sender_email) as a belt + suspenders.
+//   (created_by / user_id) as a belt + suspenders.
 //
 // FAILURE SEMANTICS
 //   Per-table fetches are independent and tolerated. If one table
@@ -23,6 +23,7 @@ import { OWN_COLUMNS as OWN_REGIMEN_COLUMNS } from './regimens';
 import { POST_COLUMNS } from './hubPosts';
 import { COMMENT_COLUMNS } from './hubComments';
 import { TEMPLATE_COLUMNS } from './templates';
+import { MESSAGE_COLUMNS } from './hubMessages';
 
 // (table, owner-filter-column) pairs we know how to export.
 //
@@ -50,7 +51,7 @@ const EXPORT_TABLES = [
   { name: 'workout_templates',table: 'workout_templates', column: 'user_id',    via: 'id', select: TEMPLATE_COLUMNS },
   { name: 'hub_posts',        table: 'hub_posts',      column: 'user_id',      via: 'id', select: POST_COLUMNS },
   { name: 'hub_comments',     table: 'hub_comments',   column: 'user_id',      via: 'id', select: COMMENT_COLUMNS },
-  { name: 'hub_messages_sent',table: 'hub_messages',   column: 'sender_email', via: 'email' },
+  { name: 'hub_messages_sent',table: 'hub_messages',   column: 'user_id',      via: 'id', select: MESSAGE_COLUMNS },
   // Health / wellness logs — GDPR Article 20 (right to data portability)
   // covers ALL user-furnished data. The export previously omitted these
   // even though _invokeDeleteAccount knew about them. (Audit 14 #20.)

@@ -60,7 +60,7 @@ export async function cancelMyScheduledMessage(messageId) {
 export async function listMyScheduled(userId) {
   if (!userId) return [];
   const { data, error } = await safeSelect({
-    columns: ['id', 'conversation_id', 'content', 'scheduled_at', 'sender_email'],
+    columns: ['id', 'conversation_id', 'content', 'scheduled_at', 'user_id'],
     build: (cols) => supabase
       .from('hub_messages')
       .select(cols)

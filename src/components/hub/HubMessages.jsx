@@ -256,15 +256,15 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
 
   const { data: conversations = [], isLoading: convsLoading } = useQuery({
     queryKey: ['hubConversations', user?.email],
-    queryFn: () => hubMessages.listMyConversations(user.email),
-    enabled: !!user?.email,
+    queryFn: () => hubMessages.listMyConversations(user.id),
+    enabled: !!user?.email && !!user?.id,
     refetchInterval: 15000,
   });
 
   // ── Message-request actions (Accept / Delete / Block) ──────────────────────
-  // Accept appends the viewer's email to accepted_emails (mig 113's
+  // Accept adds the viewer to the conversation's accepted list (mig 113's
   // accept_conversation RPC), which is all it takes to move the thread
-  // to the Inbox — the partition is computed from that column, so there
+  // to the Inbox — the partition is computed from accepted_ids, so there
   // is no row to migrate. Delete is a real destructive purge (mig 234):
   // the conversation row and every message under it are deleted for both
   // participants. Block runs the existing full-block RPC first, then
@@ -463,7 +463,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // explicitly told us to bury it.
   const { archivedConvs, inboxConvs, requestConvs } = useMemo(() => {
     const { active, archived } = partitionByArchive(conversations, user?.id);
-    const { inbox, requests } = partitionConversations(active, user?.email, followingIds, user?.id);
+    const { inbox, requests } = partitionConversations(active, followingIds, user?.id);
     return { archivedConvs: archived, inboxConvs: inbox, requestConvs: requests };
   // archiveVersion is a deliberate dependency, not noise. Archive state
   // lives in localStorage, so archiving changes NOTHING this memo watches:
@@ -559,10 +559,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // Resolve each other-participant's DISPLAY profile (username/avatar) by
   // user_id via participant_ids — not by scanning users.list() and matching
   // on email. participant_ids is backfilled + trigger-maintained (mig 216)
-  // and RLS already authorises the id path. The email needed for the SEND
-  // path is read from each conversation's own participant_emails column in
-  // the render below (not the public_profiles view), so this drops the
-  // view's email from the inbox without touching message delivery.
+  // and RLS already authorises the id path. No email is read anywhere in
+  // the inbox.
   const otherIds = (conversations || [])
     .map(c => (c.participant_ids || []).find(id => id && id !== user?.id))
     .filter(Boolean);
@@ -911,7 +909,6 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             <div className="space-y-1">
               {searchedConvs.map((c, i) => {
                 const otherId = (c.participant_ids || []).find(id => id && id !== user?.id) || '';
-                const otherEmail = (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()) || '';
                 const profile = profilesById[otherId];
                 const username = profile?.username || null;
                 const handle = username ? `@${username}` : t('hub.profile.anonymousAthlete');
@@ -920,7 +917,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 let preview = t('hub.messages.noMessagesYet');
                 const lastMsgText = lastMsg?.body || lastMsg?.content;
                 if (lastMsgText) {
-                  const isMine = lastMsg.sender_email?.toLowerCase() === user?.email?.toLowerCase();
+                  const isMine = hubMessages.isMyMessage(lastMsg, user?.id);
                   // Strip protocol markers from the conversation-list
                   // preview. Without this, a user who just sent or
                   // received a trade offer or a trade response sees the
@@ -988,12 +985,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 // so without a marker it reads as a normal thread and
                 // there's nowhere to take it back from.
                 const outgoingPending = dmView === 'inbox'
-                  && isOutgoingPendingRequest(c, user?.email);
+                  && isOutgoingPendingRequest(c, user?.id);
                 // Grey check / green check / green eye on MY last
                 // message. Declared before the JSX that reads it.
-                const deliveryStatus = deriveDeliveryStatus(lastMsg, user?.email, {
+                const deliveryStatus = deriveDeliveryStatus(lastMsg, user?.id, {
                   isGroup: !!c.is_group
-                    || (Array.isArray(c.participant_emails) && c.participant_emails.length > 2),
+                    || (Array.isArray(c.participant_ids) && c.participant_ids.length > 2),
                   readReceiptsEnabled,
                 });
                 const isMuted = mutedConvIds.has(c.id);
@@ -1016,7 +1013,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       innerRef={i === 0 ? firstRowRef : undefined}
                       onTap={() => {
                         setActiveConv(c);
-                        setOpenOtherUser(profile ? { ...profile, email: otherEmail } : { id: otherId, email: otherEmail, username });
+                        setOpenOtherUser(profile ? { ...profile } : { id: otherId, username });
                       }}
                       // Requests rows already carry Accept / Delete / Block
                       // inline, and pinning a message request is meaningless —
@@ -1056,8 +1053,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     </LongPressRow>
 
                     {/* Request actions. Only rendered in the Requests view —
-                        Accept moves the thread to Inbox by appending the
-                        viewer to accepted_emails (no row migration), Delete
+                        Accept moves the thread to Inbox by adding the
+                        viewer to the accepted list (no row migration), Delete
                         writes a per-viewer decline tombstone, Block runs the
                         full-block RPC and then hides the thread. */}
                     {/* Unsend — same two-tap confirm as Delete, because

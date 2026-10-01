@@ -2,10 +2,12 @@
 //
 // Client wrappers for the "Message Requests" inbox (migration 113).
 //
-// Acceptance state lives in hub_conversations.accepted_emails (text[]).
+// Acceptance state lives in hub_conversations.accepted_emails (text[]),
+// which the server writes. The app reads accepted_ids, the same list as
+// user ids, which a trigger derives from it (so a client cannot forge it).
 // A conversation appears in Requests when:
 //   • the viewer is a participant
-//   • AND their email is NOT in accepted_emails
+//   • AND their id is NOT in accepted_ids
 //
 // Acceptance happens either explicitly via the accept_conversation
 // RPC, OR implicitly when the viewer sends a message (mig 113's
@@ -82,6 +84,8 @@ export async function unsendMessageRequest(convId) {
   return !!data;
 }
 
+const ids = (list) => (Array.isArray(list) ? list.map(String).filter(Boolean) : []);
+
 /**
  * True when `conversation` is the viewer's own outgoing request that the
  * recipient has not acted on yet — i.e. exactly the case unsend covers.
@@ -90,60 +94,48 @@ export async function unsendMessageRequest(convId) {
  * without this they look like any other thread and there is nowhere to
  * offer "unsend".
  */
-export function isOutgoingPendingRequest(conversation, myEmail) {
-  if (!conversation || !myEmail) return false;
+export function isOutgoingPendingRequest(conversation, myId) {
+  if (!conversation || !myId) return false;
   if (conversation.is_group) return false;
-  const participants = Array.isArray(conversation.participant_emails)
-    ? conversation.participant_emails.map(e => String(e).toLowerCase())
-    : [];
+  const participants = ids(conversation.participant_ids);
   if (participants.length !== 2) return false;
-  const myLc = String(myEmail).toLowerCase();
-  if (!participants.includes(myLc)) return false;
-  const accepted = Array.isArray(conversation.accepted_emails)
-    ? conversation.accepted_emails.map(e => String(e).toLowerCase())
-    : [];
+  const me = String(myId);
+  if (!participants.includes(me)) return false;
+  const accepted = ids(conversation.accepted_ids);
   // I accepted (I opened it) and the other side has not.
-  if (!accepted.includes(myLc)) return false;
-  return participants.some(e => e !== myLc && !accepted.includes(e));
+  if (!accepted.includes(me)) return false;
+  return participants.some(id => id !== me && !accepted.includes(id));
 }
 
 /**
  * Following someone is consent to hear from them, so any pending request
  * they already sent should move straight to the Inbox. Accepts the 1:1
- * conversation between the two emails if the follower hasn't accepted it
+ * conversation between the two users if the follower hasn't accepted it
  * yet; a no-op otherwise.
  *
  * Mig 235's trg_dm_accept_conversations_on_follow does this server-side.
- * This client mirror exists for two reasons: it makes the flip instant
- * instead of waiting on the 15s inbox poll, and it keeps the behaviour
- * working on a host that has the frontend deployed but hasn't had the
- * SQL pasted in yet. Both paths are idempotent, so running both is safe.
+ * This client mirror only makes the flip instant instead of waiting on the
+ * 15s inbox poll. Both paths are idempotent, so running both is safe.
  *
  * @returns {Promise<boolean>} true when a conversation was accepted
  */
-export async function acceptPendingRequestsFrom(followerEmail, followeeEmail) {
-  if (!followerEmail || !followeeEmail) return false;
-  const me   = String(followerEmail).toLowerCase();
-  const them = String(followeeEmail).toLowerCase();
+export async function acceptPendingRequestsFrom(followerId, followeeId) {
+  if (!followerId || !followeeId) return false;
+  const me   = String(followerId);
+  const them = String(followeeId);
   if (me === them) return false;
 
-  // Same stable pair key findOrCreateConversation builds.
-  const key = [me, them].sort().join('|');
   const { data } = await safeSelect({
-    columns: ['id', 'accepted_emails'],
+    columns: ['id', 'participant_ids', 'accepted_ids', 'is_group'],
     build: (cols) => supabase
       .from('hub_conversations')
       .select(cols)
-      .eq('participant_key', key)
-      .limit(1),
+      .contains('participant_ids', [me, them])
+      .limit(20),
   });
-  const row = (data ?? [])[0];
+  const row = (data ?? []).find(c => !c.is_group && ids(c.participant_ids).length === 2);
   if (!row?.id) return false;
-
-  const accepted = Array.isArray(row.accepted_emails)
-    ? row.accepted_emails.map(e => String(e).toLowerCase())
-    : [];
-  if (accepted.includes(me)) return false;
+  if (ids(row.accepted_ids).includes(me)) return false;
 
   await acceptConversation(row.id);
   return true;
@@ -159,79 +151,63 @@ export async function acceptPendingRequestsFrom(followerEmail, followeeEmail) {
  *
  * Returns true when the viewer is BLOCKED from sending.
  *
- * @param {object} conversation        row with participant_emails + accepted_emails
- * @param {string} myEmail
+ * @param {object} conversation        row with participant_ids + accepted_ids
+ * @param {string} myId
  * @param {number} myMessageCount      messages the viewer already has in the thread
  */
-export function isPendingRequestSendBlocked(conversation, myEmail, myMessageCount) {
-  if (!conversation || !myEmail) return false;
+export function isPendingRequestSendBlocked(conversation, myId, myMessageCount) {
+  if (!conversation || !myId) return false;
   // Groups are exempt server-side — a creator legitimately talks into a
   // group whose members haven't accepted yet (mig 116).
   if (conversation.is_group) return false;
-  const participants = Array.isArray(conversation.participant_emails)
-    ? conversation.participant_emails.map(e => String(e).toLowerCase())
-    : [];
+  const participants = ids(conversation.participant_ids);
   if (participants.length !== 2) return false;
-  const myLc = String(myEmail).toLowerCase();
-  const accepted = Array.isArray(conversation.accepted_emails)
-    ? conversation.accepted_emails.map(e => String(e).toLowerCase())
-    : [];
-  const pending = participants.filter(e => e !== myLc && !accepted.includes(e));
+  const me = String(myId);
+  const accepted = ids(conversation.accepted_ids);
+  const pending = participants.filter(id => id !== me && !accepted.includes(id));
   if (pending.length === 0) return false;
   return Number(myMessageCount || 0) >= 1;
 }
 
 /**
  * Partition a fetched conversation list into requests + inbox based on
- * the viewer's email + the conversation's accepted_emails array AND
- * the viewer's follow graph.
+ * the viewer's id, the conversation's accepted_ids AND the viewer's
+ * follow graph.
  *
  * A conversation lives in REQUESTS when ALL of the following hold:
- *   • viewer's email is NOT in c.accepted_emails
+ *   • viewer's id is NOT in c.accepted_ids
  *   • the other participant is NOT in the viewer's follows
  *
  * The second condition is what makes this "stranger filtering" — DMs
  * from accounts you already follow skip Requests even on first send.
  *
- * The follow check runs on user ids (participant_ids against the ids the
- * viewer follows): the follow graph no longer hands out emails.
- *
- * @param {Array} conversations  fetched list (each with participant_emails, participant_ids + accepted_emails)
- * @param {string} myEmail
+ * @param {Array} conversations  fetched list (each with participant_ids + accepted_ids)
  * @param {Set<string>|string[]} followingIds  user ids the viewer follows
- * @param {string} [myId]  the viewer's user id
+ * @param {string} myId  the viewer's user id
  * @returns {{ inbox: Array, requests: Array }}
  */
-export function partitionConversations(conversations, myEmail, followingIds, myId) {
-  if (!Array.isArray(conversations) || !myEmail) {
+export function partitionConversations(conversations, followingIds, myId) {
+  if (!Array.isArray(conversations) || !myId) {
     return { inbox: conversations || [], requests: [] };
   }
-  const myLc = String(myEmail).toLowerCase();
+  const me = String(myId);
   const followSet = new Set(Array.from(followingIds || []).map(String));
 
   const inbox = [];
   const requests = [];
   for (const c of conversations) {
-    const accepted = Array.isArray(c.accepted_emails)
-      ? c.accepted_emails.map(e => String(e).toLowerCase())
-      : [];
-    const participantsLc = Array.isArray(c.participant_emails)
-      ? c.participant_emails.map(e => String(e).toLowerCase())
-      : [];
-    const otherEmails = participantsLc.filter(e => e !== myLc);
-    // Self-conversations and orphaned conversations (participant_emails
-    // missing/empty due to schema drift) used to route to the Requests
-    // folder forever because `followsAny` was false. A conversation the
-    // viewer participates in with no other participants is either a
-    // self-DM or a transient creation state — surface it in the inbox
-    // so it isn't permanently hidden. (Audit 17 #F20.)
-    const isSelfOrOrphan = otherEmails.length === 0 && participantsLc.includes(myLc);
-    const otherIds = Array.isArray(c.participant_ids)
-      ? c.participant_ids.map(String).filter(id => id !== String(myId))
-      : [];
+    const accepted = ids(c.accepted_ids);
+    const participants = ids(c.participant_ids);
+    const otherIds = participants.filter(id => id !== me);
+    // Self-conversations and orphaned conversations (no other participant)
+    // used to route to the Requests folder forever because `followsAny` was
+    // false. A conversation the viewer participates in with no other
+    // participants is either a self-DM or a transient creation state —
+    // surface it in the inbox so it isn't permanently hidden. (Audit 17 #F20.)
+    const isSelfOrOrphan = otherIds.length === 0 && participants.includes(me);
     const followsAny = otherIds.some(id => followSet.has(id));
-    const accepted_by_me = accepted.includes(myLc);
-    if (accepted_by_me || followsAny || isSelfOrOrphan) {
+    const acceptedByMe = accepted.includes(me);
+    if (acceptedByMe || followsAny || isSelfOrOrphan) {
       inbox.push(c);
     } else {
       requests.push(c);
