@@ -35,7 +35,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
   // the user's preferred unit. The helper signature gained the param
   // in wave 27 but BountyCard hadn't been wired up to provide it, so
   // kg users still saw "beat 315 lbs" everywhere.
-  const description = bountyDescription(bounty, language, weightUnit);
+  const description = bountyDescription(bounty, language, weightUnit, tFallback);
 
   const handleClaim = async () => {
     if (!canClaim || busy) return;
@@ -47,7 +47,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
       toast.success(tFallback(
         'bountyCard.claimedToast',
         'Bounty claimed! You have {h}h. Entry fee: {n} 🪙',
-        { h: cfg.hours, n: cfg.entry_fee },
+        { h: cfg.hours, n: bounty.entry_fee ?? cfg.entry_fee },
       ));
       qc.invalidateQueries({ queryKey: ['activeBounties'] });
       qc.invalidateQueries({ queryKey: ['myActiveBountyClaim'] });

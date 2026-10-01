@@ -9,6 +9,7 @@
 // up to your balance (capped server-side at 10000 per gift).
 
 import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Send, Loader2 } from 'lucide-react';
@@ -16,6 +17,8 @@ import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
+import { getFlexCoins } from '@/lib/data/coinShop';
+import { patchProfile } from '@/api/profileCache';
 import { useNumberFormatter } from '@/lib/intl';
 import { useAutofocusOnOpen } from '@/hooks/useAutofocusOnOpen';
 import { usePullToDismiss } from '@/hooks/usePullToDismiss';
@@ -28,7 +31,17 @@ const MAX_MESSAGE_LEN = 120;
 export default function GiftCoinsModal({ open, onClose, recipient }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  // The live balance, not user.flex_coins: that is AuthContext's snapshot
+  // from app start, so it missed coins earned since and still showed the
+  // pre-gift number after a gift. Same query the Bag and Market read.
+  const { data: liveCoins } = useQuery({
+    queryKey: ['flexCoins', user?.id],
+    queryFn:  () => getFlexCoins(user.id),
+    enabled:  !!user?.id && open,
+    staleTime: 15_000,
+  });
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [amount, setAmount] = useState(100);
@@ -39,7 +52,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
 
   if (!open) return null;
 
-  const balance  = Math.max(0, Number(user?.flex_coins) || 0);
+  const balance  = Math.max(0, Number(liveCoins ?? user?.flex_coins) || 0);
   const recipName = recipient?.username
     ? `@${recipient.username}`
     : tFallback('gift.thisUser', 'this user');
@@ -65,7 +78,16 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
           recipient: recipName,
         }),
       );
-      try { await refreshUser?.(); } catch { /* non-blocking */ }
+      // Re-read the balance the server now holds and share it with every
+      // reader. The RPC does not return it, so this is a read, never a sum.
+      try {
+        const fresh = await getFlexCoins(user.id);
+        if (typeof fresh === 'number') {
+          qc.setQueryData(['flexCoins', user.id], fresh);
+          patchProfile({ flex_coins: fresh });
+        }
+      } catch { /* non-blocking */ }
+      qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
       onClose?.();
     } else {
       const err = res.error || 'UNKNOWN';
