@@ -7,6 +7,7 @@
 // The component owns its own data fetch, board selection, and rendering.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -242,6 +243,7 @@ export default function LeaderboardsContent({ active = true }) {
           return {
             id:        r.user_id,
             full_name: r.full_name || r.username || t('progress.anonymous'),
+            username:  r.username || null,
             // Prefer the server's rank — it accounts for the whole table and
             // breaks ties deterministically. Pre-257 rows have no `rank`.
             rank:      Number(r.rank) || idx + 1,
@@ -639,6 +641,7 @@ export default function LeaderboardsContent({ active = true }) {
                         <div className="flex-shrink-0 text-end">
                           <p className="font-heading font-bold text-sm">{row._display}</p>
                         </div>
+                        <PlayerMenu userId={row.id} currentUserId={user?.id} username={row.username} context="leaderboard" />
                       </div>
                     </Card>
                   </div>

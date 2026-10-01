@@ -20,6 +20,7 @@
 // C (queued), D (no war, new crew). Board F is the spec.
 
 import React from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Swords, Loader2, ChevronRight, Radar } from 'lucide-react';
@@ -346,6 +347,7 @@ function LiveWar({ crew, war, currentUserId, tFallback, language }) {
                   <span className={`font-heading font-bold text-label tabular-nums shrink-0 ${(m.score || 0) === 0 ? 'text-muted-foreground' : ''}`}>
                     {fmt(m.score || 0)}
                   </span>
+                  <PlayerMenu userId={m.user_id} currentUserId={currentUserId} username={m.username} context="crew_war" contextId={war.id} />
                 </div>
               );
             })}

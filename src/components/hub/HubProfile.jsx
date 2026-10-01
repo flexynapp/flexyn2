@@ -81,6 +81,7 @@ const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
 // Fat sweating dude propelled by his own sweat. Pixelated retro look.
 const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
 const LeagueStandingsModal = lazy(() => import('@/components/dashboard/LeagueStandingsModal'));
+const ReportPlayerSheet = lazy(() => import('@/components/report/ReportPlayerSheet'));
 
 // Poop badge — shown on certain special users
 function PoopBadge({ size = 22 }) {
@@ -1035,6 +1036,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // muted a person had no way to find the reversal from the person's own page.
   // Both live here now, whichever state you are in.
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const { data: myMutes = [] } = useQuery({
     queryKey: ['userMutes', user?.id],
     queryFn: () => userMutes.listMutes(user.id),
@@ -1772,6 +1774,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           onUnmute={!isSelf && targetId ? handleUnmute : undefined}
           onBlock={!isSelf && targetId ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
           onUnblock={!isSelf && targetId ? handleUnblock : undefined}
+          onReport={!isSelf && targetId ? () => { setMenuOpen(false); setReportOpen(true); } : undefined}
           isBlocked={isBlockedTarget}
           isMuted={isMutedTarget}
           onToggleTrophyVisibility={handleTrophyVisibility}
@@ -2191,6 +2194,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </Suspense>
       )}
 
+      {reportOpen && targetId && (
+        <Suspense fallback={null}>
+          <ReportPlayerSheet
+            open={reportOpen}
+            onClose={() => setReportOpen(false)}
+            userId={targetId}
+            username={targetUser?.username || targetProfile?.username}
+            context="profile"
+          />
+        </Suspense>
+      )}
       {giftOpen && (
         <Suspense fallback={null}>
           <GiftCoinsModal

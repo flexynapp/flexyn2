@@ -16,6 +16,7 @@
 // MIT License — Copyright (c) Trophy Labs, Inc.
 
 import React from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { motion } from 'framer-motion';
 import { Crown, Trophy, Flame } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -80,8 +81,13 @@ export default function LeaderboardPodium({ rankings = [], currentUserId, onSele
             animate={{ opacity: 1, y: 0 }}
             // First place lands last so the eye is drawn to it.
             transition={{ delay: 0.05 * i, type: 'spring', stiffness: 320, damping: 24 }}
-            className="flex flex-col items-center min-w-0"
+            className="relative flex flex-col items-center min-w-0"
           >
+            {/* Top of a board is where an impossible number does the most
+                damage, so the podium gets the report menu too. */}
+            <div className="absolute top-0 end-0">
+              <PlayerMenu userId={row.id} currentUserId={currentUserId} username={row.username} context="leaderboard" />
+            </div>
             {/* Avatar + rank badge */}
             <div className="relative mb-1.5">
               {row.avatar_url ? (

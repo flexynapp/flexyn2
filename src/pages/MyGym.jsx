@@ -51,6 +51,7 @@ import {
 import { listMyGyms, joinByCode } from '@/lib/data/gymBusinesses';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import { toast } from '@/lib/toast';
+import PlayerMenu from '@/components/report/PlayerMenu';
 
 const QrCodeScanner = lazy(() => import('@/components/gyms/QrCodeScanner'));
 
@@ -135,7 +136,7 @@ function CommunityProgress({ progress, tFallback }) {
 }
 
 // ── Leaderboard row ─────────────────────────────────────────────────
-function BoardRow({ entry, isMe, maxDays, delay }) {
+function BoardRow({ entry, isMe, maxDays, delay, gymId, viewerId }) {
   const rank = Number(entry.rank);
   const days = Number(entry.value) || 0;
   const pct = maxDays > 0 ? Math.min(100, (days / maxDays) * 100) : 0;
@@ -192,6 +193,7 @@ function BoardRow({ entry, isMe, maxDays, delay }) {
           {days === 1 ? 'day' : 'days'}
         </p>
       </div>
+      <PlayerMenu userId={entry.user_id} currentUserId={viewerId} username={entry.username} context="gym" contextId={gymId} />
     </motion.div>
   );
 }
@@ -546,6 +548,8 @@ export default function MyGym() {
                     isMe={entry.user_id === user?.id}
                     maxDays={maxDays}
                     delay={i * 0.03}
+                    gymId={gym?.id}
+                    viewerId={user?.id}
                   />
                 ))}
               </div>

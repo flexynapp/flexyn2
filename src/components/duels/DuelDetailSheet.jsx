@@ -3,6 +3,7 @@
 // (Mirror and Session duels), and the result card when it is over.
 
 import React, { useState } from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { haptic } from '@/lib/haptic';
 import { X, Swords, Dumbbell, Timer, Trophy, Target, Crown, Check, Loader2, Play, Package } from 'lucide-react';
@@ -167,9 +168,18 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 : duelTypeName(duel.type, tFallback, duel.mode)}
             </span>
           </div>
-          <motion.button type="button" whileTap={tap} onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary active:bg-secondary">
-            <X className="w-4 h-4 text-muted-foreground" />
-          </motion.button>
+          <div className="flex items-center gap-1">
+            <PlayerMenu
+              userId={isChallenger ? duel.opponent_id : duel.challenger_id}
+              currentUserId={currentUserId}
+              username={opponentName}
+              context="duel"
+              contextId={duel.id}
+            />
+            <motion.button type="button" whileTap={tap} onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary active:bg-secondary">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </motion.button>
+          </div>
         </div>
 
         <div className="px-5 pb-6 space-y-5">

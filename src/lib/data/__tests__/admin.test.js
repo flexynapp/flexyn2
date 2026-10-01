@@ -24,6 +24,7 @@ describe('listReports', () => {
     expect(rpcSpy).toHaveBeenCalledWith('list_reports_for_admin', {
       p_status: 'pending',
       p_limit:  50,
+      p_kind:   null,
     });
   });
 
@@ -33,6 +34,17 @@ describe('listReports', () => {
     expect(rpcSpy).toHaveBeenCalledWith('list_reports_for_admin', {
       p_status: 'reviewed',
       p_limit:  10,
+      p_kind:   null,
+    });
+  });
+
+  it('narrows to player or content reports when asked', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: [], error: null });
+    await listReports({ kind: 'user' });
+    expect(rpcSpy).toHaveBeenCalledWith('list_reports_for_admin', {
+      p_status: 'pending',
+      p_limit:  50,
+      p_kind:   'user',
     });
   });
 
