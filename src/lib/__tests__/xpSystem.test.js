@@ -270,9 +270,8 @@ describe('XP constants', () => {
     const mod = await import('../xpSystem');
     expect(mod.DAILY_XP_CAP).toBeUndefined();
   });
-  it('XP_REWARDS.waterGlass is a small positive number', () => {
-    expect(XP_REWARDS.waterGlass).toBeGreaterThan(0);
-    expect(XP_REWARDS.waterGlass).toBeLessThan(20);
+  it('water pays nothing per glass (the server pays at the daily goal)', () => {
+    expect(XP_REWARDS.waterGlass).toBeUndefined();
   });
   it('XP_REWARDS.achievementUnlocked is a function', () => {
     expect(typeof XP_REWARDS.achievementUnlocked).toBe('function');
