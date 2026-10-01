@@ -50,7 +50,21 @@ import { Button } from '@/components/ui/button';
 const CRACK = [[50, 0], [44, 30], [55, 52], [46, 75], [52, 100]];
 const LEFT_CLIP = `polygon(0 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', ')}, 0 100%)`;
 const RIGHT_CLIP = `polygon(100% 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', ')}, 100% 100%)`;
-const CRACK_POINTS = CRACK.map(([x, y]) => `${x},${y}`).join(' ');
+// The crack grows on the heartbeats instead of fading in as one line: the
+// middle splits first, then it runs up and down, then branches fork off it,
+// one step per beat (`beat` is the index into chargeBeats). Each step is a
+// soft glow in the new league's colour under a bright core, so it reads as
+// light breaking through rather than a line drawn on top.
+const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(' ');
+const CRACK_STEPS = [
+  { beat: 1, points: pts([CRACK[1], CRACK[2]]) },
+  { beat: 2, points: pts([CRACK[2], CRACK[3]]) },
+  { beat: 3, points: pts([CRACK[0], CRACK[1]]) },
+  { beat: 3, points: pts([CRACK[2], [63, 47], [70, 49]]), branch: true },
+  { beat: 4, points: pts([CRACK[3], CRACK[4]]) },
+  { beat: 4, points: pts([CRACK[1], [36, 25], [30, 28]]), branch: true },
+  { beat: 5, points: pts([CRACK[3], [38, 80]]), branch: true },
+];
 
 // The crests are big SVG trees and there are a dozen on this screen. None of
 // them changes after the first render, so a phase change must not rebuild
@@ -84,6 +98,29 @@ const Tint = forwardRef(function Tint({ tier, level, start = 0, tone = 'hot' }, 
   );
 });
 
+/** The label, score and bar under the ladder. */
+function GoalRows({ goal, fill = '', fillStyle }) {
+  return (
+    <>
+      {goal.label && (
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-caption font-bold">{goal.label}</span>
+          {goal.value && <span className="text-caption text-muted-foreground tabular-nums">{goal.value}</span>}
+        </div>
+      )}
+      {goal.pct != null && (
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full origin-left rtl:origin-right ${fill}`}
+            style={{ background: goal.color, transform: `scaleX(${goal.pct})`, ...fillStyle }}
+          />
+        </div>
+      )}
+      {goal.text && <p className="text-caption text-muted-foreground">{goal.text}</p>}
+    </>
+  );
+}
+
 /**
  * @param {object}   props
  * @param {{ kind: 'tier'|'level'|'down'|'placed', from: {tier, level}|null, to: {tier, level} }} props.move
@@ -108,7 +145,13 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   // A demotion keeps the stage grey: the only colour on it is the crest.
   const color = isDown ? MUTED : toTier.color;
 
+  // When the new crest hits, and so when the words after it start.
+  const impactAt = isDown ? 600
+    : landingFrames({ kind: motion, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
+  const hit = fx.reduced ? 0 : Math.round(impactAt) + drama.hold;
   const [phase, setPhase] = useState(() => (fx.reduced ? 'landed' : 'enter'));
+  // The ladder's mark moves a beat after the crest lands, not with it.
+  const [ladderMoved, setLadderMoved] = useState(() => fx.reduced);
   const timers = useRef([]);
   const charge = useRef(null);
   const oldRef = useRef(null);
@@ -192,7 +235,17 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     oldTintRef.current?.animate?.(c.hot, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
     // Every heartbeat lands with a haptic tick and, on a promotion, a ring
     // pulled in to arrive on it.
-    chargeBeats(motion).forEach((at, i) => {
+    const beats = chargeBeats(motion);
+    // The crack: each step snaps open on its beat, flares, and settles.
+    el?.querySelectorAll?.('[data-crack]').forEach((g) => {
+      const at = beats[Number(g.dataset.crack)];
+      if (at == null || typeof g.animate !== 'function') return;
+      g.animate(
+        [{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0.8 }],
+        { duration: 360, delay: Math.max(0, Math.round(drama.charge * at) - 60), easing: 'ease-out', fill: 'both' },
+      );
+    });
+    beats.forEach((at, i) => {
       const t = Math.round(drama.charge * at);
       later(() => triggerHaptic('subtle'), t);
       if (isTier) {
@@ -241,6 +294,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     const el = newRef.current;
     const point = fx.aimAt(el);
     fx.setRays(color, drama.rays, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
+    later(() => setLadderMoved(true), fx.reduced ? 0 : hit + 150);
     if (fx.reduced || typeof el?.animate !== 'function') return;
     if (isDown) {
       // The lower crest rises quietly into place. Nothing hits.
@@ -347,13 +401,22 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     };
   }
 
+  // Before a promotion lands: the target they just reached.
+  const preGoal = move.kind === 'tier' && score != null
+    ? {
+      label: tFallback('rankUp.next', 'Next: {league}', { league: leagueTierName(toTier, tFallback) }),
+      value: tFallback('rankUp.scoreOf', '{score} of {floor}', { score: fmt(score), floor: fmt(toTier.strengthFloor) }),
+      pct: Math.max(0.04, Math.min(1, (score - fromTier.strengthFloor) / Math.max(1, toTier.strengthFloor - fromTier.strengthFloor))),
+      color: toTier.color,
+    }
+    : null;
+
   const landed = phase === 'landed';
   const charging = phase === 'enter' || phase === 'charge';
-  const impactAt = isDown ? 600
-    : landingFrames({ kind: motion, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
-  const hit = fx.reduced ? 0 : Math.round(impactAt) + drama.hold;
   const beat = (n) => ({ animationDelay: `${hit + n * 130}ms` });
   const toIndex = TIERS.findIndex((t) => t.id === toTier.id);
+  // A first placement has no league to mark yet.
+  const fromIndex = isPlaced ? -1 : TIERS.findIndex((t) => t.id === fromTier.id);
   // Everything the landing shows is laid out from the first frame and only
   // made visible when it lands, so the crest never moves when it appears.
   // (It used to jump 150px up the screen at the moment of impact.)
@@ -373,7 +436,10 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     >
       <OpenerStage fx={fx} />
       <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
-        <header className="h-[60px] shrink-0 flex items-center justify-end">
+        <header className="h-[60px] shrink-0 flex items-center justify-between">
+          <p className="reveal-rise text-micro font-bold uppercase tracking-widest text-muted-foreground">
+            {isPlaced ? tFallback('rankUp.headPlaced', 'Placement') : tFallback('rankUp.head', 'League update')}
+          </p>
           <button
             type="button"
             onClick={onClose}
@@ -399,9 +465,13 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
                 {isPlaced && <Tint tier={fromTier.id} level={from.level} start={0.92} tone="grey" />}
                 <Tint ref={oldTintRef} tier={fromTier.id} level={from.level} tone={isDown ? 'grey' : 'hot'} />
                 {isTier && (
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`absolute inset-0 w-full h-full ${phase === 'charge' ? 'rank-crack' : 'opacity-0'}`}
-                    style={{ animationDuration: `${drama.charge}ms` }} aria-hidden="true">
-                    <polyline points={CRACK_POINTS} fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden="true">
+                    {CRACK_STEPS.map((step, i) => (
+                      <g key={i} data-crack={step.beat} opacity="0" fill="none" strokeLinejoin="round" strokeLinecap="round">
+                        <polyline points={step.points} stroke={color} strokeOpacity="0.45" strokeWidth={step.branch ? 5 : 8} vectorEffect="non-scaling-stroke" />
+                        <polyline points={step.points} stroke="#FFFFFF" strokeWidth={step.branch ? 1.4 : 2.2} vectorEffect="non-scaling-stroke" />
+                      </g>
+                    ))}
                   </svg>
                 )}
               </div>
@@ -451,23 +521,33 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
             </div>
           </div>
 
-          <div className="pt-6 flex flex-col gap-6" style={shown}>
-            <div className={anim('reveal-rise')} style={beat(2)}>
+          <div className="pt-6 flex flex-col gap-6">
+            {/* The ladder is on screen from the start, so the build-up has
+                context instead of empty space: it marks the league they are
+                leaving, and when the new crest lands the mark moves to it. */}
+            <div className={phase === 'enter' ? 'reveal-rise' : ''} style={{ animationDelay: '150ms' }}>
               <div className="border-t border-border" />
-              {/* The ladder: every league, the ones reached in colour, the
-                  ones ahead dimmed and waiting. */}
               <ol className="relative flex items-end justify-between pt-6" aria-label={tFallback('rankUp.ladder', 'Leagues')}>
                 {TIERS.map((t, i) => {
-                  const here = i === toIndex;
-                  const ahead = i > toIndex;
+                  const mark = ladderMoved ? toIndex : fromIndex;
+                  const here = i === mark;
+                  const ahead = i > mark;
                   return (
-                    <li key={t.id} className={`flex flex-col items-center gap-1 ${anim(here ? 'reveal-stamp' : 'reveal-rise')}`}
-                      style={beat(2.2 + i * 0.35)} aria-current={here ? 'step' : undefined}>
-                      <LeagueTierIcon
-                        tier={t.id}
-                        level={here ? move.to.level : 1}
-                        className={`${here ? 'w-14 h-14' : 'w-9 h-9'} ${ahead ? (i === toIndex + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
-                      />
+                    <li key={t.id} className="flex flex-col items-center" aria-current={here ? 'step' : undefined}>
+                      <div
+                        className={`w-14 h-14 origin-bottom ${ahead ? (i === mark + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
+                        style={{
+                          transform: here ? 'none' : 'scale(0.64)',
+                          transition: 'transform 520ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 520ms ease',
+                          willChange: 'transform',
+                        }}
+                      >
+                        <LeagueTierIcon
+                          tier={t.id}
+                          level={here ? (ladderMoved ? move.to.level : from.level) : 1}
+                          className="w-14 h-14"
+                        />
+                      </div>
                       <span className="sr-only">{leagueTierName(t, tFallback)}</span>
                     </li>
                   );
@@ -475,22 +555,20 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               </ol>
             </div>
 
-            <div className={`${anim('reveal-rise')} flex flex-col gap-2`} style={beat(3)}>
-              {goal.label && (
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-caption font-bold">{goal.label}</span>
-                  {goal.value && <span className="text-caption text-muted-foreground tabular-nums">{goal.value}</span>}
+            {/* The road ahead. During a promotion's build-up it shows the bar
+                they just filled, the target they hit; when the crest lands it
+                re-bases on the next league. Both share one grid cell, so the
+                swap never moves anything above it. */}
+            <div className="grid">
+              {preGoal && (
+                <div className={`[grid-area:1/1] flex flex-col gap-2 ${phase === 'enter' ? 'reveal-rise' : ''} transition-opacity duration-300`}
+                  style={{ animationDelay: '250ms', opacity: landed ? 0 : undefined }} aria-hidden={landed}>
+                  <GoalRows goal={preGoal} />
                 </div>
               )}
-              {goal.pct != null && (
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full rounded-full origin-left rtl:origin-right ${anim('rank-fill')}`}
-                    style={{ background: goal.color, transform: `scaleX(${goal.pct})`, ...beat(3.5) }}
-                  />
-                </div>
-              )}
-              {goal.text && <p className="text-caption text-muted-foreground">{goal.text}</p>}
+              <div className={`[grid-area:1/1] ${anim('reveal-rise')} flex flex-col gap-2`} style={{ ...beat(3), ...shown }}>
+                <GoalRows goal={goal} fill={anim('rank-fill')} fillStyle={beat(3.5)} />
+              </div>
             </div>
           </div>
         </div>

@@ -5546,6 +5546,8 @@
   "rankUp.cta": "Continuez à grimper",
   "rankUp.ctaDown": "Reprenez-la",
   "rankUp.demoted": "Rétrogradation",
+  "rankUp.head": "Mise à jour de la ligue",
+  "rankUp.headPlaced": "Placement initial",
   "rankUp.ladder": "Ligues",
   "rankUp.newLevel": "Nouveau niveau",
   "rankUp.next": "Prochaine : {league}",

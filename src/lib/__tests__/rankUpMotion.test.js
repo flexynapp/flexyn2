@@ -10,14 +10,9 @@ describe('rank up motion', () => {
     expect(c.crest).toHaveLength(121);
   });
 
-  it('never sways faster than three times a second, which is what read as jitter', () => {
-    const duration = 2300;
-    const { crest } = chargeFrames({ kind: 'tier', duration });
-    const rot = crest.map((k) => num(k.transform, /rotate\((-?[\d.]+)deg/));
-    let crossings = 0;
-    for (let i = 1; i < rot.length; i++) if (Math.sign(rot[i]) !== Math.sign(rot[i - 1]) && rot[i] !== 0) crossings++;
-    // Two zero crossings a cycle.
-    expect(crossings / 2 / (duration / 1000)).toBeLessThanOrEqual(3);
+  it('never rotates the crest: side to side motion read as jitter', () => {
+    const { crest } = chargeFrames({ kind: 'tier', duration: 2300 });
+    expect(crest.every((k) => /rotate\(0deg\)/.test(k.transform))).toBe(true);
   });
 
   it('beats come closer together as the charge builds', () => {

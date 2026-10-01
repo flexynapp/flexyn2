@@ -88,6 +88,7 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 // bootstrap — lazy-loading them would introduce a visible loading flash).
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const RankUpPreview = lazy(() => import('./pages/RankUpPreview'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
@@ -191,6 +192,20 @@ const AuthenticatedApp = () => {
         <Route path="/p/gym/:id" element={<PublicGymLanding />} />
         <Route path="*" element={<PublicGymLanding />} />
       </Routes>
+    );
+  }
+
+  // Rank up test bench: deploy previews and localhost only, never
+  // production. It lets the sequence be watched on a real phone, since a
+  // promotion cannot be triggered on demand. See src/pages/RankUpPreview.jsx.
+  if (typeof window !== 'undefined' && window.location.pathname === '/preview/rank-up'
+      && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="*" element={<RankUpPreview />} />
+        </Routes>
+      </Suspense>
     );
   }
 

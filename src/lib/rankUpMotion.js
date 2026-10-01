@@ -54,31 +54,27 @@ function crestAt(p, kind) {
 }
 
 /**
- * The charge, as a sway that quickens (never faster than three cycles a
- * second, so it stays a sway) over the rise, the swell and the beats.
+ * The charge: the crest rises, swells and throbs on every beat. It does not
+ * rotate or sway. Round 3 swayed at up to three cycles a second and Kegan
+ * still read it as jitter (2026-10-01), so any side to side motion is out;
+ * the build comes from the beats, the heat and the crack alone.
  *
  * @returns {{ crest: Keyframe[], hot: Keyframe[], end: object, hotEnd: number }}
  *   `end` is the crest's pose on the last frame ({ x, y, rot, scale }), so
  *   whatever replaces it (the two halves of a break, the new crest of a
  *   level step) can start exactly where it stopped.
  */
-export function chargeFrames({ kind, duration }) {
+export function chargeFrames({ kind }) {
   const big = kind === 'tier';
   const beats = chargeBeats(kind);
   const N = 120;
-  const dt = duration / 1000 / N;
   const crest = [];
   const hot = [];
-  let theta = 0;
   let end = null;
   for (let i = 0; i <= N; i++) {
     const p = i / N;
-    theta += 2 * Math.PI * (0.6 + 2.4 * p) * dt;
     const { lift, scale } = crestAt(p, kind);
-    // The sway eases out to rest on the last frames, so the break starts
-    // from a still crest rather than from mid-swing.
-    const settle = Math.min(1, (1 - p) / 0.06);
-    const rot = (big ? 3 : 1.5) * p * Math.sin(theta) * settle;
+    const rot = 0;
     crest.push({ transform: `translate(0px, ${f(-lift)}px) rotate(${f(rot)}deg) scale(${f(scale, 4)})` });
     if (i === N) end = { x: 0, y: f(-lift), rot: f(rot), scale: f(scale, 4) };
     // Heat climbs with the charge and flares on every beat.

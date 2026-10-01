@@ -5562,6 +5562,8 @@
   "rankUp.cta": "Keep climbing",
   "rankUp.ctaDown": "Win it back",
   "rankUp.demoted": "Moved down",
+  "rankUp.head": "League update",
+  "rankUp.headPlaced": "Placement",
   "rankUp.ladder": "Leagues",
   "rankUp.newLevel": "New level",
   "rankUp.next": "Next: {league}",
