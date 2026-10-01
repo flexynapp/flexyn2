@@ -32,7 +32,7 @@
 // Presentation only. The server moved the league; nothing here writes.
 // Reduced motion lands straight on the final frame.
 
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -40,8 +40,9 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { triggerHaptic } from '@/lib/haptic';
 import { TIERS, getTier, nextTier, leagueTierName } from '@/lib/leagueTiers';
 import { rankDramaFor } from '@/lib/rankUp';
+import { chargeBeats, chargeFrames, flyFrames, impactFrames, landingFrames } from '@/lib/rankUpMotion';
 import { OpenerStage, useOpenerFx } from '@/components/capsules/openFx';
-import LeagueTierIcon from '@/components/leagues/LeagueTierIcon';
+import TierIcon from '@/components/leagues/LeagueTierIcon';
 import { Button } from '@/components/ui/button';
 
 // The crack the old crest breaks along, as a fraction of its box. The two
@@ -51,44 +52,31 @@ const LEFT_CLIP = `polygon(0 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', '
 const RIGHT_CLIP = `polygon(100% 0, ${CRACK.map(([x, y]) => `${x}% ${y}%`).join(', ')}, 100% 100%)`;
 const CRACK_POINTS = CRACK.map(([x, y]) => `${x},${y}`).join(' ');
 
-// Haptic ticks through the strain, closer together as it builds.
-const CHARGE_TICKS = [0.3, 0.5, 0.64, 0.75, 0.83, 0.89, 0.94, 0.98];
-
-/**
- * The strain as one continuous motion rather than a rattle: a tremor whose
- * size and speed both climb, while the crest swells. The heat is a white
- * copy of the crest fading in over it (see Hot), because opacity composites
- * on the GPU where an animated filter repaints the whole SVG every frame.
- * Generated as dense keyframes so the browser interpolates between points
- * a few frames apart, which is what keeps it smooth on a phone.
- */
-function strainFrames({ amp }) {
-  const N = 64;
-  const frames = [];
-  let theta = 0;
-  for (let i = 0; i <= N; i++) {
-    const p = i / N;
-    // Frequency rises from 3 to 17 cycles a second's worth of the charge.
-    theta += (2 * Math.PI * (3 + 14 * p)) / N;
-    const a = amp * (0.12 + 0.88 * p * p);
-    const x = i === N ? 0 : a * Math.sin(theta);
-    const r = i === N ? 0 : a * 0.55 * Math.sin(theta * 1.3 + 0.6);
-    const sc = 1 + 0.07 * Math.pow(p, 1.6);
-    frames.push({ transform: `translateX(${x.toFixed(2)}px) rotate(${r.toFixed(2)}deg) scale(${sc.toFixed(4)})` });
-  }
-  return frames;
-}
+// The crests are big SVG trees and there are a dozen on this screen. None of
+// them changes after the first render, so a phase change must not rebuild
+// them: in a slow frame budget that rebuild was the dropped frame at the
+// start of the charge.
+const LeagueTierIcon = memo(TierIcon);
 
 const CREST = 'w-44 h-44';
 const MUTED = '#89949F';
-const SLAM_MS = 760;
+const SLAM_MS = 900;
+const LEVEL_MS = 720;
+// Layers that are about to move are promoted up front, so the first frame
+// of each beat does not pay for building them.
+const LAYER = { willChange: 'transform, opacity' };
+// Not 0: a fully transparent layer is not drawn, so it would be drawn for
+// the first time on the frame it is needed. This is invisible and ready.
+const PARKED = 0.001;
 
-/** A white silhouette of a crest, laid over it. Its filter is static (drawn
- *  once); only its opacity animates, which is how the crest heats up. */
-const Hot = forwardRef(function Hot({ tier, level, start = 0 }, ref) {
+/** A flat copy of a crest laid over it: white for the heat of a charge, grey
+ *  for a demotion. Its filter is static (drawn once); only its opacity
+ *  animates, which composites where an animated filter repaints. */
+const Tint = forwardRef(function Tint({ tier, level, start = 0, tone = 'hot' }, ref) {
   return (
-    <div ref={ref} data-hot="" className="absolute inset-0 pointer-events-none"
-      style={{ opacity: start, filter: 'brightness(0) invert(1)' }} aria-hidden="true">
+    <div ref={ref} data-tint={tone} className="absolute inset-0 pointer-events-none"
+      style={{ opacity: start, willChange: 'opacity', filter: tone === 'hot' ? 'brightness(0) invert(1)' : 'grayscale(1) brightness(0.45)' }}
+      aria-hidden="true">
       <LeagueTierIcon tier={tier} level={level} className={CREST} />
     </div>
   );
@@ -96,7 +84,7 @@ const Hot = forwardRef(function Hot({ tier, level, start = 0 }, ref) {
 
 /**
  * @param {object}   props
- * @param {{ kind: 'tier'|'level', from: {tier, level}, to: {tier, level} }} props.move
+ * @param {{ kind: 'tier'|'level'|'down', from: {tier, level}, to: {tier, level} }} props.move
  * @param {object}   [props.strength]  my_league_strength's payload, for the road ahead
  * @param {Function} props.onClose
  * @param {Function} [props.onViewLeague]
@@ -115,12 +103,13 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
 
   const [phase, setPhase] = useState(() => (fx.reduced ? 'landed' : 'enter'));
   const timers = useRef([]);
+  const charge = useRef(null);
   const oldRef = useRef(null);
   const newRef = useRef(null);
   const leftRef = useRef(null);
-  const oldHotRef = useRef(null);
-  const newHotRef = useRef(null);
   const rightRef = useRef(null);
+  const oldTintRef = useRef(null);
+  const newHotRef = useRef(null);
   const ctaRef = useRef(null);
 
   useBodyScrollLock();
@@ -134,21 +123,23 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   }, []);
   useEffect(() => clearTimers, [clearTimers]);
 
-  const implode = useCallback((c, duration) => {
+  // A ring in the new league's colour pulled in onto the crest, arriving
+  // on a heartbeat. The capsule's rings go out; these come in, so the break
+  // reads as the release of something gathered.
+  const implode = useCallback((c, duration, size) => {
     const host = fx.sparkRef.current;
     const pt = fx.aimAt(oldRef.current);
     if (!host || !pt || typeof host.animate !== 'function') return;
-    const size = 420;
     const n = document.createElement('div');
     Object.assign(n.style, {
       position: 'absolute', left: `${pt.x}px`, top: `${pt.y}px`, width: `${size}px`, height: `${size}px`,
       marginLeft: `${-size / 2}px`, marginTop: `${-size / 2}px`, borderRadius: '9999px',
-      border: `2px solid ${c}`, opacity: '0', pointerEvents: 'none',
+      border: `2px solid ${c}`, opacity: '0', pointerEvents: 'none', willChange: 'transform, opacity',
     });
     host.appendChild(n);
     const a = n.animate(
-      [{ transform: 'scale(1)', opacity: 0 }, { transform: 'scale(0.7)', opacity: 0.8, offset: 0.35 }, { transform: 'scale(0.28)', opacity: 0 }],
-      { duration, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'both' },
+      [{ transform: 'scale(1)', opacity: 0 }, { transform: 'scale(0.62)', opacity: 0.7, offset: 0.45 }, { transform: 'scale(0.26)', opacity: 0 }],
+      { duration, easing: 'cubic-bezier(0.55, 0, 0.8, 0.3)', fill: 'both' },
     );
     a.onfinish = () => n.remove();
     a.oncancel = () => n.remove();
@@ -157,61 +148,69 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   // ── The timeline ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'enter') return;
+    // Draw the sunburst once now, invisibly, while the screen fades in, so
+    // its first frame is not drawn on the first frame of the charge.
+    fx.setRays(color, PARKED);
     // A beat on the old crest before anything moves, so the eye is on it.
     later(() => setPhase('charge'), 450);
-  }, [phase, later]);
+  }, [phase, later, fx, color]);
 
   useEffect(() => {
     if (phase !== 'charge') return;
     fx.aimAt(oldRef.current);
+    const el = oldRef.current;
     if (isDown) {
-      // No tell and no strain: one low pulse as the crest starts to go.
+      // No tell and no beats: one low pulse as the crest greys and sinks.
       triggerHaptic('warning');
+      el?.animate?.(
+        [
+          { transform: 'none', opacity: 1, easing: 'cubic-bezier(0.3, 0, 0.5, 1)' },
+          { transform: 'translateY(-4px)', opacity: 1, offset: 0.2, easing: 'cubic-bezier(0.55, 0, 0.75, 0.35)' },
+          { transform: 'translateY(36px) scale(0.9)', opacity: 0 },
+        ],
+        { duration: drama.charge, fill: 'forwards' },
+      );
+      oldTintRef.current?.animate?.(
+        [{ opacity: 0 }, { opacity: 0.9 }],
+        { duration: drama.charge * 0.7, easing: 'ease-in-out', fill: 'forwards' },
+      );
       later(() => setPhase('landed'), drama.charge);
       return;
     }
-    // The tell: the new league's colour starts turning behind the old
-    // crest before it breaks.
+    // The tell: the new league's colour starts turning behind the old crest.
     fx.setRays(color, drama.rays * 0.45, { fast: isTier });
-    CHARGE_TICKS.forEach((f) => later(() => triggerHaptic('subtle'), Math.round(drama.charge * f)));
-    const el = oldRef.current;
-    if (typeof el?.animate === 'function') {
-      el.animate(strainFrames({ amp: isTier ? 5 : 2.5 }), {
-        duration: drama.charge, easing: 'linear', fill: 'forwards',
-      });
-    }
-    oldHotRef.current?.animate?.(
-      [{ opacity: 0 }, { opacity: 0.08, offset: 0.5 }, { opacity: isTier ? 0.7 : 0.3 }],
-      { duration: drama.charge, easing: 'cubic-bezier(0.6, 0, 0.9, 0.6)', fill: 'forwards' },
-    );
-    // Energy pulled in: rings in the new league's colour contract onto the
-    // crest, faster as the break nears. The capsule's rings go out; these
-    // come in, so the break reads as the release of something gathered.
-    if (isTier) {
-      [0.3, 0.55, 0.74, 0.88].forEach((f, i) => later(() => implode(color, 700 - i * 110), Math.round(drama.charge * f)));
-    }
+    const c = chargeFrames({ kind: move.kind, duration: drama.charge });
+    charge.current = c;
+    el?.animate?.(c.crest, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
+    oldTintRef.current?.animate?.(c.hot, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
+    // Every heartbeat lands with a haptic tick and, on a promotion, a ring
+    // pulled in to arrive on it.
+    chargeBeats(move.kind).forEach((at, i) => {
+      const t = Math.round(drama.charge * at);
+      later(() => triggerHaptic('subtle'), t);
+      if (isTier) {
+        const d = Math.min(560, Math.max(320, t));
+        later(() => implode(color, d, 380 + i * 12), t - d);
+      }
+    });
     later(() => setPhase(isTier ? 'break' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, isDown, later, implode]);
+  }, [phase, fx, color, drama, isTier, isDown, move.kind, later, implode]);
 
   useLayoutEffect(() => {
     if (phase !== 'break') return;
     const point = fx.aimAt(oldRef.current);
     fx.burst(point, null, { color, drama: { ...drama, flash: 0 }, scale: 0.7, shake: false });
     triggerHaptic('warning');
-    // The halves leave white hot (where the strain left them) and cool as
-    // they fall, on one smooth curve out.
+    const end = charge.current?.end;
+    // The halves leave white hot, where the charge left them, and cool as
+    // they fall.
     const fly = (el, dir) => {
-      el?.animate?.(
-        [
-          { transform: 'scale(1.07)', opacity: 1 },
-          { transform: `translate(${dir * 34}px, -10px) rotate(${dir * 9}deg) scale(1.05)`, opacity: 1, offset: 0.25 },
-          { transform: `translate(${dir * 170}px, 150px) rotate(${dir * 42}deg) scale(0.85)`, opacity: 0 },
-        ],
-        { duration: 900, easing: 'cubic-bezier(0.22, 0.8, 0.4, 1)', fill: 'forwards' },
-      );
-      el?.querySelector?.('[data-hot]')?.animate?.(
-        [{ opacity: 0.7 }, { opacity: 0 }],
-        { duration: 450, easing: 'ease-out', fill: 'forwards' },
+      if (!el?.animate) return;
+      el.style.opacity = '1';
+      el.animate(flyFrames(dir, end), { duration: 950, easing: 'linear', fill: 'forwards' });
+      el.querySelector('[data-tint]')?.animate?.(
+        [{ opacity: charge.current?.hotEnd ?? 0.6 }, { opacity: 0 }],
+        { duration: 500, easing: 'ease-out', fill: 'forwards' },
       );
     };
     fly(leftRef.current, -1);
@@ -220,16 +219,16 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     const host = fx.sparkRef.current;
     if (host && typeof host.animate === 'function') {
       const f = document.createElement('div');
-      Object.assign(f.style, { position: 'absolute', inset: '0', background: color, opacity: '0', pointerEvents: 'none' });
+      Object.assign(f.style, { position: 'absolute', inset: '0', background: color, opacity: '0', pointerEvents: 'none', willChange: 'opacity' });
       host.appendChild(f);
-      const a = f.animate([{ opacity: 0 }, { opacity: Math.min(0.45, drama.flash * 1.6), offset: 0.15 }, { opacity: 0 }],
-        { duration: 520, easing: 'ease-out', fill: 'both' });
+      const a = f.animate([{ opacity: 0 }, { opacity: Math.min(0.45, drama.flash * 1.6), offset: 0.12 }, { opacity: 0 }],
+        { duration: 600, easing: 'ease-out', fill: 'both' });
       a.onfinish = () => f.remove();
     }
-    later(() => setPhase('landed'), 220);
+    later(() => setPhase('landed'), 200);
   }, [phase, fx, color, drama, later]);
 
-  // The landing. Runs once, when the new crest mounts.
+  // The landing. Runs once, when the new crest takes the stage.
   useLayoutEffect(() => {
     if (phase !== 'landed') return;
     const el = newRef.current;
@@ -243,36 +242,27 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
           { transform: 'translateY(28px) scale(0.96)', opacity: 0 },
           { transform: 'none', opacity: 1 },
         ],
-        { duration: 1000, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' },
+        { duration: 1100, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' },
       );
       return;
     }
-    const big = isTier;
-    el.animate(
-      big
-        ? [
-          { transform: 'perspective(800px) translateY(-30px) scale(2.4) rotateX(24deg)', opacity: 0 },
-          { transform: 'perspective(800px) translateY(-8px) scale(1.45) rotateX(10deg)', opacity: 1, offset: 0.35 },
-          { transform: 'perspective(800px) translateY(4px) scale(0.93) rotateX(0deg)', opacity: 1, offset: 0.62 },
-          { transform: 'perspective(800px) scale(1.025)', offset: 0.82 },
-          { transform: 'perspective(800px) scale(1)', opacity: 1 },
-        ]
-        : [
-          { transform: 'scale(1.07)', opacity: 1 },
-          { transform: 'scale(1.22)', opacity: 1, offset: 0.35 },
-          { transform: 'scale(0.96)', offset: 0.62 },
-          { transform: 'scale(1)', opacity: 1 },
-        ],
-      { duration: big ? SLAM_MS : 560, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', fill: 'backwards' },
-    );
+    const duration = isTier ? SLAM_MS : LEVEL_MS;
+    const { frames, impact } = landingFrames({
+      kind: move.kind, duration, startScale: charge.current?.end?.scale ?? 1, startY: charge.current?.end?.y ?? 0,
+    });
+    el.animate(frames, { duration, easing: 'linear', fill: 'backwards' });
     newHotRef.current?.animate?.(
-      [{ opacity: big ? 0.85 : 0.45 }, { opacity: big ? 0.5 : 0.3, offset: 0.5 }, { opacity: 0 }],
-      { duration: big ? SLAM_MS + 200 : 600, easing: 'ease-out', fill: 'forwards' },
+      isTier
+        ? [{ opacity: 0.9 }, { opacity: 0.9, offset: impact / duration }, { opacity: 0 }]
+        : [{ opacity: charge.current?.hotEnd ?? 0.3 }, { opacity: 0.45, offset: impact / duration }, { opacity: 0 }],
+      { duration: impact + 520, easing: 'ease-out', fill: 'forwards' },
     );
     const t = setTimeout(() => {
-      fx.burst(point, null, { color, drama, scale: big ? 1 : 0.6, shake: true });
-      triggerHaptic(big ? 'success' : 'primary');
-    }, Math.round((big ? SLAM_MS : 520) * 0.62));
+      fx.burst(point, null, { color, drama, scale: isTier ? 1 : 0.6, shake: false });
+      // The screen takes the hit as one smooth dip, sized by the league.
+      fx.shakeRef.current?.animate?.(impactFrames(drama.shake * (isTier ? 1 : 0.7)), { duration: 560, easing: 'linear' });
+      triggerHaptic(isTier ? 'success' : 'primary');
+    }, Math.round(impact));
     return () => clearTimeout(t);
     // The landing only; fx and drama are stable for this sequence.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -291,14 +281,15 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Tapping the stage mid-strain goes straight to the landing.
+  // Tapping the stage mid-charge goes straight to the landing.
   const skip = () => {
     if (phase !== 'enter' && phase !== 'charge') return;
     clearTimers();
+    oldRef.current?.getAnimations?.().forEach((a) => a.cancel());
     setPhase('landed');
   };
 
-  // ── Words ─────────────────────────────────────────────────────────────────
+// ── Words ─────────────────────────────────────────────────────────────────
   const fromName = leagueTierName(fromTier, tFallback, move.from.level);
   const toName = isTier || isDown
     ? leagueTierName(toTier, tFallback)
@@ -344,9 +335,17 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   }
 
   const landed = phase === 'landed';
-  const hit = fx.reduced ? 0 : (isDown ? 600 : isTier ? Math.round(SLAM_MS * 0.62) : 320) + drama.hold;
+  const charging = phase === 'enter' || phase === 'charge';
+  const impactAt = isDown ? 600
+    : landingFrames({ kind: move.kind, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
+  const hit = fx.reduced ? 0 : Math.round(impactAt) + drama.hold;
   const beat = (n) => ({ animationDelay: `${hit + n * 130}ms` });
   const toIndex = TIERS.findIndex((t) => t.id === toTier.id);
+  // Everything the landing shows is laid out from the first frame and only
+  // made visible when it lands, so the crest never moves when it appears.
+  // (It used to jump 150px up the screen at the moment of impact.)
+  const shown = landed ? undefined : { visibility: 'hidden' };
+  const anim = (cls) => (landed ? cls : '');
 
   return (
     <div
@@ -360,146 +359,140 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       onClick={skip}
     >
       <OpenerStage fx={fx} />
-      <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6">
+      <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
         <header className="h-[60px] shrink-0 flex items-center justify-end">
-          {landed && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="reveal-rise h-11 w-11 -me-2 flex items-center justify-center rounded-full text-muted-foreground"
-              style={beat(4)}
-              aria-label={tFallback('common.close', 'Close')}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className={`${anim('reveal-rise')} h-11 w-11 -me-2 flex items-center justify-center rounded-full text-muted-foreground`}
+            style={{ ...beat(4), ...shown }}
+            aria-label={tFallback('common.close', 'Close')}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </header>
 
         <div className="flex-1 flex flex-col justify-center pb-6">
           {/* The crest. One box, so the old crest, its halves and the new
-              crest all sit on exactly the same spot. */}
+              crest all sit on exactly the same spot. All of them mount on the
+              first frame, while the screen is still fading in, and are handed
+              over by opacity: mounting one mid-sequence cost a dropped frame
+              at the start of the charge. */}
           <div className="relative mx-auto" style={{ width: 176, height: 176 }}>
-            {(phase === 'enter' || phase === 'charge') && (
-              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'charge' ? (isDown ? 'rank-crest-sink' : '') : 'reveal-rise'}`}
-                style={phase === 'charge' && isDown ? { animationDuration: `${drama.charge}ms` } : undefined}>
+            {!fx.reduced && (
+              <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'enter' ? 'reveal-rise' : ''}`}
+                style={{ ...LAYER, opacity: charging ? undefined : 0 }} aria-hidden="true">
                 <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                <Hot ref={oldHotRef} tier={fromTier.id} level={move.from.level} />
-                {isTier && phase === 'charge' && (
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full rank-crack"
+                <Tint ref={oldTintRef} tier={fromTier.id} level={move.from.level} tone={isDown ? 'grey' : 'hot'} />
+                {isTier && (
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`absolute inset-0 w-full h-full ${phase === 'charge' ? 'rank-crack' : 'opacity-0'}`}
                     style={{ animationDuration: `${drama.charge}ms` }} aria-hidden="true">
                     <polyline points={CRACK_POINTS} fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                   </svg>
                 )}
               </div>
             )}
-            {phase === 'break' && (
+            {isTier && !fx.reduced && (
               <>
-                <div ref={leftRef} className="absolute inset-0" style={{ clipPath: LEFT_CLIP }}>
+                <div ref={leftRef} className="absolute inset-0 rank-crest pointer-events-none" style={{ ...LAYER, clipPath: LEFT_CLIP, opacity: PARKED }} aria-hidden="true">
                   <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                  <Hot tier={fromTier.id} level={move.from.level} start={0.7} />
+                  <Tint tier={fromTier.id} level={move.from.level} start={0.6} />
                 </div>
-                <div ref={rightRef} className="absolute inset-0" style={{ clipPath: RIGHT_CLIP }}>
+                <div ref={rightRef} className="absolute inset-0 rank-crest pointer-events-none" style={{ ...LAYER, clipPath: RIGHT_CLIP, opacity: PARKED }} aria-hidden="true">
                   <LeagueTierIcon tier={fromTier.id} level={move.from.level} className={CREST} />
-                  <Hot tier={fromTier.id} level={move.from.level} start={0.7} />
+                  <Tint tier={fromTier.id} level={move.from.level} start={0.6} />
                 </div>
               </>
             )}
-            {landed && (
-              <div ref={newRef} className="absolute inset-0">
-                {/* Once landed it keeps breathing, so the finished screen is
-                    alive rather than a still. */}
-                <div className="w-full h-full rank-float" style={{ animationDelay: `${hit + 400}ms` }}>
-                  <LeagueTierIcon tier={toTier.id} level={move.to.level} className={CREST} />
-                  <Hot ref={newHotRef} tier={toTier.id} level={move.to.level} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Under the crest: the old name while it strains, then the new. */}
-          <div className="pt-6 text-center min-h-[92px]">
-            {!landed ? (
-              <p
-                className="reveal-rise text-caption font-bold text-muted-foreground transition-opacity duration-300"
-                style={phase === 'break' ? { opacity: 0 } : undefined}
-              >
-                {fromName}
-              </p>
-            ) : (
-              <>
-                <p className={`${isDown ? 'reveal-rise' : 'reveal-new'} inline-block text-micro font-bold uppercase tracking-widest`} style={{ ...beat(0), color }}>
-                  {eyebrow}
-                </p>
-                <h2 id="rank-up-title" className={`${isDown ? 'reveal-rise' : 'reveal-stamp'} font-display text-3xl leading-tight pt-2`} style={beat(0.4)}>
-                  {toName}
-                </h2>
-                <p className="reveal-rise text-caption text-muted-foreground pt-2" style={beat(1)}>{sub}</p>
-              </>
-            )}
-          </div>
-
-          {landed && (
-            <div className="pt-6 flex flex-col gap-6">
-              <div className="reveal-rise" style={beat(2)}>
-                <div className="border-t border-border" />
-                {/* The ladder: every league, the ones reached in colour, the
-                    ones ahead dimmed and waiting. */}
-                <ol className="relative flex items-end justify-between pt-6" aria-label={tFallback('rankUp.ladder', 'Leagues')}>
-                  {TIERS.map((t, i) => {
-                    const here = i === toIndex;
-                    const ahead = i > toIndex;
-                    return (
-                      <li key={t.id} className={`flex flex-col items-center gap-1 ${here ? 'reveal-stamp' : 'reveal-rise'}`}
-                        style={beat(2.2 + i * 0.35)} aria-current={here ? 'step' : undefined}>
-                        <LeagueTierIcon
-                          tier={t.id}
-                          level={here ? move.to.level : 1}
-                          className={`${here ? 'w-14 h-14' : 'w-9 h-9'} ${ahead ? (i === toIndex + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
-                        />
-                        <span className="sr-only">{leagueTierName(t, tFallback)}</span>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-
-              <div className="reveal-rise flex flex-col gap-2" style={beat(3)}>
-                {goal.label && (
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-caption font-bold">{goal.label}</span>
-                    {goal.value && <span className="text-caption text-muted-foreground tabular-nums">{goal.value}</span>}
-                  </div>
-                )}
-                {goal.pct != null && (
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full origin-left rtl:origin-right rank-fill"
-                      style={{ background: goal.color, transform: `scaleX(${goal.pct})`, ...beat(3.5) }}
-                    />
-                  </div>
-                )}
-                {goal.text && <p className="text-caption text-muted-foreground">{goal.text}</p>}
+            <div ref={newRef} className="absolute inset-0 rank-crest" style={{ ...LAYER, opacity: landed ? 1 : PARKED }} aria-hidden={!landed}>
+              {/* Once landed it keeps breathing, so the finished screen is
+                  alive rather than a still. */}
+              <div className={`w-full h-full ${anim('rank-float')}`} style={{ animationDelay: `${hit + 400}ms` }}>
+                <LeagueTierIcon tier={toTier.id} level={move.to.level} className={CREST} />
+                <Tint ref={newHotRef} tier={toTier.id} level={move.to.level} />
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Under the crest: the old name while it strains, then the new,
+              in the same spot. */}
+          <div className="pt-6 text-center grid">
+            <p
+              className={`[grid-area:1/1] self-start ${phase === 'enter' ? 'reveal-rise' : ''} text-caption font-bold text-muted-foreground transition-opacity duration-300`}
+              style={charging ? undefined : { opacity: 0 }}
+              aria-hidden={!charging}
+            >
+              {fromName}
+            </p>
+            <div className="[grid-area:1/1]" style={shown}>
+              <p className={`${anim(isDown ? 'reveal-rise' : 'reveal-new')} inline-block text-micro font-bold uppercase tracking-widest`} style={{ ...beat(0), color }}>
+                {eyebrow}
+              </p>
+              <h2 id="rank-up-title" className={`${anim(isDown ? 'reveal-rise' : 'reveal-stamp')} font-display text-3xl leading-tight pt-2`} style={beat(0.4)}>
+                {toName}
+              </h2>
+              <p className={`${anim('reveal-rise')} text-caption text-muted-foreground pt-2`} style={beat(1)}>{sub}</p>
+            </div>
+          </div>
+
+          <div className="pt-6 flex flex-col gap-6" style={shown}>
+            <div className={anim('reveal-rise')} style={beat(2)}>
+              <div className="border-t border-border" />
+              {/* The ladder: every league, the ones reached in colour, the
+                  ones ahead dimmed and waiting. */}
+              <ol className="relative flex items-end justify-between pt-6" aria-label={tFallback('rankUp.ladder', 'Leagues')}>
+                {TIERS.map((t, i) => {
+                  const here = i === toIndex;
+                  const ahead = i > toIndex;
+                  return (
+                    <li key={t.id} className={`flex flex-col items-center gap-1 ${anim(here ? 'reveal-stamp' : 'reveal-rise')}`}
+                      style={beat(2.2 + i * 0.35)} aria-current={here ? 'step' : undefined}>
+                      <LeagueTierIcon
+                        tier={t.id}
+                        level={here ? move.to.level : 1}
+                        className={`${here ? 'w-14 h-14' : 'w-9 h-9'} ${ahead ? (i === toIndex + 1 ? 'opacity-60' : 'opacity-30 grayscale') : ''}`}
+                      />
+                      <span className="sr-only">{leagueTierName(t, tFallback)}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            <div className={`${anim('reveal-rise')} flex flex-col gap-2`} style={beat(3)}>
+              {goal.label && (
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-caption font-bold">{goal.label}</span>
+                  {goal.value && <span className="text-caption text-muted-foreground tabular-nums">{goal.value}</span>}
+                </div>
+              )}
+              {goal.pct != null && (
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full origin-left rtl:origin-right ${anim('rank-fill')}`}
+                    style={{ background: goal.color, transform: `scaleX(${goal.pct})`, ...beat(3.5) }}
+                  />
+                </div>
+              )}
+              {goal.text && <p className="text-caption text-muted-foreground">{goal.text}</p>}
+            </div>
+          </div>
         </div>
 
-        {landed && (
-          <div className="reveal-rise pb-6 flex flex-col gap-2" style={beat(4)}>
-            <Button ref={ctaRef} className="w-full h-12" onClick={onClose}>
-              {isDown ? tFallback('rankUp.ctaDown', 'Win it back') : tFallback('rankUp.cta', 'Keep climbing')}
+        <div className={`${anim('reveal-rise')} pb-6 flex flex-col gap-2`} style={{ ...beat(4), ...shown }}>
+          <Button ref={ctaRef} className="w-full h-12" onClick={onClose}>
+            {isDown ? tFallback('rankUp.ctaDown', 'Win it back') : tFallback('rankUp.cta', 'Keep climbing')}
+          </Button>
+          {onViewLeague && (
+            <Button
+              variant="ghost"
+              className="w-full h-11 text-muted-foreground"
+              onClick={() => { onClose?.(); onViewLeague(); }}
+            >
+              {tFallback('rankUp.viewLeague', 'View standings')}
             </Button>
-            {onViewLeague && (
-              <Button
-                variant="ghost"
-                className="w-full h-11 text-muted-foreground"
-                onClick={() => { onClose?.(); onViewLeague(); }}
-              >
-                {tFallback('rankUp.viewLeague', 'View standings')}
-              </Button>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

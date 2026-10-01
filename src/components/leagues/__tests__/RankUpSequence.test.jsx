@@ -22,7 +22,7 @@ describe('RankUpSequence', () => {
 
   it('strains on the old league first, then lands on the new one', () => {
     render(<RankUpSequence move={tier} strength={{ score: 262, next_tier: 'platinum', next_floor: 325 }} onClose={() => {}} />);
-    expect(screen.getByText(/Silver League IV/)).toBeInTheDocument();
+    expect(screen.getByText('Silver League IV')).toBeInTheDocument();
     expect(screen.queryByRole('heading')).toBeNull();
     step(450, 1700, 250);
     expect(screen.getByRole('heading', { name: 'Gold League' })).toBeInTheDocument();

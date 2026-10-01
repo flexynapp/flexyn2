@@ -805,21 +805,16 @@
   }
   .reveal-sheen { animation: reveal-sheen 900ms cubic-bezier(0.4, 0, 0.2, 1) both; }
 
-  /* The league rank up (RankUpSequence) borrows the canister's strain and
-     seam leak: the old crest strains the way a capsule rattles, and the new
-     league's colour leaks through its crack. Durations are set inline from
-     RANK_DRAMA. */
+  /* The league rank up (RankUpSequence). Its crest motion is generated in
+     src/lib/rankUpMotion.js; these are the pieces that stay CSS. The crack
+     fades in once over the second half of the charge (not the capsule
+     seam's flicker, which read as stutter here). */
   .rank-crest { transform-origin: 50% 85%; }
-  .rank-crest-strain     { animation: canister-charge 1200ms linear both; }
-  .rank-crest-strain-hot { animation: canister-charge-hot 2000ms linear both; }
-  .rank-crack { animation: canister-seam-leak 2000ms linear both; }
-  /* A demotion: the crest lifts a breath, then greys and sinks away. */
-  @keyframes rank-crest-sink {
-    0%   { transform: none; opacity: 1; filter: none; }
-    18%  { transform: translateY(-4px); opacity: 1; filter: none; }
-    100% { transform: translateY(34px) scale(0.9); opacity: 0; filter: grayscale(1) brightness(0.55); }
+  @keyframes rank-crack-in {
+    0%, 50% { opacity: 0; }
+    100%    { opacity: 1; }
   }
-  .rank-crest-sink { animation: rank-crest-sink 1800ms cubic-bezier(0.55, 0, 0.8, 0.4) both; }
+  .rank-crack { animation: rank-crack-in 2000ms cubic-bezier(0.5, 0, 0.9, 0.6) both; }
   @keyframes rank-float {
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-5px); }
@@ -833,7 +828,7 @@
     .canister-charge, .canister-charge-hot, .canister-wait, .canister-lid-fly,
     .opener-rays-main, .opener-rays-back,
     .reveal-stamp, .reveal-rise, .reveal-new,
-    .rank-crest-strain, .rank-crest-strain-hot, .rank-crest-sink, .rank-crack, .rank-fill, .rank-float { animation: none; }
+    .rank-crack, .rank-fill, .rank-float { animation: none; }
     .canister-seam { animation: none; opacity: 1; }
     .reveal-sheen { display: none; }
   }
