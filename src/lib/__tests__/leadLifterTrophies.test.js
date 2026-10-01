@@ -53,6 +53,18 @@ describe('Lead Lifter trophies', () => {
     expect(sql).toContain("'Gold III Lead Lifter, Week 40'");
     expect(sql).toContain("'Atleta líder de Oro III, semana 40'");
   });
+
+  it('starts with the first full November week (Kegan, 2026-09-30)', () => {
+    const dir = path.resolve(__dirname, '../../../supabase/migrations');
+    const files = fs.readdirSync(dir).filter((f) => /^\d+_.*\.sql$/.test(f)).sort();
+    // The newest migration that redefines the award is the one production runs.
+    const latest = files
+      .map((f) => fs.readFileSync(path.join(dir, f), 'utf8'))
+      .filter((sql) => sql.includes('FUNCTION public.award_league_lead_trophies_internal(p_week_start date)'))
+      .pop();
+    expect(latest).toContain("c_first_week CONSTANT date := DATE '2026-11-02'");
+    expect(latest).toContain('p_week_start < c_first_week THEN RETURN 0');
+  });
 });
 
 describe('Lead Lifter artwork', async () => {

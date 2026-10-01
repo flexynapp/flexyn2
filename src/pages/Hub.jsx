@@ -548,6 +548,14 @@ export default function Hub() {
                 setProfileTarget(authorObj);
                 setSection('profile');
               }}
+              onOpenPost={(post) => {
+                // Same landing as a shared post link: the author's profile,
+                // Posts tab, scrolled to and outlining the row.
+                if (!post?.user_id) return;
+                setProfileTarget({ id: post.user_id });
+                setHighlightPostId(post.id);
+                setSection('profile');
+              }}
             />
           )}
 

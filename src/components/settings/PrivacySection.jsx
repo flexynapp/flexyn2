@@ -168,6 +168,17 @@ export default function PrivacySection() {
     }
   }, [profile?.read_receipts_enabled]);
 
+  // ── Share likes with friends (20261001003000) ─────────────────────
+  // Opt-IN and reciprocal, like read receipts: off hides your likes from
+  // friends AND empties Hub → Activity → Friends for you. Off by default,
+  // because likes were promised private before this existed.
+  const [shareLikes, setShareLikes] = useState(false);
+  useEffect(() => {
+    if (profile?.share_likes_with_friends !== undefined) {
+      setShareLikes(profile.share_likes_with_friends === true);
+    }
+  }, [profile?.share_likes_with_friends]);
+
   // ── Gym Rival opt-out ───────────────────────────────────────────────
   // The backend honors nemesis_opt_out (gym_rival_roll filters it — DB
   // column still named nemesis_opt_out pending the rename migration).
@@ -197,6 +208,7 @@ export default function PrivacySection() {
       is_private:            [setIsPrivate,           isPrivate],
       hide_from_search:      [setHideFromSearch,      hideFromSearch],
       read_receipts_enabled: [setReadReceiptsEnabled, readReceiptsEnabled],
+      share_likes_with_friends: [setShareLikes,         shareLikes],
     };
     const [setLocal, prev] = slots[column] || [];
     if (!setLocal) return;
@@ -222,6 +234,7 @@ export default function PrivacySection() {
       queryClient.invalidateQueries({ queryKey: ['profileStories'] });
       queryClient.invalidateQueries({ queryKey: ['hubProfile'] });
       queryClient.invalidateQueries({ queryKey: ['hubSearch'] });
+      queryClient.invalidateQueries({ queryKey: ['friendLikes'] });
     } catch {
       setLocal(prev);
       toast.error(tFallback('privacy.updateFailed', 'Could not update privacy. Try again.'));
@@ -345,6 +358,15 @@ export default function PrivacySection() {
           )}
           checked={readReceiptsEnabled}
           onChange={(next) => togglePrivacy('read_receipts_enabled', next)}
+        />
+        <ToggleRow
+          label={tFallback('settings.shareLikes.title', 'Share my likes with friends')}
+          hint={tFallback(
+            'settings.shareLikes.desc',
+            'Friends can see posts you’ve liked in their Activity. If you turn this off, you won’t see your friends’ likes either.'
+          )}
+          checked={shareLikes}
+          onChange={(next) => togglePrivacy('share_likes_with_friends', next)}
         />
         <ToggleRow
           icon={Swords}

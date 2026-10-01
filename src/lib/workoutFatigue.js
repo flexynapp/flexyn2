@@ -317,16 +317,14 @@ export function detectImplausibleWorkout(
   );
   const linkedRunMins = (list) => (list || []).reduce((sum, ex) =>
     sum + (ex?.kind === 'cardio' && ex.cardio_log_id ? (cardioSecondsById.get(ex.cardio_log_id) || 0) / 60 : 0), 0);
-  const workoutMins = (log, list) => {
-    const stated = workoutDurationMin(log);
-    return stated ? Math.max(0, stated - linkedRunMins(list)) : estimateWorkoutMinutes(list);
-  };
   // This session's own runs have no cardio_log_id until the save writes their
-  // rows, so nothing above counts them and a stated duration shorter than the
-  // run hid it. Count them here, clamped to 12 hours each like a saved run
-  // (the segment shape and ceiling of workoutCardioTotals, summed locally so
-  // this module does not pull the cardio data layer in).
-  const unsavedRunMins = exercises.reduce((sum, ex) => {
+  // rows, so the saved cardio logs do not hold them yet. They count here as
+  // CARDIO (12 h a day), not strength (4 h): a 4.5 h marathon typed into a
+  // workout is a long run, not a long lifting session. Clamped to 12 hours
+  // each like a saved run (the segment shape and ceiling of
+  // workoutCardioTotals, summed locally so this module does not pull the
+  // cardio data layer in).
+  const unsavedRunMinsOf = (list) => (list || []).reduce((sum, ex) => {
     if (ex?.kind !== 'cardio' || ex.cardio_log_id) return sum;
     const segs = Array.isArray(ex.segments) ? ex.segments : [{ duration_s: ex.duration_s }];
     const secs = segs.reduce((s2, seg) => {
@@ -335,7 +333,16 @@ export function detectImplausibleWorkout(
     }, 0);
     return sum + Math.min(secs, 12 * 3600) / 60;
   }, 0);
-  const newWorkoutMins = Math.max(workoutMins(workout, exercises), unsavedRunMins);
+  const unsavedRunMins = unsavedRunMinsOf(exercises);
+  // A stated duration covers the whole session, runs included, so both kinds
+  // of run come out of it and only the lifting remains on the strength side.
+  const workoutMins = (log, list, runMins = 0) => {
+    const stated = workoutDurationMin(log);
+    return stated
+      ? Math.max(0, stated - linkedRunMins(list) - runMins)
+      : estimateWorkoutMinutes(list);
+  };
+  const newWorkoutMins = workoutMins(workout, exercises, unsavedRunMins);
   const existingWorkoutMins = sameDateLogs.reduce((sum, l) =>
     sum + workoutMins(l, l.exercises || []), 0
   );
@@ -344,7 +351,7 @@ export function detectImplausibleWorkout(
     [], // pass empty — we compute workout manually below to include "this" workout
     sameDateCardio,
     existingWorkoutMins + newWorkoutMins, // total workout mins including this one
-    0
+    unsavedRunMins * 60, // this session's runs, as cardio
   );
 
   if (hoursCheck.implausible) {

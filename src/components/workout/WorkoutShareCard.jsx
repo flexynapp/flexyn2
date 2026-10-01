@@ -66,6 +66,7 @@ function computeStats(workout, opts = {}) {
     // A run-only session with no stated duration still took the run's time.
     duration: workoutDurationMin(workout) || Math.round(cardio.seconds / 60),
     cardioMeters: cardio.meters,
+    cardioCount: cardio.count,
     topLift,
   };
 }
@@ -132,7 +133,9 @@ function drawCard(ctx, { username, dateStr, stats, language, t }) {
   // A run-only session has no volume, sets or exercises to report, so the
   // card leads with the run instead of "TOTAL VOLUME —" over "0 EXERCISES"
   // and "0 SETS". Same pair the on-screen FinishStats shows.
-  const runOnly = stats.exercises === 0 && stats.cardioMeters > 0;
+  // Runs and nothing else, with or without a distance (a pool swim or a
+  // treadmill session may carry only a time).
+  const runOnly = stats.exercises === 0 && stats.cardioCount > 0;
   if (runOnly) drawRunStats(ctx, { stats, tf, W });
   else drawLiftStats(ctx, { stats, language, tf, W });
 
@@ -208,25 +211,31 @@ function drawLiftStats(ctx, { stats, language, tf, W }) {
   drawStatBoxes(ctx, statBoxes, W);
 }
 
-// The run-only headline: distance big where volume would be, then time.
+// The run-only headline: distance big where volume would be, then time. A
+// run logged by time alone leads with the time and needs no box under it.
 function drawRunStats(ctx, { stats, tf, W }) {
+  const time = stats.duration > 0 ? `${stats.duration} min` : '—';
+  const hasDistance = stats.cardioMeters > 0;
+  const label = hasDistance ? tf('cardio.field.distance', 'Distance') : tf('finish.time', 'Time');
+  const headline = hasDistance ? stats.cardioDistance : time;
+
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = canvasFont('bold 30px');
-  ctx.fillText(tf('cardio.field.distance', 'Distance').toUpperCase(), 80, 320);
+  ctx.fillText(label.toUpperCase(), 80, 320);
 
   ctx.fillStyle = '#ffffff';
   let size = 200;
   ctx.font = canvasFont(`bold ${size}px`);
-  while (ctx.measureText(stats.cardioDistance).width > W - 160 && size > 80) {
+  while (ctx.measureText(headline).width > W - 160 && size > 80) {
     size -= 10;
     ctx.font = canvasFont(`bold ${size}px`);
   }
-  ctx.fillText(stats.cardioDistance, 80, 490);
+  ctx.fillText(headline, 80, 490);
 
-  drawStatBoxes(ctx, [
-    { label: tf('finish.time', 'Time').toUpperCase(), value: stats.duration > 0 ? `${stats.duration} min` : '—' },
-  ], W);
+  if (hasDistance) {
+    drawStatBoxes(ctx, [{ label: tf('finish.time', 'Time').toUpperCase(), value: time }], W);
+  }
 }
 
 function drawStatBoxes(ctx, statBoxes, W) {
@@ -286,7 +295,7 @@ function FinishStats({ workout, includeBarWeight, weightUnit, distanceUnit, summ
     raw.cardioMeters > 0 && { label: tFallback('cardio.field.distance', 'Distance'), value: formatRunDistance(raw.cardioMeters, distanceUnit, language) },
     raw.totalVolume > 0 && { label: tFallback('finish.volume', 'Volume'), value: `${fmt(Math.round(fromLbs(raw.totalVolume, weightUnit)))} ${unit}` },
     // A run-only session has no sets, and "0 sets" is not a stat.
-    (raw.totalSets > 0 || raw.cardioMeters <= 0) && { label: tFallback('finish.sets', 'Sets'), value: fmt(raw.totalSets) },
+    (raw.exercises > 0 || raw.cardioCount === 0) && { label: tFallback('finish.sets', 'Sets'), value: fmt(raw.totalSets) },
   ].filter(Boolean);
   const prs = summary?.prs || [];
   return (
