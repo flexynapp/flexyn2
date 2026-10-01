@@ -701,7 +701,8 @@ BEGIN
     r := public.sync_my_logging_points();
     IF (r->>'photo_meal')::int <> 30 THEN RAISE EXCEPTION 'probe: photo meals paid wrong: %', r; END IF;
 
-    -- The same barcode twice is one product; a third product is past the cap.
+    -- The same barcode twice is one product (10). Three more products, one
+    -- of them not a barcode, top it up to the cap of two (another 10).
     INSERT INTO public.nutrition_logs (created_by, user_id, date, food_name, calories, ai_meta)
     VALUES (mail, u, current_date, 'Bar', 200, '{"source":"barcode","barcode":"0123456789012"}'),
            (mail, u, current_date, 'Bar', 200, '{"source":"barcode","barcode":"0123456789012"}');
@@ -751,9 +752,9 @@ BEGIN
       RAISE EXCEPTION 'probe: bounty does not pay league points';
     END IF;
 
-    -- The bracket sees it: 20 water + 30 photo + 10 barcode + 200 quests.
+    -- The bracket sees it: 20 water + 30 photo + 20 barcode + 200 quests.
     SELECT weekly_xp INTO n FROM public.league_members WHERE league_id = lg AND user_id = u;
-    IF n <> 260 THEN RAISE EXCEPTION 'probe: weekly_xp %, expected 260', n; END IF;
+    IF n <> 270 THEN RAISE EXCEPTION 'probe: weekly_xp %, expected 270', n; END IF;
 
     RAISE EXCEPTION USING ERRCODE = 'P0003', MESSAGE = 'probe passed';
   EXCEPTION WHEN SQLSTATE 'P0003' THEN NULL;
