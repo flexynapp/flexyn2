@@ -3524,7 +3524,7 @@
   "league.gate.prizeHeld": "{n} qualified. {need} needed for the top prize",
   "league.gate.qualifyCta": "Log a workout to qualify",
   "league.gate.qualifyDays": "Train on {n} separate days to qualify",
-  "league.gate.unranked": "Unranked",
+  "league.gate.unranked": "Not ranked this week",
   "league.globalGap": "globally · {n} XP behind {name}",
   "league.globalLeading": "globally · leading the board",
   "league.info.colDays": "Days",

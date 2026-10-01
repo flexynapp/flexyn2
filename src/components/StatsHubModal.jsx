@@ -145,7 +145,13 @@ export default function StatsHubModal({ open, onClose }) {
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto p-0 gap-0">
+        {/* grid-cols-[minmax(0,1fr)]: DialogContent is a grid, and its one
+            implicit column is `auto`, which never shrinks below the
+            min-content of what it holds. A truncated line is still its
+            full length at min-content, so the league card's provisional
+            hint widened the whole sheet past the phone and clipped the
+            coin pill, the XP rail and every card on the right. */}
+        <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto p-0 gap-0 grid-cols-[minmax(0,1fr)]">
           {/* Visually-hidden DialogTitle + Description for screen readers.
               Radix logs an a11y warning otherwise. The visual hero below
               already shows the title, so we don't repeat it visibly. */}

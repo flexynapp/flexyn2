@@ -3511,7 +3511,7 @@
   "league.gate.prizeHeld": "{n} qualifiés. Il en faut {need} pour le premier prix",
   "league.gate.qualifyCta": "Enregistrez un entraînement pour vous qualifier",
   "league.gate.qualifyDays": "Entraînez-vous sur {n} jours différents pour vous qualifier",
-  "league.gate.unranked": "Non classé",
+  "league.gate.unranked": "Non classé cette semaine",
   "league.globalGap": "au niveau mondial · {n} XP derrière {name}",
   "league.globalLeading": "au niveau mondial · en tête du classement",
   "league.info.colDays": "Jours",
