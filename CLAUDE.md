@@ -198,7 +198,9 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   `gym_feed_posts` and `gym_feed_comments` (`author_email`); and
   (`20260930235900`) `hub_follows`, `hub_posts`, `hub_comments`,
   `hub_comment_likes`, `stories`, `status_notes`, `food_items` and
-  `workout_templates`. `ownedRows(table, { columns })` is how
+  `workout_templates`; and (`20261002060000`) direct messages,
+  `hub_conversations` and `hub_messages`, which the app reads by
+  `participant_ids`, `accepted_ids` and `user_id`. `ownedRows(table, { columns })` is how
   a one-person table like `regimens` names its columns.
   On these, `select('*')` (and `.insert().select()` with no list) fails
   with 42501, so name the columns; an upsert may not set the email column
