@@ -75,7 +75,7 @@ const RankUpSequence = React.lazy(() => import('@/components/leagues/RankUpSeque
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
 import { enqueueReveal } from '@/lib/rewardQueue';
-import { consumeRankUp } from '@/lib/rankUp';
+import { consumeRankUp, consumePlacement } from '@/lib/rankUp';
 import * as leaguesData from '@/lib/data/leagues';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isPrestigeEligible } from '@/lib/data/prestige';
@@ -678,15 +678,16 @@ export default function Dashboard() {
   // that poll brings back a new league or level. rankUp.js keeps the last
   // league this device showed; a move up celebrates, a move down gets the
   // quieter sequence. A first placement (the league appearing after the first
-  // workout, where the server said { placed: false } before) plays its own
-  // reveal; see rankUp.js for why that needs an explicit flag, not null.
+  // workout) is the server's call: my_league_strength carries a one-shot
+  // `reveal_pending`, marked seen as the reveal starts, so it plays once per
+  // account on whichever device opens Today first.
   const { data: rankLeague } = useQuery({
     queryKey: ['myLeague', user?.id],
     queryFn: () => leaguesData.getMyLeague(user),
     enabled: !!user?.id,
     staleTime: 30_000,
   });
-  const { data: rankStrength } = useQuery({
+  const { data: rankStrength, isFetched: rankStrengthFetched } = useQuery({
     queryKey: ['myLeagueStrength', user?.id],
     queryFn: () => leaguesData.getMyStrength(user),
     enabled: !!user?.id,
@@ -695,18 +696,28 @@ export default function Dashboard() {
   const [rankUp, setRankUp] = useState(null);
   const rankTier = rankLeague?.tier?.id;
   const rankLevel = rankLeague?.level;
-  const rankUnplaced = rankLeague?.placed === false;
-  const rankPlacedAt = rankLeague?.placedAt ?? null;
+  const revealPending = rankStrength?.reveal_pending === true;
   useEffect(() => {
-    if (!user?.id || (!rankTier && !rankUnplaced)) return undefined;
+    // Wait for both reads: a pending placement must win over the ordinary
+    // comparison, which would otherwise record the league silently first.
+    if (!user?.id || !rankTier || !rankStrengthFetched) return undefined;
     // After first paint settles, like the other reveals here.
     const t = setTimeout(() => {
-      const current = rankUnplaced ? { unplaced: true } : { tier: rankTier, level: rankLevel };
-      const move = consumeRankUp(user.id, current, { placedAt: rankPlacedAt });
+      const placement = consumePlacement(user.id, rankStrength, rankLevel);
+      if (placement) {
+        // Never rejects; a failed mark only means it plays again next visit.
+        leaguesData.markLeagueRevealSeen()
+          .finally(() => queryClient.invalidateQueries({ queryKey: ['myLeagueStrength', user.id] }));
+        enqueueReveal(() => { setRankUp(placement); return 0; });
+        return;
+      }
+      const move = consumeRankUp(user.id, { tier: rankTier, level: rankLevel });
       if (move) enqueueReveal(() => { setRankUp(move); return 0; });
     }, 2800);
     return () => clearTimeout(t);
-  }, [user?.id, rankTier, rankLevel, rankUnplaced, rankPlacedAt]);
+    // rankStrength is read only for its pending flag and tier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, rankTier, rankLevel, rankStrengthFetched, revealPending]);
 
   // ── Lead Lifter reveal ────────────────────────────────────────────────────
   //

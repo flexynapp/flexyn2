@@ -17,17 +17,14 @@
 //   down   Gold to Silver. No burst, no sunburst: the crest greys and
 //          sinks, the lower one rises, and it ends on the way back up.
 //
-//   placed The first league anyone gives them (Kegan, 2026-10-01: nobody
-//          sees a league until their first workout, and that first
-//          placement plays its own reveal). The same stage as a
-//          promotion, reading "Your league" rather than "Promoted".
-//
-// A placement needs the server to say "not placed yet" out loud: getMyLeague
-// returns { placed: false } until the first workout. A plain null is NOT that
-// signal, because null is also what a failed read returns, and treating it
-// as "unplaced" would replay a placement to someone in Gold for weeks.
-// When the device never saw the unplaced state (a reinstall, a second phone),
-// a server `placedAt` under PLACED_FRESH_DAYS old still plays it.
+//   placed The first league anyone gets (Kegan, 2026-10-01: nobody sees a
+//          league until their first workout, and that first placement
+//          plays its own reveal). The promotion's stage, reading "Your
+//          league" rather than "Promoted". The SERVER decides this one:
+//          my_league_strength carries a one-shot `reveal_pending` that
+//          plays once per account across devices (see consumePlacement).
+//          While unplaced, getMyLeague returns { unrevealed: true } and no
+//          tier, so nothing here is recorded.
 //
 // A level never drops inside a league (it counts qualified weeks in the
 // stint), so there is no level-down move.
@@ -48,12 +45,8 @@ function clampLevel(level) {
   return Math.min(MAX_LEAGUE_LEVEL, Math.max(1, n));
 }
 
-export const UNPLACED = Object.freeze({ unplaced: true });
-export const PLACED_FRESH_DAYS = 14;
-
-/** A {tier, level} the rest of this file can trust, UNPLACED, or null. */
+/** A {tier, level} the rest of this file can trust, or null. */
 export function normalizeRank(rank) {
-  if (rank?.unplaced) return UNPLACED;
   if (!rank || TIER_INDEX[rank.tier] === undefined) return null;
   return { tier: rank.tier, level: clampLevel(rank.level) };
 }
@@ -61,20 +54,12 @@ export function normalizeRank(rank) {
 /**
  * Compare the last rank this device showed with the current one.
  *
- * @param {object} [opts]
- * @param {string} [opts.placedAt]  when the server first placed them
- * @returns {null | { kind: 'tier' | 'level' | 'down' | 'placed', from: {tier, level} | null, to: {tier, level} }}
+ * @returns {null | { kind: 'tier' | 'level' | 'down', from: {tier, level}, to: {tier, level} }}
  */
-export function detectRankUp(seen, current, { placedAt, now = Date.now() } = {}) {
+export function detectRankUp(seen, current) {
   const a = normalizeRank(seen);
   const b = normalizeRank(current);
-  if (!b || b.unplaced) return null;
-  if (a?.unplaced) return { kind: 'placed', from: null, to: b };
-  if (!a) {
-    const at = placedAt ? Date.parse(placedAt) : NaN;
-    const fresh = Number.isFinite(at) && now - at >= 0 && now - at < PLACED_FRESH_DAYS * 86400000;
-    return fresh ? { kind: 'placed', from: null, to: b } : null;
-  }
+  if (!a || !b) return null;
   const ta = TIER_INDEX[a.tier];
   const tb = TIER_INDEX[b.tier];
   if (tb > ta) return { kind: 'tier', from: a, to: b };
@@ -93,8 +78,7 @@ export function nextSeen(seen, current) {
   const a = normalizeRank(seen);
   const b = normalizeRank(current);
   if (!b) return a;
-  if (b.unplaced) return a && !a.unplaced ? a : b;
-  if (a && !a.unplaced && a.tier === b.tier) return { tier: b.tier, level: Math.max(a.level, b.level) };
+  if (a && a.tier === b.tier) return { tier: b.tier, level: Math.max(a.level, b.level) };
   return b;
 }
 
@@ -121,12 +105,29 @@ export function writeSeenRank(userId, rank) {
  * return the move to play (or null). Writing before the sequence plays means
  * a crash or a closed tab mid-sequence never replays it on every open.
  */
-export function consumeRankUp(userId, current, opts) {
+export function consumeRankUp(userId, current) {
   if (!userId || !normalizeRank(current)) return null;
   const seen = readSeenRank(userId);
-  const move = detectRankUp(seen, current, opts);
+  const move = detectRankUp(seen, current);
   writeSeenRank(userId, nextSeen(seen, current));
   return move;
+}
+
+/**
+ * The first placement, when the server says one is waiting. Records the
+ * league as seen on this device, so the ordinary comparison stays quiet
+ * about the same league afterwards. The caller marks it seen on the server
+ * (markLeagueRevealSeen), which is what stops it on every other device.
+ *
+ * @param {object} strength  getMyStrength's payload
+ * @param {number} [level]   the league level getMyLeague reports
+ */
+export function consumePlacement(userId, strength, level = 1) {
+  if (!userId || strength?.reveal_pending !== true) return null;
+  const to = normalizeRank({ tier: strength.tier, level });
+  if (!to) return null;
+  writeSeenRank(userId, to);
+  return { kind: 'placed', from: null, to };
 }
 
 /**

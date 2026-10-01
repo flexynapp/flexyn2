@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  detectRankUp, nextSeen, consumeRankUp, readSeenRank, rankDramaFor, RANK_DRAMA, LEVEL_DRAMA, DOWN_DRAMA,
+  detectRankUp, nextSeen, consumeRankUp, consumePlacement, readSeenRank, rankDramaFor, RANK_DRAMA, LEVEL_DRAMA, DOWN_DRAMA,
 } from '@/lib/rankUp';
 import { TIERS } from '@/lib/leagueTiers';
 
@@ -34,34 +34,27 @@ describe('detectRankUp', () => {
   });
 });
 
-describe('first placement', () => {
-  const gold = { tier: 'gold', level: 1 };
-  it('plays when this device saw the unplaced state', () => {
-    expect(detectRankUp({ unplaced: true }, gold)).toEqual({ kind: 'placed', from: null, to: gold });
+describe('consumePlacement', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('plays only when the server says a reveal is pending', () => {
+    expect(consumePlacement('u', { reveal_pending: false, tier: 'gold' })).toBeNull();
+    expect(consumePlacement('u', { revealed: false, tier: null })).toBeNull();
+    expect(consumePlacement('u', null)).toBeNull();
+    expect(consumePlacement('u', { reveal_pending: true, tier: 'gold' }, 2))
+      .toEqual({ kind: 'placed', from: null, to: { tier: 'gold', level: 2 } });
   });
-  it('plays without a record only when the server placement is fresh', () => {
-    const now = Date.parse('2026-10-01T12:00:00Z');
-    expect(detectRankUp(null, gold, { placedAt: '2026-09-30T12:00:00Z', now })?.kind).toBe('placed');
-    expect(detectRankUp(null, gold, { placedAt: '2026-08-01T12:00:00Z', now })).toBeNull();
-    expect(detectRankUp(null, gold, { placedAt: 'nonsense', now })).toBeNull();
+
+  it('records the league, so the ordinary comparison stays quiet after it', () => {
+    consumePlacement('u', { reveal_pending: true, tier: 'silver' });
+    expect(readSeenRank('u')).toEqual({ tier: 'silver', level: 1 });
+    expect(consumeRankUp('u', { tier: 'silver', level: 1 })).toBeNull();
+    expect(consumeRankUp('u', { tier: 'gold', level: 1 })?.kind).toBe('tier');
   });
-  it('a known league is never mistaken for a placement', () => {
-    const now = Date.parse('2026-10-01T12:00:00Z');
-    expect(detectRankUp({ tier: 'gold', level: 1 }, gold, { placedAt: '2026-09-30T12:00:00Z', now })).toBeNull();
-  });
-  it('records unplaced, plays once, then behaves like any league', () => {
-    localStorage.clear();
-    expect(consumeRankUp('p', { unplaced: true })).toBeNull();
-    expect(readSeenRank('p')).toEqual({ unplaced: true });
-    expect(consumeRankUp('p', gold)?.kind).toBe('placed');
-    expect(consumeRankUp('p', gold)).toBeNull();
-    expect(consumeRankUp('p', { tier: 'platinum', level: 1 })?.kind).toBe('tier');
-  });
-  it('a failed read (null) records nothing, so it cannot arm a placement', () => {
-    localStorage.clear();
-    consumeRankUp('q', gold);
-    expect(consumeRankUp('q', null)).toBeNull();
-    expect(readSeenRank('q')).toEqual(gold);
+
+  it('a placement holds a beat longer than the same promotion', () => {
+    const placed = rankDramaFor({ kind: 'placed', to: { tier: 'gold' } });
+    expect(placed.hold).toBeGreaterThan(RANK_DRAMA.gold.hold);
   });
 });
 
