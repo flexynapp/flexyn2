@@ -305,7 +305,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         calories:         payload.calories,
       });
       leagues.recordWeeklyXp(_user, cardioXp)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', _user?.id] }))
+        .then(() => { ['myLeague', 'myLeagueStrength', 'heroLeague'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k, _user?.id] })); })
         .catch(err => reportError(err, {
           feature: 'cardio.live-indoor.league-xp',
           level: 'warning',

@@ -37,7 +37,7 @@ vi.mock('@/api/supabaseClient', () => ({
 vi.mock('./notifications', () => ({ notifyLeagueResolution: vi.fn() }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 
-const { ensureCurrentLeague } = await import('../leagues');
+const { ensureCurrentLeague, getMyLeague, recordWeeklyXp } = await import('../leagues');
 
 const USER = { id: 'u1', email: 'me@example.com' };
 
@@ -109,5 +109,26 @@ describe('ensureCurrentLeague', () => {
     const res = await ensureCurrentLeague({ id: 'u1' });
     expect(res).not.toBeNull();
     expect(rpcSpy).toHaveBeenCalledWith('ensure_my_league');
+  });
+});
+
+describe('before the first workout', () => {
+  // Nobody is placed until their first completed session; the server joins
+  // no bracket and answers {revealed: false}.
+  it('reports unrevealed instead of a league', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: { revealed: false }, error: null });
+    expect(await ensureCurrentLeague(USER)).toEqual({ unrevealed: true });
+  });
+
+  it('getMyLeague passes unrevealed through without reading members', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: { revealed: false }, error: null });
+    expect(await getMyLeague(USER)).toEqual({ unrevealed: true });
+    expect(fromSpy).not.toHaveBeenCalled();
+  });
+
+  it('recordWeeklyXp does not sync a bracket the user is not in', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: { revealed: false }, error: null });
+    await recordWeeklyXp(USER, 50);
+    expect(rpcSpy.mock.calls.map((c) => c[0])).toEqual(['ensure_my_league']);
   });
 });

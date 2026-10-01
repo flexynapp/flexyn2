@@ -83,6 +83,9 @@ export async function ensureCurrentLeague(user) {
     console.warn('[leagues] ensure_my_league failed:', error);
     return null;
   }
+  // No league before the first completed session (migration
+  // 20261001100000): the server joins no bracket and says so.
+  if (data?.revealed === false) return { unrevealed: true };
   if (!data?.league || !data?.member) return null;
   return { league: data.league, member: data.member };
 }
@@ -104,7 +107,7 @@ export async function ensureCurrentLeague(user) {
 export async function recordWeeklyXp(user, amount) {
   if (!user?.id || !amount || amount <= 0) return;
   const ctx = await ensureCurrentLeague(user);
-  if (!ctx) return;
+  if (!ctx || ctx.unrevealed) return;
 
   try {
     const { error } = await supabase.rpc('sync_my_weekly_league');
@@ -245,6 +248,16 @@ export async function listLeagueMembers(leagueId) {
 export async function getMyLeague(user) {
   const ctx = await ensureCurrentLeague(user);
   if (!ctx) return null;
+  // Not placed yet: callers show the "finish your first workout" state.
+  if (ctx.unrevealed) return { unrevealed: true };
+
+  // Refresh my own standing before reading the board. Only workouts and cardio
+  // call recordWeeklyXp, so points from meals, water, bounties and quests
+  // would otherwise sit unseen until the next session. Best effort: the board
+  // still renders on the last synced number.
+  try {
+    await supabase.rpc('sync_my_weekly_league');
+  } catch { /* read the stored standing */ }
 
   // NOTE: there is deliberately no resolve-on-read here. Rollover belongs to
   // the `roll-weekly-leagues` cron (migration 310) because a bracket has to
@@ -340,7 +353,12 @@ export async function getMyLeagueLevel(user, tierId) {
  *
  *   { score, lifts: {squat, bench, deadlift, ohp}, sessions, estimated,
  *     reason: 'no_bodyweight' | 'no_lifts' | null, tier, placed,
- *     tier_floor, drop_below, next_tier, next_floor }
+ *     tier_floor, drop_below, next_tier, next_floor,
+ *     revealed, reveal_pending, revealed_at }
+ *
+ * revealed is false until the first completed session, and then tier is
+ * null. reveal_pending is true once placed until markLeagueRevealSeen().
+
  */
 export async function getMyStrength(user) {
   if (!user?.id) return null;
@@ -354,6 +372,20 @@ export async function getMyStrength(user) {
   } catch (err) {
     reportError(err, { feature: 'league.strength' });
     return null;
+  }
+}
+
+/**
+ * The placement reveal has been played. The server keeps this per account,
+ * so the reveal plays once across every device. Failure is harmless: the
+ * worst case is the reveal playing again next visit.
+ */
+export async function markLeagueRevealSeen() {
+  try {
+    const { error } = await supabase.rpc('mark_my_league_reveal_seen');
+    if (error && error.code !== '42883') reportError(error, { feature: 'league.revealSeen', level: 'warning' });
+  } catch (err) {
+    reportError(err, { feature: 'league.revealSeen' });
   }
 }
 

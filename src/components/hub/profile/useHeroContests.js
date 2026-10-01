@@ -36,6 +36,8 @@ export function useHeroContests({ user, isSelf }) {
     queryFn: async () => {
       try {
         const res = await getMyLeague(user);
+        // Not placed before the first workout: the plate stays neutral.
+        if (res?.unrevealed) return { unrevealed: true };
         if (!res?.league) return null;
         // Unranked until you have trained enough days this week. That used
         // to return null, which removed the League row and the plate's tap

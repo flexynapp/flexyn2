@@ -21,6 +21,7 @@ import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { MIN_QUALIFIED_FOR_PRIZE, getTier, leagueTierName } from '@/lib/leagueTiers';
 import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
 import PlayerMenu from '@/components/report/PlayerMenu';
+import LeagueQuests from '@/components/leagues/LeagueQuests';
 // Explainer for the ladder. Lazy — it opens on a tap and most sessions
 // never open it, so it has no business in the dashboard chunk.
 const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
@@ -259,6 +260,9 @@ function Body({ data, season, strength, userId, t, tFallback, fmt, onOpenMember,
           )}
         </div>
       </div>
+
+      {/* Weekly league quests: extra points toward this week's standings. */}
+      <LeagueQuests userId={userId} t={t} tFallback={tFallback} fmt={fmt} />
 
       {/* Members list */}
       <div className="p-4 sm:p-5 md:p-6">
