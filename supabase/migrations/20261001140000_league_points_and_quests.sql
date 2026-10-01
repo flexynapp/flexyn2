@@ -661,13 +661,13 @@ BEGIN
 
     -- Half the goal pays nothing.
     INSERT INTO public.nutrition_logs (created_by, user_id, date, food_name, calories)
-    VALUES (mail, u, (public.user_local_now(u))::date, 'Water|52', 0);
+    VALUES (mail, u, current_date, 'Water|52', 0);
     r := public.sync_my_logging_points();
     IF (r->>'water_goal_met')::int <> 0 THEN RAISE EXCEPTION 'probe: water paid below goal: %', r; END IF;
 
     -- Reaching it pays 20 once.
     INSERT INTO public.nutrition_logs (created_by, user_id, date, food_name, calories)
-    VALUES (mail, u, (public.user_local_now(u))::date, 'Water|52', 0);
+    VALUES (mail, u, current_date, 'Water|52', 0);
     r := public.sync_my_logging_points();
     IF (r->>'water_goal_met')::int <> 20 THEN RAISE EXCEPTION 'probe: water goal paid wrong: %', r; END IF;
     r := public.sync_my_logging_points();
