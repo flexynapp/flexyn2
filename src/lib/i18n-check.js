@@ -160,6 +160,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "Spam" is the word Spanish uses for it.
+    'reportPlayer.reason.spam',
     // "min" is the minute abbreviation Spanish uses too.
     'coach.followUp.minutes',
     // Duels: "Rival" and "VS" are the words Spanish uses on a scoreboard.
@@ -237,6 +239,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'onboarding.weight.unitKg',
   ]),
   fr: new Set([
+    // "Spam" and "story" are the words French uses (the app's own fr copy
+    // already says "une story").
+    'reportPlayer.reason.spam',
+    'settings.myReports.type.story',
     // "Volume" is the French word for training volume as well.
     'progress.analytics.volume',
     // "min" is the minute abbreviation French uses too.

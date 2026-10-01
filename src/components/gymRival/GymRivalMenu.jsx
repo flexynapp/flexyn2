@@ -31,6 +31,7 @@
 //      is the number a user can act on.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Check, AlertTriangle, Award } from 'lucide-react';
@@ -648,17 +649,26 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                 )}
 
-                <button type="button" onClick={() => rival?.id && navigate(`/hub?profile=${encodeURIComponent(rival.id)}`)}
-                  className="flex items-center gap-2 mb-5 text-start">
-                  <Avatar profile={rival} size="w-9 h-9" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-black truncate">@{rivalName}</span>
-                    <CrewLine crew={rivalCrew} />
-                    <span className="block text-micro text-muted-foreground">
-                      {tFallback('gymRivalMenu.levelN', 'Lv. {lv}', { lv: String(rival?.current_level ?? '—') })}
+                <div className="flex items-center gap-2 mb-5">
+                  <button type="button" onClick={() => rival?.id && navigate(`/hub?profile=${encodeURIComponent(rival.id)}`)}
+                    className="flex-1 min-w-0 flex items-center gap-2 text-start">
+                    <Avatar profile={rival} size="w-9 h-9" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black truncate">@{rivalName}</span>
+                      <CrewLine crew={rivalCrew} />
+                      <span className="block text-micro text-muted-foreground">
+                        {tFallback('gymRivalMenu.levelN', 'Lv. {lv}', { lv: String(rival?.current_level ?? '—') })}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <PlayerMenu
+                    userId={otherId}
+                    currentUserId={currentUserId}
+                    username={rival?.username}
+                    context={rivalType === 'cardio' ? 'cardio_rival' : 'gym_rival'}
+                    contextId={assignment?.id}
+                  />
+                </div>
 
                 <HeadToHead
                   label={metricLabel}

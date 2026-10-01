@@ -227,8 +227,10 @@ export default function CardioManualForm({
     }
     setSaving(true);
     try {
+      // Same exemption as canSave: an edit keeps its original date, so the
+      // 7-day window only applies to new entries.
       const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
-      if (date < sevenDaysAgo) {
+      if (!initial?.id && date < sevenDaysAgo) {
         toast.error(t('cardio.error.dateInPast'));
         setSaving(false);
         return;
@@ -251,10 +253,11 @@ export default function CardioManualForm({
           Number(durationSeconds) || 0,
         );
         if (hoursCheck.implausible) {
-          toast.error(
-            `That would put you over the daily ${hoursCheck.reason.replace('_', ' ')} cap ` +
-            `(${hoursCheck.hours}h / ${hoursCheck.maxHours}h limit). Take a rest day.`
-          );
+          toast.error(tFallback(
+            'cardio.error.dailyHoursCap',
+            'That would put you over today\'s training limit ({hours}h of {max}h). Take a rest day.',
+            { hours: hoursCheck.hours, max: hoursCheck.maxHours },
+          ));
           setSaving(false);
           return;
         }
@@ -270,11 +273,11 @@ export default function CardioManualForm({
 
       const maxCal = getMaxRealisticCalories(durationSeconds, userProfile);
       if (Number(calories) > maxCal) {
-        toast.error(
-          `That calorie count (${Math.round(Number(calories))} cal) seems too high for a ${
-            Math.round(durationSeconds / 60)
-          }-minute session. Maximum realistic is ${maxCal} cal.`
-        );
+        toast.error(tFallback(
+          'cardio.error.caloriesTooHigh',
+          '{cal} cal seems too high for a {min} minute session. The most that is realistic is {max} cal.',
+          { cal: Math.round(Number(calories)), min: Math.round(durationSeconds / 60), max: maxCal },
+        ));
         setSaving(false);
         return;
       }

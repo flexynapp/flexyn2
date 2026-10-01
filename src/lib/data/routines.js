@@ -135,7 +135,20 @@ export async function getActiveRoutine() {
 // ── writes ──────────────────────────────────────────────────────────────────
 export async function createRoutine({ name, days, activate = false }) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id || !user?.email) return { ok: false, reason: 'unauthenticated' };
+  if (!user?.id) return { ok: false, reason: 'unauthenticated' };
+  // user_email is NOT NULL, and a guest has no auth email. Their profile row
+  // carries one (guest_<uuid>@flexyn.guest), so fall back to it; requiring the
+  // auth email locked every guest out of routines.
+  let email = user.email;
+  if (!email) {
+    const { data: prof } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('id', user.id)
+      .maybeSingle();
+    email = prof?.email;
+  }
+  if (!email) return { ok: false, reason: 'unauthenticated' };
 
   const { count } = await supabase
     .from('routines')
@@ -151,7 +164,7 @@ export async function createRoutine({ name, days, activate = false }) {
     .from('routines')
     .insert({
       user_id: user.id,
-      user_email: user.email,
+      user_email: email,
       name: String(name || 'My Routine').slice(0, 60),
       days: cleanDays(days),
       is_active: !!activate,

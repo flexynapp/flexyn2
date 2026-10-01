@@ -557,8 +557,8 @@ export default function PrivacySection() {
                 <li key={r.id} className="flex items-center justify-between gap-2 min-h-11">
                   <span className="flex items-center gap-2 min-w-0">
                     <FileText className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                    <span className="text-body text-foreground capitalize truncate">
-                      {r.reported_type} · {r.reason.replace('_', ' ')}
+                    <span className="text-body text-foreground truncate">
+                      {reportSummary(r, tFallback)}
                     </span>
                   </span>
                   <span className={`text-micro font-bold uppercase tracking-wide px-2 py-1 rounded-lg shrink-0 ${
@@ -577,4 +577,41 @@ export default function PrivacySection() {
       )}
     </div>
   );
+}
+
+// "Player · Impossible lifts or numbers" rather than the raw slugs
+// ("user · fake activity") the list used to print.
+const REPORT_TYPE_COPY = {
+  post:    ['settings.myReports.type.post', 'Post'],
+  comment: ['settings.myReports.type.comment', 'Comment'],
+  story:   ['settings.myReports.type.story', 'Story'],
+  user:    ['settings.myReports.type.user', 'Player'],
+};
+const PLAYER_REASON_COPY = {
+  cheating:      ['reportPlayer.reason.cheating', 'Impossible lifts or numbers'],
+  fake_activity: ['reportPlayer.reason.fakeActivity', 'Fake workouts or cardio'],
+  harassment:    ['reportPlayer.reason.harassment', 'Harassment or bullying'],
+  inappropriate: ['reportPlayer.reason.inappropriate', 'Offensive name or profile'],
+  spam:          ['reportPlayer.reason.spam', 'Spam'],
+  other:         ['reportPlayer.reason.other', 'Something else'],
+};
+const CONTENT_REASON_EN = {
+  harassment: 'Harassment or bullying',
+  hate_speech: 'Hate speech or slurs',
+  spam: 'Spam or self-promotion',
+  inappropriate: 'Inappropriate content',
+  impersonation: 'Impersonation',
+  other: 'Other',
+};
+function reportSummary(r, tFallback) {
+  const [typeKey, typeEn] = REPORT_TYPE_COPY[r.reported_type] || [null, r.reported_type];
+  const type = typeKey ? tFallback(typeKey, typeEn) : typeEn;
+  let reason;
+  if (r.reported_type === 'user' && PLAYER_REASON_COPY[r.reason]) {
+    const [k, en] = PLAYER_REASON_COPY[r.reason];
+    reason = tFallback(k, en);
+  } else {
+    reason = tFallback(`report.reason.${r.reason}`, CONTENT_REASON_EN[r.reason] || String(r.reason || ''));
+  }
+  return `${type} · ${reason}`;
 }

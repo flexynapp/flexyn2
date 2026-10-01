@@ -15,7 +15,8 @@ import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
 import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { summarizeGoalTarget } from '@/lib/goalSummary';
+import { goalTitle, goalTargetLabel } from '@/lib/goalProgress';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 
 export default function GoalsModal({ open, onClose, goals = [], logs = [], cardioLogs = [], userProfile = {}, startWithForm = false }) {
   const navigate = useNavigate();
@@ -30,6 +31,13 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], cardi
   const [tabDirection, setTabDirection] = useState(1);
   const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
+  const summarizeNewGoal = (g) => {
+    if (!g) return '';
+    const name = goalTitle(g, { t, tFallback });
+    const target = goalTargetLabel(g, { tFallback, weightUnit, distanceUnit });
+    return target ? `${name} · ${target}` : name;
+  };
 
   // Slide direction from the tab's position in the bar, not from its name.
   // The old `tab === 'completed' ? 1 : -1` only ever described two tabs, so
@@ -73,7 +81,9 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], cardi
       if (isFirstGoal) {
         fireFirstGoalCelebration({
           t: tFallback,
-          targetSummary: summarizeGoalTarget(created || submittedData, weightUnit),
+          // Same words as Today's goal row ("Running · 5 km"), so the
+          // celebration never prints the stored slug or metres.
+          targetSummary: summarizeNewGoal(created || submittedData),
           userEmail: user?.email,
         });
       } else {

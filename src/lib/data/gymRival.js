@@ -51,6 +51,25 @@ export async function rollGymRival(type = 'gym') {
   return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
 
+/**
+ * The caller's open search, when a roll found nobody close and the server is
+ * keeping them first in line (rival_seekers, 48 hours). Null when not
+ * waiting. Migration 20261001230000.
+ */
+export async function getMyRivalSearch() {
+  const { data, error } = await supabase.rpc('get_my_rival_search');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? { rivalType: row.rival_type === 'cardio' ? 'cardio' : 'gym', expiresAt: row.expires_at } : null;
+}
+
+/** Stop waiting for a close match. */
+export async function cancelRivalSearch() {
+  const { error } = await supabase.rpc('cancel_rival_search');
+  if (error) throw error;
+  return true;
+}
+
 /** Confirm the caller's participation in a pending match. */
 export async function confirmGymRival(assignmentId) {
   const { data, error } = await supabase.rpc('gym_rival_confirm', { p_assignment_id: assignmentId });

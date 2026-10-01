@@ -2,6 +2,7 @@
 // Live crew war scoreboard panel — shown on the Crews page when an active war exists.
 
 import React, { useEffect } from 'react';
+import PlayerMenu from '@/components/report/PlayerMenu';
 import { motion } from 'framer-motion';
 import { Shield, Clock, Crown, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -47,7 +48,7 @@ function ScoreBar({ myScore, theirScore }) {
 // like settings. Names are real now: migration 249's breakdown RPC returns
 // them in the same round trip, so this stopped rendering "Member" for
 // everyone except the viewer.
-function ContribRow({ rank, row, isCurrentUser, isMvp }) {
+function ContribRow({ rank, row, isCurrentUser, isMvp, warId, viewerId }) {
   const fmt = useNumberFormatter();
   const name = isCurrentUser
     ? 'You'
@@ -73,6 +74,7 @@ function ContribRow({ rank, row, isCurrentUser, isMvp }) {
       <span className={`text-xs font-bold tabular-nums shrink-0 ${idle ? 'text-muted-foreground' : ''}`}>
         {fmt(row.score || 0)}
       </span>
+      <PlayerMenu userId={row.user_id} currentUserId={viewerId} username={row.username} context="crew_war" contextId={warId} />
     </div>
   );
 }
@@ -339,6 +341,8 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
                   row={c}
                   isCurrentUser={c.user_id === currentUserId}
                   isMvp={completed && war.mvp_user_id === c.user_id}
+                  warId={war.id}
+                  viewerId={currentUserId}
                 />
               ))}
             </div>

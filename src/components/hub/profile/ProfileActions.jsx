@@ -11,7 +11,7 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Lock, Unlock, StickyNote } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Lock, Unlock, StickyNote, Flag } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -96,6 +96,7 @@ export default function ProfileActions({
   onMute,
   onUnmute,
   onBlock,
+  onReport,
   onUnblock,
   isBlocked = false,
   isMuted = false,
@@ -293,7 +294,7 @@ export default function ProfileActions({
                     from Settings → Privacy, so the two halves of one decision
                     lived in different places and the undo was unfindable.
                     Whichever state you are in, the opposite action is here. */}
-                {(onMute || onUnmute || onBlock) && <DropdownMenuSeparator />}
+                {(onMute || onUnmute || onBlock || onReport) && <DropdownMenuSeparator />}
                 {isMuted
                   ? onUnmute && (
                       <MenuItem
@@ -325,6 +326,14 @@ export default function ProfileActions({
                         onSelect={onBlock}
                       />
                     )}
+                {onReport && (
+                  <MenuItem
+                    icon={Flag}
+                    iconClass="text-destructive"
+                    label={tFallback('reportPlayer.menuReport', 'Report player')}
+                    onSelect={onReport}
+                  />
+                )}
               </>
             )}
           </DropdownMenuContent>

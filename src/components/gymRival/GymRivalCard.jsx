@@ -10,10 +10,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from 'framer-motion';
-import { Target, Loader2, ChevronRight, AlertTriangle, Trophy, Swords, Dumbbell, Footprints, Ghost, Users } from 'lucide-react';
+import { Target, Loader2, ChevronRight, AlertTriangle, Trophy, Swords, Dumbbell, Footprints, Ghost, Users, Hourglass } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, getGymRivalWeekState, rivalMetric } from '@/lib/data/gymRival';
+import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, getGymRivalWeekState, rivalMetric, getMyRivalSearch, cancelRivalSearch } from '@/lib/data/gymRival';
 import { getCrewBadges } from '@/lib/data/crews';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
@@ -61,6 +61,16 @@ export default function GymRivalCard({ currentUserId }) {
     queryKey:  ['myGymRival', currentUserId],
     queryFn:   getMyGymRival,
     enabled:   !!currentUserId,
+    staleTime: 60_000,
+  });
+
+  // A roll that found nobody close leaves the caller first in line for 48
+  // hours. That wait used to exist only server-side, so the card went back
+  // to "Find Your Rival" and nobody knew they were queued.
+  const { data: search } = useQuery({
+    queryKey:  ['myRivalSearch', currentUserId],
+    queryFn:   getMyRivalSearch,
+    enabled:   !!currentUserId && !isGuest,
     staleTime: 60_000,
   });
 
@@ -129,6 +139,8 @@ export default function GymRivalCard({ currentUserId }) {
     mutationFn: (type) => startPastYou(type),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['myPastYou'] });
+      // Starting Past You ends any wait for a human server-side.
+      qc.invalidateQueries({ queryKey: ['myRivalSearch'] });
       setMenuOpen(false);
       setPastYouOpen(true);
     },
@@ -155,18 +167,15 @@ export default function GymRivalCard({ currentUserId }) {
 
   const rollMut = useMutation({
     mutationFn: (type) => rollGymRival(type),
-    onSuccess: async (row, type) => {
+    onSuccess: async (row) => {
       if (!row) {
-        // Nobody fits the caller's skill band. The server keeps them waiting
-        // for 48 hours (rival_seekers), so the next close roller is matched
-        // to them. The roll also clears a stuck match server-side even when
-        // it finds nobody, so refetch before saying so, or the stalled card stays up
-        // until the query goes stale.
+        // Nobody fits the caller's skill band. The server keeps them first in
+        // line for 48 hours, and the card now shows that wait in place. The
+        // roll also clears a stuck match server-side even when it finds
+        // nobody, so refetch both.
         setMenuOpen(false);
         qc.invalidateQueries({ queryKey: ['myGymRival'] });
-        toast.info(tFallback('gymRivalCard.noRivalsGhost', "No rival close to your level is free right now. You'll be matched when one looks in the next 48 hours, or race Past You now."), {
-          action: { label: tFallback('pastYou.race', 'Race Past You'), onClick: () => startMut.mutate(type) },
-        });
+        await qc.invalidateQueries({ queryKey: ['myRivalSearch'] });
         return;
       }
       await qc.invalidateQueries({ queryKey: ['myGymRival'] });
@@ -179,6 +188,15 @@ export default function GymRivalCard({ currentUserId }) {
       if (err?.reason === 'past_you_in_progress') { openPastYou(); return; }
       reportError(err, { feature: 'gymRival.roll', level: 'warning', userEmail: user?.email });
       toast.error(tFallback('gymRivalCard.findFailed', 'Could not find a Gym Rival. Try again.'));
+    },
+  });
+
+  const cancelSearchMut = useMutation({
+    mutationFn: cancelRivalSearch,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['myRivalSearch'] }),
+    onError: (err) => {
+      reportError(err, { feature: 'gymRival.cancelSearch', level: 'warning', userEmail: user?.email });
+      toast.error(tFallback('gymRivalCard.stopFailed', 'Could not stop looking. Try again.'));
     },
   });
 
@@ -276,6 +294,48 @@ export default function GymRivalCard({ currentUserId }) {
             </button>
           </div>
         )}
+        {menu}
+      </>
+    );
+  }
+
+  // ── Waiting for a close match ───────────────────────────────────────────
+  if (view === 'find' && search) {
+    const busy = startMut.isPending || cancelSearchMut.isPending;
+    const hoursLeft = Math.max(1, Math.ceil((new Date(search.expiresAt).getTime() - Date.now()) / 3_600_000));
+    const searchType = search.rivalType === 'cardio'
+      ? tFallback('gymRivalCard.cardioRival', 'Cardio Rival')
+      : tFallback('gymRivalCard.gymRival', 'Gym Rival');
+    return (
+      <>
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Hourglass className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-micro font-black uppercase tracking-wider text-primary">
+                {tFallback('gymRivalCard.lookingFor', 'Looking for a {t}', { t: searchType })}
+              </span>
+              <p className="text-base font-black mt-0.5">{tFallback('gymRivalCard.firstInLine', 'First in line for a close match')}</p>
+              <p className="text-xs text-muted-foreground">
+                {tFallback('gymRivalCard.searchSub', "You'll be matched as soon as someone near your level looks. {n} h left.", { n: String(hoursLeft) })}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={() => startMut.mutate(search.rivalType)} disabled={busy}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-[44px] rounded-xl border border-border bg-card text-xs font-bold disabled:opacity-50">
+              <Ghost className="w-3.5 h-3.5 text-primary" /> {tFallback('pastYou.race', 'Race Past You')}
+            </button>
+            <button onClick={() => cancelSearchMut.mutate()} disabled={busy}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-[44px] rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground disabled:opacity-50">
+              {cancelSearchMut.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {tFallback('gymRivalCard.stopLooking', 'Stop looking')}
+            </button>
+          </div>
+        </motion.div>
         {menu}
       </>
     );
