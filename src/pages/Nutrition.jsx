@@ -697,6 +697,9 @@ export default function Nutrition() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id] });
+      // History, food search and "log it again" share this key; without it a
+      // deleted meal stayed re-loggable for up to a minute.
+      queryClient.invalidateQueries({ queryKey: ['nutritionHistory', user?.email] });
       toast.success(t('nutrition.toast.entryRemoved'));
     },
     onError: (err) => {
@@ -1234,6 +1237,15 @@ export default function Nutrition() {
       fiber_g:   Number(meal.fiber_g)   || 0,
       sugar_g:   Number(meal.sugar_g)   || 0,
       sodium_mg: Number(meal.sodium_mg) || 0,
+      // Micronutrients ride along when the source meal had them; a value
+      // that was never measured stays null rather than becoming 0.
+      ...['cholesterol_mg', 'iron_mg', 'magnesium_mg', 'calcium_mg', 'potassium_mg',
+        'vitamin_a_iu', 'vitamin_c_mg', 'vitamin_d_iu', 'vitamin_b12_mcg']
+        .reduce((acc, k) => {
+          const n = Number(meal[k]);
+          if (meal[k] != null && Number.isFinite(n)) acc[k] = n;
+          return acc;
+        }, {}),
     });
   };
 

@@ -1027,8 +1027,14 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                     setRemovePlan(null);
                     removeMutation.mutate(r.plan.id);
                     // Only a meal mirrored into TODAY's diary needs un-logging.
-                    if (r.date === isoDay(new Date())) {
-                      removePlannerDiaryLog({ user, date: r.date, mealType: r.mealType })
+                    // A photo-logged meal points at its real diary row; a
+                    // planner mirror is matched by its own snapshot so the
+                    // slot's other meals stay logged.
+                    const snap = r.plan?.food_snapshot || {};
+                    if (snap.log_id) {
+                      removeDiaryLog(snap.log_id).then(invalidateDiary).catch(() => {});
+                    } else if (r.date === isoDay(new Date())) {
+                      removePlannerDiaryLog({ user, date: r.date, mealType: r.mealType, snapshot: snap })
                         .then(invalidateDiary)
                         .catch(() => {});
                     }
@@ -1054,8 +1060,10 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             // Free the space BEFORE offering to fill it — the cap is a
             // trigger, so opening the add flow first would just earn a 23514.
             await removeMutation.mutateAsync(plan.id);
-            if (selectedDate === isoDay(new Date())) {
-              removePlannerDiaryLog({ user, date: selectedDate, mealType: slot.mealType })
+            if (plan?.food_snapshot?.log_id) {
+              removeDiaryLog(plan.food_snapshot.log_id).then(invalidateDiary).catch(() => {});
+            } else if (selectedDate === isoDay(new Date())) {
+              removePlannerDiaryLog({ user, date: selectedDate, mealType: slot.mealType, snapshot: plan?.food_snapshot || {} })
                 .then(invalidateDiary)
                 .catch(() => {});
             }
@@ -1112,7 +1120,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
               removeDiaryLog(snap.log_id).then(invalidateDiary).catch(() => {});
             } else if (dp.date === isoDay(new Date())) {
               // Planner-originated diary log (notes:'planner').
-              removePlannerDiaryLog({ user, date: dp.date, mealType: dp.mealType })
+              removePlannerDiaryLog({ user, date: dp.date, mealType: dp.mealType, snapshot: snap })
                 .then(invalidateDiary).catch(() => {});
             }
             setDetailPlan(null);
