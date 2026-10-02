@@ -123,7 +123,7 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
                   <p className="text-micro text-muted-foreground mt-0.5 truncate">{ex.muscle_groups.slice(0, 3).join(' · ')}</p>
                 )}
               </div>
-              <span className="font-mono text-micro font-bold text-foreground/70 shrink-0 tabular-nums">
+              <span className="text-micro font-bold text-foreground/70 shrink-0 tabular-nums">
                 {ex.target_sets} × {ex.target_reps}
               </span>
             </div>

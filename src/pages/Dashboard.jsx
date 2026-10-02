@@ -1836,7 +1836,7 @@ export default function Dashboard() {
           rail is a shelf you take things off, not one you drag onto. */}
       {editMode && restorableHidden.length > 0 && (
         <div className="mt-4 mb-3 p-3 rounded-lg border border-border bg-secondary/30">
-          <p className="font-mono text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
+          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden. Tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">

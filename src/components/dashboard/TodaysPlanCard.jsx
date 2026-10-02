@@ -208,12 +208,12 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
                       </span>
                       {ex.kind === 'cardio' ? (
                         (ex.session || ex.detail) && (
-                          <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
+                          <span className="shrink-0 text-micro font-bold tabular-nums text-muted-foreground">
                             {cardioSessionSummary(ex, tFallback, language)}
                           </span>
                         )
                       ) : ex.target_sets > 0 && ex.target_reps > 0 && (
-                        <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
+                        <span className="shrink-0 text-micro font-bold tabular-nums text-muted-foreground">
                           {ex.target_sets} × {ex.target_reps}
                         </span>
                       )}
