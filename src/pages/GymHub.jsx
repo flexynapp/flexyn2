@@ -63,6 +63,7 @@ const LB_MODES = [
  * subtraction. Names being absent is not what protects anyone here.
  */
 function GymActivityPreview({ preview }) {
+  const { tFallback } = useLanguage();
   if (!preview) return null;
 
   if (!preview.meetsThreshold) {
@@ -72,8 +73,12 @@ function GymActivityPreview({ preview }) {
           {preview.memberCount}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          {preview.memberCount === 1 ? 'member' : 'members'} on Flexyn ·
-          too few to show activity yet
+          {tFallback(
+            preview.memberCount === 1 ? 'gymHub.preview.tooFew.one' : 'gymHub.preview.tooFew.other',
+            preview.memberCount === 1
+              ? 'member on Flexyn. Too few to show activity yet.'
+              : 'members on Flexyn. Too few to show activity yet.',
+          )}
         </p>
       </div>
     );
@@ -83,8 +88,12 @@ function GymActivityPreview({ preview }) {
   return (
     <div className="mb-4">
       <p className="text-sm font-semibold mb-1">
-        <span className="tabular-nums">{preview.activeMembers}</span> of{' '}
-        <span className="tabular-nums">{preview.memberCount}</span> trained this week
+        <span className="tabular-nums">
+          {tFallback('gymHub.preview.trainedThisWeek', '{active} of {total} trained this week', {
+            active: preview.activeMembers,
+            total: preview.memberCount,
+          })}
+        </span>
       </p>
       {/* Bare day counts, tallest first. No names, no avatars, and
           nothing orderable against the roster — see the RPC. */}
@@ -97,7 +106,10 @@ function GymActivityPreview({ preview }) {
         </div>
       )}
       <p className="text-micro text-muted-foreground mt-2">
-        {preview.sessionCount} sessions · {preview.activeDays} gym days · last 7 days
+        {tFallback('gymHub.preview.weekStats', '{sessions} sessions · {days} gym days · last 7 days', {
+          sessions: preview.sessionCount,
+          days: preview.activeDays,
+        })}
       </p>
     </div>
   );
@@ -241,10 +253,12 @@ export default function GymHub() {
           <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-heading font-bold text-sm">
-              {checkin === 'already' ? "You're already checked in" : 'Checked in'}
+              {checkin === 'already'
+                ? tFallback('checkInPage.youReAlreadyChecked', "You're already checked in")
+                : tFallback('gymHub.checkedIn', 'Checked in')}
             </p>
             <p className="text-xs text-muted-foreground">
-              {GYM_CHECKIN_XP_MULTIPLIER}x XP on today&apos;s workouts.
+              {tFallback('checkInPage.xpOnTodaysWorkouts', "{multiplier} XP on today's workouts", { multiplier: `${GYM_CHECKIN_XP_MULTIPLIER}x` })}
             </p>
           </div>
           <Button size="sm" onClick={() => navigate('/workout')} className="shrink-0 gap-2">
@@ -334,13 +348,15 @@ export default function GymHub() {
           {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
             <div className="mt-3 rounded-xl bg-primary/10 border border-primary/20 p-2.5">
               <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
-                {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
+                {isOwner
+                  ? tFallback('gymHub.yourFlexynCode', 'Your Flexyn Code')
+                  : tFallback('gymHub.flexynCode', 'Flexyn Code')}
               </p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
               <p className="text-micro text-muted-foreground mt-1 mb-2">
                 {isOwner
-                  ? 'Members scan or type this inside the gym to join.'
-                  : 'Scan or type this inside the gym to join.'}
+                  ? tFallback('gymHub.codeHintOwner', 'Members scan or type this inside the gym to join.')
+                  : tFallback('gymHub.codeHint', 'Scan or type this inside the gym to join.')}
               </p>
               <Button
                 size="sm"
@@ -683,9 +699,9 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {parsed ? format(parsed, "EEE MMM d 'at' h:mm a") : 'Date unavailable'}
+                  {parsed ? format(parsed, "EEE MMM d 'at' h:mm a") : tFallback('gymHub.dateUnavailable', 'Date unavailable')}
                   {e.location_note && ` · ${e.location_note}`}
-                  {isPast && ' · ended'}
+                  {isPast && ` · ${tFallback('gymHub.eventEnded', 'ended')}`}
                 </p>
                 {e.body && <p className="text-sm text-foreground/85 mt-1.5 whitespace-pre-wrap">{e.body}</p>}
                 {/* RSVP row — disabled on past events */}

@@ -441,14 +441,18 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
               </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              One or more sets have unrealistic weight values. Those weights have been cleared — please enter valid values before saving.
+              {tFallback(
+                'editWorkoutModal.unrealisticWeightBody',
+                'One or more sets have weights that are not realistic. Tap {button} to clear them, then enter real values before saving.',
+                { button: tFallback('workout.goBackAndFix', 'Go back and fix') },
+              )}
             </p>
             {cheatWarningData.flaggedSets?.length > 0 && (
               <ul className="text-xs text-muted-foreground space-y-1 mt-1">
                 {cheatWarningData.flaggedSets.map((f, i) => (
                   <li key={i} className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-destructive/60 shrink-0" />
-                    {f.exName} — Set {f.setIndex + 1}
+                    {tFallback('editWorkoutModal.flaggedSet', '{exercise}: set {n}', { exercise: f.exName, n: f.setIndex + 1 })}
                   </li>
                 ))}
               </ul>

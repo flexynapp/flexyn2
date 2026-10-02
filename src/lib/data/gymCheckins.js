@@ -32,7 +32,15 @@ export async function checkInWithCode(code) {
  */
 export async function getTodayCheckinGymId() {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // The server stamps checkin_date with the lifter's LOCAL day, so read
+    // it back the same way. toISOString() is the UTC day, which in the
+    // evening west of UTC is already tomorrow.
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
     const { data, error } = await supabase
       .from('gym_checkins')
       .select('gym_id')
@@ -46,7 +54,7 @@ export async function getTodayCheckinGymId() {
   }
 }
 
-/** True if the caller has checked into any gym today (UTC). Never throws. */
+/** True if the caller has checked into any gym today (their local day). Never throws. */
 export async function hasCheckedInToday() {
   try {
     const { data, error } = await supabase.rpc('has_gym_checkin_today');

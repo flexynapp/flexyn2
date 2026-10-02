@@ -94,7 +94,7 @@ export default function CheckInPage() {
         {(status === 'pending' || isLoadingAuth) && (
           <>
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            <p className="font-heading font-bold text-lg">Checking you in…</p>
+            <p className="font-heading font-bold text-lg">{tFallback('checkInPage.checkingYouIn', 'Checking you in…')}</p>
           </>
         )}
 
@@ -106,7 +106,7 @@ export default function CheckInPage() {
             <p className="font-heading font-black text-xl">{tFallback("checkInPage.checked", "Checked in!")}</p>
             {gymName && <p className="text-sm text-muted-foreground">{gymName}</p>}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-bold">
-              <Zap className="w-4 h-4" /> {multiplierLabel} XP on today's workouts
+              <Zap className="w-4 h-4" /> {tFallback('checkInPage.xpOnTodaysWorkouts', "{multiplier} XP on today's workouts", { multiplier: multiplierLabel })}
             </div>
             <button
               type="button"
@@ -129,7 +129,7 @@ export default function CheckInPage() {
             <p className="font-heading font-bold text-lg">{tFallback("checkInPage.youReAlreadyChecked", "You're already checked in")}</p>
             {gymName && <p className="text-sm text-muted-foreground">{gymName}</p>}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-bold">
-              <Zap className="w-4 h-4" /> {multiplierLabel} XP active today
+              <Zap className="w-4 h-4" /> {tFallback('checkInPage.xpActiveToday', '{multiplier} XP active today', { multiplier: multiplierLabel })}
             </div>
             <button type="button" onClick={() => window.location.assign('/workout')} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
               {tFallback("checkInPage.startYourWorkout", "Start your workout")}

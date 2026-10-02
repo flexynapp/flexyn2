@@ -133,7 +133,11 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
     } catch (err) {
       // Inline rather than a toast: the user is looking at this card, and the
       // recovery — pick a different slot — is right here.
-      setSchedulerError(err?.message || "Couldn't schedule that — try again.");
+      // The server's message is English and mostly technical. The one a
+      // user can act on (the 100 pending reminder cap) gets its own line.
+      setSchedulerError(/too many scheduled/i.test(err?.message || '')
+        ? tFallback('coach.schedule.tooMany', 'You have 100 reminders waiting. Clear some first.')
+        : tFallback('coach.schedule.failed', "Couldn't schedule that. Try again."));
       reportError(err, { feature: 'coach.schedule' });
     } finally {
       setScheduling(false);
