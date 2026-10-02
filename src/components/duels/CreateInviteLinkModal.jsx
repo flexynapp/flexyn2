@@ -115,7 +115,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
             >
               {/* Type picker */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback("createInviteLinkModal.duelType", "Duel type")}</p>
+                <p className="eyebrow mb-2">{tFallback("createInviteLinkModal.duelType", "Duel type")}</p>
                 <div className="space-y-1.5">
                   {TYPE_OPTIONS.map(opt => {
                     const active = duelType === opt.id;
@@ -143,7 +143,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
 
               {/* Window picker — simple chips */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <p className="eyebrow mb-2">
                   {tFallback("createInviteLinkModal.timeWindowAfterAccept", "Time window after accept")}
                 </p>
                 <div className="flex gap-2">
@@ -187,7 +187,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               className="space-y-3 mt-2"
             >
               <div className="rounded-xl bg-secondary/50 border border-border p-3">
-                <p className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="eyebrow mb-1">
                   {tFallback("createInviteLinkModal.yourInviteLink", "Your invite link")}
                 </p>
                 <p className="text-xs font-mono break-all text-foreground">{url}</p>

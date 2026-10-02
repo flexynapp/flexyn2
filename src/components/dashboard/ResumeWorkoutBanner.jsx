@@ -157,7 +157,7 @@ export default function ResumeWorkoutBanner() {
           <History className="w-4 h-4 text-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
+          <p className="kicker">
             {tFallback('workout.resumeKicker', 'Resume')}
           </p>
           <p className="text-sm font-heading font-bold truncate">{title}</p>

@@ -838,7 +838,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             className="absolute start-0 end-0 bottom-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <span className="text-white/80 text-xs font-bold uppercase tracking-wide">{tFallback("storyPreviewSheet.emoji", "Emoji")}</span>
+              <span className="kicker text-white/80">{tFallback("storyPreviewSheet.emoji", "Emoji")}</span>
               <button onClick={() => setEmojiPickerOpen(false)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white" aria-label={tFallback("common.close", "Close")}>
                 <XIcon className="w-3.5 h-3.5" />
               </button>

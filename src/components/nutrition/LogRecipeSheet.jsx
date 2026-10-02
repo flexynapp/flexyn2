@@ -111,7 +111,7 @@ export default function LogRecipeSheet({
           </div>
 
           <div className="px-4 pt-4">
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("hub.share.meal", "Meal")}</p>
+            <p className="eyebrow mb-2">{tFallback("hub.share.meal", "Meal")}</p>
             <div className="grid grid-cols-4 gap-2">
               {MEAL_TYPES.map((m) => (
                 <button
@@ -132,7 +132,7 @@ export default function LogRecipeSheet({
           </div>
 
           <div className="px-4 pt-6">
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("nutrition.form.servings", "Servings")}</p>
+            <p className="eyebrow mb-2">{tFallback("nutrition.form.servings", "Servings")}</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"

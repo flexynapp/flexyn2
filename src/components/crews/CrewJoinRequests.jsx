@@ -94,7 +94,7 @@ export default function CrewJoinRequests({ crewId, canReview }) {
     >
       {/* Section label above the count, per Penpot board C — the queue is a
           named part of the roster screen, not an unlabelled list. */}
-      <p className="text-micro font-black uppercase tracking-wider text-primary">
+      <p className="kicker text-primary">
         {tFallback('crew.requestsLabel', 'Requests to join')}
       </p>
       <p className="font-heading font-black text-base mb-1">

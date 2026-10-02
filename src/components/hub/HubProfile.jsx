@@ -1928,7 +1928,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   your name on the feed + profile. */}
               {trophyCase.some(tt => tt?.value) && (
                 <div className="border-t border-border/40 pt-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{tFallback("hubPostCard.signatureTrophy", "Signature trophy")}</p>
+                  <p className="eyebrow mb-1.5">{tFallback("hubPostCard.signatureTrophy", "Signature trophy")}</p>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {trophyCase.filter(tt => tt?.value).map((tt, i) => {
                       const active = signatureTrophy === tt.value;

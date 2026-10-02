@@ -133,7 +133,7 @@ export default function SeasonCeremonyModal({ open, onClose, result, onOpenTroph
           {/* ── Result ────────────────────────────────────────────── */}
           <DialogHeader className="space-y-0 text-start">
             <p
-              className="text-micro font-bold uppercase tracking-widest"
+              className="kicker"
               style={isChampion ? { color: tierColor } : undefined}
             >
               <span className={isChampion ? '' : 'text-muted-foreground'}>
@@ -180,7 +180,7 @@ export default function SeasonCeremonyModal({ open, onClose, result, onOpenTroph
           {/* ── Receipt ───────────────────────────────────────────── */}
           <div className="pt-6">
             <div className="border-t border-border pt-2" />
-            <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="kicker">
               {tFallback('league.ceremony.alsoEarned', 'Also earned')}
             </p>
             <div className="flex flex-col gap-2 pt-2">

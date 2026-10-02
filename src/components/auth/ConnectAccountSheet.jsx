@@ -114,7 +114,7 @@ export default function ConnectAccountSheet({ open, onClose, reason, returnPath 
             ))}
 
             <form onSubmit={onEmail} className="flex flex-col gap-2 mt-6">
-              <label htmlFor="connect-email" className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+              <label htmlFor="connect-email" className="kicker">
                 {tFallback('connectAccount.orEmail', 'Or use your email')}
               </label>
               <input id="connect-email" type="email" inputMode="email" autoComplete="email" value={email}

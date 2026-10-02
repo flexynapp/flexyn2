@@ -323,7 +323,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         {isAdmin && (
           <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/10 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/10 active:bg-primary/10 transition-colors">
             <div className="text-start">
-              <p className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("corporatePortal.teamJoinCode", "Team join code")}</p>
+              <p className="kicker text-primary">{tFallback("corporatePortal.teamJoinCode", "Team join code")}</p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold">{org.join_code}</p>
             </div>
             <Copy className="w-4 h-4 text-primary" />
@@ -379,7 +379,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
                 <div key={id} className="rounded-xl bg-secondary/40 p-3 text-center">
                   <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                   <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback(`corporatePortal.stat.${id}`, label)}</p>
+                  <p className="kicker">{tFallback(`corporatePortal.stat.${id}`, label)}</p>
                 </div>
               ))}
             </div>
@@ -494,7 +494,7 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
         <div className="space-y-3">
           <Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder={tFallback("corporatePortal.octoberStepChallenge", "October Step Challenge")} />
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("corporatePortal.metric", "Metric")}</label>
+            <label className="kicker">{tFallback("corporatePortal.metric", "Metric")}</label>
             <select value={metric} onChange={(e) => setMetric(e.target.value)} className="w-full mt-1 h-10 rounded-md border border-border bg-background px-2 text-sm">
               {METRICS.map(m => (
               <option key={m.id} value={m.id}>{tFallback(`corporatePortal.metric.${m.id}`, m.label)}</option>
@@ -503,11 +503,11 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Target (optional)</label>
+              <label className="kicker">Target (optional)</label>
               <Input value={target} onChange={(e) => setTarget(e.target.value)} inputMode="numeric" placeholder="20" className="mt-1" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ends (optional)</label>
+              <label className="kicker">Ends (optional)</label>
               <Input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="mt-1" />
             </div>
           </div>

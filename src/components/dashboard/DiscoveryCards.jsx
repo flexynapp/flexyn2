@@ -145,7 +145,7 @@ function DiscoveryCard({
           </div>
           <div className="flex-1 min-w-0">
             {kicker && (
-              <div className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1">
+              <div className="kicker mb-1">
                 {kicker}
               </div>
             )}
@@ -320,7 +320,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="openCapsule"
           icon={Package}
           accent="purple"
-          kicker={tFallback('discovery.openCapsule.kicker', 'GIFT WAITING')}
+          kicker={tFallback('discovery.openCapsule.kicker', 'Gift waiting')}
           // No count here on purpose. The catalog string wins over any
           // fallback, so the ternary that used to compute one never
           // rendered; it only made the code look like it did.
@@ -352,7 +352,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="starter"
           icon={Dumbbell}
           accent="orange"
-          kicker={tFallback('discovery.starter.kicker', 'YOUR PLAN')}
+          kicker={tFallback('discovery.starter.kicker', 'Your plan')}
           title={tFallback('discovery.starter.title', 'Your starter plan is ready')}
           body={
             tFallback('discovery.starter.body', 'We built a regimen from your onboarding answers. Open it in Workout to start your first session.')
@@ -399,7 +399,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="coach"
           icon={Sparkles}
           accent="amber"
-          kicker={tFallback('discovery.coach.kicker', 'YOUR COACH')}
+          kicker={tFallback('discovery.coach.kicker', 'Your coach')}
           title={tFallback('discovery.coach.title', 'Meet your AI Coach')}
           body={
             tFallback('discovery.coach.body', 'Personal advice tuned to your actual workouts, weight, and goals. Ask anything, programming, plateaus, recovery.')
@@ -419,7 +419,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="pushOptIn"
           icon={Bell}
           accent="sky"
-          kicker={tFallback('discovery.pushOptIn.kicker', 'STAY ON TRACK')}
+          kicker={tFallback('discovery.pushOptIn.kicker', 'Stay on track')}
           title={tFallback('discovery.pushOptIn.title', 'Want a daily nudge?')}
           body={tFallback(
             'discovery.pushOptIn.body',

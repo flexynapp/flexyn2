@@ -298,7 +298,7 @@ export default function DebriefVault({ onClose }) {
       {/* Sort — only earns its place once there is something to reorder */}
       {debriefs.length > 1 && (
         <div className="flex items-center justify-end gap-1 px-4 py-2 shrink-0">
-          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground me-1">{tFallback("debriefVault.sort", "Sort")}</span>
+          <span className="kicker me-1">{tFallback("debriefVault.sort", "Sort")}</span>
           {[{ id: 'recent', label: 'Recent' }, { id: 'oldest', label: 'Oldest' }].map(opt => (
             <button
               key={opt.id}

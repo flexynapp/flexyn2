@@ -333,7 +333,7 @@ export default function GymHub() {
               page being crooked. */}
           {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
             <div className="mt-3 rounded-xl bg-primary/10 border border-primary/20 p-2.5">
-              <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
+              <p className="eyebrow text-primary mb-0.5">
                 {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
               </p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
@@ -772,7 +772,7 @@ function LeaderboardTab({ gymId, meUserId }) {
         myRow ? (
           <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <span className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("league.yourRank", "Your rank")}</span>
+              <span className="kicker text-primary">{tFallback("league.yourRank", "Your rank")}</span>
               <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
             </span>
             <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>

@@ -210,7 +210,7 @@ export default function PublicGymLanding() {
           transition={{ delay: 0.06 }}
           className="px-4 mt-4"
         >
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p className="eyebrow mb-2">
             {tFallback("publicGymLanding.amenities", "Amenities")}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -235,7 +235,7 @@ export default function PublicGymLanding() {
           transition={{ delay: 0.1 }}
           className="px-4 mt-5"
         >
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p className="eyebrow mb-2">
             {tFallback("publicGymLanding.gallery", "Gallery")}
           </p>
           <div className={`grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>

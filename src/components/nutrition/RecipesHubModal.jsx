@@ -345,7 +345,7 @@ export default function RecipesHubModal({
                       {pickingLog ? (
                         <>
                           <div className="flex items-center justify-between mb-2">
-                            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+                            <p className="kicker">
                               {tFallback("recipesHubModal.pickAMealToStart", "Pick a meal to start from")}
                             </p>
                             <button
@@ -389,7 +389,7 @@ export default function RecipesHubModal({
                             Build it once. From then on it logs in one tap, with the macros
                             already filled in.
                           </p>
-                          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
+                          <p className="eyebrow mt-6 mb-2">
                             {tFallback("recipesHubModal.threeWaysToStart", "Three ways to start")}
                           </p>
                           <div className="space-y-2">
@@ -424,7 +424,7 @@ export default function RecipesHubModal({
                     /* ── Saved list — board B ──────────────────────────── */
                     <>
                       <div className="flex items-baseline justify-between mb-2">
-                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("journal.saved", "Saved")}</p>
+                        <p className="kicker">{tFallback("journal.saved", "Saved")}</p>
                         <p className="text-micro text-muted-foreground">values per serving</p>
                       </div>
                       <div className="space-y-2">

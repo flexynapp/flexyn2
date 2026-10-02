@@ -92,7 +92,7 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-micro font-bold tracking-[0.04em] text-primary">
+              <span className="kicker text-primary">
                 {tFallback('suggestion.kicker', 'Tomorrow')}
               </span>
               <span className="text-sm font-heading font-bold">{label}</span>

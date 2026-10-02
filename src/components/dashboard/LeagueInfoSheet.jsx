@@ -92,7 +92,7 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
 
           {/* ── The ladder ─────────────────────────────────────────── */}
           <div className="pt-6">
-            <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="kicker">
               {tFallback('league.info.ladder', 'The ladder')}
             </p>
             <div className="flex items-center gap-2 pt-2 pb-1 border-b border-border">

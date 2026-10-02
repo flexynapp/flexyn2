@@ -231,7 +231,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
           {/* Food name + serving */}
           <div className="px-5 pb-3 space-y-3 shrink-0">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              <label className="kicker mb-1.5 block">
                 {tFallback('nutrition.foodDb.request.name', 'Food name')} <span className="text-destructive">*</span>
               </label>
               <Input
@@ -242,7 +242,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              <label className="kicker mb-1.5 block">
                 {tFallback('nutrition.foodDb.request.serving', 'Serving size')}
               </label>
               <Input

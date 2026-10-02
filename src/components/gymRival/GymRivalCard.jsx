@@ -266,7 +266,7 @@ export default function GymRivalCard({ currentUserId }) {
             {settledGhost && pastYou.won ? <Trophy className="w-6 h-6 text-success" /> : <Ghost className="w-6 h-6 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
-            <span className={`text-micro font-black uppercase tracking-wider ${settledGhost && pastYou.won ? 'text-success' : 'text-primary'}`}>
+            <span className={`kicker ${settledGhost && pastYou.won ? 'text-success' : 'text-primary'}`}>
               {settledGhost ? tFallback('gymRivalCard.lastWeekSResult', "Last week's result") : ghostType}
             </span>
             <p className="text-base font-black truncate mt-0.5">
@@ -315,7 +315,7 @@ export default function GymRivalCard({ currentUserId }) {
               <Hourglass className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-micro font-black uppercase tracking-wider text-primary">
+              <span className="kicker text-primary">
                 {tFallback('gymRivalCard.lookingFor', 'Looking for a {t}', { t: searchType })}
               </span>
               <p className="text-base font-black mt-0.5">{tFallback('gymRivalCard.firstInLine', 'First in line for a close match')}</p>
@@ -417,7 +417,7 @@ export default function GymRivalCard({ currentUserId }) {
             {win ? <Trophy className="w-6 h-6 text-success" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
-            <span className={`text-micro font-black uppercase tracking-wider ${win ? 'text-success' : 'text-muted-foreground'}`}>{tFallback("gymRivalCard.lastWeekSResult", "Last week's result")}</span>
+            <span className={`kicker ${win ? 'text-success' : 'text-muted-foreground'}`}>{tFallback("gymRivalCard.lastWeekSResult", "Last week's result")}</span>
             <p className="text-sm font-bold mt-0.5">{win ? tFallback('gymRivalCard.youWon', 'You won')
               : draw ? tFallback('gymRivalCard.draw', 'It was a draw')
               : tFallback('gymRivalCard.theyWon', '@{n} won', { n: name || '—' })}</p>
@@ -473,7 +473,7 @@ export default function GymRivalCard({ currentUserId }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <Target className="w-3 h-3 text-primary" />
-            <span className="text-micro font-black uppercase tracking-wider text-primary">{label}</span>
+            <span className="kicker text-primary">{label}</span>
           </div>
           <p className="text-base font-black truncate mt-0.5">@{name || '—'}</p>
           {rivalCrew?.name && (

@@ -45,7 +45,7 @@ export default function ConnectedAppsSection() {
     <div className="border-t border-border pt-3 mt-1">
       <div className="flex items-center gap-2 mb-2">
         <Plug className="w-3.5 h-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("connectedAppsSection.connectedApps", "Connected apps")}</h3>
+        <h3 className="eyebrow">{tFallback("connectedAppsSection.connectedApps", "Connected apps")}</h3>
       </div>
       <p className="text-micro text-muted-foreground mb-2">
         Wearable + health integrations. Coming soon — we'll let you know.

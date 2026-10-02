@@ -25,7 +25,7 @@ import WeekDots from '@/components/glance/WeekDots';
 
 const NUMERAL = 'font-display tabular-nums text-foreground';
 const NUMERAL_SIZE = { fontSize: 'clamp(2.25rem, 11vw, 2.75rem)' };
-const CAPTION = 'text-micro font-bold uppercase tracking-[0.04em] text-muted-foreground';
+const CAPTION = 'kicker';
 
 /**
  * @param {object} props

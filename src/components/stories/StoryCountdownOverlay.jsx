@@ -47,7 +47,7 @@ export default function StoryCountdownOverlay({ overlay }) {
     >
       <div className="bg-black/55 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2 text-center">
         {overlay.label && (
-          <p className="text-white/70 text-micro font-bold uppercase tracking-[0.2em]">
+          <p className="kicker text-white/70">
             {overlay.label}
           </p>
         )}

@@ -83,7 +83,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
   // an exit animation would never get to run. Entry animates, exit is
   // instant — same as every other dismissible surface on the page today.
   return (
-    <SheetShell open={open} onClose={onClose} kicker={tFallback('quests.kicker', 'DAILY QUESTS · TODAY')} labelledBy="quests-sheet-title">
+    <SheetShell open={open} onClose={onClose} kicker={tFallback('quests.kicker', 'Daily quests · Today')} labelledBy="quests-sheet-title">
 
           {/* ── the dial ────────────────────────────────────────────────
               Same component the Readiness sheet leads with, wound by
@@ -171,7 +171,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
               after. A bonus nobody knows about is not an incentive, and
               the card has no room to explain one. */}
           <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
+            <p className="kicker mb-3">
               {tFallback('quests.bonusHeading', 'FINISH ALL {n}', { n: total })}
             </p>
             <div className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
@@ -213,8 +213,8 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
 
           {/* ── today's haul ───────────────────────────────────────── */}
           <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-              {tFallback('quests.haulHeading', 'BANKED TODAY')}
+            <p className="kicker mb-3">
+              {tFallback('quests.haulHeading', 'Banked today')}
             </p>
             <div className="grid grid-cols-3 gap-2">
               <HaulCell Icon={Coins} value={haul.coins} label={tFallback('hub.coins', 'coins')} />

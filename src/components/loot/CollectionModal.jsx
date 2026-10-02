@@ -339,7 +339,7 @@ function DetailSheet({ item, onBack }) {
         {/* How to get it — the missing "why would I chase this?" answer. */}
         {odds.length > 0 && (
           <div>
-            <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-start">
+            <p className="eyebrow mb-1.5 text-start">
               {tFallback("collectionModal.dropChance", "Drop chance")}
             </p>
             <div className="space-y-1.5">
@@ -642,7 +642,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             floating next to a stub of a progress bar. */}
                         <div className="flex items-center gap-2 mb-2">
                           <span
-                            className="text-micro font-black uppercase tracking-[0.18em] shrink-0"
+                            className="kicker shrink-0"
                             style={{ color: group.color }}
                           >
                             {tFallback(`loot.rarity.${group.rarity}`, group.label)}
@@ -674,7 +674,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                       type="button"
                       onClick={() => setShowOdds(o => !o)}
                       aria-expanded={showOdds}
-                      className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                      className="kicker flex items-center gap-1.5 hover:text-foreground active:text-foreground transition-colors"
                     >
                       <Percent className="w-3 h-3" /> {tFallback("collectionModal.capsuleOdds", "Capsule odds")}
                     </button>

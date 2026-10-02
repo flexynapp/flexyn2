@@ -51,7 +51,7 @@ function Card({ label, meta, children }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-micro font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+        <p className="kicker">{label}</p>
         {meta && <p className="text-micro text-muted-foreground shrink-0">{meta}</p>}
       </div>
       {children}

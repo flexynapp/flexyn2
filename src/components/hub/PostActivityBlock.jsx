@@ -202,7 +202,7 @@ export default function PostActivityBlock({ post }) {
         <div className={`w-6 h-6 rounded-md flex items-center justify-center ${meta.iconBg || 'bg-primary/15'}`}>
           <meta.Icon className={`w-3.5 h-3.5 ${meta.iconColor || 'text-primary'}`} />
         </div>
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="kicker">
           {t(meta.labelKey)}
         </span>
       </div>

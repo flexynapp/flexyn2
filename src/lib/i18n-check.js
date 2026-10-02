@@ -160,6 +160,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "lb" is the pound abbreviation both languages use on a gym floor.
+    'onboarding.weight.unitLb',
     // "Spam" is the word Spanish uses for it.
     'reportPlayer.reason.spam',
     // "min" is the minute abbreviation Spanish uses too.
@@ -239,6 +241,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'onboarding.weight.unitKg',
   ]),
   fr: new Set([
+    // "lb" is the pound abbreviation both languages use on a gym floor.
+    'onboarding.weight.unitLb',
     // "Spam" and "story" are the words French uses (the app's own fr copy
     // already says "une story").
     'reportPlayer.reason.spam',

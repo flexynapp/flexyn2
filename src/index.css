@@ -632,31 +632,40 @@
     letter-spacing: -0.01em;
   }
 
-  /* ── Capsules and Market (round 2 design) ─────────────────────────
-     .stamp is the small label on a set number or shelf caption, never
-     copy. .eyebrow is the section label above a group. Both are the text
-     face in small tracked capitals, the same label every other screen
-     uses. .stamp used to be the condensed face at 800, tracked 1.4px,
-     which put a third voice on the capsule, market and sticker set
-     screens only; Kegan called the listing page vibe coded for it
-     (2026-10-02). The condensed face belongs to .font-hero alone, and
-     displayType.test.js fails if another rule reaches for it. */
-  .stamp {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    font-size: 11px;
-    line-height: 1.2;
-    color: hsl(var(--muted-foreground));
-  }
+  /* ── Labels ───────────────────────────────────────────────────────
+     Two label styles, and no small spaced capitals anywhere (Kegan,
+     2026-10-02: the tracked-caps eyebrow is one of the loudest tells of a
+     generated app). Both are sentence case and set no letter spacing.
+
+     .eyebrow names a group: a small heading in the foreground colour,
+     bold, at body size. It sits above a list, a stat block or a field
+     group. .kicker is the quiet label beside or above a value ("Listed
+     by", a stat name, a form field): caption size, medium, muted.
+     .stamp is the kicker on a set number or shelf caption, kept as its
+     own name because the capsule screens use it.
+
+     These used to be ~300 hand-typed `text-micro font-bold uppercase
+     tracking-wider` strings, which is how they drifted into eight
+     different trackings. displayType.test.js fails on a new one. A
+     colour utility on the element (text-primary, text-success) still
+     wins, because utilities load after components. */
   .eyebrow {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
+    font-family: var(--font-heading);
+    font-size: var(--text-body);
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+    color: hsl(var(--foreground));
+  }
+  .kicker,
+  .stamp {
+    font-family: var(--font-body);
+    font-size: var(--text-caption);
+    font-weight: 500;
+    line-height: 1.3;
     color: hsl(var(--muted-foreground));
   }
+  .stamp { font-variant-numeric: tabular-nums; }
   /* The lid coming off a canister when a spin starts, and a sticker landing
      on the reveal plate. Both are one-shot and both stop under reduced
      motion; the resting frame is the final one. */

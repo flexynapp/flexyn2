@@ -146,7 +146,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
             {/* Line chart */}
             {chartData.length >= 2 && (
               <Card className="p-4 border-none shadow-sm">
-                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">{tFallback('progress.pb.chartTitle', 'Weight over time')}</p>
+                <p className="eyebrow mb-3">{tFallback('progress.pb.chartTitle', 'Weight over time')}</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -176,7 +176,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
             {/* PR milestones */}
             {prTimeline.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">{tFallback('progress.pb.milestones', 'PR milestones')}</p>
+                <p className="eyebrow mb-3">{tFallback('progress.pb.milestones', 'PR milestones')}</p>
                 <div className="space-y-2">
                   {[...prTimeline].reverse().map((pr, idx) => (
                     <motion.div

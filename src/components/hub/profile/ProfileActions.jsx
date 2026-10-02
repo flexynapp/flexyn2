@@ -60,7 +60,7 @@ function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foregro
         <span className={disabled ? 'text-muted-foreground' : undefined}>{label}</span>
       )}
       {hint && (
-        <span className="ms-auto text-micro font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="kicker ms-auto">
           {hint}
         </span>
       )}

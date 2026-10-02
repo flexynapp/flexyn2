@@ -87,7 +87,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
               spans already use there. Off-hero it sits on a neutral card
               and takes the brand accent. */}
           {isPersonalBest && (
-            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-white' : 'text-primary'}`}>
+            <span className={`kicker ms-1.5 ${onHero ? 'text-white' : 'text-primary'}`}>
               {t('dashboard.best')}
             </span>
           )}

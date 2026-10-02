@@ -124,7 +124,7 @@ export default function DuelInviteCard({ payload, isMine }) {
         {/* Header band */}
         <div className="px-4 py-2.5 flex items-center gap-2 bg-primary">
           <Swords className="w-4 h-4 text-primary-foreground shrink-0" />
-          <span className="text-primary-foreground text-xs font-bold tracking-wide uppercase">{tFallback("duelInviteCard.duelChallenge", "Duel Challenge")}</span>
+          <span className="kicker text-primary-foreground">{tFallback("duelInviteCard.duelChallenge", "Duel Challenge")}</span>
         </div>
 
         <div className="px-4 py-3 space-y-3">

@@ -79,14 +79,14 @@ function Standing({ crew, memberCount, tFallback }) {
 
   if (crew.crew_level) {
     cells.push({
-      k: tFallback('crewWars.level', 'LEVEL'),
+      k: tFallback('crewWars.level', 'Level'),
       v: String(crew.crew_level),
     });
   }
 
   if (played > 0) {
     cells.push({
-      k: tFallback('crewWars.record', 'RECORD'),
+      k: tFallback('crewWars.record', 'Record'),
       v: `${crew.wars_won ?? 0}–${crew.wars_lost ?? 0}`,
       accent: true,
     });
@@ -94,7 +94,7 @@ function Standing({ crew, memberCount, tFallback }) {
 
   if (memberCount != null) {
     cells.push({
-      k: tFallback('crewWars.roster', 'ROSTER'),
+      k: tFallback('crewWars.roster', 'Roster'),
       v: tFallback('crewWars.nLifters', '{n} lifters', { n: memberCount }),
     });
   }
@@ -158,7 +158,7 @@ function Queued({ tFallback }) {
           nothing reads as a hang; naming the dimensions is also the only
           honest answer to "why did we get them?" once a war starts. */}
       <p className="text-micro font-bold text-muted-foreground tracking-wide mt-6">
-        {tFallback('crewWars.matchedOn', 'MATCHED ON')}
+        {tFallback('crewWars.matchedOn', 'Matched on')}
       </p>
       <div className="flex flex-wrap justify-center gap-2 mt-2">
         {[
@@ -286,13 +286,13 @@ function LiveWar({ crew, war, currentUserId, tFallback, language }) {
       {me && (
         <>
           <p className="text-micro font-bold text-muted-foreground tracking-wide mt-6">
-            {tFallback('crewWars.yourContribution', 'YOUR CONTRIBUTION')}
+            {tFallback('crewWars.yourContribution', 'Your contribution')}
           </p>
           <div className="mt-2 rounded-lg bg-muted flex items-stretch">
             {[
-              { k: tFallback('crewWars.volume',   'VOLUME'),       v: tFallback('crewWars.lbs', '{n} lb', { n: fmt(me.volume_lbs || 0) }) },
-              { k: tFallback('crewWars.sessions', 'SESSIONS'),     v: fmt(me.sessions || 0) },
-              { k: tFallback('crewWars.days',     'DAYS TRAINED'), v: `${me.days_active || 0} / 7` },
+              { k: tFallback('crewWars.volume', 'Volume'),       v: tFallback('crewWars.lbs', '{n} lb', { n: fmt(me.volume_lbs || 0) }) },
+              { k: tFallback('crewWars.sessions', 'Sessions'),     v: fmt(me.sessions || 0) },
+              { k: tFallback('crewWars.days', 'Days trained'), v: `${me.days_active || 0} / 7` },
             ].map((c, i) => (
               <div key={c.k} className={`flex-1 py-2 text-center ${i > 0 ? 'border-s border-border' : ''}`}>
                 <p className="font-heading font-bold text-body">{c.v}</p>
@@ -308,7 +308,7 @@ function LiveWar({ crew, war, currentUserId, tFallback, language }) {
         <>
           <div className="flex items-baseline justify-between mt-6">
             <p className="text-micro font-bold text-muted-foreground tracking-wide">
-              {tFallback('crewWars.headToHead', 'HEAD TO HEAD')}
+              {tFallback('crewWars.headToHead', 'Head to head')}
             </p>
             <p className="text-micro text-muted-foreground">
               {tFallback('crewWars.everyLifter', 'every lifter, both crews')}

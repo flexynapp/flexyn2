@@ -107,7 +107,7 @@ export default function WinScreen({
         >
           <div className="safe-page min-h-full max-w-md mx-auto flex flex-col gap-6">
             <div className="flex flex-col items-center gap-2 text-center pt-8">
-              <span className="text-xs font-semibold uppercase tracking-widest text-success">{kicker}</span>
+              <span className="kicker text-success">{kicker}</span>
               {subject && <span className="text-base text-muted-foreground">{subject}</span>}
               <span
                 className={`font-display tabular-nums ${size === 'hero' ? 'text-[5.5rem]' : 'text-[4rem]'}`}
@@ -143,7 +143,7 @@ export default function WinScreen({
                       {tFallback('win.levelUnlocked', 'Lv. {n} unlocked', { n: after.level })}
                     </motion.span>
                   ) : (
-                    <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">
+                    <span className="kicker">
                       {levelled
                         ? tFallback('win.levelFromTo', 'Lv. {from} to {to}', { from: before.level, to: after.level })
                         : tFallback('win.levelN', 'Lv. {n}', { n: after.level })}
@@ -157,7 +157,7 @@ export default function WinScreen({
                   {stats.map((s) => (
                     <div key={s.key} className="flex-1 min-w-0 flex flex-col items-center gap-1 px-2 py-4 rounded-2xl bg-card border border-border text-center">
                       <span className="max-w-full font-display text-2xl !leading-tight tabular-nums truncate">{s.value}</span>
-                      <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">{s.label}</span>
+                      <span className="kicker">{s.label}</span>
                     </div>
                   ))}
                 </motion.div>

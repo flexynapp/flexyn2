@@ -64,7 +64,7 @@ function NumField({ caption, value, onChange, max, className = '' }) {
         // field is focused (any font-size below 16px triggers the auto-zoom).
         className="h-8 text-base text-center px-1 w-full"
       />
-      <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">{caption}</span>
+      <span className="kicker mt-0.5">{caption}</span>
     </div>
   );
 }
@@ -356,7 +356,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               </button>
             )}
 
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback('recipeBuilder.ingredients', 'Ingredients')}</p>
+            <p className="eyebrow mb-2">{tFallback('recipeBuilder.ingredients', 'Ingredients')}</p>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (
                 <div key={i} className="rounded-lg border border-border/70 p-2 space-y-1.5">
@@ -398,7 +398,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                           ))}
                         </select>
                       </div>
-                      <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">amount</span>
+                      <span className="kicker mt-0.5">amount</span>
                     </div>
                     <NumField caption="cal" value={ing.calories}  max={10000} onChange={(v) => updateIngredient(i, { calories: v })}  className="flex-1" />
                     <NumField caption="P"   value={ing.protein_g} max={1000}  onChange={(v) => updateIngredient(i, { protein_g: v })} className="flex-1" />
@@ -432,7 +432,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             {finishOpen && (
             <>
             {/* Directions */}
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-2 mb-1">{tFallback("recipeBuilderModal.directions", "Directions")}</p>
+            <p className="eyebrow mt-2 mb-1">{tFallback("recipeBuilderModal.directions", "Directions")}</p>
             <textarea
               value={directions}
               onChange={(e) => setDirections(e.target.value.slice(0, 4000))}
@@ -509,7 +509,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             )}
 
             {/* Live totals — pure compute via sumIngredients */}
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">{tFallback("recipeBuilderModal.recipeTotal", "Recipe total")}</p>
+            <p className="eyebrow mt-4 mb-1">{tFallback("recipeBuilderModal.recipeTotal", "Recipe total")}</p>
             <div className="p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
               {[
                 { k: 'calories',   l: 'cal', unit: '',  txt: 'text-orange-500' },
@@ -521,7 +521,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                   <p className={`font-heading text-base font-bold tabular-nums ${txt}`}>
                     {Math.round(totals[k] || 0)}{unit && <span className="text-micro font-bold ms-0.5">{unit.toUpperCase()}</span>}
                   </p>
-                  <p className="text-micro uppercase tracking-wide text-muted-foreground">{l}</p>
+                  <p className="kicker">{l}</p>
                 </div>
               ))}
             </div>
@@ -547,7 +547,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               to scroll away with everything else. */}
           <div className="px-4 py-3 border-t border-border safe-sheet-bottom">
             <div className="flex items-baseline justify-between mb-2">
-              <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+              <p className="kicker">
                 Total {Math.round(totals.calories || 0)} cal ·
                 {' '}{Math.round(totals.protein_g || 0)}P ·
                 {' '}{Math.round(totals.carbs_g || 0)}C ·

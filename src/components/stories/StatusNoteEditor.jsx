@@ -100,7 +100,7 @@ export default function StatusNoteEditor({ existingNote, origin, onPost, onDelet
           className="flex flex-col flex-1 px-5 pt-5 pb-4"
         >
           {/* Header */}
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+          <p className="eyebrow mb-3">
             {existingNote ? 'Your note' : 'Add a note'}
           </p>
 

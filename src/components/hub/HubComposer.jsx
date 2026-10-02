@@ -987,7 +987,7 @@ export default function HubComposer({ onClose }) {
             one flat run of sections and the two kinds of posting read as the
             same list. */}
         {totalActivity > 0 && (
-          <p className="pt-2 text-micro font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="kicker pt-2">
             {tFallback('hub.share.section.activity', 'Share your activity')}
           </p>
         )}
@@ -1305,7 +1305,7 @@ export default function HubComposer({ onClose }) {
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-micro uppercase tracking-wider text-muted-foreground font-bold">
+            <p className="kicker">
               {t(`hub.share.${selected.kind}`)}
             </p>
             <p className="text-sm font-medium leading-tight mt-0.5 line-clamp-2">
@@ -1365,7 +1365,7 @@ export default function HubComposer({ onClose }) {
   // ── Rendering: collaborator tagging UI (shared by video + activity compose) ──
   const renderCollaboratorInput = () => (
     <div className="mb-3">
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+      <label className="kicker mb-1.5 block">
         Co-authors (optional)
       </label>
       {/* Chips of added collaborators */}
@@ -1485,7 +1485,7 @@ export default function HubComposer({ onClose }) {
 
   const renderPrivacyButtons = () => (
     <>
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+      <label className="kicker mb-2 block">
         {t('hub.composer.privacyLabel')}
       </label>
       <div className="flex gap-2 mb-1">
@@ -1587,7 +1587,7 @@ export default function HubComposer({ onClose }) {
       {/* ── Post scheduling ── */}
       <div className="mt-3 border-t border-border/40 pt-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+          <label className="kicker flex items-center gap-1.5">
             <span>🕐</span> {tFallback("hubComposer.schedulePost", "Schedule post")}
           </label>
           <button
@@ -1767,7 +1767,7 @@ function Section({ title, count, defaultOpen = false, alwaysOpen = false, childr
         aria-expanded={open}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 className="eyebrow">
             {title}
           </h3>
           {typeof count === 'number' && count > 0 && (

@@ -149,7 +149,7 @@ function SwipeableDmMessage({ children, isMine, isOptimistic, onDelete }) {
       {/* Delete affordance — slides in from the right as user drags left */}
       <div
         style={swipe.actionStyle}
-        className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wide"
+        className="kicker flex items-center gap-1.5"
       >
         🗑️ Delete
       </div>
@@ -1224,7 +1224,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         return (
           <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-primary uppercase tracking-wide">{tFallback("hubChat.messageRequest", "Message request")}</p>
+              <p className="kicker text-primary">{tFallback("hubChat.messageRequest", "Message request")}</p>
               <p className="text-micro text-muted-foreground">{tFallback('hub.chat.acceptToMove', 'Accept to move this conversation to your inbox.')}</p>
             </div>
             <button
@@ -1268,7 +1268,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <div className="mb-2 shrink-0 rounded-xl border border-primary/30 bg-primary/5 overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/20">
               <span className="text-sm">📌</span>
-              <span className="text-xs font-bold text-primary uppercase tracking-wide">{tFallback("hubChat.pinnedMessages2", "Pinned Messages")}</span>
+              <span className="kicker text-primary">{tFallback("hubChat.pinnedMessages2", "Pinned Messages")}</span>
               <span className="ms-auto text-xs text-muted-foreground">{pinned.length}</span>
             </div>
             {pinned.length === 0 ? (
@@ -1816,14 +1816,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-micro font-bold text-primary uppercase tracking-wide">
+                <p className="kicker text-primary">
                   {tFallback('hub.chat.scheduledLabel', 'Scheduled')} · {formatDate(new Date(s.scheduled_at), language, { dateStyle: 'medium', timeStyle: 'short' })}
                 </p>
                 <p className="text-xs text-foreground truncate">{s.content}</p>
               </div>
               <button
                 onClick={() => handleCancelScheduled(s.id)}
-                className="text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive active:text-destructive"
+                className="kicker hover:text-destructive active:text-destructive"
               >
                 {tFallback("coach.plan.cancel", "Cancel")}
               </button>
@@ -1975,7 +1975,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             exit={{ opacity: 0, y: 8 }}
             className="absolute bottom-16 end-0 start-0 z-40 mx-2 p-3 rounded-xl bg-card border border-border shadow-lg"
           >
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+            <p className="eyebrow mb-2 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> {tFallback("hubChat.scheduleSend", "Schedule send")}
             </p>
             <input

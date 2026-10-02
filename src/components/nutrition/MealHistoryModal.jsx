@@ -179,7 +179,7 @@ function DaySection({ dateStr, meals, water, locale, fmt, onSelect }) {
     <div className="mb-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-heading font-bold text-[13px] uppercase tracking-wide truncate">
+          <p className="eyebrow truncate">
             {formatDateHeading(dateStr, locale)}
           </p>
           {hasMeals && <MacroChips totals={totals} />}
@@ -265,7 +265,7 @@ function DayFocusCard({ meals, dv, weekAvg, fmt }) {
 
       {delta != null && (
         <div className="mt-3.5 pt-3 border-t border-border">
-          <p className="text-micro font-bold uppercase tracking-[0.12em] text-muted-foreground">{tFallback("mealHistoryModal.vsYour7DayAverage", "Vs your 7-day average")}</p>
+          <p className="kicker">{tFallback("mealHistoryModal.vsYour7DayAverage", "Vs your 7-day average")}</p>
           <p className={`font-heading font-bold text-base tabular-nums mt-1 ${
             delta > 0 ? 'text-primary' : delta < 0 ? 'text-info' : 'text-muted-foreground'
           }`}>

@@ -126,7 +126,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
         onClick={() => navigate('/nutrition')}
       >
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">{tFallback("macroRingWidget.todaySMacros", "Today's Macros")}</span>
+          <span className="kicker">{tFallback("macroRingWidget.todaySMacros", "Today's Macros")}</span>
         </div>
 
         <div className="flex items-center gap-4">

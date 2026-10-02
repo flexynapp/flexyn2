@@ -229,7 +229,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="kicker">
                   {tFallback("createBundleDialog.bundleName", "Bundle name")}
                 </span>
                 <input
@@ -242,7 +242,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
               </label>
 
               <div className="flex flex-col gap-1.5">
-                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="kicker">
                   {tFallback("createBundleDialog.discount", "Discount")}
                 </span>
                 <div className="flex gap-1.5">

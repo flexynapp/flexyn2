@@ -188,7 +188,7 @@ export default function JournalWidget({ userId, userEmail }) {
         >
           <div className="flex items-center gap-1.5 min-w-0">
             <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
+            <span className="kicker">
               {tFallback('journal.widgetLabel', "Today's Journal")}
             </span>
           </div>
