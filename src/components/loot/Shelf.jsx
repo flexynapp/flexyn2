@@ -53,7 +53,7 @@ export function Shelf({ rarity, owned, total, children }) {
           </span>
         )}
       </h3>
-      <ul className="-mx-5 px-5 flex gap-2 overflow-x-auto snap-x pb-1">
+      <ul className="-mx-5 px-5 flex gap-2 overflow-x-auto pb-1">
         {children}
       </ul>
     </section>
@@ -67,7 +67,7 @@ export function Shelf({ rarity, owned, total, children }) {
 export function ShelfSticker({ id, emoji, rarity, name, have = true, count = 1, selected = false, onSelect }) {
   const { tFallback } = useLanguage();
   return (
-    <li className="shrink-0 snap-start">
+    <li className="shrink-0">
       <button
         type="button"
         onClick={onSelect}
@@ -122,18 +122,20 @@ export function TitleTag({ name, rarity, dim = false, size = 'md' }) {
 export function ShelfTitle({ name, rarity, have = true, wearing = false, selected = false, onSelect }) {
   const { tFallback } = useLanguage();
   return (
-    <li className="shrink-0 snap-start">
+    <li className="shrink-0">
       <button
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
         aria-label={have ? name : tFallback('userBag.missingItem', '{name}, not collected yet', { name })}
-        className="relative flex flex-col items-center gap-1 py-1 active:scale-95 transition-transform duration-150"
+        className="relative flex flex-col items-center pt-1 pb-2 active:scale-95 transition-transform duration-150"
       >
         <TitleTag name={name} rarity={rarity} dim={!have} />
-        <span className="h-4 text-caption font-semibold text-primary">
-          {wearing ? tFallback('userBag.wearing', 'Wearing') : ''}
-        </span>
+        {wearing && (
+          <span className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-card">
+            <span className="sr-only">{tFallback('userBag.wearing', 'Wearing')}</span>
+          </span>
+        )}
         {selected && <span className="absolute -bottom-1 h-0.5 w-6 rounded-full bg-primary" aria-hidden="true" />}
       </button>
     </li>
@@ -145,12 +147,16 @@ export function FramedAvatar({ frameId, avatarUrl, initial, size = 48, dim = fal
   const css = frameId ? (getLootFrameById(frameId)?.css ?? {}) : {};
   return (
     <span
-      className="rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 font-heading font-bold text-foreground"
+      className="relative rounded-full bg-secondary overflow-hidden shrink-0 font-heading font-bold text-foreground"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.38), opacity: dim ? 0.45 : 1, ...css }}
     >
-      {avatarUrl
-        ? <img loading="lazy" src={avatarUrl} alt="" className="w-full h-full object-cover" />
-        : (initial || '?').toUpperCase()}
+      {/* The gradient frames paint a white padding box to make their ring,
+          so the face sits on its own disc above it rather than on white. */}
+      <span className="absolute inset-0 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+        {avatarUrl
+          ? <img loading="lazy" src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          : (initial || '?').toUpperCase()}
+      </span>
     </span>
   );
 }
@@ -159,7 +165,7 @@ export function FramedAvatar({ frameId, avatarUrl, initial, size = 48, dim = fal
 export function ShelfFrame({ id, name, have = true, wearing = false, selected = false, onSelect, avatarUrl, initial }) {
   const { tFallback } = useLanguage();
   return (
-    <li className="shrink-0 snap-start">
+    <li className="shrink-0">
       <button
         type="button"
         onClick={onSelect}
