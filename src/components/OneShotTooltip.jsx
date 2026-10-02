@@ -40,7 +40,7 @@
 // Every bubble carries a small "Turn off tips" link. A new user meets
 // several of these in their first sessions; someone who already knows the
 // app says "no more" once instead of waiting each one out. The pill that
-// answers says where to turn them back on (Settings › About), because a
+// answers says where to turn them back on (Settings › Preferences), because a
 // switch that only exists where you flipped it is one you can't find again.
 
 import { useEffect, useState, useRef } from 'react';
@@ -245,7 +245,7 @@ export default function OneShotTooltip({
     setTipsEnabled(false);
     setOpen(false);
     toast.info(tr('tips.offTitle', 'Tips turned off'), {
-      description: tr('tips.offWhere', 'Turn them back on in Settings › About.'),
+      description: tr('tips.offWhere', 'Turn them back on in Settings › Preferences.'),
     });
   };
 

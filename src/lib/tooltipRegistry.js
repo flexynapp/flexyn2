@@ -58,7 +58,7 @@ export const TOOLTIPS_RESET_EVENT = 'flexyn:tooltips-reset';
 // new user meets several in their first sessions, and someone who already
 // knows the app should be able to say "no more" once instead of waiting each
 // one out. Per device, like the seen flags, and stored the same way.
-// Settings › About › Help turns them back on.
+// Settings › Preferences › Display turns them back on.
 const TIPS_OFF_KEY = 'flexyn.tipsOff';
 
 /** Fired on `window` when tips are switched on or off. */
