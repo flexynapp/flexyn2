@@ -47,7 +47,8 @@ import { triggerHaptic } from '@/lib/haptic';
 import { TIERS, getTier, nextTier, leagueTierName } from '@/lib/leagueTiers';
 import { rankDramaFor } from '@/lib/rankUp';
 import { chargeBeats, chargeFrames, flyFrames, impactFrames, landingFrames } from '@/lib/rankUpMotion';
-import { OpenerStage, useOpenerFx } from '@/components/capsules/openFx';
+import { useOpenerFx } from '@/components/capsules/openFx';
+import RankStage, { useRankRays } from '@/components/leagues/RankStage';
 import LeagueFluid from '@/components/leagues/LeagueFluid';
 import CrestMorph from '@/components/leagues/CrestMorph';
 import TierIcon, { PALETTES } from '@/components/leagues/LeagueTierIcon';
@@ -158,6 +159,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const fx = useOpenerFx();
+  const rays = useRankRays();
   const drama = rankDramaFor(move);
   // A first placement runs the promotion's charge on a blank grey shield.
   const isPlaced = move.kind === 'placed';
@@ -240,10 +242,10 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     if (phase !== 'enter') return;
     // Draw the sunburst once now, invisibly, while the screen fades in, so
     // its first frame is not drawn on the first frame of the charge.
-    fx.setRays(color, PARKED);
+    rays.setRays(color, PARKED);
     // A beat on the old crest before anything moves, so the eye is on it.
     later(() => setPhase('charge'), 450);
-  }, [phase, later, fx, color]);
+  }, [phase, later, rays, color]);
 
   useEffect(() => {
     if (phase !== 'charge') return;
@@ -265,7 +267,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       return;
     }
     // The tell: the new league's colour starts turning behind the old crest.
-    fx.setRays(color, drama.rays * 0.45 * RAYS_UNDER_FLUID, { fast: isTier });
+    rays.setRays(color, drama.rays * 0.45 * RAYS_UNDER_FLUID, { fast: isTier });
     const c = chargeFrames({ kind: motion, duration: drama.charge });
     charge.current = c;
     el?.animate?.(c.crest, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
@@ -291,7 +293,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       }
     });
     later(() => setPhase(breaks ? 'break' : isMorph ? 'morph' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, isDown, isMorph, breaks, motion, later, implode]);
+  }, [phase, fx, rays, color, drama, isTier, isDown, isMorph, breaks, motion, later, implode]);
 
   // The morph: the greyed crest hands over to a grey copy drawn on exactly
   // its outline, which then melts into the new league's outline.
@@ -349,7 +351,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     if (phase !== 'landed') return;
     const el = newRef.current;
     const point = fx.aimAt(el);
-    fx.setRays(color, drama.rays * RAYS_UNDER_FLUID, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
+    rays.setRays(color, drama.rays * RAYS_UNDER_FLUID, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
     later(() => setLadderMoved(true), fx.reduced ? 0 : hit + 150);
     if (fx.reduced || typeof el?.animate !== 'function') return;
     // After a morph the grey shape stays under the new crest until its
@@ -503,7 +505,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       onClick={skip}
     >
       <LeagueFluid from={fluidFrom} to={leaguePaint} phase={phase} chargeMs={drama.charge} down={isDown} still={fx.reduced} anchorRef={crestBoxRef} />
-      <OpenerStage fx={fx} />
+      <RankStage fx={fx} rays={rays} />
       <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
         <header className="h-[60px] shrink-0 flex items-center justify-between">
           <p className="reveal-rise text-label font-medium text-muted-foreground">

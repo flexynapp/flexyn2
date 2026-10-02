@@ -65,6 +65,7 @@ const ALLOWED = new Map([
   ['src/pages/GymMap.jsx',                   'route AND overlay, fixed inset-0 either way; the lock would also arbitrate gestures against maplibre — see the note in the file'],
   ['src/components/ThemeAnimationLayer.jsx', 'pointer-events-none decoration'],
   ['src/components/leagues/LeagueFluid.jsx', 'pointer-events-none backdrop inside RankUpSequence, which holds the lock'],
+  ['src/components/leagues/RankStage.jsx',   'pointer-events-none effects layer inside RankUpSequence, which holds the lock'],
   ['src/components/capsules/openFx.jsx',    'pointer-events-none stage layer inside CapsuleOpener, which holds the lock'],
   ['src/components/skins/halloween/HalloweenBackdrop.jsx', 'pointer-events-none scene behind the page, never a surface'],
   ['src/components/OneShotTooltip.jsx',      'a tooltip, not a menu — holding the page for one would be wrong; it tracks its anchor through the scroll instead'],

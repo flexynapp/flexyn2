@@ -20,6 +20,7 @@ import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
+import { isNative } from '@/lib/native';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
@@ -89,6 +90,7 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const RankUpPreview = lazy(() => import('./pages/RankUpPreview'));
+const CapsuleOpenPreview = lazy(() => import('./pages/CapsuleOpenPreview'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
@@ -196,14 +198,31 @@ const AuthenticatedApp = () => {
   }
 
   // Rank up test bench: deploy previews and localhost only, never
-  // production. It lets the sequence be watched on a real phone, since a
+  // production, and never the native app (Capacitor serves it from
+  // localhost too). It lets the sequence be watched on a real phone, since a
   // promotion cannot be triggered on demand. See src/pages/RankUpPreview.jsx.
-  if (typeof window !== 'undefined' && window.location.pathname === '/preview/rank-up'
+  if (typeof window !== 'undefined' && !isNative() && window.location.pathname === '/preview/rank-up'
       && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
     return (
       <Suspense fallback={null}>
         <Routes>
           <Route path="*" element={<RankUpPreview />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // Capsule open test bench: deploy previews and localhost only, never
+  // production, and never the native app, whose web view is also served
+  // from localhost. Above the auth gate so it opens on a phone without
+  // signing in to the preview. It writes nothing; see
+  // src/pages/CapsuleOpenPreview.jsx.
+  if (typeof window !== 'undefined' && !isNative() && window.location.pathname === '/preview/capsule-open'
+      && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="*" element={<CapsuleOpenPreview />} />
         </Routes>
       </Suspense>
     );
