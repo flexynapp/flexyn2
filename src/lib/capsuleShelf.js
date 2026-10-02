@@ -11,6 +11,7 @@
 import { CAPSULE_ODDS, RARITY, findCatalogItem } from '@/lib/lootCatalog';
 import { SHOP_CATALOG } from '@/lib/data/coinShop';
 import { catalogFor } from '@/lib/collection';
+import { glyphFor } from '@/components/capsules/stickerGlyphs';
 
 export const CAPSULE_TIERS = ['standard', 'premium', 'elite'];
 
@@ -209,4 +210,50 @@ export function askMultiple(askingPrice, catalog) {
   const m = askingPrice / catalog;
   if (m < 2) return null;
   return m >= 10 ? Math.round(m) : Math.round(m * 10) / 10;
+}
+
+/**
+ * The stickers the set preview fans out: the user's newest owned stickers,
+ * oldest on the left so the newest lands on top, then a few they do not have
+ * yet, rarest first, as a glimpse of what the set still holds.
+ * `inventoryRows` is newest first, as inventory.listItems returns it.
+ * `lead` is a sticker that just dropped: it goes on top even if it is
+ * already in the rows. Returns `{ id, rarity, emoji, owned }` items.
+ */
+export function setFan(inventoryRows, { max = 5, teasers = 2, lead = null } = {}) {
+  const set = stickerSet();
+  const byId = new Map(set.map(s => [s.id, s]));
+  const seen = new Set();
+  const mine = [];
+  for (const row of inventoryRows ?? []) {
+    const id = row?.item_id;
+    if (!byId.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    if (id !== lead) mine.push(byId.get(id));
+  }
+  const room = Math.max(0, max - (lead && byId.has(lead) ? 1 : 0));
+  const out = mine.slice(0, room).reverse().map(s => ({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: true }));
+  if (lead && byId.has(lead)) {
+    const s = byId.get(lead);
+    out.push({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: true });
+    seen.add(lead);
+  }
+  if (teasers > 0) {
+    const missing = [...set].reverse().filter(s => !seen.has(s.id) && glyphFor(s.id));
+    for (const s of missing.slice(0, teasers)) out.push({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: false });
+  }
+  return out;
+}
+
+/**
+ * The face a rarity wears on the odds ladder: a sticker of that rarity the
+ * user owns, else one from the set they could get. Drawn stickers before
+ * emoji discs. Null when the set has no sticker of that rarity.
+ */
+export function rarityFace(rarity, owned) {
+  const have = owned ?? new Set();
+  const inTier = stickerSet().filter(s => s.rarity === rarity);
+  const rank = (s) => (have.has(s.id) ? 0 : 2) + (glyphFor(s.id) ? 0 : 1);
+  const pick = [...inTier].sort((a, b) => rank(a) - rank(b))[0];
+  return pick ? { id: pick.id, emoji: pick.emoji, owned: have.has(pick.id) } : null;
 }

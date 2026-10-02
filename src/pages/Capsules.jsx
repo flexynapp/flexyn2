@@ -1,8 +1,9 @@
 // src/pages/Capsules.jsx
 //
 // Capsules, "what opens next": the shelf of unopened capsules by tier, the
-// published odds for the one selected, where the sticker set stands and the
-// pity counter, with one Open (or Buy) at the bottom. From the round 2 design.
+// published odds for the one selected (with the pity line drawn through
+// them) and a fan of the sticker set, with one Open (or Buy) at the bottom.
+// From the round 2 design.
 //
 // Everything that decides something is a server call this page only fronts:
 // purchase_shop_item buys a capsule, open_capsule_atomic (inside the global
@@ -26,16 +27,16 @@ import * as inventory from '@/lib/data/inventory';
 import { getFlexCoins, purchaseItem } from '@/lib/data/coinShop';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
 import {
-  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, oddsSegments, setTiers, shelfByTier, shelfGeometry,
+  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, setFan, setTiers, shelfByTier, shelfGeometry,
   shelfSlots, swapIntoCentre, tierShopItem,
 } from '@/lib/capsuleShelf';
 import { SPRING, TWEEN } from '@/lib/motion';
 import { haptic } from '@/lib/haptic';
 import { requestOpenCapsules } from '@/lib/inventoryFlow';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
-import PityMeter from '@/components/capsules/PityMeter';
-import { OddsBar, SetBar } from '@/components/capsules/parts';
-import { tierName, tierFinish, tierBlurb, rarityName } from '@/components/capsules/words';
+import OddsLadder from '@/components/capsules/OddsLadder';
+import SetFan from '@/components/capsules/SetFan';
+import { tierName, tierFinish, tierBlurb } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
 export default function Capsules() {
@@ -85,7 +86,12 @@ export default function Capsules() {
   const set = useMemo(() => {
     if (!inv) return null;
     const ownership = ownershipFrom(inv);
-    return { ...buildCollection('stickers', ownership), tiers: setTiers(ownership.owned) };
+    return {
+      ...buildCollection('stickers', ownership),
+      tiers: setTiers(ownership.owned),
+      ownedIds: ownership.owned,
+      fan: setFan(inv),
+    };
   }, [inv]);
 
   const onShelf = shelf[current].length;
@@ -230,31 +236,19 @@ export default function Capsules() {
         </p>
       </div>
 
-      <div className="pt-5 flex flex-col gap-2">
-        <div className="flex justify-between items-baseline">
-          <span className="text-label font-semibold">{tFallback('capsuleRarityOdds.dropRates', 'Drop rates')}</span>
-          <span className="text-caption text-muted-foreground">{tFallback('capsules.perOpen', 'per open')}</span>
-        </div>
-        <OddsBar segments={oddsSegments(current)} fmtPct={fmtPct} rarityLabel={(r) => rarityName(tFallback, r)} />
+      <div className="pt-5">
+        <OddsLadder tier={current} tiers={set?.tiers ?? null} owned={set?.ownedIds ?? null} fmtPct={fmtPct} />
       </div>
 
-      <div className="mt-4 pt-3 border-t flex flex-col gap-2">
-        {set && (
-          <Link to="/market/set" className="flex flex-col gap-2 min-h-11">
-            <span className="flex justify-between items-baseline text-label">
-              <span className="inline-flex items-center gap-0.5">
-                {tFallback('capsules.set.title', 'The sticker set')}
-                <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
-              </span>
-              <span className="tabular-nums text-muted-foreground">
-                {tFallback('capsules.set.stickersOf', '{owned} of {total} stickers', { owned: set.owned, total: set.total })}
-              </span>
-            </span>
-            <SetBar tiers={set.tiers} />
-          </Link>
-        )}
-        <PityMeter />
-      </div>
+      {set && (
+        <Link to="/market/set" className="mt-1 h-14 border-t flex items-center gap-3 text-label">
+          <SetFan items={set.fan} />
+          <span className="flex-1 min-w-0 tabular-nums text-muted-foreground">
+            {tFallback('capsules.set.inYourSet', '{owned} of {total} in your set', { owned: set.owned, total: set.total })}
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+        </Link>
+      )}
 
       {/* Pinned above the bottom nav. The spacer keeps the last line clear. */}
       <div className="h-6 shrink-0" />
