@@ -45,7 +45,7 @@ const SHIELD_IN_R = 'M32 13 L45.5 17.5 V31 C45.5 40.5 39.5 47 32 51.5 Z';
 // right wing is the mirror. `size` scales it out from the shoulder and
 // `lift` raises the tip, so the same wing grows from Silver to Legend.
 const TIPS = [[0.5, 7], [1.5, 15], [3.5, 23], [7, 30.5], [12, 36.5]];
-function wingPath(size, lift = 0) {
+export function wingPath(size, lift = 0) {
   const pt = ([x, y]) => [16 - (16 - x) * size, 12 + (y - 12) * size - lift * (1 - (y - 6) / 31)];
   const f = (n) => Math.round(n * 10) / 10;
   const [t0x, t0y] = pt(TIPS[0]);
@@ -62,14 +62,15 @@ function wingPath(size, lift = 0) {
   const [ex, ey] = pt([16, 36]);
   return `${d} L${f(ex)} ${f(ey)} Z`;
 }
-const WING_SMALL = { size: 0.72, lift: 0 };
-const WING_FULL = { size: 0.95, lift: 0 };
-const WING_SWEPT = { size: 1.05, lift: 5 };
+// Exported so an animation can move between them (see src/lib/crestMorph.js).
+export const WING_SMALL = { size: 0.72, lift: 0 };
+export const WING_FULL = { size: 0.95, lift: 0 };
+export const WING_SWEPT = { size: 1.05, lift: 5 };
 
 export const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
 export const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
 
-function Wings({ feathers: { size, lift }, p }) {
+export function Wings({ feathers: { size, lift }, p }) {
   const outer = wingPath(size, lift);
   // The coverts: a smaller copy of the wing laid over the root, a step
   // lighter, which is what makes it read as feathers and not a fin.
@@ -88,7 +89,7 @@ function Wings({ feathers: { size, lift }, p }) {
   );
 }
 
-function Shield({ p }) {
+export function Shield({ p }) {
   return (
     <>
       <path d={SHIELD_OUT_L} fill={p.mid} />

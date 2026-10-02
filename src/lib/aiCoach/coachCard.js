@@ -19,10 +19,15 @@
 //
 // Pure. No I/O, no React.
 
+import { fromLbs } from '@/lib/weightUnit';
+
 export const TONES = ['go', 'hold', 'wait', 'care', 'info'];
 const MAX_POINTS = 4;
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+// Logs and the digest are in lb whatever the user reads. A kg user's figure
+// is converted here, or a 185 lb bench is drawn as "185 kg".
+const weightIn = (lb, units) => (units === 'kg' ? Math.round(fromLbs(lb, 'kg') * 10) / 10 : lb);
 const str = (v, max = 400) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 // The digest groups sets into six buckets (responders.js classifyExercise).
@@ -97,7 +102,7 @@ export function resolveVisual(visual, ref, ctx) {
       return {
         type: visual,
         name: String(lift.name),
-        weight: lift.weightLb,
+        weight: weightIn(lift.weightLb, units),
         reps: num(lift.reps),
         daysAgo: num(lift.daysAgo),
         units,
@@ -108,8 +113,8 @@ export function resolveVisual(visual, ref, ctx) {
       if (current == null) return null;
       return {
         type: visual,
-        current,
-        change: num(c.bodyTrend?.changeLb),
+        current: weightIn(current, units),
+        change: num(c.bodyTrend?.changeLb) == null ? null : weightIn(c.bodyTrend.changeLb, units),
         overDays: num(c.bodyTrend?.overDays),
         units,
       };

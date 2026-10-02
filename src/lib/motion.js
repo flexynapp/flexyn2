@@ -28,6 +28,12 @@
 /** Decelerating curve. Arrives fast, settles gently. Same as listMotion. */
 export const EASE_OUT = [0.22, 1, 0.36, 1];
 
+/**
+ * Accelerating curve, for something LEAVING. An exit that decelerates looks
+ * like it is reluctant to go; one that accelerates gets out of the way.
+ */
+export const EASE_IN = [0.4, 0, 1, 1];
+
 /** Durations in seconds, for framer transitions. */
 export const DURATION = {
   fast: 0.18,
@@ -44,11 +50,68 @@ export const RISE_PX = 8;
 /**
  * Springs. `press` is stiff and heavily damped so a tap reads as a firm
  * give rather than a wobble; `pop` overshoots once, for a completion mark.
+ * `settle` is for something MOVING to a new place (a tab's icon lifting, a
+ * sheet arriving): no overshoot, it just lands. `heavy` is for the few
+ * full-screen moments (a rank change, a capsule opening), where the object
+ * should feel like it has weight. Damping ratios: press 1.0, pop 0.45,
+ * settle 0.84 (under 1% overshoot, which reads as no overshoot), heavy 0.61.
+ *
+ * Names are permanent once something imports them. Add a spring, never
+ * retune one in place: a retune silently changes every screen that uses it.
  */
 export const SPRING = {
   press: { type: 'spring', stiffness: 520, damping: 34, mass: 0.6 },
   pop: { type: 'spring', stiffness: 460, damping: 16, mass: 0.7 },
+  settle: { type: 'spring', stiffness: 320, damping: 30, mass: 1 },
+  heavy: { type: 'spring', stiffness: 220, damping: 20, mass: 1.2 },
 };
+
+/**
+ * The three tiers every animation in the app belongs to. Pick the tier
+ * first, then take its spring and haptic from here, so the same kind of
+ * event feels the same on every screen.
+ *
+ * - `answer`: the app acknowledging a tap or a save. Under a quarter of a
+ *   second, firm, the lightest haptic. Most motion is this.
+ * - `reward`: something good happened (a check drawing, a number rolling
+ *   up). Up to half a second, one overshoot, the success haptic, and the
+ *   only tier that may turn something `--success` green.
+ * - `moment`: a full-screen sequence the user stops to watch. Its timing
+ *   lives with the sequence (see `DRAMA` in capsules/openFx.jsx); this only
+ *   fixes the spring and the haptic. Shake, flash and sparks belong here
+ *   and nowhere else.
+ *
+ * `haptic` is an intensity name for `triggerHaptic` in `@/lib/haptic`.
+ */
+export const TIER = {
+  answer: { maxDuration: 0.26, spring: SPRING.press, haptic: 'subtle' },
+  reward: { maxDuration: 0.7, spring: SPRING.pop, haptic: 'success' },
+  moment: { maxDuration: null, spring: SPRING.heavy, haptic: 'success' },
+};
+
+/**
+ * The same transition played `factor` times slower, for judging motion on a
+ * test bench. A spring is time-scaled exactly by dividing stiffness by
+ * factor squared and damping by factor, which keeps its overshoot and
+ * settling shape identical, only longer. Durations and delays are
+ * multiplied. Never ship a slowed transition; this is for preview pages.
+ *
+ * @param {object} transition framer transition
+ * @param {number} factor     2 means half speed, 4 means quarter speed
+ * @returns {object}
+ */
+export function slowMotion(transition, factor = 1) {
+  const f = Number(factor) > 0 ? Number(factor) : 1;
+  if (!transition || f === 1) return transition;
+  const out = { ...transition };
+  if (out.type === 'spring') {
+    if (typeof out.stiffness === 'number') out.stiffness /= f * f;
+    if (typeof out.damping === 'number') out.damping /= f;
+  }
+  if (typeof out.duration === 'number') out.duration *= f;
+  if (typeof out.delay === 'number') out.delay *= f;
+  return out;
+}
 
 /** Plain eased tween for entrances. */
 export const TWEEN = { duration: DURATION.base, ease: EASE_OUT };
