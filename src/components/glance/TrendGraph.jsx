@@ -34,6 +34,7 @@ import { EASE_OUT } from '@/lib/motion';
 const DRAW_S = 0.7;
 const PROJECT_S = 0.35;
 const SETTLE_WAIT_S = 0.32;
+const DRAW_EASE = [0.33, 1, 0.68, 1];
 
 // Slows every duration below by this factor. 1 everywhere in the app; the
 // preview bench raises it so the draw can be judged frame by frame on a
@@ -143,7 +144,11 @@ export default function TrendGraph({ points, projection, play, formatDate, forma
       // moving. Not scaled by the bench's slow motion: the pager is not.
       delay: SETTLE_WAIT_S,
       duration: DRAW,
-      ease: EASE_OUT,
+      // Cubic ease out, not the app's EASE_OUT. EASE_OUT is built for things
+      // arriving and spends its last 40% covering 3% of the distance, which
+      // on a 700ms line reads (at 1/8 speed, visibly) as the line stalling
+      // short of today before the pop. Cubic lands with some momentum left.
+      ease: DRAW_EASE,
       onUpdate: (p) => {
         if (path) path.style.strokeDashoffset = String(len * (1 - p));
         const at = path && len ? path.getPointAtLength(len * p) : geo.last;
