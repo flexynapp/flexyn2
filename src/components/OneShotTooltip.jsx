@@ -31,15 +31,40 @@
 //   delayMs      How long after mount before fading in. Default 600ms
 //                — lets the user finish whatever interaction triggered
 //                the mount before the tooltip pops up.
-//   durationMs   How long the tooltip stays visible. Default 3000ms.
+//   durationMs   How long the tooltip stays visible. Default 4000ms, up
+//                from 3000 when the bubble gained its "Turn off tips"
+//                link: a link needs time to be read and reached.
+//
+// TURNING TIPS OFF (2026-10-02)
+//
+// Every bubble carries a small "Turn off tips" link. A new user meets
+// several of these in their first sessions; someone who already knows the
+// app says "no more" once instead of waiting each one out. The pill that
+// answers says where to turn them back on (Settings › About), because a
+// switch that only exists where you flipped it is one you can't find again.
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { hasSeenTooltip, markTooltipSeen, TOOLTIPS_RESET_EVENT } from '@/lib/tooltipRegistry';
+import {
+  hasSeenTooltip, markTooltipSeen, TOOLTIPS_RESET_EVENT,
+  tipsEnabled, setTipsEnabled, TIPS_PREF_EVENT,
+} from '@/lib/tooltipRegistry';
+import { getTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 
 const DEFAULT_DELAY = 600;
-const DEFAULT_DURATION = 3000;
+const DEFAULT_DURATION = 4000;
+
+// Not useLanguage(): this mounts in Layout, set rows and DM lists, and its
+// tests render it bare. A tooltip lives four seconds, so reading the page
+// language at render is enough (LanguageContext sets <html lang>).
+function tr(key, english) {
+  let lang = 'en';
+  try { lang = document.documentElement.lang || 'en'; } catch { /* no DOM */ }
+  const v = getTranslation(lang, key);
+  return v && v !== key ? v : english;
+}
 // How far a finger may travel and still count as a tap rather than the
 // start of a scroll. The platform convention is ~10px.
 const TAP_SLOP = 10;
@@ -66,6 +91,10 @@ export default function OneShotTooltip({
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState(null);
   const fired = useRef(false);
+  // The bubble is tappable now (its "Turn off tips" link), so a touch that
+  // lands on it must not count as the tap-anywhere dismissal.
+  const bubbleRef = useRef(null);
+  const inside = (e) => !!bubbleRef.current && e?.target instanceof Node && bubbleRef.current.contains(e.target);
 
   // Bumped by Settings → Help → "Show one-time tips again". The effect below
   // reads localStorage once and its deps are the id and the anchor, so an
@@ -76,13 +105,20 @@ export default function OneShotTooltip({
   const [rearm, setRearm] = useState(0);
   useEffect(() => {
     const onReset = () => { fired.current = false; setRearm((n) => n + 1); };
+    // Switched off from another bubble or from Settings: close this one too.
+    const onPref = () => { if (!tipsEnabled()) setOpen(false); else onReset(); };
     window.addEventListener(TOOLTIPS_RESET_EVENT, onReset);
-    return () => window.removeEventListener(TOOLTIPS_RESET_EVENT, onReset);
+    window.addEventListener(TIPS_PREF_EVENT, onPref);
+    return () => {
+      window.removeEventListener(TOOLTIPS_RESET_EVENT, onReset);
+      window.removeEventListener(TIPS_PREF_EVENT, onPref);
+    };
   }, []);
 
   useEffect(() => {
     if (fired.current) return;
     if (!id) return;
+    if (!tipsEnabled()) return;
     if (hasSeenTooltip(id)) return;
     if (!anchorRef?.current) return;
 
@@ -94,7 +130,7 @@ export default function OneShotTooltip({
       // on the first set of EVERY exercise), and all of them pass the check
       // above before any has fired. The first to fire marks it seen; the
       // rest stand down here, so a hint shows once rather than once each.
-      if (hasSeenTooltip(id)) return;
+      if (hasSeenTooltip(id) || !tipsEnabled()) return;
       setRect(measure(anchor));
       setOpen(true);
       markTooltipSeen(id);
@@ -162,12 +198,14 @@ export default function OneShotTooltip({
   useEffect(() => {
     if (!open) return undefined;
     const hideTimer = setTimeout(() => setOpen(false), durationMs);
-    const dismiss = () => setOpen(false);
+    const dismiss = (e) => { if (!inside(e)) setOpen(false); };
 
     let startX = 0;
     let startY = 0;
     let dragged = false;
+    let onBubble = false;
     const onTouchStart = (e) => {
+      onBubble = inside(e);
       const t = e.touches[0];
       startX = t ? t.clientX : 0;
       startY = t ? t.clientY : 0;
@@ -180,13 +218,13 @@ export default function OneShotTooltip({
         dragged = true;
       }
     };
-    const onTouchEnd = () => { if (!dragged) setOpen(false); };
+    const onTouchEnd = () => { if (!dragged && !onBubble) setOpen(false); };
 
     // Slight delay so the same tap that triggered the mount doesn't
     // immediately dismiss the tooltip.
     const armTimer = setTimeout(() => {
-      window.addEventListener('mousedown', dismiss, { once: true });
-      window.addEventListener('keydown', dismiss, { once: true });
+      window.addEventListener('mousedown', dismiss);
+      window.addEventListener('keydown', dismiss);
       window.addEventListener('touchstart', onTouchStart, { passive: true });
       window.addEventListener('touchmove', onTouchMove, { passive: true });
       window.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -202,6 +240,14 @@ export default function OneShotTooltip({
       window.removeEventListener('touchend', onTouchEnd);
     };
   }, [open, durationMs]);
+
+  const turnOff = () => {
+    setTipsEnabled(false);
+    setOpen(false);
+    toast.info(tr('tips.offTitle', 'Tips turned off'), {
+      description: tr('tips.offWhere', 'Turn them back on in Settings › About.'),
+    });
+  };
 
   if (!rect) return null;
 
@@ -228,8 +274,19 @@ export default function OneShotTooltip({
             pointerEvents: 'none',
           }}
         >
-          <div className="relative max-w-[240px] px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-lg">
+          <div
+            ref={bubbleRef}
+            style={{ pointerEvents: 'auto' }}
+            className="relative max-w-[240px] px-3 pt-2 pb-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-lg"
+          >
             {children}
+            <button
+              type="button"
+              onClick={turnOff}
+              className="block min-h-[32px] -mb-1 text-micro font-bold underline underline-offset-2 opacity-90 hover:opacity-100"
+            >
+              {tr('tips.turnOff', 'Turn off tips')}
+            </button>
             <div
               aria-hidden="true"
               className="absolute start-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-primary"
