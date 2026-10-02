@@ -25,11 +25,11 @@ describe('CapsuleIcon', () => {
     expect(bars).toHaveLength(CANISTER_FINISH[tier].bars);
   });
 
-  it('keeps the square box callers lay out against', () => {
+  it('keeps the slot width callers lay out against, standing taller', () => {
     const { container } = render(<CapsuleIcon size={26} className="shrink-0" />);
     const box = container.firstChild;
     expect(box.style.width).toBe('26px');
-    expect(box.style.height).toBe('26px');
+    expect(box.style.height).toBe('34px');
     expect(box).toHaveClass('shrink-0');
     expect(box).toHaveAttribute('aria-hidden', 'true');
   });
