@@ -213,9 +213,10 @@ const AuthenticatedApp = () => {
   }
 
   // Capsule open test bench: deploy previews and localhost only, never
-  // production, and never the native app (it is served from localhost too).
-  // Above the auth gate so it opens on a phone without signing
-  // in to the preview. It writes nothing; see src/pages/CapsuleOpenPreview.jsx.
+  // production, and never the native app, whose web view is also served
+  // from localhost. Above the auth gate so it opens on a phone without
+  // signing in to the preview. It writes nothing; see
+  // src/pages/CapsuleOpenPreview.jsx.
   if (typeof window !== 'undefined' && !isNative() && window.location.pathname === '/preview/capsule-open'
       && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
     return (
