@@ -25,6 +25,7 @@ import { getFlexCoins } from '@/lib/data/coinShop';
 import { ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
 import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import AnimatedNumber from '@/components/AnimatedNumber';
 import CapsuleIcon from '@/components/loot/CapsuleIcon';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
@@ -882,7 +883,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                 className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 active:bg-primary/25 transition-colors"
               >
                 <FlexCoinIcon size={18} />
-                <span className="text-primary dark:text-primary font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
+                <span className="text-primary dark:text-primary font-bold text-sm tabular-nums"><AnimatedNumber roll value={flexCoins} format={fmt} /></span>
                 <Store className="w-3.5 h-3.5 text-primary/80 dark:text-primary/80 ms-0.5" />
               </button>
               <button

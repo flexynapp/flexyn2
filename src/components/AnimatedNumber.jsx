@@ -44,13 +44,22 @@
 
 import React from 'react';
 import useCountUp, { DEFAULT_COUNT_UP_MS } from '@/hooks/useCountUp';
+import RollingNumber from './RollingNumber';
 
 // A non-finite value renders as "NaN" if it reaches format(). Callers pass
 // values straight out of aggregate queries, which are null on an empty
 // account, so this is a live path rather than a defensive nicety.
 const finite = (n, fallback = 0) => (Number.isFinite(Number(n)) ? Number(n) : fallback);
 
-export default function AnimatedNumber({
+export default function AnimatedNumber(props) {
+  // `roll` swaps the count up for odometer digits (see RollingNumber.jsx).
+  // Kept on this component so there is still one number component to
+  // reach for; the two hooks inside cannot share one function body.
+  if (props.roll) return <RollingNumber value={props.value} format={props.format} className={props.className} />;
+  return <CountUpNumber {...props} />;
+}
+
+function CountUpNumber({
   value,
   from,
   format = (n) => String(Math.round(n)),

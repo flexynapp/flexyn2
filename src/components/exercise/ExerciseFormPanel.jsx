@@ -35,8 +35,9 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { posesFor } from '@/lib/data/exercisePoses';
 import { guideFor } from '@/lib/exerciseGuides';
 
-const ExerciseDiagram = React.lazy(() =>
-  import('@/components/exercise/ExerciseFigure').then((m) => ({ default: m.ExerciseDiagram })),
+// The looping rep, which falls back to the three stills itself.
+const ExerciseGuideFigure = React.lazy(() =>
+  import('@/components/exercise/ExerciseFigure').then((m) => ({ default: m.ExerciseRepLoop })),
 );
 
 // Room the guide leaves when it scrolls itself into view: the app header
@@ -160,7 +161,7 @@ export default function ExerciseFormPanel({ exerciseName, className = '', open: 
         <div className="px-3 pb-2.5 space-y-2">
           {cues && (
             <Suspense fallback={null}>
-              <ExerciseDiagram frames={poses.frames} labels={cues} />
+              <ExerciseGuideFigure frames={poses.frames} labels={cues} />
             </Suspense>
           )}
 

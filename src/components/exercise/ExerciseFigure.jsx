@@ -16,7 +16,9 @@
 // renders from the same implementation. See that file for the angle
 // convention before authoring a pose.
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { canLoop, poseAt } from '@/lib/exerciseLoop';
+import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { SEG, solve, pts, PROPS, anchorFor, propMarkup, supportMarkup } from '@/lib/exerciseFigureGeometry';
 
 /**
@@ -111,5 +113,58 @@ export function ExerciseDiagram({ frames = [], labels = [], className = '' }) {
         </figure>
       ))}
     </div>
+  );
+}
+
+/**
+ * The same three positions played as one slow rep (see exerciseLoop.js),
+ * with the caption following the phase and the figure going orange during
+ * the pause at the hard position, where the still guide puts its accent.
+ *
+ * Falls back to the still triptych when Reduce Motion is on, or when the
+ * frames change something that cannot blend. Stops drawing while it is
+ * scrolled off screen; the browser already stops it in a background tab.
+ */
+export function ExerciseRepLoop({ frames = [], labels = [], className = '' }) {
+  const loops = canLoop(frames) && !prefersReducedMotion();
+  const box = useRef(null);
+  const [visible, setVisible] = useState(true);
+  const [state, setState] = useState(() => (loops ? poseAt(frames, 0) : null));
+  const anchor = frames.length ? anchorFor(frames[0]) : null;
+
+  useEffect(() => {
+    const el = box.current;
+    if (!loops || !el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loops]);
+
+  useEffect(() => {
+    if (!loops || !visible) return undefined;
+    let raf = 0;
+    let start = null;
+    const tick = (now) => {
+      if (start === null) start = now;
+      setState(poseAt(frames, (now - start) / 1000));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loops, visible, frames]);
+
+  if (!loops) return <ExerciseDiagram frames={frames} labels={labels} className={className} />;
+  return (
+    <figure ref={box} className={`flex flex-col items-center gap-1 ${className}`}>
+      <div className="w-1/2 rounded-lg bg-secondary/40 border border-border/50 text-foreground">
+        <ExerciseFigure pose={state.pose} accent={state.hold} anchor={anchor} className="w-full h-auto" />
+      </div>
+      {/* The caption changes four times a rep, so assistive tech gets the
+          three positions once instead. */}
+      <figcaption className="text-micro text-muted-foreground text-center leading-tight">
+        <span aria-hidden="true">{labels[state.label] || ['Start', 'Middle', 'End'][state.label]}</span>
+        <span className="sr-only">{[0, 1, 2].map((i) => labels[i] || ['Start', 'Middle', 'End'][i]).join(', ')}</span>
+      </figcaption>
+    </figure>
   );
 }
