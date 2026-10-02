@@ -48,6 +48,63 @@ export function defaultTier(shelf) {
 }
 
 /**
+ * Shelf order, left to right, with `tier` in the middle and the other two
+ * either side in catalogue order. Used once, for the first arrangement.
+ */
+export function shelfSlots(tier) {
+  const centre = CAPSULE_TIERS.includes(tier) ? tier : 'standard';
+  const others = CAPSULE_TIERS.filter(t => t !== centre);
+  return [others[0], centre, others[1]];
+}
+
+/**
+ * The shelf after the user picks `tier`: it trades places with whatever is in
+ * the middle and the third canister stays where it stands. A swap, rather than
+ * re-sorting into catalogue order, is what lets the change animate as two
+ * canisters passing each other instead of all three reshuffling.
+ */
+export function swapIntoCentre(slots, tier) {
+  const at = slots.indexOf(tier);
+  if (at < 0 || at === 1) return slots;
+  const next = [...slots];
+  next[at] = slots[1];
+  next[1] = tier;
+  return next;
+}
+
+// Canister heights, mirroring the CSS clamps the shelf drew before it
+// animated: clamp(160px,26vh,226px) for the chosen one, clamp(84px,13vh,111px)
+// for the two beside it. Computed here because the swap animates transforms,
+// and a transform needs numbers.
+const clampPx = (min, v, max) => Math.min(max, Math.max(min, v));
+const CANISTER_RATIO = 120 / 166;
+const SHELF_GAP = 10;
+const LABEL_W = 104;
+const LABEL_GAP = 8;
+
+/**
+ * Geometry for one viewport height. Every canister is drawn at the large size
+ * and the side ones are scaled down from their base, so a swap is pure
+ * transform (x and scale) and never resizes a box.
+ *
+ * @param {number} vh  window.innerHeight in px
+ * @returns {{ big:number, width:number, side:number, offset:number, labelOffset:number }}
+ *   big    the chosen canister's height
+ *   width  its width
+ *   side   scale of a side canister
+ *   offset px from the centre to a side canister's centre
+ *   labelOffset same for the labels under them, never closer than a label's width
+ */
+export function shelfGeometry(vh) {
+  const big = clampPx(160, 0.26 * vh, 226);
+  const small = clampPx(84, 0.13 * vh, 111);
+  const width = big * CANISTER_RATIO;
+  const side = small / big;
+  const offset = width / 2 + SHELF_GAP + (width * side) / 2;
+  return { big, width, side, offset, labelOffset: Math.max(offset, LABEL_W + LABEL_GAP) };
+}
+
+/**
  * After opening `tier`, the next capsule worth offering on the reveal: more
  * of the same tier if any are left after this open, otherwise the rarest
  * other tier on the shelf. Null when the shelf will be empty.

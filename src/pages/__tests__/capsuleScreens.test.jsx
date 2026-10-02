@@ -85,6 +85,17 @@ describe('Capsules', () => {
     ]);
   });
 
+  it('a tapped capsule takes the middle spot and its tier', async () => {
+    listUnopenedCapsules.mockResolvedValue([cap('e1', 'elite')]);
+    wrap(<Capsules />);
+    await screen.findByRole('button', { name: 'Open elite' });
+    const premium = screen.getByRole('button', { name: 'Premium capsule' });
+    expect(premium).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(premium);
+    expect(premium).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Elite capsule' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('shows the published odds for the selected tier', async () => {
     listUnopenedCapsules.mockResolvedValue([]);
     wrap(<Capsules />);
