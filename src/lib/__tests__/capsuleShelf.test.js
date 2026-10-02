@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CAPSULE_TIERS, MAX_OPEN_AT_ONCE, tierShopItem, shelfByTier, defaultTier,
   nextOnShelf, oddsSegments, setTiers, stickerSet, setNumber, formatSetNo,
-  copiesOf, catalogValue, askMultiple,
+  copiesOf, catalogValue, askMultiple, shelfSlots, swapIntoCentre, shelfGeometry,
 } from '@/lib/capsuleShelf';
 import { SELL_PRICE, sellPriceFor } from '@/lib/sellPrice';
 import { RARITY, CAPSULE_ODDS, findCatalogItem } from '@/lib/lootCatalog';
@@ -209,5 +209,34 @@ describe('pityReading', () => {
   it('promises nothing without a server threshold', () => {
     expect(pityReading(null)).toBeNull();
     expect(pityReading({ since_epic: 3 })).toBeNull();
+  });
+});
+
+describe('shelf arrangement', () => {
+  it('puts the first pick in the middle, the rest in catalogue order', () => {
+    expect(shelfSlots('elite')).toEqual(['standard', 'elite', 'premium']);
+    expect(shelfSlots('standard')).toEqual(['premium', 'standard', 'elite']);
+    expect(shelfSlots('nonsense')).toEqual(['premium', 'standard', 'elite']);
+  });
+
+  it('swaps a pick with the middle and leaves the third canister alone', () => {
+    const start = ['standard', 'premium', 'elite'];
+    expect(swapIntoCentre(start, 'elite')).toEqual(['standard', 'elite', 'premium']);
+    expect(swapIntoCentre(start, 'standard')).toEqual(['premium', 'standard', 'elite']);
+    expect(swapIntoCentre(start, 'premium')).toBe(start);
+  });
+
+  it('matches the old CSS clamps and keeps labels from overlapping', () => {
+    for (const vh of [500, 667, 852, 932, 1400]) {
+      const g = shelfGeometry(vh);
+      expect(g.big).toBeGreaterThanOrEqual(160);
+      expect(g.big).toBeLessThanOrEqual(226);
+      const small = g.big * g.side;
+      expect(small).toBeGreaterThanOrEqual(84 - 1e-9);
+      expect(small).toBeLessThanOrEqual(111 + 1e-9);
+      // A side canister clears the middle one by the 10px gap the shelf had.
+      expect(g.offset - g.width / 2 - (g.width * g.side) / 2).toBeCloseTo(10);
+      expect(g.labelOffset).toBeGreaterThanOrEqual(112);
+    }
   });
 });
