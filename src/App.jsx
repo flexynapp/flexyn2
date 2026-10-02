@@ -90,6 +90,7 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const RankUpPreview = lazy(() => import('./pages/RankUpPreview'));
+const CapsuleOpenPreview = lazy(() => import('./pages/CapsuleOpenPreview'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
@@ -206,6 +207,21 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}>
         <Routes>
           <Route path="*" element={<RankUpPreview />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // Capsule open test bench: deploy previews and localhost only, never
+  // production, and never the native app (it is served from localhost too).
+  // Above the auth gate so it opens on a phone without signing
+  // in to the preview. It writes nothing; see src/pages/CapsuleOpenPreview.jsx.
+  if (typeof window !== 'undefined' && !isNative() && window.location.pathname === '/preview/capsule-open'
+      && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="*" element={<CapsuleOpenPreview />} />
         </Routes>
       </Suspense>
     );

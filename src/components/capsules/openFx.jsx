@@ -1,47 +1,61 @@
 // src/components/capsules/openFx.jsx
 //
-// The stage effects behind a capsule open: the sunburst that turns behind
-// the canister and the reveal plate, the shock rings and spark streaks when
+// The stage behind a capsule open: a field of moving colour behind the
+// canister and the reveal plate, the shock rings and spark streaks when
 // something hits, a short camera shake and a flash. All of it scales with
 // the RARITY of what came out, so a common lands cleanly and a legendary
 // shakes the screen.
 //
-// What this is deliberately not: glow blobs, blur, gradients or confetti.
-// Every mark is a flat shape (a wedge, a stroked circle, a 2px line) and
-// every animation moves only transform and opacity, so the stage composites
-// on the GPU and holds frame rate on an iPhone SE.
+// The colour field is LeagueFluid, the same paint the rank up runs behind
+// its crest (Kegan, 2026-10-02: "a fluid background of colors to replace
+// the starburst", "and the fluid colors move with each crack"). Every
+// strike stirs it, every climb pours the new rarity's colour in from the
+// canister, and the pop churns it hardest. It replaced a turning sunburst.
+//
+// The rings and sparks are flat shapes (a stroked circle, a 2px line) that
+// move only transform and opacity. The field is one WebGL draw at half
+// resolution, so the stage holds frame rate on an iPhone SE.
 //
 // Presentation only. The server has already decided and granted the item
 // before any of this runs; nothing here reads or writes a capsule.
 //
-// Reduced motion turns every one of these off. The sunburst still draws
-// (static) because it carries the rarity colour, which is information.
+// Reduced motion turns the hits off and holds the field still. It still
+// draws, in the rarity's colour, because the colour is information.
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
+import LeagueFluid from '@/components/leagues/LeagueFluid';
 
 const BONE = '#F5F2F0';
 
 // ─── How big each rarity's moment is ──────────────────────────────────────────
-// rays    sunburst opacity behind the reveal (0 = none)
+// paint   how loud the colour field runs once this rarity is reached, 0 to 1
+// stir    how hard reaching it churns the field, 0 to 1
 // rings   shock rings when the plate hits
 // sparks  spark streaks when the plate hits
 // shake   camera shake, px
 // flash   full-screen flash opacity
 // sheen   a foil glint sweeps across the sticker
-// hot     the canister runs the long charge and leaks its colour at the
-//         seam before it pops: the pull announces itself early
 // hold    ms between the plate hitting and the name stamping in
-// charge  ms the canister rattles before it pops, single open
 export const DRAMA = {
-  common:    { rays: 0.035, rings: 1, sparks: 8,  shake: 0, flash: 0,    sheen: false, hot: false, hold: 180, charge: 1200 },
-  uncommon:  { rays: 0.05,  rings: 1, sparks: 10, shake: 2, flash: 0,    sheen: false, hot: false, hold: 220, charge: 1200 },
-  rare:      { rays: 0.08,  rings: 2, sparks: 14, shake: 4, flash: 0.1,  sheen: true,  hot: false, hold: 320, charge: 1200 },
-  epic:      { rays: 0.11,  rings: 2, sparks: 18, shake: 6, flash: 0.16, sheen: true,  hot: true,  hold: 480, charge: 2000 },
-  legendary: { rays: 0.15,  rings: 3, sparks: 24, shake: 9, flash: 0.26, sheen: true,  hot: true,  hold: 700, charge: 2200 },
-  mythic:    { rays: 0.15,  rings: 3, sparks: 26, shake: 10, flash: 0.28, sheen: true, hot: true,  hold: 700, charge: 2200 },
-  animated:  { rays: 0.15,  rings: 3, sparks: 26, shake: 10, flash: 0.28, sheen: true, hot: true,  hold: 700, charge: 2200 },
+  common:    { paint: 0.42, stir: 0.3,  rings: 1, sparks: 8,  shake: 0,  flash: 0,    sheen: false, hold: 180 },
+  uncommon:  { paint: 0.55,  stir: 0.45, rings: 1, sparks: 10, shake: 2,  flash: 0,    sheen: false, hold: 220 },
+  rare:      { paint: 0.68, stir: 0.6,  rings: 2, sparks: 14, shake: 4,  flash: 0.1,  sheen: true,  hold: 320 },
+  epic:      { paint: 0.78, stir: 0.8,  rings: 2, sparks: 18, shake: 6,  flash: 0.16, sheen: true,  hold: 480 },
+  legendary: { paint: 0.85,    stir: 1,    rings: 3, sparks: 24, shake: 9,  flash: 0.26, sheen: true,  hold: 700 },
+  mythic:    { paint: 0.85,    stir: 1,    rings: 3, sparks: 26, shake: 10, flash: 0.28, sheen: true,  hold: 700 },
+  animated:  { paint: 0.85,    stir: 1,    rings: 3, sparks: 26, shake: 10, flash: 0.28, sheen: true,  hold: 700 },
+};
+
+// ─── Beats for the crack ──────────────────────────────────────────────────────
+// ms. `decide` is the swell between a tap and its answer, the moment of
+// truth on every strike; it is short enough that mashing feels like
+// mashing. `auto` strikes for someone who only watches. A batch runs the
+// same beats tighter, one capsule after another.
+export const OPEN_TIMING = {
+  single: { decide: 220, climb: 380, afterPop: 480, firstAuto: 1800, auto: 1300 },
+  batch:  { decide: 150, climb: 260, afterPop: 240, firstAuto: 700,  auto: 550 },
 };
 
 /** The drama table row for a rarity, falling back to common. */
@@ -49,46 +63,42 @@ export function dramaFor(rarity) {
   return DRAMA[rarity] ?? DRAMA.common;
 }
 
-/**
- * How long the canister rattles before it pops. A batch runs one charge per
- * capsule, so each is shorter; reduced motion skips it entirely.
- */
-export function chargeMs(rarity, { batch = false, reduced = false } = {}) {
-  if (reduced) return 0;
-  const base = dramaFor(rarity).charge;
-  return batch ? Math.round(base * 0.45) : base;
+// ─── The colour field ─────────────────────────────────────────────────────────
+// What the field is doing lives in a tiny store outside React, so a stir on
+// every tap re-renders only the field and never the opener or its stages
+// (whose effects depend on `fx` keeping its identity).
+//
+// colour  the rarity colour it pours toward (it walks colour to colour)
+// mood    LeagueFluid's phase: 'enter' calm, 'landed' swirling, 'break' a churn
+// paint   how loud it runs, 0 to 1
+// pulse   a counter; each bump stirs it once, `pulseSize` hard
+function createField(colour) {
+  let state = { colour, mood: 'enter', paint: DRAMA.common.paint, pulse: 0, pulseSize: 0 };
+  const subs = new Set();
+  const set = (patch) => {
+    state = { ...state, ...patch };
+    subs.forEach((fn) => fn());
+  };
+  return {
+    get: () => state,
+    subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn); },
+    set,
+    stir: (size) => set({ pulse: state.pulse + 1, pulseSize: size }),
+  };
 }
 
-// ─── The sunburst ─────────────────────────────────────────────────────────────
-// Wedges from a centre point, drawn once and turned slowly with a CSS
-// animation on the whole layer. Sized in vmax so it always overfills the
-// screen and never shows an edge.
-function wedges(n, widthDeg) {
-  const out = [];
-  const r = 150;
-  for (let i = 0; i < n; i++) {
-    const a0 = ((i * 360) / n - widthDeg / 2) * (Math.PI / 180);
-    const a1 = ((i * 360) / n + widthDeg / 2) * (Math.PI / 180);
-    out.push(`M0 0L${(Math.cos(a0) * r).toFixed(2)} ${(Math.sin(a0) * r).toFixed(2)}L${(Math.cos(a1) * r).toFixed(2)} ${(Math.sin(a1) * r).toFixed(2)}Z`);
-  }
-  return out.join('');
-}
-const RAYS_MAIN = wedges(16, 11);
-const RAYS_BACK = wedges(10, 5);
-
 /**
- * The stage layer: a fixed, full-screen, pointer-transparent layer behind
- * the opener's content. `anchor` is an element whose centre the burst and
- * the rays sit on; it is re-measured whenever `anchorKey` changes.
+ * The stage: a fixed, full-screen, pointer-transparent layer behind the
+ * opener's content, with the colour field, and the hits thrown from a point.
  */
 export function useOpenerFx() {
   const layerRef = useRef(null);
   const sparkRef = useRef(null);
-  const raysRef = useRef(null);
   const shakeRef = useRef(null);
   const reduced = useMemo(() => prefersReducedMotion(), []);
+  const field = useMemo(() => createField(rarityTint('common').color), []);
 
-  /** Move the rays' centre onto an element (or a point inside it). */
+  /** Where the next hit lands: the centre of an element, or a point in it. */
   const aimAt = useCallback((el, fy = 0.5) => {
     const layer = layerRef.current;
     if (!layer || !el?.getBoundingClientRect) return null;
@@ -100,15 +110,21 @@ export function useOpenerFx() {
     return { x, y };
   }, []);
 
-  /** Colour and strength of the sunburst. `double` adds the back layer. */
-  const setRays = useCallback((color, opacity, { double = false, fast = false } = {}) => {
-    const rays = raysRef.current;
-    if (!rays) return;
-    rays.style.color = color || BONE;
-    rays.style.opacity = String(opacity || 0);
-    rays.dataset.double = double ? '1' : '0';
-    rays.dataset.fast = fast ? '1' : '0';
-  }, []);
+  /**
+   * Set the field. `rarity` picks the colour and how loud it runs; `mood`
+   * is 'enter' (calm), 'landed' (swirling) or 'break' (the pop's churn);
+   * `stir` kicks it once, 0 to 1. Anything left out stays as it is.
+   */
+  const paint = useCallback(({ rarity, mood, stir } = {}) => {
+    const patch = {};
+    if (rarity) {
+      patch.colour = rarityTint(rarity).color;
+      patch.paint = dramaFor(rarity).paint;
+    }
+    if (mood) patch.mood = mood;
+    if (Object.keys(patch).length) field.set(patch);
+    if (stir) field.stir(stir);
+  }, [field]);
 
   /** Shock rings and spark streaks from a point, plus shake and flash.
    *  `color` and `drama` override the rarity's, for a stage that is not
@@ -173,7 +189,7 @@ export function useOpenerFx() {
     }
 
     // Shake: a few decaying offsets on the content, not the stage, so the
-    // rays hold still and the hit reads as the camera taking it.
+    // field holds still and the hit reads as the camera taking it.
     const target = shakeRef.current;
     const amp = d.shake * scale;
     if (shake && target && amp > 0 && typeof target.animate === 'function') {
@@ -188,12 +204,38 @@ export function useOpenerFx() {
     }
   }, [reduced]);
 
-  return { layerRef, sparkRef, raysRef, shakeRef, aimAt, setRays, burst, reduced };
+  return { layerRef, sparkRef, shakeRef, field, aimAt, paint, burst, reduced };
+}
+
+// The field opens in Common's colour on every open, and walks from there.
+// LeagueFluid centres on a point a little above the middle of the screen,
+// which is where the canister and the reveal plate sit, so it needs no
+// anchor here.
+const START = rarityTint('common').color;
+
+
+function Field({ fx }) {
+  const s = useSyncExternalStore(fx.field.subscribe, fx.field.get, fx.field.get);
+  // Held still, the field draws one frame, so a new colour is a new frame.
+  return (
+    <LeagueFluid
+      key={fx.reduced ? s.colour : 'live'}
+      from={fx.reduced ? s.colour : START}
+      to={s.colour}
+      phase={s.mood}
+      chargeMs={1}
+      still={fx.reduced}
+      pulse={s.pulse}
+      pulseSize={s.pulseSize}
+      strength={s.paint}
+      cartoon
+    />
+  );
 }
 
 /** The layer itself. Render once, first child of the opener. */
 export function OpenerStage({ fx }) {
-  // Park the centre somewhere sensible before the first measurement.
+  // Park the hit point somewhere sensible before the first measurement.
   useEffect(() => {
     const layer = fx.layerRef.current;
     if (!layer) return;
@@ -205,14 +247,7 @@ export function OpenerStage({ fx }) {
 
   return (
     <div ref={fx.layerRef} className="opener-stage fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      <div ref={fx.raysRef} className="opener-rays" style={{ opacity: 0 }} data-double="0" data-fast="0">
-        <svg className="opener-rays-back" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice">
-          <path d={RAYS_BACK} fill="currentColor" />
-        </svg>
-        <svg className="opener-rays-main" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice">
-          <path d={RAYS_MAIN} fill="currentColor" />
-        </svg>
-      </div>
+      <Field fx={fx} />
       <div ref={fx.sparkRef} className="absolute inset-0" />
     </div>
   );
