@@ -66,3 +66,11 @@ export function isDailyChestReady(userId, lastClaimAt) {
     return true;
   }
 }
+
+// Fired after a claim lands (or the server says one already did), so the
+// sidebar's Market dot clears at once instead of on the next re-render.
+export const DAILY_CHEST_CLAIMED_EVENT = 'flexyn:daily-chest-claimed';
+
+export function announceDailyChestClaimed() {
+  try { window.dispatchEvent(new Event(DAILY_CHEST_CLAIMED_EVENT)); } catch { /* no window */ }
+}

@@ -21,6 +21,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
 import { useHubUnreadDot } from '@/hooks/useHubUnreadDot';
+import { useDailyChestReady } from '@/hooks/useDailyChestReady';
 import { useBagFlow } from '@/lib/inventoryFlow';
 import UserBag from './hub/UserBag';
 import CapsuleOpener from './hub/CapsuleOpener';
@@ -130,19 +131,6 @@ function QuickLogButton({ onOpen }) {
       </button>
     </motion.div>
   );
-}
-
-// Helper: check if today's daily chest has NOT been claimed yet (ready to claim)
-function useDailyChestReady(userId) {
-  if (!userId) return false;
-  try {
-    const val = localStorage.getItem(`daily_chest_claimed_${userId}`);
-    if (!val) return true; // never claimed
-    const claimedDate = new Date(val).toDateString();
-    return claimedDate !== new Date().toDateString(); // new day → ready
-  } catch {
-    return false;
-  }
 }
 
 export default function Layout() {

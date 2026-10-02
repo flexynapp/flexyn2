@@ -28,7 +28,7 @@ vi.mock('@/api/supabaseClient', () => ({
   supabase: { rpc: vi.fn(async () => ({ data: { coins_awarded: 120, new_balance: 500 }, error: null })) },
 }));
 vi.mock('@/lib/inventoryFlow', () => ({ requestOpenBag: vi.fn() }));
-vi.mock('@/lib/dailyChest', () => ({ isDailyChestReady: () => true }));
+vi.mock('@/lib/dailyChest', () => ({ isDailyChestReady: () => true, announceDailyChestClaimed: vi.fn() }));
 vi.mock('@/api/profileCache', () => ({ getProfile: () => ({}), patchProfile: vi.fn() }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 

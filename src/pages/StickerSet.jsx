@@ -3,8 +3,14 @@
 // The sticker set, yours first (Kegan's pick, option B, 2026-09-28). The
 // stickers you own sit on a dark panel at slight angles, like a sheet you
 // have been peeling from; tap one and its number, name and rarity show
-// under it. Below that, one line per rarity with its count and a mini bar;
-// tap a line to see that rarity's whole run, the missing ones dimmed.
+// under it. Below that, one line per rarity, rarest first, in the same
+// language as the Capsules odds list: a real sticker of that rarity, its
+// name in its colour, and how many you own as a count and a ring. Tap a line
+// to see that rarity's whole run, the missing ones dimmed.
+//
+// The segmented set bar that sat under the count is gone (2026-10-02). It
+// repeated the rarity rows below it as a strip nobody could read, and the
+// Capsules page had already dropped it for the odds list.
 //
 // It replaced a grid of all 55 stickers with a chip filter on top, which put
 // 55 boxes on the screen before the user saw a single thing they own.
@@ -20,11 +26,11 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as inventory from '@/lib/data/inventory';
 import { ownershipFrom } from '@/lib/collection';
-import { stickerSet, setTiers, formatSetNo } from '@/lib/capsuleShelf';
+import { stickerSet, setTiers, formatSetNo, rarityFace } from '@/lib/capsuleShelf';
 import { tileRow } from '@/lib/tileRows';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 import Sticker from '@/components/capsules/Sticker';
-import { SetBar } from '@/components/capsules/parts';
+import { OwnRing } from '@/components/capsules/OddsLadder';
 import { rarityName } from '@/components/capsules/words';
 
 const SHEET = tileRow({ gap: 2, cols: 4, smCols: 6 });
@@ -50,7 +56,8 @@ export default function StickerSet() {
 
   const set = useMemo(() => stickerSet().map((s, i) => ({ ...s, no: i + 1 })), []);
   const owned = useMemo(() => ownershipFrom(inv ?? []).owned, [inv]);
-  const tiers = useMemo(() => setTiers(owned), [owned]);
+  // Rarest first, the same order as the odds list on Capsules.
+  const tiers = useMemo(() => [...setTiers(owned)].reverse(), [owned]);
   // Rarest first, so the best thing you own is the first thing you see.
   const mine = useMemo(() => set.filter(s => owned.has(s.id)).reverse(), [set, owned]);
 
@@ -63,14 +70,11 @@ export default function StickerSet() {
       <h1 className="sr-only lg:not-sr-only lg:font-display lg:text-display lg:pb-2">
         {tFallback('stickerSet.title', 'Sticker set')}
       </h1>
-      <div className="flex flex-col gap-2">
-        <span className="stamp">
-          {inv
-            ? tFallback('capsules.set.stickersOf', '{owned} of {total} stickers', { owned: mine.length, total: set.length })
-            : tFallback('stickerSet.count', '{n} stickers', { n: set.length })}
-        </span>
-        {inv && <SetBar tiers={tiers} />}
-      </div>
+      <span className="stamp">
+        {inv
+          ? tFallback('capsules.set.stickersOf', '{owned} of {total} stickers', { owned: mine.length, total: set.length })
+          : tFallback('stickerSet.count', '{n} stickers', { n: set.length })}
+      </span>
 
       {inv && (
         <section className="pt-6 flex flex-col gap-2" aria-labelledby="set-yours">
@@ -137,7 +141,8 @@ export default function StickerSet() {
         <span id="set-by-rarity" className="stamp">{tFallback('stickerSet.byRarity', 'By rarity')}</span>
         <ul className="rounded-2xl bg-card border divide-y overflow-hidden">
           {tiers.map(t => {
-            const tint = rarityTint(t.rarity);
+            const color = rarityTint(t.rarity).color;
+            const face = rarityFace(t.rarity, owned);
             const open = openTier === t.rarity;
             const run = set.filter(s => s.rarity === t.rarity);
             return (
@@ -149,17 +154,20 @@ export default function StickerSet() {
                   aria-controls={`tier-${t.rarity}`}
                   className="w-full min-h-12 px-3 flex items-center gap-2 text-start"
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tint.color }} aria-hidden="true" />
-                  <span className="flex-1 text-label font-semibold">{rarityName(tFallback, t.rarity)}</span>
+                  {face
+                    ? <Sticker itemId={face.id} emoji={face.emoji} rarity={t.rarity} size={28} dim={!face.owned} />
+                    : <span className="w-7 h-7 shrink-0" aria-hidden="true" />}
+                  <span className="flex-1 min-w-0 truncate text-label font-semibold" style={{ color }}>
+                    {rarityName(tFallback, t.rarity)}
+                  </span>
                   {inv && (
-                    <>
-                      <span className="text-label tabular-nums text-muted-foreground">
+                    <span className="flex items-center gap-1.5 tabular-nums text-caption text-muted-foreground">
+                      <span aria-hidden="true">{`${t.owned}/${t.total}`}</span>
+                      <span className="sr-only">
                         {tFallback('capsules.set.of', '{owned} of {total}', { owned: t.owned, total: t.total })}
                       </span>
-                      <span className="w-12 h-1.5 rounded-full bg-border overflow-hidden" aria-hidden="true">
-                        <span className="block h-full rounded-full" style={{ width: `${(t.owned / t.total) * 100}%`, background: tint.color }} />
-                      </span>
-                    </>
+                      <OwnRing value={t.owned} max={t.total} color={color} />
+                    </span>
                   )}
                   <ChevronDown
                     className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}

@@ -8,14 +8,18 @@ import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
-import { isDailyChestClaimedLocally, markDailyChestClaimedLocally } from './dailyChest';
+import { getProfile } from '@/api/profileCache';
+import { isDailyChestReady, announceDailyChestClaimed } from '@/lib/dailyChest';
+import { markDailyChestClaimedLocally } from './dailyChest';
 
 export default function DailyChestBlock({ user, onClaimed, onClaimedState }) {
   const { tFallback } = useLanguage();
   // localStorage hint avoids the "available" flicker on cold loads, but the
   // server is the source of truth — the claim RPC enforces once-per-UTC-day
   // even if localStorage is wiped or this is a different browser / device.
-  const [claimed, setClaimed] = useState(() => isDailyChestClaimedLocally(user?.id));
+  // The profile's server timestamp counts too, the same check the sidebar dot
+  // makes, so the two never disagree about whether a capsule is waiting.
+  const [claimed, setClaimed] = useState(() => !isDailyChestReady(user?.id, getProfile()?.last_daily_chest_at));
   const [loading, setLoading] = useState(false);
 
   const handleClaim = async () => {
@@ -30,6 +34,7 @@ export default function DailyChestBlock({ user, onClaimed, onClaimedState }) {
         // device). Quietly sync local state without celebrating again.
         markDailyChestClaimedLocally(user.id);
         setClaimed(true);
+        announceDailyChestClaimed();
         onClaimedState?.();
         return;
       }
@@ -37,6 +42,7 @@ export default function DailyChestBlock({ user, onClaimed, onClaimedState }) {
       // Real claim landed. The parent's onClaimed fires the refetch chain.
       markDailyChestClaimedLocally(user.id);
       setClaimed(true);
+      announceDailyChestClaimed();
       onClaimedState?.();
       onClaimed?.();
       requestOpenBag();
