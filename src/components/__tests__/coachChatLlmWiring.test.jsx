@@ -116,6 +116,30 @@ describe('CoachChat — language-model wiring', () => {
     );
   });
 
+  it('draws an answer that came back as a card, and keeps it across a reopen', async () => {
+    askCoach.mockResolvedValue({
+      reply: '**Hold at 185.**\n\n• Best set 185 x 5',
+      source: 'llm',
+      intent: { id: 'unknown' },
+      card: {
+        tone: 'hold',
+        headline: 'Hold at 185 one more week.',
+        points: [{ text: 'Best set 185 x 5', viz: { type: 'top_lift', name: 'Bench Press', weight: 185, reps: 5, units: 'lb' } }],
+        next: '',
+      },
+    });
+    const { unmount } = renderChat();
+    await waitFor(() => expect(buildCoachContext).toHaveBeenCalled());
+    await send('should I add weight on bench?');
+    await waitFor(() => expect(screen.getByText('Hold at 185 one more week.')).toBeInTheDocument());
+    expect(screen.queryByText(/\*\*/)).toBeNull();
+    unmount();
+
+    renderChat();
+    expect(await screen.findByText('Hold at 185 one more week.')).toBeInTheDocument();
+    expect(screen.getByText('185')).toBeInTheDocument();
+  });
+
   it('sends the prior thread so follow-ups have something to refer back to', async () => {
     renderChat();
     await waitFor(() => expect(buildCoachContext).toHaveBeenCalled());

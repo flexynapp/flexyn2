@@ -7,11 +7,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const rpcSpy = vi.fn();
 
 // Chainable select mock — acceptPendingRequestsFrom looks the pair's
-// conversation up by participant_key through safeSelect.
+// conversation up by participant_ids containment through safeSelect.
 const _sel = {
   lastTable: null,
   lastColumns: null,
-  lastEq: null,
+  lastContains: null,
+  lastLimit: null,
   nextData: [],
   nextError: null,
 };
@@ -23,8 +24,11 @@ vi.mock('@/api/supabaseClient', () => ({
       _sel.lastTable = table;
       const chain = {
         select: (cols) => { _sel.lastColumns = cols; return chain; },
-        eq: (col, val) => { _sel.lastEq = { col, val }; return chain; },
-        limit: () => Promise.resolve({ data: _sel.nextData, error: _sel.nextError }),
+        contains: (col, val) => { _sel.lastContains = { col, val }; return chain; },
+        limit: (n) => {
+          _sel.lastLimit = n;
+          return Promise.resolve({ data: _sel.nextData, error: _sel.nextError });
+        },
       };
       return chain;
     },
@@ -45,7 +49,8 @@ beforeEach(() => {
   rpcSpy.mockReset();
   _sel.lastTable = null;
   _sel.lastColumns = null;
-  _sel.lastEq = null;
+  _sel.lastContains = null;
+  _sel.lastLimit = null;
   _sel.nextData = [];
   _sel.nextError = null;
 });
@@ -68,17 +73,17 @@ describe('acceptConversation', () => {
 });
 
 describe('partitionConversations', () => {
-  const me = 'me@example.com';
+  const me = 'id-me';
 
   it('routes a conversation with my acceptance to inbox', () => {
     const { inbox, requests } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: [me, 'stranger@x.com'],
-        accepted_emails: [me],
+        participant_ids: [me, 'id-stranger'],
+        accepted_ids: [me],
       }],
+      [],
       me,
-      []
     );
     expect(inbox).toHaveLength(1);
     expect(requests).toHaveLength(0);
@@ -88,13 +93,11 @@ describe('partitionConversations', () => {
     const { inbox, requests } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: [me, 'friend@x.com'],
-        participant_ids: ['id-me', 'id-friend'],
-        accepted_emails: [],
+        participant_ids: [me, 'id-friend'],
+        accepted_ids: [],
       }],
-      me,
       ['id-friend'],
-      'id-me',
+      me,
     );
     expect(inbox).toHaveLength(1);
     expect(requests).toHaveLength(0);
@@ -104,13 +107,11 @@ describe('partitionConversations', () => {
     const { requests } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: [me, 'stranger@x.com'],
-        participant_ids: ['id-me', 'id-stranger'],
-        accepted_emails: [],
+        participant_ids: [me, 'id-stranger'],
+        accepted_ids: [],
       }],
+      [me],
       me,
-      ['id-me'],
-      'id-me',
     );
     expect(requests).toHaveLength(1);
   });
@@ -119,58 +120,60 @@ describe('partitionConversations', () => {
     const { inbox, requests } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: [me, 'stranger@x.com'],
-        accepted_emails: [],
+        participant_ids: [me, 'id-stranger'],
+        accepted_ids: [],
       }],
+      [],
       me,
-      []
     );
     expect(inbox).toHaveLength(0);
     expect(requests).toHaveLength(1);
   });
 
-  it('is case-insensitive on my own email', () => {
-    const { inbox } = partitionConversations(
+  it('ignores the email columns entirely', () => {
+    // Emails are no longer readable; a row that only carries them has no
+    // other participant id, so acceptance cannot be inferred from them.
+    const { requests } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: ['ME@example.com', 'stranger@x.com'],
-        accepted_emails: ['Me@Example.com'],
+        participant_emails: ['me@x.com', 'stranger@x.com'],
+        accepted_emails: ['me@x.com'],
+        participant_ids: [me, 'id-stranger'],
+        accepted_ids: [],
       }],
-      me,
       [],
+      me,
     );
-    expect(inbox).toHaveLength(1);
+    expect(requests).toHaveLength(1);
   });
 
   it('accepts a Set of followed ids as well as an array', () => {
     const { inbox } = partitionConversations(
       [{
         id: 'c1',
-        participant_emails: [me, 'friend@x.com'],
-        participant_ids: ['id-me', 'id-friend'],
-        accepted_emails: [],
+        participant_ids: [me, 'id-friend'],
+        accepted_ids: [],
       }],
-      me,
       new Set(['id-friend']),
-      'id-me',
+      me,
     );
     expect(inbox).toHaveLength(1);
   });
 
-  it('returns the input unchanged when myEmail is missing', () => {
+  it('returns the input unchanged when myId is missing', () => {
     const list = [{ id: 'c1' }];
-    expect(partitionConversations(list, null, [])).toEqual({ inbox: list, requests: [] });
+    expect(partitionConversations(list, [], null)).toEqual({ inbox: list, requests: [] });
   });
 
   it('returns empty arrays for null conversations', () => {
-    expect(partitionConversations(null, me, [])).toEqual({ inbox: [], requests: [] });
+    expect(partitionConversations(null, [], me)).toEqual({ inbox: [], requests: [] });
   });
 
   it('routes a self-DM / orphaned conversation to inbox, never Requests', () => {
     const { inbox, requests } = partitionConversations(
-      [{ id: 'c1', participant_emails: [me], accepted_emails: [] }],
+      [{ id: 'c1', participant_ids: [me], accepted_ids: [] }],
+      [],
       me,
-      []
     );
     expect(inbox).toHaveLength(1);
     expect(requests).toHaveLength(0);
@@ -248,18 +251,18 @@ describe('unsendMessageRequest', () => {
 });
 
 describe('isOutgoingPendingRequest', () => {
-  const me = 'me@example.com';
-  const them = 'them@example.com';
+  const me = 'id-me';
+  const them = 'id-them';
 
   it('is true for my own request the recipient has not acted on', () => {
     expect(isOutgoingPendingRequest(
-      { participant_emails: [me, them], accepted_emails: [me] }, me
+      { participant_ids: [me, them], accepted_ids: [me] }, me
     )).toBe(true);
   });
 
   it('is false once the recipient accepted', () => {
     expect(isOutgoingPendingRequest(
-      { participant_emails: [me, them], accepted_emails: [me, them] }, me
+      { participant_ids: [me, them], accepted_ids: [me, them] }, me
     )).toBe(false);
   });
 
@@ -267,62 +270,82 @@ describe('isOutgoingPendingRequest', () => {
     // They sent it, so only they are accepted. This is a Requests-tab
     // row — Delete territory, not Unsend.
     expect(isOutgoingPendingRequest(
-      { participant_emails: [me, them], accepted_emails: [them] }, me
+      { participant_ids: [me, them], accepted_ids: [them] }, me
     )).toBe(false);
   });
 
-  it('is case-insensitive', () => {
+  it('does not read the email columns', () => {
     expect(isOutgoingPendingRequest(
-      { participant_emails: ['ME@Example.com', 'Them@Example.com'], accepted_emails: ['me@EXAMPLE.com'] },
-      me
-    )).toBe(true);
+      { participant_emails: ['me@x.com', 'them@x.com'], accepted_emails: ['me@x.com'] }, me
+    )).toBe(false);
   });
 
   it('is false for groups, non-pairs, non-participants and missing input', () => {
     expect(isOutgoingPendingRequest(
-      { is_group: true, participant_emails: [me, them, 'c@x.com'], accepted_emails: [me] }, me
+      { is_group: true, participant_ids: [me, them, 'id-c'], accepted_ids: [me] }, me
     )).toBe(false);
     expect(isOutgoingPendingRequest(
-      { participant_emails: [me], accepted_emails: [me] }, me
+      { participant_ids: [me], accepted_ids: [me] }, me
     )).toBe(false);
     expect(isOutgoingPendingRequest(
-      { participant_emails: ['a@x.com', them], accepted_emails: ['a@x.com'] }, me
+      { participant_ids: ['id-a', them], accepted_ids: ['id-a'] }, me
     )).toBe(false);
     expect(isOutgoingPendingRequest(null, me)).toBe(false);
-    expect(isOutgoingPendingRequest({ participant_emails: [me, them] }, null)).toBe(false);
+    expect(isOutgoingPendingRequest({ participant_ids: [me, them] }, null)).toBe(false);
   });
 });
 
 describe('acceptPendingRequestsFrom', () => {
-  const follower = 'me@example.com';
-  const followee = 'them@example.com';
+  const follower = 'id-me';
+  const followee = 'id-them';
 
-  it('accepts the pending 1:1 thread, looked up by the sorted pair key', async () => {
-    _sel.nextData = [{ id: 'c1', accepted_emails: [followee] }];
+  it('accepts the pending 1:1 thread, looked up by participant_ids containment', async () => {
+    _sel.nextData = [{
+      id: 'c1', participant_ids: [followee, follower], accepted_ids: [followee], is_group: false,
+    }];
     rpcSpy.mockResolvedValueOnce({ error: null });
 
     const flipped = await acceptPendingRequestsFrom(follower, followee);
 
     expect(flipped).toBe(true);
     expect(_sel.lastTable).toBe('hub_conversations');
-    expect(_sel.lastEq).toEqual({
-      col: 'participant_key',
-      val: 'me@example.com|them@example.com',
-    });
+    expect(_sel.lastContains).toEqual({ col: 'participant_ids', val: [follower, followee] });
+    expect(_sel.lastLimit).toBe(20);
     expect(rpcSpy).toHaveBeenCalledWith('accept_conversation', { p_conv_id: 'c1' });
   });
 
-  it('builds the same key regardless of argument order or case', async () => {
+  it('selects only id-keyed columns, never the email columns', async () => {
     _sel.nextData = [];
-    await acceptPendingRequestsFrom('THEM@example.com', 'Me@Example.com');
-    expect(_sel.lastEq).toEqual({
-      col: 'participant_key',
-      val: 'me@example.com|them@example.com',
-    });
+    await acceptPendingRequestsFrom(follower, followee);
+    const cols = String(_sel.lastColumns);
+    for (const c of ['id', 'participant_ids', 'accepted_ids', 'is_group']) {
+      expect(cols).toContain(c);
+    }
+    expect(cols).not.toMatch(/email/);
+  });
+
+  it('skips group threads and picks the 1:1 conversation', async () => {
+    _sel.nextData = [
+      { id: 'g1', participant_ids: [follower, followee, 'id-c'], accepted_ids: [followee], is_group: true },
+      { id: 'c2', participant_ids: [follower, followee], accepted_ids: [followee], is_group: false },
+    ];
+    rpcSpy.mockResolvedValueOnce({ error: null });
+    expect(await acceptPendingRequestsFrom(follower, followee)).toBe(true);
+    expect(rpcSpy).toHaveBeenCalledWith('accept_conversation', { p_conv_id: 'c2' });
+  });
+
+  it('ignores a non-group row that is not exactly a pair', async () => {
+    _sel.nextData = [
+      { id: 'c3', participant_ids: [follower, followee, 'id-c'], accepted_ids: [], is_group: false },
+    ];
+    expect(await acceptPendingRequestsFrom(follower, followee)).toBe(false);
+    expect(rpcSpy).not.toHaveBeenCalled();
   });
 
   it('is a no-op when the follower already accepted the thread', async () => {
-    _sel.nextData = [{ id: 'c1', accepted_emails: [followee, 'ME@example.com'] }];
+    _sel.nextData = [{
+      id: 'c1', participant_ids: [follower, followee], accepted_ids: [followee, follower], is_group: false,
+    }];
     const flipped = await acceptPendingRequestsFrom(follower, followee);
     expect(flipped).toBe(false);
     expect(rpcSpy).not.toHaveBeenCalled();
@@ -334,7 +357,7 @@ describe('acceptPendingRequestsFrom', () => {
     expect(rpcSpy).not.toHaveBeenCalled();
   });
 
-  it('is a no-op for a self-follow or missing emails', async () => {
+  it('is a no-op for a self-follow or missing ids', async () => {
     expect(await acceptPendingRequestsFrom(follower, follower)).toBe(false);
     expect(await acceptPendingRequestsFrom(null, followee)).toBe(false);
     expect(await acceptPendingRequestsFrom(follower, null)).toBe(false);
@@ -343,9 +366,9 @@ describe('acceptPendingRequestsFrom', () => {
 });
 
 describe('isPendingRequestSendBlocked', () => {
-  const me = 'me@example.com';
-  const them = 'them@example.com';
-  const pending = { participant_emails: [me, them], accepted_emails: [me] };
+  const me = 'id-me';
+  const them = 'id-them';
+  const pending = { participant_ids: [me, them], accepted_ids: [me] };
 
   it('allows the first message into a pending request', () => {
     expect(isPendingRequestSendBlocked(pending, me, 0)).toBe(false);
@@ -357,37 +380,37 @@ describe('isPendingRequestSendBlocked', () => {
   });
 
   it('never blocks once the recipient has accepted', () => {
-    const accepted = { participant_emails: [me, them], accepted_emails: [me, them] };
+    const accepted = { participant_ids: [me, them], accepted_ids: [me, them] };
     expect(isPendingRequestSendBlocked(accepted, me, 25)).toBe(false);
   });
 
   it('never blocks the RECIPIENT of a pending request from replying', () => {
-    // `them` sent the request, so only `them` is in accepted_emails.
+    // `them` sent the request, so only `them` is in accepted_ids.
     // From `me`'s side every other participant has accepted → not gated.
-    const inbound = { participant_emails: [me, them], accepted_emails: [them] };
+    const inbound = { participant_ids: [me, them], accepted_ids: [them] };
     expect(isPendingRequestSendBlocked(inbound, me, 3)).toBe(false);
   });
 
   it('exempts group conversations', () => {
     const group = {
       is_group: true,
-      participant_emails: [me, them, 'c@x.com'],
-      accepted_emails: [me],
+      participant_ids: [me, them, 'id-c'],
+      accepted_ids: [me],
     };
     expect(isPendingRequestSendBlocked(group, me, 9)).toBe(false);
   });
 
   it('exempts conversations without exactly two participants', () => {
-    const odd = { participant_emails: [me], accepted_emails: [] };
+    const odd = { participant_ids: [me], accepted_ids: [] };
     expect(isPendingRequestSendBlocked(odd, me, 9)).toBe(false);
   });
 
-  it('is case-insensitive on participant + accepted emails', () => {
-    const mixed = {
-      participant_emails: ['ME@Example.com', 'Them@Example.com'],
-      accepted_emails: ['Me@example.COM'],
+  it('does not read the email columns', () => {
+    const emailsOnly = {
+      participant_emails: ['me@x.com', 'them@x.com'],
+      accepted_emails: ['me@x.com'],
     };
-    expect(isPendingRequestSendBlocked(mixed, me, 1)).toBe(true);
+    expect(isPendingRequestSendBlocked(emailsOnly, me, 1)).toBe(false);
   });
 
   it('returns false for missing inputs', () => {

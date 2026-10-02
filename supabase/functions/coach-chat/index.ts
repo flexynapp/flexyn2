@@ -52,7 +52,7 @@ const MODEL = 'claude-sonnet-5-5';
 const INTRO_MODEL = 'claude-haiku-4-5';
 const INTRO_MAX_TOKENS = 300;
 
-// A coaching reply is capped at 180 words by the prompt. 1000 leaves
+// A coaching reply is capped at 60 words by the prompt. 1000 leaves
 // headroom for languages that tokenize far less efficiently than English
 // (Japanese, Korean, Arabic) so a non-English user doesn't get sliced
 // mid-sentence at the limit where an English user wouldn't.
@@ -85,14 +85,48 @@ const CORS = {
 // duplication per turn, which is 5% of the cost of running this thing. The
 // system prompt is the one place that explains the contract; this just names
 // the fields.
+// The reply is a small card, not prose (2026-10-02). Users scan a Coach
+// answer on a phone, and a headline plus four bullets still read as a wall of
+// text. So the model now returns the PARTS of an answer: a one-line verdict,
+// up to four short points, and one next step. Each point may name a `visual`,
+// and the app draws that visual from the user's own logged data, never from a
+// number the model wrote. A chart is the most believable thing on the screen,
+// so it must be the one thing the model cannot invent.
+//
+// `reply` is still returned as text, composed here from the parts in the old
+// house format. Older installed bundles render it as before, it is what the
+// next turn sends back as history, and it is what the rules fallback looks
+// like, so the conversation stays one format underneath.
+const VISUALS = [
+  'none', 'week_sessions', 'readiness', 'sleep', 'soreness', 'calories', 'protein',
+  'muscle_sets', 'top_lift', 'body_trend', 'cardio', 'streak',
+] as const;
+const MAX_POINTS = 4;
+
 const REPLY_SCHEMA = {
   type: 'object',
   properties: {
-    kind:  { type: 'string', enum: ['answer', 'plan'], description: "'plan' only for a build-me-a-workout request." },
-    reply: { type: 'string', description: 'The coach reply. For plan, a 1-2 sentence intro only.' },
-    goal:  { type: 'string', description: 'For plan, the training goal in one line. Empty otherwise.' },
+    kind:     { type: 'string', enum: ['answer', 'plan'], description: "'plan' only for a build-me-a-workout request." },
+    tone:     { type: 'string', enum: ['go', 'hold', 'wait', 'care', 'info'], description: 'What the verdict tells the user to do.' },
+    headline: { type: 'string', description: 'The answer in one line. For plan, a 1-2 sentence intro only.' },
+    points: {
+      type: 'array',
+      description: 'Up to four short points. Empty for a one-line answer and for plan.',
+      items: {
+        type: 'object',
+        properties: {
+          text:   { type: 'string' },
+          visual: { type: 'string', enum: [...VISUALS] },
+          ref:    { type: 'string', description: 'Muscle group for muscle_sets, lift name for top_lift. Empty otherwise.' },
+        },
+        required: ['text', 'visual', 'ref'],
+        additionalProperties: false,
+      },
+    },
+    next:     { type: 'string', description: 'One short next step, or empty.' },
+    goal:     { type: 'string', description: 'For plan, the training goal in one line. Empty otherwise.' },
   },
-  required: ['kind', 'reply', 'goal'],
+  required: ['kind', 'tone', 'headline', 'points', 'next', 'goal'],
   additionalProperties: false,
 };
 
@@ -231,53 +265,65 @@ function buildSystemPrompt(languageName: string, flags: PromptFlags): string {
     'Do not diagnose. Do not recommend supplements beyond the well-evidenced basics, and never dose medication.',
     '',
     '# Shape',
-    'The app shows your reply as plain text with exactly one construct: **bold**. Users scan these on a',
-    'phone rather than read them, so a multi-point answer takes the house format:',
+    'The app draws your reply as a small card, not as a message. You fill in its parts:',
     '',
-    '  **One bold headline that states the answer, ten words at most.**',
-    '  (blank line)',
-    '  • One point per bullet, as a full clause',
-    '  • Another point',
-    '  (blank line)',
-    '  One closing line on what to do next.',
+    '  headline: the answer itself, eight words at most. Never a preamble, never what you cannot see.',
+    '  tone: what the headline tells them to do. go = yes, do it or add it. hold = keep things as they are.',
+    '    wait = not yet, something has to happen first. care = back off, rest or see someone. info = a plain fact.',
+    '  points: zero to four points, each ONE short clause of ten words at most. Start each with a capital.',
+    '    Each point is something different; never restate the headline.',
+    '  next: what to do next in eight words at most, or empty.',
     '',
-    'Use the "•" character for bullets and start every bullet with a capital letter. A "-" or "*" shows as',
-    'a literal dash or asterisk, a "#" heading shows as a literal hash, and *single asterisks* show as',
-    'asterisks, so none of them may appear. Bold is only for the headline, never inside a sentence.',
+    'The user reads PICTURES first and text only where it is unavoidable. Prefer a point with a visual over',
+    'a point of prose; a point with no visual must earn its place by carrying a rule or number the user needs.',
+    'Drop a point rather than pad it.',
+    '',
+    'Each point may carry a visual. The app draws it from the user\'s own logged data, so you choose WHICH',
+    'picture, never its numbers. Pick one only when the point is about exactly that number and the matching',
+    'line exists in <user_data>; otherwise use none. The picture shows the number, so the text beside it',
+    'says in a few words what the number MEANS for this question and does not repeat it. A point with no',
+    'visual keeps its number.',
+    '  week_sessions: sessions in the last 7 days against their weekly target (TRAINING, PROFILE trains)',
+    '  readiness: the readiness score (RECOVERY readiness)',
+    '  sleep: average sleep hours (RECOVERY sleep)',
+    '  soreness: last soreness score (RECOVERY soreness)',
+    '  calories: average kcal on a logged day and how many of 7 days were logged (FUEL)',
+    '  protein: average protein on the days that recorded it (FUEL)',
+    '  muscle_sets: sets for one muscle in 14 days; put the muscle exactly as written in SETS BY MUSCLE in ref',
+    '  top_lift: one lift\'s best recent set; put the lift name exactly as written in TOP LIFTS in ref',
+    '  body_trend: bodyweight and its change (BODY)',
+    '  cardio: cardio sessions in 14 days (CARDIO)',
+    '  streak: the current workout streak (STREAKS)',
+    'At most one visual per kind in a reply, and none for a general rule or advice.',
     '',
     'Worked example. Its numbers belong to this made-up lifter, never to the user: take every number you',
-    'write from <user_data> or from the question. "My bench has been stuck at 205 for a month" answers as:',
+    'write from <user_data> or from the question. "My bench has been stuck at 205 for a month" with',
+    'TOP LIFTS Bench Press 205lb x5 and SETS BY MUSCLE chest 8 answers as:',
     '',
-    '  **Stay at 205 for one more week, then add reps instead of weight.**',
+    '  headline: Hold 205 one more week.',
+    '  tone: hold',
+    '  points:',
+    '    The weight is right   (visual top_lift, ref Bench Press)',
+    '    Too little chest work to move it   (visual muscle_sets, ref chest)',
+    '    Reach 205 x 7 before going to 210   (visual none)',
+    '  next: Add two chest sets on push day.',
     '',
-    '  • You have hit 205 x 5 three times, so the weight is fine and the next jump is what stalls',
-    '  • Chest got 8 sets in the last 14 days, which is on the low side for a lift you want to move',
-    '  • Aim for 205 x 7 before going to 210, since each extra rep is progress the bar can not show yet',
-    '  • Add two sets of dumbbell press on your second push day to bring chest volume up',
+    'Short, but never a bare label: "Chest: 8 sets" says nothing the picture does not; "Too little chest work',
+    'to move it" says why it matters. Two points with pictures beat four lines of prose.',
     '',
-    '  Log the next three sessions and the pattern will tell you when to add weight.',
+    'Match the shape to the answer. A one-line question gets only a headline: "Two." is the whole correct',
+    'answer to "what is 1 + 1", with no points and no next. A single fact is a headline plus at most one point.',
+    "For kind='plan' put one or two plain sentences in headline and leave points and next empty. The card",
+    'underneath is the structure.',
     '',
-    'That is the default whenever the answer has two or more separate points. Anything you would join with',
-    '"and also" is a second bullet, not a second sentence.',
-    '',
-    'THE STRUCTURE IS FOR SCANNING, NOT FOR CUTTING. A bullet is a full, informative clause, not a label:',
-    'it keeps the number, the reason behind it, and the caveat. "Chest: 8 sets" is a worse bullet than the',
-    'one above, because the user cannot act on it without knowing why. Three to five rich bullets beat',
-    'eight thin ones.',
-    '',
-    'Match the shape to the answer. A one-line question gets a one-line reply: "Two." is the whole correct',
-    'answer to "what is 1 + 1". A single-point answer is one to three sentences with no headline and no',
-    'bullets. Use a short paragraph only when a point needs connected reasoning a bullet cannot carry.',
-    "For kind='plan' write one or two plain sentences, no headline and no bullets. The card underneath is",
-    'the structure, and a bulleted intro on top of it reads as the same thing said twice.',
-    '',
-    'When <user_data> lacks what the question needs, answer with the general rule FIRST, then say in one',
-    'short closing line what to log so the next answer can be specific. Never open with what you cannot see.',
+    'When <user_data> lacks what the question needs, give the general rule as the headline and first points,',
+    'then say in next what to log so the next answer can be specific. Never open with what you cannot see.',
     'TOP LIFTS lists each lift\'s best recent set, not a history, so never describe a trend from it.',
+    'Plain text only in every field: no **, no *, no #, no bullets and no line breaks. The app does the styling.',
     '',
     '# Style',
-    'Aim for 120 words and never go past 180. Lead with the answer, not a preamble. No "Great question!".',
-    'At most one emoji. Do not close every message with a question.',
+    'Aim for 35 words across all fields and never go past 60. No "Great question!". No emoji.',
+    'Do not end on a question.',
     'Plain words a beginner understands. If you use a gym term like RPE, deload or e1RM, say what it means',
     'in the same sentence.',
     'NO DASHES. Never join clauses with an em dash (—), an en dash (–) or a spaced hyphen. Use a comma, a',
@@ -674,19 +720,16 @@ Deno.serve(async (req: Request) => {
   }
 
   const text = payload?.content?.find((c) => c.type === 'text')?.text || '';
-  let parsed: { kind?: string; reply?: string; goal?: string } | null = null;
+  let parsed: Record<string, any> | null = null;
   try {
     parsed = JSON.parse(text);
   } catch {
     return await fail({ ok: false, error: 'PARSE_ERROR' }, 502);
   }
 
-  let reply = String(parsed?.reply || '').trim();
-  // Seen once in 55 Sonnet replies in testing: after the headline, the model
-  // escaped its newlines and bullets a second time inside the JSON string, so
-  // the rest arrived as literal "\n" and "\u2022" text. Coaching prose never
-  // contains a backslash escape on purpose, so undo just those two.
-  reply = reply.replace(/\\n/g, '\n').replace(/\\u2022/g, '\u2022');
+  // The intro schema has only `reply`; the chat schema has the card parts.
+  const card = isIntro ? null : toCard(parsed);
+  const reply = isIntro ? tidy(String(parsed?.reply || '')) : composeReply(card!);
   if (!reply) {
     return await fail({ ok: false, error: 'EMPTY_REPLY' }, 502);
   }
@@ -713,12 +756,76 @@ Deno.serve(async (req: Request) => {
   // parse an empty string and produce a default session that has nothing to do
   // with what was asked. Degrade to a plain answer instead.
   const goal = String(parsed?.goal || '').trim();
-  if (kind === 'plan' && !goal) {
-    return json({ ok: true, kind: 'answer', reply, goal: '', usage });
+  if (kind === 'plan' && goal) {
+    // The plan card under the intro is the structure, so no reply card.
+    return json({ ok: true, kind, reply, goal, usage });
   }
 
-  return json({ ok: true, kind, reply, goal, usage });
+  // A one-line answer ("Two.") has nothing to draw, so it stays a plain bubble.
+  return json({ ok: true, kind: 'answer', reply, goal: '', card: card!.points.length ? card : null, usage });
 });
+
+// Seen once in 55 Sonnet replies in testing: the model escaped its newlines and
+// bullets a second time inside the JSON string, so they arrived as literal "\n"
+// and "\u2022" text. Coaching prose never contains a backslash escape on
+// purpose, so undo just those two. A card field is one line, so any newline
+// left is folded to a space, and markdown markers the prompt bans are dropped.
+function tidy(v: unknown): string {
+  return String(v ?? '')
+    .replace(/\\n/g, '\n').replace(/\\u2022/g, '\u2022')
+    .trim();
+}
+function oneLine(v: unknown, max = 220): string {
+  return tidy(v)
+    .replace(/\*\*|^#+\s*|^\s*[•*-]\s+/g, '')
+    .replace(/\s*\n+\s*/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
+interface CoachCard {
+  tone: 'go' | 'hold' | 'wait' | 'care' | 'info';
+  headline: string;
+  points: Array<{ text: string; visual: string; ref: string }>;
+  next: string;
+}
+
+// Normalise the model's parts. An unknown visual becomes 'none' rather than
+// failing the turn, and only the first point of each visual kind keeps it, so
+// a card never draws the same picture twice.
+function toCard(p: Record<string, any> | null): CoachCard {
+  const tones = ['go', 'hold', 'wait', 'care', 'info'];
+  const seen = new Set<string>();
+  const points = (Array.isArray(p?.points) ? p!.points : [])
+    .map((pt: any) => {
+      const text = oneLine(pt?.text);
+      let visual = (VISUALS as readonly string[]).includes(pt?.visual) ? String(pt.visual) : 'none';
+      if (visual !== 'none' && seen.has(visual)) visual = 'none';
+      if (visual !== 'none') seen.add(visual);
+      return { text, visual, ref: visual === 'muscle_sets' || visual === 'top_lift' ? oneLine(pt?.ref, 60) : '' };
+    })
+    .filter((pt: { text: string }) => pt.text)
+    .slice(0, MAX_POINTS);
+  return {
+    tone: tones.includes(p?.tone) ? p!.tone : 'info',
+    headline: oneLine(p?.headline, 400),
+    points,
+    next: oneLine(p?.next),
+  };
+}
+
+// The text form of a card, in the house format the Coach has always used:
+// a bold headline, bullets, one closing line. A card with no points is a
+// one-line answer and stays unbolded, as it always did.
+function composeReply(c: CoachCard): string {
+  if (!c.headline && !c.points.length) return c.next;
+  if (!c.points.length) return [c.headline, c.next].filter(Boolean).join(' ');
+  return [
+    c.headline ? `**${c.headline}**` : '',
+    c.points.map((p) => `• ${p.text}`).join('\n'),
+    c.next,
+  ].filter(Boolean).join('\n\n');
+}
 
 function json(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj), {

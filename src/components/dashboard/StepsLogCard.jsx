@@ -200,7 +200,7 @@ export default function StepsLogCard() {
               onBlur={() => { if (draft) save(draft); }}
               placeholder={logged != null ? fmt(logged) : tFallback('steps.placeholder', 'e.g. 8000')}
               aria-label={tFallback('steps.aria', 'Enter your step count')}
-              className="flex-1 min-w-0 h-8 rounded-sm border border-border bg-secondary/50 px-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+              className="flex-1 min-w-0 h-8 rounded-sm border border-border bg-secondary/50 px-2 text-sm tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
             />
             <button
               type="button"

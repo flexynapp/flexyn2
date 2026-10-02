@@ -288,7 +288,7 @@ describe('CoachPlanCard — scheduling a session', () => {
     renderCard();
     openScheduler();
     fireEvent.click(screen.getByRole('button', { name: /remind me/i }));
-    expect(await screen.findByText(/too many scheduled workouts/i)).toBeTruthy();
+    expect(await screen.findByText(/100 reminders waiting/i)).toBeTruthy();
     // Still offering the action, because retrying is the recovery.
     expect(screen.getByRole('button', { name: /schedule it/i })).toBeTruthy();
   });

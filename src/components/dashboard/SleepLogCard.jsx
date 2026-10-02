@@ -31,6 +31,7 @@ const HOURS = [
   { label: '9+', value: 9.5 },
 ];
 const QUALITY_LABELS = ['Poor', 'Fair', 'OK', 'Good', 'Great'];
+const HOURS_ARIA = { '<5': 'Under 5 hours', '9+': '9 hours or more' };
 
 // Returns the label WITHOUT a unit — every caller appends its own. It used
 // to return `${h}h` on the fallback branch while the summary appended "h"
@@ -171,7 +172,7 @@ export default function SleepLogCard() {
                 // in English, but the moment a translator fills it in, all
                 // five buttons announce identically to a screen reader —
                 // the value is in the fallback string, not in the key.
-                aria-label={tFallback(`sleep.hours.${o.label}`, `${o.label} hours`)}
+                aria-label={tFallback(`sleep.hours.${o.label}`, HOURS_ARIA[o.label] || `${o.label} hours`)}
                 className={[
                   'flex-1 min-w-[44px] min-h-[36px] rounded-lg text-xs font-bold tabular-nums transition-transform flex items-center justify-center',
                   active ? 'bg-primary/15 text-primary scale-105' : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground hover:scale-105',

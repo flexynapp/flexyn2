@@ -415,13 +415,21 @@ export async function notifyCrewRollCall(crewId, question, senderName) {
 
 // ── Regimen Equip ─────────────────────────────────────────────────────────────
 
+// A regimen shared in crew chat or assigned to the crew is usually its
+// author's PRIVATE regimen, which the regimens table will not show to
+// anyone else. get_crew_regimen hands it to a member of a crew where the
+// author shared or assigned it (migration 20261002080000), without the
+// author's email.
+export async function getCrewRegimen(regimenId) {
+  if (!regimenId) return null;
+  const { data, error } = await supabase.rpc('get_crew_regimen', { p_regimen_id: regimenId });
+  if (error) return null;
+  return data ?? null;
+}
+
 export async function equipRegimen(regimenId, user) {
-  const { data: source, error } = await supabase
-    .from('regimens')
-    .select('id, user_id, name, description, exercises, original_author_username')
-    .eq('id', regimenId)
-    .single();
-  if (error || !source) throw new Error('Regimen not found');
+  const source = await getCrewRegimen(regimenId);
+  if (!source) throw new Error('Regimen not found');
 
   // Credit the author by username. This used to fall back to the start of
   // the author's email (created_by), which then showed as "Copied from
@@ -827,7 +835,14 @@ export async function getCrewAssignedRegimens(crewId) {
     .select('id, crew_id, regimen_id, assigned_by, note, assigned_at, regimens(id, name, exercises, description)')
     .eq('crew_id', crewId)
     .order('assigned_at', { ascending: false });
-  return error ? [] : (data ?? []);
+  if (error) return [];
+  // The embed comes back null for a private regimen the caller does not
+  // own, which is every member but the author. Fill those in.
+  return Promise.all((data ?? []).map(async (row) => {
+    if (row.regimens) return row;
+    const regimen = await getCrewRegimen(row.regimen_id);
+    return regimen ? { ...row, regimens: regimen } : row;
+  }));
 }
 
 export async function assignRegimenToCrew(crewId, regimenId, assignedBy, note) {

@@ -8,12 +8,12 @@
 import { describe, it, expect } from 'vitest';
 import { deriveDeliveryStatus } from '../dmDeliveryStatus';
 
-const me = 'me@example.com';
-const them = 'them@example.com';
+const me = 'user-me';
+const them = 'user-them';
 
 const mine = (extra = {}) => ({
   id: 'm1',
-  sender_email: me,
+  user_id: me,
   body: 'hi',
   ...extra,
 });
@@ -44,16 +44,20 @@ describe('deriveDeliveryStatus', () => {
   // You never show read state for a message you RECEIVED.
   it('returns null when the last message is theirs', () => {
     expect(deriveDeliveryStatus(
-      { id: 'm1', sender_email: them, read_at: '2026-07-26T10:00:00Z' }, me
+      { id: 'm1', user_id: them, read_at: '2026-07-26T10:00:00Z' }, me
     )).toBeNull();
   });
 
-  it('is case-insensitive on the sender email', () => {
-    expect(deriveDeliveryStatus({ id: 'm1', sender_email: 'ME@Example.COM' }, me)).toBe('sent');
+  // "Mine" is decided by user_id alone; the email columns are not
+  // readable by clients any more, so a stray sender_email / created_by
+  // must not make a message count as the viewer's.
+  it('ignores sender_email and created_by — only user_id decides', () => {
+    expect(deriveDeliveryStatus({ id: 'm1', sender_email: me, created_by: me }, me)).toBeNull();
+    expect(deriveDeliveryStatus({ id: 'm1', user_id: them, sender_email: me }, me)).toBeNull();
   });
 
-  it('falls back to created_by when sender_email is absent', () => {
-    expect(deriveDeliveryStatus({ id: 'm1', created_by: me }, me)).toBe('sent');
+  it('compares ids as strings', () => {
+    expect(deriveDeliveryStatus({ id: 'm1', user_id: 42 }, '42')).toBe('sent');
   });
 
   // An optimistic row has not been confirmed by the server, so even
@@ -111,6 +115,6 @@ describe('deriveDeliveryStatus', () => {
   it('returns null for missing message or viewer', () => {
     expect(deriveDeliveryStatus(null, me)).toBeNull();
     expect(deriveDeliveryStatus(mine(), null)).toBeNull();
-    expect(deriveDeliveryStatus({ id: 'm1' }, me)).toBeNull(); // no sender at all
+    expect(deriveDeliveryStatus({ id: 'm1' }, me)).toBeNull(); // no user_id at all
   });
 });

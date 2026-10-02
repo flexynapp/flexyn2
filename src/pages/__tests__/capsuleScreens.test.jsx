@@ -85,12 +85,49 @@ describe('Capsules', () => {
     ]);
   });
 
+  it('a tapped capsule takes the middle spot and its tier', async () => {
+    listUnopenedCapsules.mockResolvedValue([cap('e1', 'elite')]);
+    wrap(<Capsules />);
+    await screen.findByRole('button', { name: 'Open elite' });
+    const premium = screen.getByRole('button', { name: 'Premium capsule' });
+    expect(premium).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(premium);
+    expect(premium).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Elite capsule' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('shows the published odds for the selected tier', async () => {
     listUnopenedCapsules.mockResolvedValue([]);
     wrap(<Capsules />);
     await screen.findByText('Drop rates');
     // Standard's epic rate, from CAPSULE_ODDS, not a number typed into the page.
     expect(screen.getAllByText(/1\.8%/).length).toBeGreaterThan(0);
+  });
+
+  it('lists the odds rarest first, draws the pity line under epic, and fans the set', async () => {
+    const set = stickerSet();
+    listUnopenedCapsules.mockResolvedValue([]);
+    listItems.mockResolvedValue([{ item_id: set[0].id }, { item_id: set[1].id }]);
+    wrap(<Capsules />);
+    const ladder = await screen.findByTestId('odds-ladder');
+    const order = [...ladder.querySelectorAll('[data-rarity]')].map(r => r.getAttribute('data-rarity'));
+    expect(order).toEqual(['legendary', 'epic', 'rare', 'uncommon', 'common']);
+    // The pity numbers are the server's (4 of 20), and the line sits under epic.
+    const line = await screen.findByTestId('pity-line');
+    expect(line).toHaveTextContent('Sure within 16 opens');
+    expect(line.previousElementSibling.getAttribute('data-rarity')).toBe('epic');
+    expect(await screen.findByText(`2 of ${set.length} in your set`)).toBeInTheDocument();
+    const fan = screen.getByTestId('set-fan');
+    expect(fan.querySelectorAll('[data-owned="true"]')).toHaveLength(2);
+    expect(fan.querySelectorAll('[data-owned="false"]').length).toBeGreaterThan(0);
+  });
+
+  it('draws no pity line when the server reports none', async () => {
+    listUnopenedCapsules.mockResolvedValue([]);
+    getPity.mockResolvedValue(null);
+    wrap(<Capsules />);
+    await screen.findByTestId('odds-ladder');
+    expect(screen.queryByTestId('pity-line')).toBeNull();
   });
 
   it('asks before buying, and buys only through the shop', async () => {

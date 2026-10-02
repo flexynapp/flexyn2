@@ -29,7 +29,7 @@ import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
-import { setNumber, formatSetNo, setTiers } from '@/lib/capsuleShelf';
+import { setNumber, formatSetNo, setFan } from '@/lib/capsuleShelf';
 import { sellPriceFor } from '@/lib/sellPrice';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -37,7 +37,8 @@ import { useNumberFormatter } from '@/lib/intl';
 import Sticker from '@/components/capsules/Sticker';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import PityMeter from '@/components/capsules/PityMeter';
-import { SetBar, NotchedCorner } from '@/components/capsules/parts';
+import { NotchedCorner } from '@/components/capsules/parts';
+import SetFan from '@/components/capsules/SetFan';
 import { tierName, tierFinish, rarityName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { OpenerStage, useOpenerFx, dramaFor, chargeMs } from '@/components/capsules/openFx';
@@ -713,7 +714,8 @@ function describeResult(item, results, inv) {
   return {
     copies: Math.max(copies, 1), isNew, set,
     owned: stickers?.owned ?? null, total: stickers?.total ?? null,
-    tiers: ownership ? setTiers(ownership.owned) : null,
+    // The fan only counts a sticker that is in the set; others get no lead.
+    fan: inv ? setFan([...pendingAll, ...inv], { teasers: 0, lead: set ? item.id : null }) : [],
   };
 }
 
@@ -1323,15 +1325,14 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
       <div className="reveal-rise mx-5 mt-5 py-3 border-y flex flex-col gap-2.5" style={beat(2)}>
         {info.set && info.owned != null && (
           <>
-            <div className="flex justify-between items-baseline text-label">
-              <span>{tFallback('capsules.set.title', 'The sticker set')}</span>
-              <span className="tabular-nums text-muted-foreground">
+            <div className="flex items-center gap-3 h-11 text-label">
+              <SetFan items={info.fan} land={info.isNew ? item.id : null} landDelay={firstHit + drama.hold + 400} />
+              <span className="flex-1 min-w-0 tabular-nums text-muted-foreground">
                 {info.isNew
-                  ? tFallback('capsules.set.newOf', 'New. {owned} of {total}', { owned: info.owned, total: info.total })
-                  : tFallback('capsules.set.of', '{owned} of {total}', { owned: info.owned, total: info.total })}
+                  ? tFallback('capsules.set.newInYourSet', 'New. {owned} of {total} in your set', { owned: info.owned, total: info.total })
+                  : tFallback('capsules.set.inYourSet', '{owned} of {total} in your set', { owned: info.owned, total: info.total })}
               </span>
             </div>
-            <SetBar tiers={info.tiers} grow={info.isNew ? item.rarity : null} growDelay={firstHit + drama.hold + 400} />
           </>
         )}
         <div className="flex justify-between text-label text-muted-foreground">

@@ -145,7 +145,7 @@ function DiscoveryCard({
           </div>
           <div className="flex-1 min-w-0">
             {kicker && (
-              <div className="font-mono text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1">
+              <div className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1">
                 {kicker}
               </div>
             )}

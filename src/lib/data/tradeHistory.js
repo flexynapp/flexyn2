@@ -54,7 +54,7 @@ function parseResponse(body) {
  * Pair offers with responses, returning an array of:
  *   {
  *     offerId, sentAt, respondedAt | null,
- *     fromEmail, toEmail,
+ *     fromEmail, toEmail,   (legacy payloads only)
  *     myItem, theirItem,
  *     status: 'pending' | 'accepted' | 'declined',
  *     iAmSender: boolean,
@@ -63,8 +63,8 @@ function parseResponse(body) {
  * The pairing logic is exported separately so it can be unit-tested
  * without going near supabase.
  */
-export function pairOffersWithResponses(messages, myEmail) {
-  const myLc = String(myEmail || '').toLowerCase();
+export function pairOffersWithResponses(messages, myId) {
+  const me = String(myId || '');
   const offers = new Map();
   const responses = new Map();
 
@@ -75,6 +75,7 @@ export function pairOffersWithResponses(messages, myEmail) {
       offers.set(offer.offerId, {
         ...offer,
         sentAt: m.created_at,
+        senderId: m.user_id,
       });
       continue;
     }
@@ -104,7 +105,9 @@ export function pairOffersWithResponses(messages, myEmail) {
       myItem:      payload.myItem,
       theirItem:   payload.theirItem,
       status:      r?.status || 'pending',
-      iAmSender:   String(payload.fromEmail || '').toLowerCase() === myLc,
+      // The offer message's sender. Payloads carry fromId since 253; the
+      // message row's user_id covers the legacy ones too.
+      iAmSender:   !!me && String(payload.senderId || payload.fromId || '') === me,
     });
   }
   return out.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
@@ -114,11 +117,11 @@ export function pairOffersWithResponses(messages, myEmail) {
  * Fetch the user's trade history. Scans recent hub_messages where
  * the user is sender OR recipient and pairs offers with responses.
  *
- * @param {string} myEmail
+ * @param {string} myId
  * @param {number} [limit=500]   max messages to scan
  */
-export async function listMyTrades(myEmail, limit = 500) {
-  if (!myEmail) return [];
+export async function listMyTrades(myId, limit = 500) {
+  if (!myId) return [];
   // We need messages from any conversation the viewer participates
   // in. The simplest correct read uses the existing RLS-protected
   // hub_messages table: RLS already restricts to messages the viewer
@@ -128,7 +131,7 @@ export async function listMyTrades(myEmail, limit = 500) {
   // whichever is present — so a strip here degrades to the other rather
   // than to nothing.
   const { data, error } = await safeSelect({
-    columns: ['id', 'conversation_id', 'sender_email', 'body', 'content', 'created_at'],
+    columns: ['id', 'conversation_id', 'user_id', 'body', 'content', 'created_at'],
     build: (cols) => supabase
       .from('hub_messages')
       .select(cols)
@@ -136,5 +139,5 @@ export async function listMyTrades(myEmail, limit = 500) {
       .limit(limit),
   });
   if (error) return [];
-  return pairOffersWithResponses(data || [], myEmail);
+  return pairOffersWithResponses(data || [], myId);
 }

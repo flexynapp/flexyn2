@@ -198,7 +198,9 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   `gym_feed_posts` and `gym_feed_comments` (`author_email`); and
   (`20260930235900`) `hub_follows`, `hub_posts`, `hub_comments`,
   `hub_comment_likes`, `stories`, `status_notes`, `food_items` and
-  `workout_templates`. `ownedRows(table, { columns })` is how
+  `workout_templates`; and (`20261002060000`) direct messages,
+  `hub_conversations` and `hub_messages`, which the app reads by
+  `participant_ids`, `accepted_ids` and `user_id`. `ownedRows(table, { columns })` is how
   a one-person table like `regimens` names its columns.
   On these, `select('*')` (and `.insert().select()` with no list) fails
   with 42501, so name the columns; an upsert may not set the email column
@@ -1289,10 +1291,19 @@ govern hierarchy, which tokens can't encode.
   the state hues would render a healthy protein figure as `destructive`.
 - **Type has ONE source: `--font-display`, `--font-heading`, `--font-body` and
   `--font-mono` in `src/index.css`** (Sofia Sans, with Sofia Sans Extra
-  Condensed for `.font-hero` and `.stamp` only; Kegan's pick 2026-09-28,
-  replacing Archivo and Figtree). Reach them through Tailwind
-  (`font-heading`, `font-body`, `font-mono`, or nothing, because `sans` points at
-  the body face), `.font-display`, or `var(--font-*)` in an inline style.
+  Condensed for `.font-hero` only; Kegan's pick 2026-09-28, replacing
+  Archivo and Figtree). Reach them through Tailwind (`font-heading`,
+  `font-body`, or nothing, because `sans` points at the body face),
+  `.font-display`, or `var(--font-*)` in an inline style. **Every in-app
+  screen is one face, Sofia Sans**, labels included (Kegan, 2026-10-02,
+  calling the market listing "vibe coded"): `.stamp` used to set the
+  capsule and market labels in the condensed face, and a dozen screens set
+  small labels and numbers in monospace, so those screens read as built
+  from a different kit. **`font-mono` is for strings read character by
+  character** (join codes, 2FA secrets, barcodes, URLs, a typed DELETE)
+  plus the two arcade games; the `monoFace` rule in `scripts/ui-ratchet.mjs`
+  lists those files and fails the suite on any other. A number that should
+  line up takes `tabular-nums`, not a monospace face.
   **In-app titles are sentence case** (`.font-display`, Kegan 2026-09-29):
   condensed capitals on every page read as generated. `.font-hero` keeps
   them for onboarding and sign in only, and `displayType.test.js` fails if

@@ -20,8 +20,8 @@ export function useUnreadDMCount() {
   const { user } = useAuth();
   const { data = 0 } = useQuery({
     queryKey: ['hubUnreadCount', user?.email],
-    queryFn: () => hubMessages.unreadCountFor(user.email),
-    enabled: !!user?.email,
+    queryFn: () => hubMessages.unreadCountFor(user.id),
+    enabled: !!user?.email && !!user?.id,
     refetchInterval: 15_000,
     staleTime: 0,
   });

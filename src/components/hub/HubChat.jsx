@@ -86,7 +86,7 @@ function dedupeMessages(list) {
     const isTemp = String(id || '').startsWith('temp-');
     if (!isTemp && id) {
       const text = (m.body || m.content || '').trim();
-      const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
+      const key = `${m.user_id || ''}|${text}`;
       realKeyCounts.set(key, (realKeyCounts.get(key) || 0) + 1);
     }
   }
@@ -99,7 +99,7 @@ function dedupeMessages(list) {
     if (id && seenIds.has(id)) continue;
     if (isTemp) {
       const text = (m.body || m.content || '').trim();
-      const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
+      const key = `${m.user_id || ''}|${text}`;
       const remaining = realKeyCounts.get(key) || 0;
       if (remaining > 0) {
         // This temp's real has landed — drop the temp, decrement.
@@ -218,29 +218,25 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // ── Read receipt fade ─────────────────────────────────────────────────────
   const [readReceiptFaded, setReadReceiptFaded] = useState(false);
 
-  const myEmailLc = (user?.email || '').toLowerCase();
+  const myId = user?.id || null;
   // Is this a group conversation? (3+ participants OR the explicit
   // is_group flag from mig 116.) Group threads show all-vs-one rendering:
   // sender name above each non-own message, participant-list header.
   const isGroup = !!conversation?.is_group
-    || (Array.isArray(conversation?.participant_emails)
-      && conversation.participant_emails.length > 2);
-  const otherEmails = (conversation?.participant_emails || [])
-    .filter(e => e?.toLowerCase() !== myEmailLc);
-  const otherEmail = otherEmails[0] || '';
+    || (Array.isArray(conversation?.participant_ids)
+      && conversation.participant_ids.length > 2);
   const otherIds = (conversation?.participant_ids || [])
     .filter(id => id && id !== user?.id);
   const otherId = otherIds[0] || '';
 
   const { data: resolvedOther } = useQuery({
-    queryKey: ['hubChatProfile', otherId || otherEmail],
+    queryKey: ['hubChatProfile', otherId],
     queryFn: async () => {
       if (!otherId) return null;
       // Resolve the peer's display profile by user_id (participant_ids is
       // backfilled + trigger-maintained, mig 216) instead of scanning
-      // users.list() and matching on email — drops a public_profiles email
-      // read. otherEmail stays for the send path (recipientEmail), sourced
-      // from the conversation's own participant_emails, not the view.
+      // users.list() and matching on email. The send path passes otherId as
+      // recipientId, so no email is read for this thread at all.
       const { data } = await users.selectProfiles((from) => from
         .select('id, username, avatar_url')
         .eq('id', otherId)
@@ -256,9 +252,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   //
   // hub_messages.user_id is the sender's auth uid (db.js injects it on every
   // create; 47/47 production rows carry one), so this is what turns a message
-  // into a name. participant_ids is NOT index-aligned with participant_emails
-  // — mig 216 fills it with `array_agg(id ORDER BY id)` — so pairing the two
-  // arrays positionally would attribute messages to the wrong person.
+  // into a name, looked up in participant_ids.
   const participantIds = useMemo(
     () => (conversation?.participant_ids || []).filter(Boolean),
     [conversation?.participant_ids],
@@ -310,11 +304,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // disable itself and say why, instead of the user typing a paragraph
   // into a 42501. Declared here — above handleSend and every deps array
   // that reads it — per the TDZ rule in CLAUDE.md.
-  const myMessageCount = messages.filter(
-    m => (m.sender_email || '').toLowerCase() === myEmailLc
-  ).length;
+  const myMessageCount = messages.filter(m => hubMessages.isMyMessage(m, myId)).length;
   const pendingSendBlocked = isPendingRequestSendBlocked(
-    conversation, user?.email, myMessageCount
+    conversation, myId, myMessageCount
   );
 
   // Shared guard for every send path. handleSend is not the only one —
@@ -507,11 +499,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // on document.visibilityState and re-check when the tab becomes
   // visible again. (Audit 10 #6.)
   useEffect(() => {
-    if (!conversation?.id || !user?.email) return;
+    if (!conversation?.id || !user?.id) return;
 
     const tryMark = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      hubMessages.markRead(conversation.id, user.email).then(() => {
+      hubMessages.markRead(conversation.id, user.id).then(() => {
         queryClient.invalidateQueries({ queryKey: ['hubUnreadCount', user.email] });
       }).catch(() => {});
     };
@@ -521,7 +513,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') tryMark(); };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [conversation?.id, user?.email, messages.length, queryClient]);
+  }, [conversation?.id, user?.id, user?.email, messages.length, queryClient]);
 
   // ── Read receipt fade (4 s after read_at appears) ─────────────────────────
   // Identify the last OWN message by id (not by index). The render maps over
@@ -533,7 +525,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // list so it always lands on a bubble the user can actually see.
   const lastSentMsg = (() => {
     for (let i = visibleMessages.length - 1; i >= 0; i--) {
-      if (visibleMessages[i].sender_email?.toLowerCase() === myEmailLc) return visibleMessages[i];
+      if (hubMessages.isMyMessage(visibleMessages[i], myId)) return visibleMessages[i];
     }
     return null;
   })();
@@ -781,7 +773,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail:    user?.email || '',
-        recipientEmail: otherUser?.email || null,
+        recipientId:    otherId || null,
         body:           '',
         messageType:    'sticker',
         stickerId,
@@ -791,7 +783,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.sticker' });
       toast.error(tFallback('hub.chat.stickerFailed', "Couldn't send the sticker. Try again."));
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
+  }, [conversation?.id, user?.email, otherId, queryClient, blockPendingSend]);
 
   const handleSendGif = useCallback(async ({ url, alt }) => {
     if (!url || !conversation?.id) return;
@@ -800,7 +792,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail:    user?.email || '',
-        recipientEmail: otherUser?.email || null,
+        recipientId:    otherId || null,
         body:           '',
         attachmentUrl:  url,
         messageType:    'gif',
@@ -810,7 +802,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.gif' });
       toast.error(tFallback('hub.chat.gifFailed', "Couldn't send the GIF. Try again."));
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
+  }, [conversation?.id, user?.email, otherId, queryClient, blockPendingSend]);
 
   const handleSendVoice = useCallback(async ({ blob, durationMs }) => {
     if (!blob || !conversation?.id) return;
@@ -826,7 +818,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail:    user?.email || '',
-        recipientEmail: otherUser?.email || null,
+        recipientId:    otherId || null,
         body:           '',
         attachmentUrl:  url,
         messageType:    'voice',
@@ -837,7 +829,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.voice' });
       toast.error(tFallback('hub.chat.voiceFailed', "Couldn't send the voice memo. Try again."));
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
+  }, [conversation?.id, user?.email, otherId, queryClient, blockPendingSend]);
 
   // ── Polls ───────────────────────────────────────────────────────────────
   // A poll is a [POLL_V1] message; votes are [POLL_VOTE_V1] control messages
@@ -853,7 +845,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail:    user?.email || '',
-        recipientEmail: otherUser?.email || null,
+        recipientId:    otherId || null,
         body,
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
@@ -861,7 +853,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.poll' });
       toast.error(tFallback('hub.chat.pollFailed', "Couldn't create the poll. Try again."));
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
+  }, [conversation?.id, user?.email, otherId, queryClient, blockPendingSend]);
 
   const handleVotePoll = useCallback(async (pollId, optionIndex) => {
     if (!conversation?.id || !pollId) return;
@@ -872,7 +864,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail:    user?.email || '',
-        recipientEmail: otherUser?.email || null,
+        recipientId:    otherId || null,
         body:           buildVoteBody(pollId, optionIndex),
       });
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
@@ -880,7 +872,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.vote' });
       toast.error(tFallback('hub.chat.voteFailed', "Couldn't record your vote. Try again."));
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
+  }, [conversation?.id, user?.email, otherId, queryClient, blockPendingSend]);
 
   // ── Scheduled send (mig 114) ────────────────────────────────────────────
   // Currently-pending scheduled messages for this conversation. Refetch
@@ -907,7 +899,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     try {
       await scheduleMyMessage({
         conversationId:  conversation.id,
-        recipientEmail:  otherUser?.email || null,
+        recipientEmail:  null,
         content:         draft.trim(),
         sendAt,
       });
@@ -920,7 +912,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.schedule' });
       toast.error(tFallback('hub.chat.scheduleFailed', "Couldn't schedule the message. Try again."));
     }
-  }, [draft, scheduleAt, conversation?.id, otherUser?.email, queryClient, user?.id]);
+  }, [draft, scheduleAt, conversation?.id, queryClient, user?.id]);
 
   const handleCancelScheduled = useCallback(async (id) => {
     try {
@@ -940,7 +932,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // deleted" without waiting for the round-trip. Rollback on error.
   const handleDeleteMessage = useCallback(async (msg) => {
     setContextMsg(null);
-    if (!msg?.id || msg.sender_email?.toLowerCase() !== myEmailLc) return;
+    if (!msg?.id || !hubMessages.isMyMessage(msg, myId)) return;
     const prev = msg.deleted_at;
     queryClient.setQueryData(['hubChat', conversation?.id], (rows) =>
       (rows || []).map(r => r.id === msg.id ? { ...r, deleted_at: new Date().toISOString() } : r)
@@ -955,7 +947,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       reportError(err, { feature: 'hub.chat.delete' });
       toast.error(tFallback('hub.chat.deleteFailed', "Couldn't delete the message. Try again."));
     }
-  }, [conversation?.id, myEmailLc, queryClient]);
+  }, [conversation?.id, myId, queryClient]);
 
   // ── Emoji reaction ────────────────────────────────────────────────────────
   const handleEmojiReact = useCallback(async (msg, emoji) => {
@@ -1035,7 +1027,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     const optimistic = {
       id: tempId,
       conversation_id: conversation.id,
-      sender_email: user?.email || '',
+      user_id: myId,
       body: trimmed,
       content: trimmed,
       created_date: new Date().toISOString(),
@@ -1094,7 +1086,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       const sent = await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail: user.email || '',
-        recipientEmail: otherEmail,
+        recipientId: otherId || null,
         body: trimmed,
         ...(attachmentUrl ? { attachmentUrl } : {}),
         ...(capturedReplyTo ? {
@@ -1140,7 +1132,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         // — the count argument is the only thing separating "allowed one
         // more" from "already used it". A 42501 on a pending thread is
         // mig 234's send cap, not a block.
-        && isPendingRequestSendBlocked(conversation, user?.email, 1)
+        && isPendingRequestSendBlocked(conversation, myId, 1)
       ) {
         toast.error(tFallback(
           'hub.messages.request.waitToSend',
@@ -1199,7 +1191,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           </p>
           <p className="text-micro text-muted-foreground flex items-center gap-1">
             {isGroup
-              ? <>{(conversation?.participant_emails?.length || 0)} people · group chat</>
+              ? <>{(conversation?.participant_ids?.length || 0)} people · group chat</>
               : <><Lock className="w-2.5 h-2.5" /> {t('hub.messages.privateNote.short')}</>}
           </p>
         </div>
@@ -1226,9 +1218,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           from Requests to the main inbox. Sending a reply implicitly
           accepts too (via mig 113's trg_auto_accept_on_send). */}
       {(() => {
-        const accepted = Array.isArray(conversation?.accepted_emails) ? conversation.accepted_emails : [];
-        const myLc = String(user?.email || '').toLowerCase();
-        const acceptedByMe = accepted.some(e => String(e).toLowerCase() === myLc);
+        const accepted = Array.isArray(conversation?.accepted_ids) ? conversation.accepted_ids : [];
+        const acceptedByMe = !!myId && accepted.some(id => String(id) === String(myId));
         if (acceptedByMe || !conversation?.id) return null;
         return (
           <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
@@ -1348,7 +1339,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           </div>
         ) : (
           visibleMessages.map((m, i) => {
-            const isMine = m.sender_email?.toLowerCase() === myEmailLc;
+            const isMine = hubMessages.isMyMessage(m, myId);
             const isLastSent = isMine && m.id === lastSentMsgId;
             const showDivider = shouldShowDivider(visibleMessages, i);
             const isOptimistic = !!m._optimistic;
@@ -1466,7 +1457,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             from previous). */}
                         {isGroup && !isMine && (() => {
                           const prev = visibleMessages[i - 1];
-                          const sameSenderAsPrev = prev?.sender_email?.toLowerCase() === m.sender_email?.toLowerCase();
+                          const sameSenderAsPrev = !!prev?.user_id && prev.user_id === m.user_id;
                           if (sameSenderAsPrev) return null;
                           // Was the literal string 'Athlete', so every member
                           // of a group read as "@Athlete" and there was no way
@@ -1532,7 +1523,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             const raw = m.body || m.content || '';
                             const poll = parsePoll(raw);
                             if (poll) {
-                              const results = pollResults(voteIndex.get(m.id), poll.options.length, user?.email);
+                              const results = pollResults(voteIndex.get(m.id), poll.options.length, myId);
                               return (
                                 <PollBubble
                                   poll={poll}
@@ -1753,11 +1744,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
               >
                 <span className="text-base">📌</span>
-                {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
+                {isPinned(contextMsg)
+                  ? tFallback('hub.chat.unpinMessage', 'Unpin message')
+                  : tFallback('hub.chat.pinMessage', 'Pin message')}
               </button>
 
               {/* Delete — only for the sender's own messages (mig 114) */}
-              {contextMsg?.sender_email?.toLowerCase() === myEmailLc && (
+              {hubMessages.isMyMessage(contextMsg, myId) && (
                 <button
                   onClick={() => handleDeleteMessage(contextMsg)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border text-destructive"

@@ -64,26 +64,42 @@ export const update = (id, data) => {
 };
 export const remove = (id) => rows.remove(id);
 
-// Remove any planner-originated diary log for a given slot (date + meal_type).
-// Idempotent; only touches rows tagged notes:'planner', never manual logs.
-export const removePlannerDiaryLog = ({ user, date, mealType }) => {
-  if (!user?.id || !date) return Promise.resolve();
-  return supabase
+// Remove the diary mirror of ONE planned meal. A slot holds up to three
+// planned meals (migration 355), so deleting every planner row in the slot
+// took the other meals' calories off the diary too. With a snapshot, one row
+// matching that meal's name and calories goes; without one (legacy callers),
+// the whole slot is cleared as before. Only touches rows tagged
+// notes:'planner', never manual logs.
+export const removePlannerDiaryLog = async ({ user, date, mealType, snapshot }) => {
+  if (!user?.id || !date) return;
+  if (!snapshot) {
+    await supabase
+      .from('nutrition_logs')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('date', date)
+      .eq('meal_type', mealType || 'snack')
+      .eq('notes', PLANNER_LOG_TAG);
+    return;
+  }
+  const { data } = await supabase
     .from('nutrition_logs')
-    .delete()
+    .select('id, calories')
     .eq('user_id', user.id)
     .eq('date', date)
     .eq('meal_type', mealType || 'snack')
-    .eq('notes', PLANNER_LOG_TAG);
+    .eq('notes', PLANNER_LOG_TAG)
+    .eq('food_name', snapshot.name || 'Planned meal')
+    .order('created_at', { ascending: true });
+  const cal = Number(snapshot.calories) || 0;
+  const match = (data || []).find(r => Number(r.calories) === cal) || (data || [])[0];
+  if (match?.id) await remove(match.id);
 };
 
-// Sync a planner meal into the diary for its slot: clear the previous
-// planner log for that slot, then (unless removing) write the new one. Keeps
-// re-adds from double-counting and lets plan removal un-log the meal.
+// Mirror one planner meal into the diary. Additive: each planned meal in a
+// slot gets its own row, and removing a plan removes only its own row.
 export const syncPlannerDiaryLog = async ({ user, date, mealType, snapshot }) => {
-  if (!user?.id || !date) return;
-  await removePlannerDiaryLog({ user, date, mealType });
-  if (!snapshot) return;
+  if (!user?.id || !date || !snapshot) return;
   const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   await create({
     food_name:       snapshot.name || 'Planned meal',
