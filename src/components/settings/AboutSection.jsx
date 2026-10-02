@@ -12,15 +12,15 @@
 // now a real 44px row rather than 11px of grey text.
 
 import { useState } from 'react';
-import { Bug, ShieldAlert, Lightbulb } from 'lucide-react';
+import { Bug, ShieldAlert, Lightbulb, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
-import { countSeenTooltips, resetAllSeenTooltips } from '@/lib/tooltipRegistry';
+import { countSeenTooltips, resetAllSeenTooltips, tipsEnabled, setTipsEnabled } from '@/lib/tooltipRegistry';
 import { toast } from '@/lib/toast';
 import BugReportDialog from '../BugReportDialog';
-import { Group, ActionRow, NavRow } from './SettingsPrimitives';
+import { Group, ActionRow, NavRow, ToggleRow } from './SettingsPrimitives';
 
 export default function AboutSection() {
   const { t, tFallback } = useLanguage();
@@ -35,6 +35,10 @@ export default function AboutSection() {
   // than live; a hint firing while you are sitting in Settings isn't a case
   // worth a subscription.
   const [seenTips, setSeenTips] = useState(() => countSeenTooltips());
+  // Tips can be turned off from any tip bubble ("Turn off tips"), and the
+  // pill that answers points here. This is the way back.
+  const [tipsOn, setTipsOn] = useState(() => tipsEnabled());
+  const toggleTips = (on) => { setTipsEnabled(on); setTipsOn(on); };
 
   const resetTips = () => {
     const cleared = resetAllSeenTooltips();
@@ -74,11 +78,18 @@ export default function AboutSection() {
           label={t('bugReport.button')}
           onClick={() => setBugReportOpen(true)}
         />
+        <ToggleRow
+          icon={Lightbulb}
+          label={tFallback('settings.tips.toggle', 'One-time tips')}
+          hint={tFallback('settings.tips.toggleHint', 'Small hints that point out shortcuts the first time you reach them')}
+          checked={tipsOn}
+          onChange={toggleTips}
+        />
         {/* Disabled rather than hidden when there is nothing to reset: a row
             that vanishes is harder to find again than one that explains
             itself, and the hint carries the reason. */}
         <ActionRow
-          icon={Lightbulb}
+          icon={RotateCcw}
           label={tFallback('settings.tips.reset', 'Show one-time tips again')}
           hint={seenTips > 0
             ? tFallback(
@@ -90,7 +101,7 @@ export default function AboutSection() {
                 'No tips to bring back. None have shown on this device yet',
               )}
           onClick={resetTips}
-          disabled={seenTips === 0}
+          disabled={seenTips === 0 || !tipsOn}
         />
         {/* Moderator-only. Gated by isAppAdmin() so it isn't even
             discoverable for everyone else. */}

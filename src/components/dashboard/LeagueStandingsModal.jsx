@@ -95,7 +95,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
       {infoOpen && (
         <Suspense fallback={null}>
-          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} />
+          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} score={strength?.score} />
         </Suspense>
       )}
     </Dialog>

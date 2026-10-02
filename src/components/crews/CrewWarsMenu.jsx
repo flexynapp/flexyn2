@@ -125,7 +125,7 @@ function NoWar({ crew, memberCount, tFallback }) {
         <Swords className="w-7 h-7 text-primary" />
       </div>
       <h3 className="font-heading font-bold text-title mt-6">
-        {tFallback('crewWars.noActiveWars', 'No Active Wars')}
+        {tFallback('crewWars.noActiveWars', 'No active wars')}
       </h3>
       <p className="text-label text-muted-foreground mt-2 leading-relaxed max-w-[300px] mx-auto">
         {tFallback(

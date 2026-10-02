@@ -18,7 +18,6 @@
 // dashboard chunk — they load with the sheet on first open.
 
 import React, { useEffect, useRef } from 'react';
-import { Moon, Smile, Dumbbell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
@@ -67,35 +66,39 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
   // score" pointing at a control that no longer existed, and contributed a
   // fixed +14 to every score. Its weight folded into sleep duration, which
   // is what that commit said was already happening.
+  // Each signal's hue comes from the chart ramp, not the state hues: the
+  // three only need to be told apart, and a state hue would say good or bad.
   const rows = [
     {
-      Icon: Moon,
-      name: tFallback('readiness.row.sleep', "Last night's sleep"),
-      weight: '60%',
+      key: 'sleep',
+      short: tFallback('readinessBar.short.sleep', 'Sleep'),
+      hue: 'bg-chart-1',
       d: b.sleep,
-      value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
+      value: b.sleep?.logged ? tFallback('readinessBar.hours', '{n} h', { n: b.sleep.value }) : null,
     },
     {
-      Icon: Smile,
-      name: tFallback('readiness.row.mood', 'Mood / soreness'),
-      weight: '25%',
+      key: 'mood',
+      short: tFallback('readinessBar.short.mood', 'Mood'),
+      hue: 'bg-chart-2',
       d: b.soreness,
       value: readiness?.mood?.mood
         ? (() => {
             const i = Math.max(0, Math.min(4, readiness.mood.mood - 1));
             return tFallback(`mood.label.${i + 1}`, MOOD_LABELS[i]);
           })()
-        : (readiness?.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
+        : (readiness?.sleep?.soreness
+          ? tFallback('readinessBar.soreness', 'Soreness {n}/5', { n: readiness.sleep.soreness })
+          : null),
     },
     {
-      Icon: Dumbbell,
-      name: tFallback('readiness.row.recency', 'Days since last workout'),
-      weight: '15%',
+      key: 'rest',
+      short: tFallback('readinessBar.short.rest', 'Rest'),
+      hue: 'bg-chart-3',
       d: b.recency,
       value: b.recency?.logged
         ? (b.recency.value === 0
           ? tFallback('readiness.trainedToday', 'Trained today')
-          : `${b.recency.value} day${b.recency.value === 1 ? '' : 's'} ago`)
+          : tFallback('readinessBar.daysAgo', '{n} d ago', { n: b.recency.value }))
         : null,
       // Training is the only signal you can't log from this sheet, so it
       // keeps its route out.
@@ -103,7 +106,6 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
     },
   ];
 
-  const allLogged = rows.every((r) => r.d?.logged);
 
   // No AnimatePresence: Dashboard unmounts this component on close, so an
   // exit animation would never get to run. Entry animates, exit is instant —
@@ -131,10 +133,58 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                     ? tFallback(`readiness.label.${readiness.labelId}`, readiness.label)
                     : readiness?.label}
                 </p>
-                <p className="text-caption text-muted-foreground leading-snug mt-1">
-                  {tFallback('readiness.blend3', 'Blended from three signals. The more you log, the less we estimate.')}
-                </p>
               </div>
+            </div>
+
+
+            {/* ── what made the score ─────────────────────────────────
+               The number drawn as its three parts (2026-10-02). Each segment
+               is that signal's real points, so the bar adds up to the score
+               above it. An estimated signal is hatched and says "est."; that
+               replaced a sentence per row plus two footers that said "the
+               more you log, the less we estimate" twice. The log controls
+               follow, so the hatched one is answered right below it. */}
+            <div className="mt-4" aria-label={tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR {n}', { n: score })}>
+              <div className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-foreground/[0.08]" aria-hidden="true">
+                {rows.map((r) => (
+                  <div
+                    key={r.key}
+                    className={r.d?.logged ? r.hue : ''}
+                    style={{
+                      flex: Math.max(0, r.d?.contribution ?? 0),
+                      backgroundImage: r.d?.logged
+                        ? undefined
+                        : 'repeating-linear-gradient(135deg, hsl(var(--foreground) / 0.35) 0 3px, transparent 3px 6px)',
+                    }}
+                  />
+                ))}
+                <div style={{ flex: Math.max(0, 100 - score) }} />
+              </div>
+              <ul className="mt-2 grid grid-cols-3 gap-2">
+                {rows.map((r) => (
+                  <li key={r.key} className="min-w-0 flex flex-col">
+                    <span className="flex items-center gap-1 text-micro text-muted-foreground">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${r.d?.logged ? r.hue : 'bg-foreground/35'}`} aria-hidden="true" />
+                      <span className="truncate">{r.short}</span>
+                    </span>
+                    <span className="text-caption font-bold tabular-nums">
+                      +{r.d?.contribution ?? 0}{' '}
+                      <span className={`text-micro font-medium ${r.d?.logged ? 'text-muted-foreground' : 'text-muted-foreground/80 italic'}`}>
+                        {r.d?.logged ? r.value : tFallback('readinessBar.est', 'est.')}
+                      </span>
+                    </span>
+                    {r.cta && (
+                      <button
+                        type="button"
+                        onClick={() => { onClose(); onLogWorkout?.(); }}
+                        className="mt-0.5 self-start min-h-[32px] text-start text-micro font-bold text-primary hover:underline"
+                      >
+                        {r.cta.label}&nbsp;<span aria-hidden="true" className="inline-block rtl:scale-x-[-1]">→</span>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* ── the three logs ─────────────────────────────────────── */}
@@ -145,12 +195,6 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                   {tFallback('readiness.logHeading', "Log tonight's signals")}
                 </h3>
               </div>
-              {/* Board 02 puts a line here saying what these three controls
-                  are — without it the section is a heading and three cards
-                  the user has already seen collapsed on the page. */}
-              <p className="text-micro text-muted-foreground mb-2 px-1">
-                {tFallback('readiness.logSub', 'Full controls for the three signals the Tonight row shows on the page.')}
-              </p>
               <div className="space-y-2">
                 <div ref={sleepRef}>
                   <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
@@ -162,73 +206,6 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                   <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
                 </div>
               </div>
-            </div>
-
-            {/* ── why the score is what it is ────────────────────────── */}
-            <div className="mt-6 pt-4 border-t border-border">
-              {/* "WHAT MADE YOUR 82", not "…YOUR SCORE". The drawing names
-                  the number the user is looking at, which is the question
-                  this section exists to answer. */}
-              <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-                {tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR {n}', { n: score })}
-              </p>
-              <ul className="space-y-2.5">
-                {rows.map((r) => (
-                  <li key={r.name} className="flex gap-3 items-start">
-                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-sm bg-secondary text-muted-foreground flex items-center justify-center">
-                      <r.Icon className="w-3.5 h-3.5" aria-hidden="true" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-caption font-semibold">{r.name}</p>
-                        <p className="text-xs font-bold tabular-nums shrink-0">
-                          {r.d?.logged
-                            ? <span className="text-foreground">{r.value}</span>
-                            : <span className="text-muted-foreground/70 font-medium italic">
-                                {tFallback('readiness.notLogged', 'not logged')}
-                              </span>}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {/* 4px on foreground/12, per the drawing. h-1.5 on
-                            --secondary made the track read as a filled bar of
-                            its own next to the tile beside it. */}
-                        <div className="flex-1 h-1 rounded-full bg-foreground/[0.12] overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${r.d?.logged ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                            style={{ width: `${Math.max(0, Math.min(100, r.d?.score ?? 0))}%` }}
-                          />
-                        </div>
-                        {/* Primary, not muted. This is the answer to the
-                            question the section asks, and it was rendering in
-                            the same grey as the weight caption below it. */}
-                        <span className="text-micro font-bold tabular-nums text-primary shrink-0 w-14 text-end">
-                          +{r.d?.contribution ?? 0} pts
-                        </span>
-                      </div>
-                      <p className="text-micro text-muted-foreground/70 leading-snug mt-0.5">
-                        {r.d?.logged
-                          ? `${tFallback('readiness.scored', 'Scored')} ${r.d.score}/100 · ${tFallback('readiness.weighted', 'weighted')} ${r.weight}`
-                          : tFallback('readiness.estimate', 'No data yet. Using a neutral estimate. Log it above to sharpen your score.')}
-                      </p>
-                      {r.cta && (
-                        <button
-                          type="button"
-                          onClick={() => { onClose(); onLogWorkout?.(); }}
-                          className="mt-1.5 inline-flex items-center gap-0.5 text-micro font-bold text-primary hover:underline"
-                        >
-                          {r.cta.label} <span aria-hidden="true">→</span>
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-micro text-muted-foreground/80 leading-relaxed mt-4">
-                {allLogged
-                  ? tFallback('readiness.allLogged3', 'Nothing estimated today. All three signals are logged.')
-                  : tFallback('readiness.footer', 'The more you log, the less we estimate, and the more the number reflects you.')}
-              </p>
             </div>
 
             <button

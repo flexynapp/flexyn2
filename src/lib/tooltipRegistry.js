@@ -54,6 +54,30 @@ const LS_PREFIX = 'flexyn.seenTooltip.';
  */
 export const TOOLTIPS_RESET_EVENT = 'flexyn:tooltips-reset';
 
+// The one-time tips can be switched off as a whole (Kegan, 2026-10-02): a
+// new user meets several in their first sessions, and someone who already
+// knows the app should be able to say "no more" once instead of waiting each
+// one out. Per device, like the seen flags, and stored the same way.
+// Settings › About › Help turns them back on.
+const TIPS_OFF_KEY = 'flexyn.tipsOff';
+
+/** Fired on `window` when tips are switched on or off. */
+export const TIPS_PREF_EVENT = 'flexyn:tips-pref';
+
+export function tipsEnabled() {
+  try { return localStorage.getItem(TIPS_OFF_KEY) !== '1'; } catch { return true; }
+}
+
+export function setTipsEnabled(on) {
+  try {
+    if (on) localStorage.removeItem(TIPS_OFF_KEY);
+    else localStorage.setItem(TIPS_OFF_KEY, '1');
+  } catch { /* best-effort */ }
+  try {
+    window.dispatchEvent(new Event(TIPS_PREF_EVENT));
+  } catch { /* no window — tests, SSR */ }
+}
+
 export function hasSeenTooltip(id) {
   if (!id) return true;
   try { return localStorage.getItem(LS_PREFIX + id) === '1'; } catch { return false; }

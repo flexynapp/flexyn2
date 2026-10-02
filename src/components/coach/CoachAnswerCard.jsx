@@ -24,6 +24,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { cleanCoachText } from '@/lib/aiCoach/markdownLite';
 import { DURATION, EASE_OUT, SPRING, STAGGER, staggerContainer, staggerItem } from '@/lib/motion';
+import FigureRow, { FigureColumn, FigureValue } from '@/components/ui/FigureRow';
 
 const TONE = {
   go:   { Icon: ArrowUp,    cls: 'bg-success/15 text-success', key: 'coach.tone.go',   en: 'Go ahead' },
@@ -77,10 +78,14 @@ export default function CoachAnswerCard({ card, animate = true }) {
       {card.points.length > 0 && (
         <ul className="mt-2 flex flex-col divide-y divide-border/60 border-t border-border/60">
           {card.points.map((p, i) => (
-            <motion.li key={i} variants={row} className="flex items-center gap-2 py-2">
-              {p.viz && <Figure viz={p.viz} play={play} delay={(i + 1) * ROW_STEP + DURATION.fast} />}
-              <span className="min-w-0 text-sm leading-snug">{cleanCoachText(p.text)}</span>
-            </motion.li>
+            <FigureRow
+              key={i}
+              as={motion.li}
+              variants={row}
+              column={p.viz && <Figure viz={p.viz} play={play} delay={(i + 1) * ROW_STEP + DURATION.fast} />}
+            >
+              {cleanCoachText(p.text)}
+            </FigureRow>
           ))}
         </ul>
       )}
@@ -123,9 +128,9 @@ function Figure({ viz, play, delay }) {
     }
     case 'readiness':
       return (
-        <FigureShell label={tFallback('coach.viz.readiness', 'readiness')}>
+        <FigureColumn label={tFallback('coach.viz.readiness', 'readiness')}>
           <Ring pct={viz.score} play={play} delay={delay}>{n(viz.score)}</Ring>
-        </FigureShell>
+        </FigureColumn>
       );
     case 'sleep':
       value = n(viz.hours, 1);
@@ -186,22 +191,10 @@ function Figure({ viz, play, delay }) {
   }
 
   return (
-    <FigureShell label={label}>
-      <span className="flex items-baseline gap-0.5 leading-none">
-        <span className="font-heading text-title font-semibold tabular-nums">{value}</span>
-        {unit && <span className="text-micro text-muted-foreground">{unit}</span>}
-      </span>
+    <FigureColumn label={label}>
+      <FigureValue figure={value} unit={unit} />
       {graphic}
-    </FigureShell>
-  );
-}
-
-function FigureShell({ label, children }) {
-  return (
-    <span className="flex w-[4.5rem] shrink-0 flex-col items-start gap-1">
-      {children}
-      {label && <span className="text-micro leading-tight text-muted-foreground">{label}</span>}
-    </span>
+    </FigureColumn>
   );
 }
 

@@ -1,3 +1,5 @@
+import { toBcp47 } from './intlFormat';
+
 export const WEIGHT_UNITS = {
   lbs: 'lbs',
   kg: 'kg',
@@ -43,7 +45,23 @@ export function formatWeight(lbs, unit, decimals) {
   if (!Number.isFinite(n)) return '—';
   const converted = fromLbs(n, unit);
   const dp = decimals ?? (unit === 'kg' ? 1 : unit === 'stone' ? 2 : 0);
-  return `${converted.toFixed(dp)} ${unit}`;
+  return `${groupedNumber(converted, dp)} ${unit}`;
+}
+
+// "18450 lbs" sat beside "5,000 XP" on the same screen (2026-10-02). The
+// figure is grouped for reading, in the page's language: LanguageContext
+// sets <html lang>, and this module stays free of React so data and pure
+// callers can keep importing it. formatWeightNumber below is NOT grouped,
+// because its output feeds inputs and Number() cannot parse "18,450".
+function groupedNumber(n, dp) {
+  let lang = 'en';
+  try { lang = (typeof document !== 'undefined' && document.documentElement.lang) || 'en'; }
+  catch { /* no DOM */ }
+  try {
+    return n.toLocaleString(toBcp47(lang), { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  } catch {
+    return n.toFixed(dp);
+  }
 }
 
 /** Same as formatWeight but returns just the number string (no unit suffix) */
