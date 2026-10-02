@@ -99,7 +99,7 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule, rows = [], onOpenCapsul
         {tFallback('userBag.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) })}
       </p>
       <p className="text-label text-muted-foreground tabular-nums">
-        {tFallback('userBag.waiting', '{n} waiting', { n })}
+        ×{n}
       </p>
       <button
         type="button"
@@ -970,11 +970,12 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                           type="button"
                           onClick={() => { haptic('light'); setPickedTier(t); }}
                           aria-pressed={t === tier}
+                          aria-label={`${tierName(tFallback, t)} ×${capsulesByTier[t].length}`}
                           className={`flex flex-col items-center gap-1 transition-opacity duration-150 ${t === tier ? '' : 'opacity-55'}`}
                         >
                           <CapsuleCanister tier={t} height={56} />
                           <span className="text-caption font-semibold tabular-nums">
-                            {tierName(tFallback, t)} ×{capsulesByTier[t].length}
+                            ×{capsulesByTier[t].length}
                           </span>
                         </button>
                       ))}

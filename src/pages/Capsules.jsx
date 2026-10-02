@@ -36,7 +36,7 @@ import { requestOpenCapsules } from '@/lib/inventoryFlow';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import OddsLadder from '@/components/capsules/OddsLadder';
 import SetFan from '@/components/capsules/SetFan';
-import { tierName, tierFinish, tierBlurb } from '@/components/capsules/words';
+import { tierName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
 export default function Capsules() {
@@ -218,7 +218,7 @@ export default function Capsules() {
                 </span>
                 <span className="inline-flex items-center gap-1 text-caption text-muted-foreground tabular-nums">
                   {n > 0
-                    ? tFallback('capsules.onShelf', '×{n} on shelf', { n })
+                    ? `×${n}`
                     : p != null && <><FlexCoinIcon size={13} />{fmt(p)}</>}
                 </span>
                 <span className={`w-5 h-0.5 rounded-full mt-0.5 bg-foreground transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
@@ -229,11 +229,10 @@ export default function Capsules() {
       </section>
 
       <div className="pt-4 flex flex-col items-center gap-0.5 text-center">
+        {/* Name only. The finish is on screen as the canister itself and the
+            odds are the bar below, so a sentence repeating either was text
+            for its own sake (Kegan, 2026-10-02). */}
         <h2 className="font-display text-display">{tierName(tFallback, current)}</h2>
-        <p className="text-label text-muted-foreground">
-          {/* Two catalog strings joined; the join itself carries no words. */}
-          {`${tierFinish(tFallback, current)}. ${tierBlurb(tFallback, current)}`}
-        </p>
       </div>
 
       <div className="pt-5">

@@ -19,7 +19,7 @@ import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem, getCapsuleOdds, BEST_VALUE_SKU } from '@/lib/data/coinShop';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import Sticker from '@/components/capsules/Sticker';
-import { tierName, tierBlurb, rarityName } from '@/components/capsules/words';
+import { tierName, rarityName } from '@/components/capsules/words';
 import { inkStyle, SHELF_ORDER } from '@/components/loot/Shelf';
 import { stickerSet } from '@/lib/capsuleShelf';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -263,12 +263,10 @@ export default function CoinShopModal({ open, onClose }) {
                     <p className="font-heading font-bold text-title">
                       {tFallback('userBag.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) })}
                     </p>
-                    <p className="text-label text-muted-foreground">{tierBlurb(tFallback, tier)}</p>
                   </div>
                 </div>
                 {odds && (
                   <div className="pt-4">
-                    <p className="text-caption text-muted-foreground">{tFallback('shop.whatOneOpenDrops', 'What one open can drop')}</p>
                     <OddsLadder table={odds.table} fmtPct={fmtPct} />
                   </div>
                 )}
