@@ -306,6 +306,14 @@
   }
 }
 
+/* Today's trend point landing (TrendGraph.jsx): the Reward tier's one pop,
+   out and back once. */
+@keyframes trend-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
 /* Ambient particle floaters (Particles.jsx) — GPU-composited so the loop costs
    the main thread nothing, even when several instances render at once. */
 @keyframes fx-dot-golden {

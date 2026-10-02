@@ -29,6 +29,11 @@ import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
 import WeekFocal from '@/components/glance/WeekFocal';
+import TrendFocal from '@/components/glance/TrendFocal';
+import HeroPager from '@/components/HeroPager';
+import { heroTrendSlides } from '@/lib/heroTrends';
+import * as bodyMetricsData from '@/lib/data/bodyMetrics';
+import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import TodayStreakLine, { STREAK_MIN_SHOWN } from '@/components/dashboard/TodayStreakLine';
 import { weekSummary } from '@/lib/focalGoal';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
@@ -117,9 +122,9 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
  * under the sentence (TodayStreakLine says why it is never the profile
  * column). Readiness is not in the hero; it has its own row below.
  */
-function HeroCard({
+export function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
-  logs, userProfile, now,
+  logs, bodyMetrics = [], userProfile, now,
   onPrimary, t, tFallback, plan = null, resume = null,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
@@ -149,6 +154,10 @@ function HeroCard({
   }
 
   const week = useMemo(() => weekSummary({ logs, profile: userProfile, now }), [logs, userProfile, now]);
+  const slides = useMemo(() => [
+    { id: 'week' },
+    ...heroTrendSlides({ logs, bodyMetrics, now }).map((trend) => ({ id: `trend-${trend.kind}`, trend })),
+  ], [logs, bodyMetrics, now]);
 
   return (
     <motion.div
@@ -158,9 +167,30 @@ function HeroCard({
       className="flex flex-col"
       style={{ gap: 'var(--fluid-section)' }}
     >
-      <ErrorBoundary label="WeekFocal">
-        <WeekFocal week={week} aside={<TodayStreakLine streak={streak} trainedToday={hasWorkedOutToday} />} />
-      </ErrorBoundary>
+      {/* The carousel: the week first, then a trend slide for each thing the
+          user logs enough of (heroTrends.js decides which). Same engine,
+          dots and wrap as the Workout hero, so Today's revolving menu is the
+          app's revolving menu. No timer: the week is the page's focal goal
+          and stays put until the user swipes. */}
+      <div style={{ touchAction: 'pan-y' }}>
+        <HeroPager
+          slides={slides}
+          wrap
+          autoRotate={false}
+          dotsClassName="justify-center mt-2.5"
+          renderSlide={(slide, { isActive }) => (
+            slide.id === 'week' ? (
+              <ErrorBoundary label="WeekFocal">
+                <WeekFocal week={week} aside={<TodayStreakLine streak={streak} trainedToday={hasWorkedOutToday} />} />
+              </ErrorBoundary>
+            ) : (
+              <ErrorBoundary label="TrendFocal">
+                <TrendFocal trend={slide.trend} active={isActive} />
+              </ErrorBoundary>
+            )
+          )}
+        />
+      </div>
 
       {/* Today's one action. Flat --primary, shadow-md because it is the
           one raised, interactive surface here. "Up next" is what tells a
@@ -1021,6 +1051,14 @@ export default function Dashboard() {
     };
   }, [user?.id, tFallback, trophySignature]);
 
+  // Same key and limit as Progress, so the two pages share one cache entry
+  // and a weigh-in logged on either shows on both.
+  const { data: rawBodyMetrics = [] } = useQuery({
+    queryKey: ['bodyMetrics', user?.email],
+    queryFn: () => bodyMetricsData.list(user.id, LOG_FETCH_LIMIT),
+    enabled: !!user?.email,
+  });
+
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
     queryFn: () => regimensData.list(user.id),
@@ -1158,6 +1196,7 @@ export default function Dashboard() {
 
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+  const bodyMetrics = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
 
   // Shared readiness computation — feeds the explainer sheet so it can
   // show the user their ACTUAL logged signals + how each contributed to
@@ -1803,6 +1842,7 @@ export default function Dashboard() {
           hasWorkedOutToday={hasWorkedOutToday}
           daysSinceLast={daysSinceLast}
           logs={logs}
+          bodyMetrics={bodyMetrics}
           userProfile={userProfile}
           now={today}
           // The hero's own button ("Start your first workout" / "Continue
