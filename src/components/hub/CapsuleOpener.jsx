@@ -730,7 +730,12 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
 
       {/* Pinned CTAs. The spacer keeps the last row clear of them. */}
       <div className="h-6 shrink-0" />
-      <div className="reveal-rise sticky bottom-0 mt-auto px-5 pt-3 pb-3 bg-background flex flex-col gap-1" style={beat(3)}>
+      {/* The rise animates an inner block, never the sticky one: a sticky
+          element under a transform animation got its own layer, and the
+          compositor drew a copy of that layer over the header. Only a batch,
+          whose list scrolls under the buttons, needs the band filled. */}
+      <div className={`sticky bottom-0 mt-auto px-5 pt-3 pb-3 ${isBatch ? 'bg-background' : ''}`}>
+      <div className="reveal-rise flex flex-col gap-1" style={beat(3)}>
         {stowing ? (
           <p className="reveal-rise h-14 flex items-center justify-center text-body font-semibold" role="status" style={{ animationDelay: '260ms' }}>
             {stowedLine}
@@ -758,6 +763,7 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
             {nextLabel}
           </button>
         )}
+      </div>
       </div>
     </div>
   );

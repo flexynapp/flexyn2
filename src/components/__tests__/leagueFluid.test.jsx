@@ -21,6 +21,12 @@ describe('LeagueFluid', () => {
     });
   });
 
+  it('takes a league palette as four paints, deepest to lightest', () => {
+    const pal = fluidPalette(['#6E4E00', '#CE9A04', '#facc15', '#FFF08A']);
+    expect(pal).toHaveLength(4);
+    expect(pal[2]).toEqual([250 / 255, 204 / 255, 21 / 255]);
+  });
+
   it('renders without WebGL and hides itself', () => {
     const { container } = render(<LeagueFluid from="#c0c0c0" to="#facc15" phase="enter" chargeMs={1500} />);
     const canvas = container.querySelector('canvas');

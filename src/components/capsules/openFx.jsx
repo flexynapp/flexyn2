@@ -211,6 +211,7 @@ export function useOpenerFx() {
 // anchor here.
 const START = rarityTint('common').color;
 
+
 function Field({ fx }) {
   const s = useSyncExternalStore(fx.field.subscribe, fx.field.get, fx.field.get);
   // Held still, the field draws one frame, so a new colour is a new frame.
@@ -225,6 +226,7 @@ function Field({ fx }) {
       pulse={s.pulse}
       pulseSize={s.pulseSize}
       strength={s.paint}
+      cartoon
     />
   );
 }

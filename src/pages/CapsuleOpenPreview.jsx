@@ -55,6 +55,22 @@ export default function CapsuleOpenPreview() {
 
   const chip = (on) => `h-11 px-4 rounded-full text-label font-semibold border ${on ? 'bg-foreground text-background border-foreground' : 'text-foreground'}`;
 
+  // While an open runs, nothing of the bench renders under it, so a
+  // recording shows the opener alone.
+  if (run) {
+    return (
+      <CapsuleOpener
+        key={run.key}
+        rows={run.rows}
+        next={null}
+        rollCapsule={run.roll}
+        loadInventory={async () => []}
+        onClaim={async () => setRun(null)}
+        onClose={() => setRun(null)}
+      />
+    );
+  }
+
   return (
     <div className="dark min-h-screen bg-background text-foreground px-4 py-6 flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -87,17 +103,6 @@ export default function CapsuleOpenPreview() {
           {LABEL.four}
         </button>
       </div>
-      {run && (
-        <CapsuleOpener
-          key={run.key}
-          rows={run.rows}
-          next={null}
-          rollCapsule={run.roll}
-          loadInventory={async () => []}
-          onClaim={async () => setRun(null)}
-          onClose={() => setRun(null)}
-        />
-      )}
     </div>
   );
 }
