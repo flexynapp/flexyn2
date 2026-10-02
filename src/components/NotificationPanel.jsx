@@ -503,7 +503,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                 <>
                   {groups.map(g => (
                     <section key={g.bucket} aria-label={tFallback(...BUCKET_LABEL[g.bucket])}>
-                      <h3 className="flex items-center px-4 h-7 text-micro font-bold uppercase tracking-wide text-muted-foreground">
+                      <h3 className="eyebrow flex items-center px-4 h-7">
                         {tFallback(...BUCKET_LABEL[g.bucket])}
                       </h3>
                       <ul>

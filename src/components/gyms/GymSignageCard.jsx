@@ -148,7 +148,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
           className="bg-white text-black p-8 mx-auto overflow-y-auto print:p-12 print:m-0 print:overflow-visible"
           style={{ width: '100%', maxWidth: '480px' }}
         >
-          <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+          <p className="kicker text-center text-slate-500">
             {tFallback("gymSignageCard.flexynGym", "Flexyn Gym")}
           </p>
           <h1 className="text-center font-bold text-2xl mt-1 mb-6 text-slate-900">

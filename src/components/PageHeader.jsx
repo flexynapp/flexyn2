@@ -35,7 +35,7 @@ export default function PageHeader({ kicker, title, subtitle, action, className 
       className={`mb-6 md:mb-7 ${className}`}
     >
       {kicker && (
-        <span className="block text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+        <span className="eyebrow block mb-1.5">
           {kicker}
         </span>
       )}

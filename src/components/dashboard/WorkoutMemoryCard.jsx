@@ -103,7 +103,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-micro font-bold tracking-[0.04em] text-primary">
+                <span className="kicker text-primary">
                   {tFallback(`memory.label.${memory.yearLabel.replace(/\s+/g, '_')}`, memory.yearLabel)}
                 </span>
                 {dateStr && (

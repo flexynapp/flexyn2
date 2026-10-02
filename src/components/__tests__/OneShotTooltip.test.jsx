@@ -15,7 +15,7 @@ import React, { useRef } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import OneShotTooltip from '@/components/OneShotTooltip';
-import { TOOLTIP, markTooltipSeen, resetAllSeenTooltips } from '@/lib/tooltipRegistry';
+import { TOOLTIP, markTooltipSeen, resetAllSeenTooltips, tipsEnabled, setTipsEnabled } from '@/lib/tooltipRegistry';
 
 const ID = Object.values(TOOLTIP)[0];
 
@@ -201,5 +201,33 @@ describe('OneShotTooltip — several instances of one id', () => {
     open();
 
     expect(screen.getAllByText('hint text')).toHaveLength(1);
+  });
+});
+
+describe('OneShotTooltip — turning tips off', () => {
+  it('the bubble offers "Turn off tips", and tapping it keeps the bubble open until the click lands', () => {
+    render(<Harness placement="top" />);
+    open();
+    const link = screen.getByRole('button', { name: 'Turn off tips' });
+
+    // A tap on the bubble is not the tap-anywhere dismissal.
+    act(() => { link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+    expect(screen.getByRole('button', { name: 'Turn off tips' })).toBeTruthy();
+
+    act(() => { link.click(); });
+    expect(tipsEnabled()).toBe(false);
+  });
+
+  it('does not fire at all while tips are off, and fires again once they are back on', () => {
+    setTipsEnabled(false);
+    const { unmount } = render(<Harness placement="top" />);
+    open();
+    expect(screen.queryByText('hint text')).toBeNull();
+    unmount();
+
+    setTipsEnabled(true);
+    render(<Harness placement="top" />);
+    open();
+    expect(screen.getByText('hint text')).toBeTruthy();
   });
 });

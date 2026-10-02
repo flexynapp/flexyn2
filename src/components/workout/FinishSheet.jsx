@@ -49,7 +49,7 @@ export default function FinishSheet({
               {stats.map((s) => (
                 <div key={s.key} className="flex-1 min-w-0 flex flex-col items-center gap-0.5 rounded-lg bg-secondary px-2 py-3 text-center">
                   <span className="max-w-full font-heading text-xl font-extrabold leading-none tabular-nums truncate">{s.value}</span>
-                  <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">{s.label}</span>
+                  <span className="kicker">{s.label}</span>
                 </div>
               ))}
             </div>

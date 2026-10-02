@@ -136,7 +136,7 @@ export default function FastingTrackerCard() {
         {/* Manual-hours input — for users who want a duration the
             presets don't cover (e.g. 14h, 22h, 24h). */}
         <div className="flex items-center gap-2">
-          <label className="text-micro uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+          <label className="kicker shrink-0">
             {tFallback("nutrition.water.custom", "Custom")}
           </label>
           <input
@@ -183,7 +183,7 @@ export default function FastingTrackerCard() {
               : tFallback('fastingTrackerCard.fasting', 'Fasting')}
           </h3>
         </div>
-        <span className="text-micro uppercase tracking-wide text-muted-foreground">
+        <span className="kicker">
           {tFallback('fastingTrackerCard.hourTarget', '{h}h target', { h: state.targetHours })}
         </span>
       </div>

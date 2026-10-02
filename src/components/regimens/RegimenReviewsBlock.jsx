@@ -81,7 +81,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
     <div className="mt-3 pt-3 border-t border-border/40 space-y-3">
       {/* Aggregate header */}
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("regimenReviewsBlock.reviews", "Reviews")}</h4>
+        <h4 className="eyebrow">{tFallback("regimenReviewsBlock.reviews", "Reviews")}</h4>
         {agg && agg.review_count > 0 && (
           <div className="flex items-center gap-1.5">
             <StarRating value={agg.avg_rating} size="sm" />
@@ -126,7 +126,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
       {/* Composer — only when signed in */}
       {user?.id && (
         <div className="pt-2 border-t border-border/40 space-y-2">
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="kicker">
             {mine ? 'Update your review' : 'Add your review'}
           </p>
           <StarRating value={stars} onChange={(n) => { setStars(n); setAdoptionError(false); }} size="md" />

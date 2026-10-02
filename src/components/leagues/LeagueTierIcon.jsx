@@ -66,6 +66,9 @@ export function wingPath(size, lift = 0) {
 export const WING_SMALL = { size: 0.72, lift: 0 };
 export const WING_FULL = { size: 0.95, lift: 0 };
 export const WING_SWEPT = { size: 1.05, lift: 5 };
+// Which wing each league carries, for the rank up's crest morph
+// (RankUpSequence), which grows and folds them between leagues.
+export const TIER_WINGS = { bronze: null, silver: WING_SMALL, gold: WING_FULL, platinum: WING_SWEPT, diamond: WING_SWEPT, legend: WING_SWEPT };
 
 export const chevron = (y) => `M21 ${y + 7} L32 ${y} L43 ${y + 7} V${y + 12} L32 ${y + 5} L21 ${y + 12} Z`;
 export const STAR = 'M32 20 L35.3 27.2 L43 28 L37.2 33.2 L38.8 41 L32 37 L25.2 41 L26.8 33.2 L21 28 L28.7 27.2 Z';
@@ -200,7 +203,7 @@ const ROSETTE = (() => {
   }
   return `M${pts.join(' L')} Z`;
 })();
-function Rosette({ p }) {
+export function Rosette({ p }) {
   return (
     <>
       <path d={ROSETTE} fill={p.rim} stroke={p.dark} strokeWidth="1.6" strokeLinejoin="round" />
@@ -242,7 +245,7 @@ export function Laurel({ p }) {
   );
 }
 
-function Ribbon({ p, pips }) {
+export function Ribbon({ p, pips }) {
   const xs = Array.from({ length: pips }, (_, i) => 32 + (i - (pips - 1) / 2) * 6);
   return (
     <>

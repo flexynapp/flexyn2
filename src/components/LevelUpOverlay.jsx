@@ -198,14 +198,14 @@ export default function LevelUpOverlay({ event, onDismiss }) {
                   on the card goes through t(); a Japanese or Arabic user got
                   "From"/"To" in the middle of a translated card. */}
               <div className="flex flex-col items-center">
-                <span className="text-white/70 text-xs font-medium uppercase tracking-widest mb-0.5">{tFallback('levelUp.from', 'From')}</span>
+                <span className="eyebrow text-white/70 mb-0.5">{tFallback('levelUp.from', 'From')}</span>
                 <span className="font-heading font-bold text-4xl text-white/80">{event.fromLevel}</span>
               </div>
 
               <ArrowRight className="w-7 h-7 text-white/80 shrink-0" />
 
               <div className="flex flex-col items-center">
-                <span className="text-white/70 text-xs font-medium uppercase tracking-widest mb-0.5">{tFallback('levelUp.to', 'To')}</span>
+                <span className="eyebrow text-white/70 mb-0.5">{tFallback('levelUp.to', 'To')}</span>
                 <motion.span
                   className="font-heading font-bold text-5xl text-white drop-shadow-lg"
                   initial={reducedMotion ? {} : { scale: 0.5, opacity: 0 }}

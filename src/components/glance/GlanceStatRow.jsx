@@ -21,7 +21,7 @@ export default function GlanceStatRow({ cells = [], className = '' }) {
       {live.map((cell) => {
         const body = (
           <>
-            <span className="text-micro font-bold uppercase tracking-[0.04em] text-muted-foreground truncate">{cell.label}</span>
+            <span className="kicker truncate">{cell.label}</span>
             {cell.value != null && (
               <span className="flex items-baseline gap-1 min-w-0">
                 <span className="font-display tabular-nums text-title text-foreground">{cell.value}</span>

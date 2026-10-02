@@ -85,7 +85,7 @@ describe('the upcoming list', () => {
     mount();
     await screen.findByText('Cancelled one');
     expect(screen.queryByText('Upcoming')).toBeNull();
-    expect(screen.getByText('Past Plans')).toBeTruthy();
+    expect(screen.getByText('Past plans')).toBeTruthy();
   });
 });
 

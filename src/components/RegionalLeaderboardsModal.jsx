@@ -197,7 +197,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
               on every platform and never force horizontal scrolling. */}
           <div className="mb-5 space-y-3">
             <div>
-              <label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-1.5 block">
+              <label className="kicker mb-1.5 block">
                 {t('leaderboards.region.country')}
               </label>
               <div className="relative">
@@ -238,7 +238,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                   transition={{ duration: 0.25 }}
                   className="overflow-hidden"
                 >
-                  <label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-1.5 flex items-center gap-1">
+                  <label className="kicker mb-1.5 flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
                     {t('leaderboards.region.state')}
                   </label>

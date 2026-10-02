@@ -32,7 +32,7 @@ import { useDateFormatter } from '@/lib/intl';
 function SectionLabel({ children, aside }) {
   return (
     <div className="flex items-baseline justify-between mb-2">
-      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+      <span className="kicker">
         {children}
       </span>
       {aside && <span className="text-xs text-muted-foreground tabular-nums">{aside}</span>}
@@ -126,7 +126,7 @@ export default function ProfileTrophies({
                     <>
                       <Plus className={`w-4 h-4 ${isPrimary ? 'text-primary/70' : 'text-primary/50'}`} />
                       {isPrimary && (
-                        <span className="text-micro font-bold uppercase tracking-wider text-primary/80 dark:text-primary/80 leading-none">
+                        <span className="kicker text-primary/80 dark:text-primary/80">
                           {tFallback('hub.profile.primaryShort', 'Primary')}
                         </span>
                       )}

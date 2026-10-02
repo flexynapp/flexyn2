@@ -84,7 +84,7 @@ export default function WeeklyGauntletCard({
       >
         <div className="flex items-start justify-between gap-2 mb-1">
           <div>
-            <span className="text-micro font-bold uppercase tracking-widest text-purple-400 mb-1 block">
+            <span className="eyebrow text-purple-400 mb-1 block">
               {tFallback("weeklyGauntletCard.communityGauntlet", "Community Gauntlet")}
             </span>
             <h3 className="text-base font-bold leading-tight">{gauntlet.title}</h3>

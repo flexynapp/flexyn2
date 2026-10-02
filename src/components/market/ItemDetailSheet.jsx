@@ -26,7 +26,7 @@ import { rarityName } from '@/components/capsules/words';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 import * as marketplace from '@/lib/data/marketplace';
 import { findCatalogItem, lootDescription } from '@/lib/lootCatalog';
-import { askMultiple, catalogValue, formatSetNo, setNumber } from '@/lib/capsuleShelf';
+import { askMultiple, catalogValue, setNumber } from '@/lib/capsuleShelf';
 import { displayName } from '@/lib/userDisplay';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useNumberFormatter } from '@/lib/intl';
@@ -107,19 +107,14 @@ export default function ItemDetailSheet({
 
   const facts = [
     { k: tFallback('itemDetail.catalogValue', 'Catalog value'), coin: catalog != null, v: catalog != null ? fmt(catalog) : tFallback('itemDetail.none', 'None') },
-    {
-      k: tFallback('itemDetail.lastSale', 'Last priced sale'),
-      coin: lastSale != null,
-      v: lastSale != null ? fmt(lastSale) : tFallback('itemDetail.noneYet', 'None yet'),
-    },
+    // Rows that would only say "None" are left out; the list below already
+    // shows other listings when there are any.
+    ...(lastSale != null ? [{
+      k: tFallback('itemDetail.lastSale', 'Last priced sale'), coin: true, v: fmt(lastSale),
+    }] : []),
     ...(priceStats && priceStats.count > 1 ? [{
       k: tFallback('itemDetail.typical', 'Typical sale'), coin: true, v: fmt(priceStats.median),
     }] : []),
-    {
-      k: tFallback('itemDetail.otherListings', 'Other {item} listings', { item: listing.item_name }),
-      coin: false,
-      v: alternatives.length > 0 ? fmt(alternatives.length) : tFallback('itemDetail.none', 'None'),
-    },
   ];
 
   return createPortal(
@@ -160,12 +155,16 @@ export default function ItemDetailSheet({
             <NotchedCorner />
           </div>
           <div className="min-w-0 flex flex-col gap-1.5">
-            {set && (
-              <span className="stamp">
-                {tFallback('itemDetail.setNo', 'No. {no} of {total}', { no: formatSetNo(set.no), total: set.total })}
-              </span>
-            )}
-            <h2 id="listing-detail-title" className="font-display text-display break-anywhere">{listing.item_name}</h2>
+            {/* The set number rides on the name's baseline, not above it as a
+                label (Kegan, 2026-10-02). */}
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <h2 id="listing-detail-title" className="font-display text-display break-anywhere">{listing.item_name}</h2>
+              {set && (
+                <span className="text-label font-medium text-muted-foreground tabular-nums">
+                  {tFallback('itemDetail.setNo', 'No. {no}/{total}', { no: set.no, total: set.total })}
+                </span>
+              )}
+            </div>
             <span className="inline-flex items-center gap-2 text-label font-semibold" style={{ color: tint.color }}>
               <span className="w-2 h-2 rounded-full" style={{ background: tint.color }} aria-hidden="true" />
               {rarityName(tFallback, listing.item_rarity)}
@@ -176,14 +175,21 @@ export default function ItemDetailSheet({
           </div>
         </div>
 
+        {/* The coin says it is a price, so a sale carries no label; the
+            multiple rides beside it instead of a sentence below the table. */}
         <div className="px-5 pt-6 flex flex-col gap-1.5">
-          <span className="eyebrow">
-            {isSale ? tFallback('itemDetail.asking', 'Asking') : tFallback('itemDetail.wants', 'Wants in trade')}
-          </span>
+          {!isSale && <span className="eyebrow">{tFallback('itemDetail.wants', 'Wants in trade')}</span>}
           {isSale ? (
-            <span className="inline-flex items-center gap-2">
-              <FlexCoinIcon size={22} />
-              <span className="font-display text-title tabular-nums">{fmt(price)}</span>
+            <span className="inline-flex flex-wrap items-baseline gap-x-2">
+              <span className="inline-flex items-center gap-2 self-center">
+                <FlexCoinIcon size={22} />
+                <span className="font-display text-title tabular-nums">{fmt(price)}</span>
+              </span>
+              {multiple != null && (
+                <span className="text-label text-muted-foreground tabular-nums">
+                  {tFallback('itemDetail.askMultiple', '{n}× catalog', { n: fmt(multiple) })}
+                </span>
+              )}
             </span>
           ) : (
             <span className="font-display text-title">
@@ -204,10 +210,27 @@ export default function ItemDetailSheet({
             </div>
           ))}
         </dl>
-        {multiple != null && (
-          <p className="mx-5 mt-2 text-label text-muted-foreground">
-            {tFallback('itemDetail.askMultiple', 'Sellers set their own prices. This one asks {n} times the catalog value.', { n: fmt(multiple) })}
+
+        {isMine ? (
+          <p className="mx-5 h-14 border-b flex items-center text-body text-muted-foreground">
+            {tFallback('itemDetail.yourListing', 'This is your listing.')}
           </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSellerClick?.(listing.seller_user_id)}
+            disabled={!onSellerClick}
+            className="mx-5 h-14 border-b flex items-center gap-2 text-start"
+          >
+            <span className="w-8 h-8 rounded-full bg-border inline-flex items-center justify-center text-label font-bold shrink-0" aria-hidden="true">
+              {(displayName(listing) || '?').slice(0, 1).toUpperCase()}
+            </span>
+            <span className="flex-1 min-w-0 truncate text-body">
+              <span className="text-muted-foreground">{tFallback('itemDetail.listedBy', 'Listed by')} </span>
+              <span className="font-semibold">{displayName(listing)}</span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+          </button>
         )}
 
         {alternatives.length > 0 && (
@@ -230,29 +253,6 @@ export default function ItemDetailSheet({
               </button>
             ))}
           </div>
-        )}
-
-        {isMine ? (
-          <p className="mx-5 mt-5 h-14 border-y flex items-center text-body text-muted-foreground">
-            {tFallback('itemDetail.yourListing', 'This is your listing.')}
-          </p>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onSellerClick?.(listing.seller_user_id)}
-            disabled={!onSellerClick}
-            className="mx-5 mt-5 h-14 border-y flex items-center gap-2 text-start"
-          >
-            <span className="w-8 h-8 rounded-full bg-border inline-flex items-center justify-center text-label font-bold shrink-0" aria-hidden="true">
-              {(displayName(listing) || '?').slice(0, 1).toUpperCase()}
-            </span>
-            <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <span className="text-caption text-muted-foreground">{tFallback('itemDetail.listedBy', 'Listed by')}</span>
-              <span className="text-body font-semibold truncate">{displayName(listing)}</span>
-            </span>
-            <span className="text-label font-semibold">{tFallback('itemDetail.profile', 'Profile')}</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
-          </button>
         )}
 
         <div className="h-6 shrink-0" />

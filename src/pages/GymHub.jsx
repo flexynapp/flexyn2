@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/lib/toast';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
 import {
@@ -38,6 +38,7 @@ import {
 } from '@/lib/data/gymBusinesses';
 import { useLanguage } from '@/lib/LanguageContext';
 import { shareOrigin } from '@/lib/appOrigin';
+import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 
 const TABS = [
   { id: 'feed',       label: 'Feed',        Icon: MessageSquare },
@@ -46,11 +47,13 @@ const TABS = [
   { id: 'leaderboard', label: 'Leaderboard', Icon: Trophy },
 ];
 
+// Unit suffixes reuse keys that already ship in every released locale
+// (the trophy units and the league day suffix), so nothing new to translate.
 const LB_MODES = [
-  { id: 'volume',      label: 'Volume',      suffix: 'lb' },
-  { id: 'consistency', label: 'Consistency', suffix: 'days' },
-  { id: 'xp',          label: 'XP',          suffix: 'xp' },
-  { id: 'streak',      label: 'Streak',      suffix: 'd' },
+  { id: 'volume',      label: 'Volume',      suffixKey: 'trophy.unit.lb',   suffix: 'lb' },
+  { id: 'consistency', label: 'Consistency', suffixKey: 'trophy.unit.days', suffix: 'days' },
+  { id: 'xp',          label: 'XP',          suffixKey: 'gymHub.lbMode.xp', suffix: 'XP' },
+  { id: 'streak',      label: 'Streak',      suffixKey: 'league.daySuffix', suffix: 'd' },
 ];
 
 /**
@@ -311,12 +314,16 @@ export default function GymHub() {
                     aria-label={tFallback("gymHub.viewMembers", "View members")}
                   >
                     <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
-                    {(gym.member_count === 1 ? ' member' : ' members')}
+                    {' '}{gym.member_count === 1
+                      ? tFallback('gymHub.memberWord.one', 'member')
+                      : tFallback('gymHub.memberWord.other', 'members')}
                   </button>
                 ) : (
                   <span className="flex items-center gap-1 text-muted-foreground">
                     <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
-                    {(gym.member_count === 1 ? ' member' : ' members')}
+                    {' '}{gym.member_count === 1
+                      ? tFallback('gymHub.memberWord.one', 'member')
+                      : tFallback('gymHub.memberWord.other', 'members')}
                   </span>
                 )}
                 {isOwner && (
@@ -347,7 +354,7 @@ export default function GymHub() {
               page being crooked. */}
           {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
             <div className="mt-3 rounded-xl bg-primary/10 border border-primary/20 p-2.5">
-              <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
+              <p className="eyebrow text-primary mb-0.5">
                 {isOwner
                   ? tFallback('gymHub.yourFlexynCode', 'Your Flexyn Code')
                   : tFallback('gymHub.flexynCode', 'Flexyn Code')}
@@ -466,13 +473,13 @@ export default function GymHub() {
 
       {(isMember || isOwner) && (
         <>
-          <div className="flex gap-1 border-b border-border mb-4">
+          <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
             {TABS.map(({ id: tid, label, Icon }) => (
               <button
                 key={tid}
                 type="button"
                 onClick={() => setTab(tid)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === tid
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
@@ -527,6 +534,7 @@ export default function GymHub() {
 // ── Events Tab ──────────────────────────────────────────────────────
 function EventsTab({ gymId, canCreate, gymOwnerId }) {
   const { tFallback } = useLanguage();
+  const fmtDate = useDateFormatter();
   const { user } = useAuth();
   const isOwner = !!(user?.id && gymOwnerId && user.id === gymOwnerId);
   const [events, setEvents] = useState([]);
@@ -699,7 +707,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {parsed ? format(parsed, "EEE MMM d 'at' h:mm a") : tFallback('gymHub.dateUnavailable', 'Date unavailable')}
+                  {parsed ? fmtDate(parsed, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : tFallback('gymHub.dateUnavailable', 'Date unavailable')}
                   {e.location_note && ` · ${e.location_note}`}
                   {isPast && ` · ${tFallback('gymHub.eventEnded', 'ended')}`}
                 </p>
@@ -747,6 +755,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
 // ── Leaderboard Tab ─────────────────────────────────────────────────
 function LeaderboardTab({ gymId, meUserId }) {
   const { tFallback } = useLanguage();
+  const fmtNum = useNumberFormatter();
   const [mode, setMode] = useState('volume');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -760,6 +769,7 @@ function LeaderboardTab({ gymId, meUserId }) {
   }, [gymId, mode]);
 
   const modeMeta = useMemo(() => LB_MODES.find(m => m.id === mode), [mode]);
+  const modeSuffix = modeMeta ? tFallback(modeMeta.suffixKey, modeMeta.suffix) : '';
   const myRow = rows.find(r => r.user_id === meUserId);
 
   return (
@@ -788,10 +798,10 @@ function LeaderboardTab({ gymId, meUserId }) {
         myRow ? (
           <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <span className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("league.yourRank", "Your rank")}</span>
+              <span className="kicker text-primary">{tFallback("league.yourRank", "Your rank")}</span>
               <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
             </span>
-            <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>
+            <span className="font-bold tabular-nums">{fmtNum(Math.round(myRow.value))} {modeSuffix}</span>
           </div>
         ) : rows.length > 0 ? (
           <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-3 text-xs text-muted-foreground">
@@ -832,7 +842,7 @@ function LeaderboardTab({ gymId, meUserId }) {
                   @{r.username || '—'}
                 </span>
                 <span className="text-sm font-bold tabular-nums">
-                  {Math.round(r.value).toLocaleString()} <span className="text-xs text-muted-foreground">{modeMeta?.suffix}</span>
+                  {fmtNum(Math.round(r.value))} <span className="text-xs text-muted-foreground">{modeSuffix}</span>
                 </span>
               </div>
             );

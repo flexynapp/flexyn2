@@ -342,7 +342,7 @@ export default function CardioPlanned() {
       {/* Upcoming */}
       {upcoming.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">{tFallback("cardioPlanned.upcoming", "Upcoming")}</p>
+          <p className="eyebrow px-1">{tFallback("cardioPlanned.upcoming", "Upcoming")}</p>
           {upcoming.map(plan => {
             const info = typeInfo(planType(plan));
             const planDate = parseISO(plan.scheduled_date);
@@ -397,7 +397,7 @@ export default function CardioPlanned() {
       {/* Past (uncompleted) */}
       {past.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 px-1">{tFallback("cardioPlanned.pastPlans", "Past Plans")}</p>
+          <p className="eyebrow text-muted-foreground/60 px-1">{tFallback("cardioPlanned.pastPlans", "Past plans")}</p>
           {past.map(plan => {
             const info = typeInfo(planType(plan));
             const isDone = plan.status === 'completed';

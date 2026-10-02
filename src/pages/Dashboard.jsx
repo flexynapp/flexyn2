@@ -71,9 +71,12 @@ import LeagueCard from '@/components/dashboard/LeagueCard';
 const SeasonCeremonyModal = React.lazy(() => import('@/components/dashboard/SeasonCeremonyModal'));
 // Lead Lifter reveal: once per won trophy, so lazy for the same reason.
 const LeadTrophyReveal = React.lazy(() => import('@/components/dashboard/LeadTrophyReveal'));
+const RankUpSequence = React.lazy(() => import('@/components/leagues/RankUpSequence'));
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
 import { enqueueReveal } from '@/lib/rewardQueue';
+import { consumeRankUp, consumePlacement } from '@/lib/rankUp';
+import * as leaguesData from '@/lib/data/leagues';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
@@ -174,7 +177,7 @@ function HeroCard({
         className="group relative w-full min-h-[44px] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-1.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-2 text-start select-none-ui transition-all"
       >
         <span className="min-w-0">
-          <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
+          <span className="kicker block mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
             {hasWorkedOutToday
               ? t('dashboard.hero.label.again')
               : plan
@@ -217,7 +220,7 @@ function StatColumn({ icon: Icon, value, format, label, suffix, accent = false, 
     <div className="flex-1 min-w-0 px-3">
       <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
         <Icon className={`w-3 h-3 shrink-0 ${accent ? 'text-primary' : ''}`} />
-        <span className="text-micro font-semibold tracking-[0.04em] truncate">{label}</span>
+        <span className="kicker truncate">{label}</span>
       </div>
       <div className="font-heading font-bold text-2xl md:text-3xl leading-none tabular-nums tracking-tight truncate">
         {shown}
@@ -665,6 +668,56 @@ export default function Dashboard() {
       clearTimeout(t);
     };
   }, [user?.id, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Rank up ───────────────────────────────────────────────────────────────
+  //
+  // League moves happen on the server (the Monday roll, or a first real
+  // Strength Score replacing the onboarding guess), usually while the user is
+  // away, so the sequence plays on the next visit. Same query key as
+  // LeagueCard, so this costs no extra round trip, and it re-checks whenever
+  // that poll brings back a new league or level. rankUp.js keeps the last
+  // league this device showed; a move up celebrates, a move down gets the
+  // quieter sequence. A first placement (the league appearing after the first
+  // workout) is the server's call: my_league_strength carries a one-shot
+  // `reveal_pending`, marked seen as the reveal starts, so it plays once per
+  // account on whichever device opens Today first.
+  const { data: rankLeague } = useQuery({
+    queryKey: ['myLeague', user?.id],
+    queryFn: () => leaguesData.getMyLeague(user),
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  });
+  const { data: rankStrength, isFetched: rankStrengthFetched } = useQuery({
+    queryKey: ['myLeagueStrength', user?.id],
+    queryFn: () => leaguesData.getMyStrength(user),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+  const [rankUp, setRankUp] = useState(null);
+  const rankTier = rankLeague?.tier?.id;
+  const rankLevel = rankLeague?.level;
+  const revealPending = rankStrength?.reveal_pending === true;
+  useEffect(() => {
+    // Wait for both reads: a pending placement must win over the ordinary
+    // comparison, which would otherwise record the league silently first.
+    if (!user?.id || !rankTier || !rankStrengthFetched) return undefined;
+    // After first paint settles, like the other reveals here.
+    const t = setTimeout(() => {
+      const placement = consumePlacement(user.id, rankStrength, rankLevel);
+      if (placement) {
+        // Never rejects; a failed mark only means it plays again next visit.
+        leaguesData.markLeagueRevealSeen()
+          .finally(() => queryClient.invalidateQueries({ queryKey: ['myLeagueStrength', user.id] }));
+        enqueueReveal(() => { setRankUp(placement); return 0; });
+        return;
+      }
+      const move = consumeRankUp(user.id, { tier: rankTier, level: rankLevel });
+      if (move) enqueueReveal(() => { setRankUp(move); return 0; });
+    }, 2800);
+    return () => clearTimeout(t);
+    // rankStrength is read only for its pending flag and tier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, rankTier, rankLevel, rankStrengthFetched, revealPending]);
 
   // ── Lead Lifter reveal ────────────────────────────────────────────────────
   //
@@ -1707,7 +1760,7 @@ export default function Dashboard() {
             wraps to two lines, so 30px type cost 75px of a 667pt screen and
             pushed the Today CTA under the bottom nav. 24px keeps the heading
             the largest type on the page. Nothing changes above 700pt. */}
-        <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1.5 [@media(max-height:700px)]:mb-1">
+        <p className="kicker mb-1.5 [@media(max-height:700px)]:mb-1">
           {todayLabel}
         </p>
         <div className="flex items-start justify-between gap-2">
@@ -1836,7 +1889,7 @@ export default function Dashboard() {
           rail is a shelf you take things off, not one you drag onto. */}
       {editMode && restorableHidden.length > 0 && (
         <div className="mt-4 mb-3 p-3 rounded-lg border border-border bg-secondary/30">
-          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
+          <p className="kicker mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden. Tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -1938,7 +1991,7 @@ export default function Dashboard() {
                         {isHalf
                           ? <Columns2 className="w-3 h-3" />
                           : <Rows3    className="w-3 h-3" />}
-                        <span className="text-micro font-bold tracking-[0.04em]">
+                        <span className="kicker">
                           {SECTION_LABELS[id]?.(tFallback, t) || id}
                         </span>
                       </button>
@@ -2132,7 +2185,19 @@ export default function Dashboard() {
         </Suspense>
       )}
 
-      {leadRevealOpen && leadTrophies.length > 0 && (
+      {rankUp && (
+        <Suspense fallback={null}>
+          <RankUpSequence
+            move={rankUp}
+            strength={rankStrength}
+            onClose={() => setRankUp(null)}
+            onViewLeague={() => setLeagueModalOpen(true)}
+          />
+        </Suspense>
+      )}
+
+      {/* Held back while a rank up is on screen, so the two never stack. */}
+      {leadRevealOpen && !rankUp && leadTrophies.length > 0 && (
         <Suspense fallback={null}>
           <LeadTrophyReveal
             open={leadRevealOpen}

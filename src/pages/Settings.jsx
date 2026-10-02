@@ -58,7 +58,7 @@ const SECTIONS = [
     slug: 'preferences',
     icon: SlidersHorizontal,
     title: ['settings.section.preferences', 'Preferences'],
-    hint: ['settings.section.preferences.hint', 'Language, units, appearance, haptics & sound'],
+    hint: ['settings.section.preferences.hint', 'Language, units, appearance, tips, haptics & sound'],
     Component: PreferencesSection,
   },
   {

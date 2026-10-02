@@ -103,7 +103,7 @@ export default function ProgramTemplatePicker({ onCreated }) {
   return (
     <div className="space-y-2">
       <div className="px-1">
-        <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+        <p className="kicker text-primary">
           {tFallback('programs.kicker', 'Built-in programs')}
         </p>
         <p className="text-micro text-muted-foreground mt-0.5">

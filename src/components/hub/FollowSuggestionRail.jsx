@@ -235,7 +235,7 @@ export default function FollowSuggestionRail() {
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-1.5">
             <UserPlus className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-            <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+            <span className="kicker text-primary">
               {isEmptyFeedTrap
                 ? tFallback('followSuggest.kickerEmpty', 'Build your feed')
                 : tFallback('followSuggest.kicker', 'Suggested for you')}

@@ -132,7 +132,7 @@ export default function ThemeSelector({ open, onClose }) {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">{tFallback("themeSelector.capsuleDrops", "Capsule Drops")}</span>
+                    <span className="kicker text-primary">{tFallback("themeSelector.capsuleDrops", "Capsule Drops")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {ownedLootThemes.map((lootTheme) => {
@@ -215,7 +215,7 @@ export default function ThemeSelector({ open, onClose }) {
                 {ownedLootThemes.length > 0 && (
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("themeSelector.levelThemes", "Level Themes")}</span>
+                    <span className="kicker">{tFallback("themeSelector.levelThemes", "Level Themes")}</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
@@ -299,7 +299,7 @@ export default function ThemeSelector({ open, onClose }) {
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <Shield className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">{tFallback("themeSelector.adminTesting", "Admin Testing")}</span>
+                      <span className="kicker text-amber-400">{tFallback("themeSelector.adminTesting", "Admin Testing")}</span>
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.97 }}

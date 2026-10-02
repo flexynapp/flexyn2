@@ -381,7 +381,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
           {/* Mirror — session template */}
           {duel.type === 'mirror' && templateExercises(duel.session_template).length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{session
+              <p className="eyebrow mb-2">{session
                 ? tFallback('duelDetailSheet.sessionToBeat', 'Session to beat')
                 : tFallback("duelDetailSheet.sessionTemplate", "Session Template")}</p>
               <div className="space-y-1.5">

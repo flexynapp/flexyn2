@@ -125,7 +125,7 @@ export default function HistoryCalendarSheet({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <p className="flex-1 text-center text-xs font-bold uppercase tracking-[0.1em]">
+            <p className="kicker flex-1 text-center">
               {format(month, 'MMMM yyyy', { locale })}
             </p>
             <button

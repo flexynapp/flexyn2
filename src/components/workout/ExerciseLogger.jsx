@@ -476,7 +476,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
       <div ref={setListRef} className="flex flex-col gap-1 mt-2">
         {sets.length > 0 && (
-          <div className="flex items-center gap-1 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground" aria-hidden="true">
+          <div className="kicker flex items-center gap-1 px-1" aria-hidden="true">
             <span className="w-11 shrink-0 text-center">{t('workout.set')}</span>
             <span className="flex-1 min-w-0 px-1 truncate">{tFallback('setRow.previous', 'Previous')}</span>
             <span className="w-16 shrink-0 text-center">{weightUnit}</span>
@@ -561,7 +561,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 // that used to sit in three places on the card face.
 function ExerciseSetup({ exercise, onChange, isBarbell, barLbs, onBarChange, hasImplement, onOpenPicker, recentSessions, tap }) {
   const { tFallback } = useLanguage();
-  const sectionLabel = 'text-micro font-bold uppercase tracking-wide text-muted-foreground';
+  const sectionLabel = 'kicker';
   return (
     <div className="px-4 pb-6 flex flex-col gap-6">
       {(isBarbell || hasImplement) && (

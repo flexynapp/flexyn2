@@ -33,7 +33,7 @@ function MiniStat({ label, value }) {
   return (
     <div className="rounded-lg bg-secondary/50 p-2 text-center">
       <p className="font-heading font-bold text-lg tabular-nums leading-none">{value}</p>
-      <p className="text-micro text-muted-foreground mt-1 uppercase tracking-wide">{label}</p>
+      <p className="kicker mt-1">{label}</p>
     </div>
   );
 }

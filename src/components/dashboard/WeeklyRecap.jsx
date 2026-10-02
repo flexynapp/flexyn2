@@ -80,7 +80,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
         <div className="relative bg-primary/10 px-4 pt-3.5 pb-3 border-b border-border/40 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-primary" />
-            <span className="text-micro font-bold tracking-[0.04em] text-primary">
+            <span className="kicker text-primary">
               {tFallback('recap.thisWeek', 'This week')}
             </span>
           </div>
@@ -144,7 +144,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
             {bestLiftDisplay && (
               <div className="flex items-center gap-2 min-w-0 cq-stack">
                 <Flame className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+                <span className="kicker shrink-0">
                   {tFallback('recap.heaviestLift', 'Heaviest lift')}
                 </span>
                 <span className="text-xs truncate min-w-0">
@@ -157,7 +157,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
               <div className="flex items-start gap-2">
                 <Trophy className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="kicker">
                     {recap.prs.length === 1
                       ? tFallback('recap.newPR', 'New PR')
                       : tFallback('recap.newPRs', 'New PRs')}
@@ -213,7 +213,7 @@ function RecapStat({ icon: Icon, value, valueSuffix, label, delta, deltaPct, del
     <div className="px-3 py-3 flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5">
         <Icon className="w-3 h-3 text-muted-foreground" />
-        <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground truncate">
+        <span className="kicker truncate">
           {label}
         </span>
       </div>

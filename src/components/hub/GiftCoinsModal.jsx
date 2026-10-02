@@ -154,7 +154,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
           </div>
 
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               {tFallback('gift.customAmount', 'Custom amount')}
             </label>
             <input
@@ -178,7 +178,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
           </div>
 
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               {tFallback('gift.message', 'Message (optional)')}
             </label>
             <input

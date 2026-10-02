@@ -251,7 +251,7 @@ export function Group({ title, description, children, className = '' }) {
   return (
     <section className={className}>
       {title && (
-        <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-1">
+        <h2 className="eyebrow mb-2 px-1">
           {title}
         </h2>
       )}

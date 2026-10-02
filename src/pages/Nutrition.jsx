@@ -1350,7 +1350,7 @@ export default function Nutrition() {
               read English under a Spanish screen. Short weekday and month
               below sm: at 0.2em tracking the long form wrapped on a 375pt
               SE and left the day number alone on its own line. */}
-          <p className="min-w-0 text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground whitespace-nowrap">
+          <p className="kicker min-w-0 whitespace-nowrap">
             <span className="sm:hidden">{fmtDate(new Date(), { weekday: 'short', month: 'short', day: 'numeric' })}</span>
             <span className="hidden sm:inline">{fmtDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric' })}</span>
           </p>
@@ -1735,7 +1735,7 @@ export default function Nutrition() {
                   label={tFallback('dashboard.editLegend.drag', 'Long-press and drag to reorder a section')}
                   className="text-primary/70"
                 />
-                <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary/50">
+                <span className="kicker text-primary/50">
                   {sectionLabel}
                 </span>
                 {isHidden && (
@@ -1813,7 +1813,7 @@ export default function Nutrition() {
       >
         {/* Meal-type compact pills — right above the form */}
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("hub.share.meal", "Meal")}</p>
+          <p className="kicker">{tFallback("hub.share.meal", "Meal")}</p>
           <MealTypePicker value={mealType} onChange={setMealType} />
         </div>
         <ErrorBoundary label="LogMealForm">

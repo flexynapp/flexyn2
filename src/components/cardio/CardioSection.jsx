@@ -284,7 +284,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
                 <span className="absolute top-5 end-5 w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
                   <Play className="w-7 h-7 ms-1" />
                 </span>
-                <span className="block text-micro font-bold uppercase tracking-[0.18em] opacity-75">
+                <span className="kicker block">
                   {tFallback('cardio.start.kickerShort', 'Start')}
                 </span>
                 <span className="block font-heading font-extrabold text-3xl mt-1 pe-20">

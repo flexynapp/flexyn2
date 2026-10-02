@@ -137,7 +137,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
               {/* Was 'Completed ✓' — the glyph duplicated the CheckCircle2
                   already showing in the badge to its left, and baked a
                   symbol into a translatable string. */}
-              <span className={`text-micro font-bold tracking-[0.1em] ${info.color}`}>
+              <span className={`kicker ${info.color}`}>
                 {doneToday
                   ? tFallback('todaysPlan.completed', 'Completed')
                   : tFallback('todaysPlan.kicker', "Today's Plan")}

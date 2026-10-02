@@ -1,18 +1,22 @@
 // src/components/hub/UserBag.jsx
-// Inventory bag modal — Capsules | Stickers | Titles | Frames | Themes tabs.
+// My Bag: Capsules | Stickers | Titles | Frames (| Themes, only if owned).
 // Capsules come from user_capsules; everything else from user_inventory.
-// Stickers are grouped by item_id so duplicates are visible and sellable.
-// Titles / Frames update equipped_title_id / equipped_frame_id on user_profiles.
+//
+// Option C, "Shelves" (Kegan's pick, 2026-10-02). Each tab is one hero at the
+// top and a sideways shelf per rarity under it, rarest first. The hero is the
+// detail view: tap anything on a shelf and the hero shows it with the ONE
+// action it has (sell, wear, equip, open). Shelves list what you own first
+// and the spots you have not filled after it, dimmed, so the Bag is also the
+// collection and the separate Collection sheet is gone.
+//
+// It replaced a grid of rarity-bordered boxes, each with its own rarity pill
+// and Sell button, which read as generated UI and made "what am I missing"
+// a second screen.
 
-// useRef serves two needs: the per-tab equip-intent guard in
-// TitleList / FrameList (origin/main fix — was `React.useRef` without
-// the React import, which blanked the Titles / Frames tabs), and the
-// sell-confirm disarm timer cleanup in StickerGroupCard (needs
-// useEffect too).
-import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sticker, Palette, ShoppingBag, Store, Crown, Square, Search, LibraryBig } from 'lucide-react';
+import { X, Search, Package, Palette, Globe2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -22,14 +26,18 @@ import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
 import { getFlexCoins } from '@/lib/data/coinShop';
-import { ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
-import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
+import { ITEMS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
+import { RarityBadge, RarityFrame } from '@/components/loot/RarityVisuals';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
-import CapsuleIcon from '@/components/loot/CapsuleIcon';
+import CapsuleCanister from '@/components/capsules/CapsuleCanister';
+import Sticker from '@/components/capsules/Sticker';
+import { tierName, rarityName } from '@/components/capsules/words';
+import {
+  Shelf, ShelfSticker, ShelfTitle, ShelfFrame, FramedAvatar, shelvesOf, inkStyle,
+} from '@/components/loot/Shelf';
+import { catalogFor } from '@/lib/collection';
 import { getLootThemeById } from '@/lib/lootThemes';
-import { getLootFrameById } from '@/lib/lootFrames';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
-import StickerDisplay from './StickerDisplay';
 import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
@@ -38,10 +46,8 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
 import { sellPriceFor } from '@/lib/sellPrice';
 import { enT } from '@/lib/translatorArg';
-
-// Lazy — the Collection pulls in every catalog (themes alone is ~800
-// lines) and only mounts on an explicit tap.
-const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
+import { haptic } from '@/lib/haptic';
+import { DURATION, EASE_OUT } from '@/lib/motion';
 
 // Sell price is half the hidden base value, rounded down. Shared with the
 // capsule reveal through src/lib/sellPrice.js; the server prices the sale.
@@ -51,50 +57,52 @@ const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
 // The catalog ids are cap_standard / cap_premium / cap_elite — the
 // lookups here said capsule_* and so had ALWAYS fallen through to the
 // literals below. Corrected rather than deleted: the catalog carries the
-// description the opener shows. The glyph is only a text fallback now;
-// the visible icon is <CapsuleIcon>, which draws the sphere.
+// description the opener shows.
 const CAPSULE_META = {
   standard: ITEMS.find(i => i.id === 'cap_standard') ?? { name: 'Standard Capsule', emoji: CAPSULE_GLYPH.standard, rarity: 'common'   },
   premium:  ITEMS.find(i => i.id === 'cap_premium')  ?? { name: 'Premium Capsule',  emoji: CAPSULE_GLYPH.premium,  rarity: 'uncommon' },
   elite:    ITEMS.find(i => i.id === 'cap_elite')    ?? { name: 'Elite Capsule',    emoji: CAPSULE_GLYPH.elite,    rarity: 'epic'     },
 };
 
-// The rarity chip / rarity-tinted card shell now come from the shared
-// loot primitives so the Bag, the Marketplace and the Capsule Opener can't
-// drift apart again.
+// Rarest first, the order the shelf and the tier picker read in.
+const TIERS = ['elite', 'premium', 'standard'];
 
-// An inventory count is arbitrary by nature, so a partial last row was the
-// common case in every one of these — see src/lib/tileRows.js for what a grid
-// did with one and why they all wrap and centre now.
-const TILE  = tileRow({ gap: 3, cols: 3, smCols: 4 }); // capsules, stickers, themes
-const FRAME = tileRow({ gap: 3, cols: 2, smCols: 3 }); // frames — bigger avatar
-// Titles are list ROWS, not tiles: one per row on a phone, so centring is a
-// no-op there and the left reading edge is untouched. It only takes effect
-// from sm, where an odd count used to leave the last row in the left column.
-const TITLE = tileRow({ gap: 2, cols: 1, smCols: 2 });
+// Themes are off (src/lib/featureFlags.js); an owned theme still shows in its
+// old tile grid rather than vanishing, so it keeps its wrapping row.
+const TILE = tileRow({ gap: 3, cols: 3, smCols: 4 });
 
-// ─── Capsule card ─────────────────────────────────────────────────────────────
+// The hero changes in place when you pick something; a short fade says it
+// changed without moving anything (an Answer, in the motion tiers).
+const HERO_FADE = {
+  initial: { opacity: 0, y: 4 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0 },
+  transition: { duration: DURATION.fast, ease: EASE_OUT },
+};
+
+// ─── Capsule hero ─────────────────────────────────────────────────────────────
 // Exported for the regression test only — nothing else imports it, and the
 // default export stays the component this module is about. It is exported
 // rather than tested through <UserBag> because reaching this button that way
 // means standing up auth, the query client and two live Supabase reads, none
 // of which are the thing under test: what this card hands the opener.
-export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
+export function CapsuleCard({ capsuleRow, onOpenCapsule, rows = [], onOpenCapsuleBatch }) {
   const { tFallback } = useLanguage();
-  const meta = CAPSULE_META[capsuleRow.capsule_type] ?? CAPSULE_META.standard;
+  const tier = CAPSULE_META[capsuleRow.capsule_type] ? capsuleRow.capsule_type : 'standard';
+  const meta = CAPSULE_META[tier];
+  const n = Math.max(rows.length, 1);
+  const take = Math.min(rows.length, 10);
   return (
-    <RarityFrame
-      rarity={meta.rarity}
-      as={motion.div}
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item}`}
-    >
-      <CapsuleIcon type={capsuleRow.capsule_type || 'standard'} size={56} />
-      <span className="text-xs font-semibold leading-tight">{meta.name}</span>
-      <RarityBadge rarity={meta.rarity} />
+    <div className="flex flex-col items-center">
+      <CapsuleCanister tier={tier} height={168} />
+      <p className="pt-2 font-heading font-bold text-title">
+        {tFallback('userBag.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) })}
+      </p>
+      <p className="text-label text-muted-foreground tabular-nums">
+        ×{n}
+      </p>
       <button
+        type="button"
         // meta FIRST, row LAST. meta is a loot_catalog entry and carries its
         // own `id` ('cap_premium'), so spreading it second overwrote the
         // capsule row's UUID — the opener then sent 'cap_premium' to
@@ -102,12 +110,32 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
         // for type uuid`. Every capsule opened from a single card failed;
         // the batch button passes raw rows, which is why "open all" worked
         // and a lone capsule did not.
-        onClick={() => onOpenCapsule?.({ ...meta, ...capsuleRow })}
-        className="mt-1 w-full py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        onClick={() => { haptic('light'); onOpenCapsule?.({ ...meta, ...capsuleRow }); }}
+        className="mt-6 w-full h-12 rounded-full bg-primary text-primary-foreground text-body font-bold active:scale-[0.98] transition-transform duration-150"
       >
-        {tFallback("onboarding.invite_friend.cta", "Open")}
+        {tFallback('userBag.openOne', 'Open')}
       </button>
-    </RarityFrame>
+      {onOpenCapsuleBatch && rows.length > 1 && (
+        <button
+          type="button"
+          onClick={() => { haptic('light'); onOpenCapsuleBatch(rows.slice(0, take)); }}
+          className="mt-2 w-full min-h-11 flex flex-col items-center justify-center"
+        >
+          <span className="text-label font-semibold text-primary">
+            {tier === 'elite'
+              ? tFallback('userBag.openNElite', 'Open {n} elite', { n: take })
+              : tier === 'premium'
+                ? tFallback('userBag.openNPremium', 'Open {n} premium', { n: take })
+                : tFallback('userBag.openNStandard', 'Open {n} standard', { n: take })}
+          </span>
+          <span className="text-caption text-muted-foreground">
+            {rows.length > take
+              ? tFallback('userBag.batchMore', 'One after another, then all of them at once. {n} more after.', { n: rows.length - take })
+              : tFallback('userBag.batchHint', 'One after another, then all of them at once')}
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -129,101 +157,432 @@ export function sellLabelFor(count, tf = enT) {
     : tf('userBag.sell', 'Sell');
 }
 
-// ─── Sticker group card (shows duplicates + sell button) ──────────────────────
-function StickerGroupCard({ group, onSell, selling }) {
-  const { tFallback } = useLanguage();
-  // `group` is an array of inventory rows for the same item_id.
-  // We use group[0] for display info, count for badge.
-  const item   = group[0];
-  const count  = group.length;
-  const price  = sellPriceFor(item.item_rarity, item.variant);
+/**
+ * Everything a tab can show: the catalog for that kind, each entry carrying
+ * the inventory rows you hold of it. An owned item the catalog does not know
+ * (a retired drop) is kept, on its own rarity's shelf, rather than hidden.
+ */
+function shelfItems(kind, rows) {
+  const held = new Map();
+  for (const r of rows) {
+    // Skip rows with no item_id rather than collapsing them all under one
+    // 'undefined' key, which would merge unrelated items.
+    if (r?.item_id == null) continue;
+    if (!held.has(r.item_id)) held.set(r.item_id, []);
+    held.get(r.item_id).push(r);
+  }
+  const catalog = catalogFor(kind);
+  const known = new Set(catalog.map(c => c.id));
+  const items = catalog.map(c => ({
+    id: c.id, name: c.name, emoji: c.emoji, rarity: c.rarity, rows: held.get(c.id) ?? [],
+  }));
+  for (const [id, rs] of held) {
+    if (known.has(id)) continue;
+    items.push({ id, name: rs[0].item_name, emoji: rs[0].item_emoji, rarity: rs[0].item_rarity, rows: rs });
+  }
+  return items;
+}
 
-  // Unlisted items are the ones available to sell.
-  const unlisted = group.filter(i => !i.is_listed);
-  // Any unlisted copy is sellable — including the last one. (Previously
-  // we forced keeping one copy; per product the user can sell ANY item,
-  // "even if it's really small.")
-  const canSell  = unlisted.length >= 1;
-  const sellLabel = sellLabelFor(count, tFallback);
+/** Shelves for a tab: owned first on each, then the missing, with counts. */
+function useShelves(items, q) {
+  return useMemo(() => {
+    const all = shelvesOf(items);
+    return all
+      .map(s => {
+        const owned = s.items.filter(i => i.rows.length > 0);
+        const missing = s.items.filter(i => i.rows.length === 0);
+        const shown = [...owned, ...missing].filter(i => !q || (i.name || '').toLowerCase().includes(q));
+        return { rarity: s.rarity, owned: owned.length, total: s.items.length, items: shown };
+      })
+      .filter(s => s.items.length > 0);
+  }, [items, q]);
+}
 
-  // Two-step confirm: first click arms the button, second executes.
-  const [armed, setArmed] = useState(false);
-  const disarmTimerRef = useRef(null);
+/** The rarest item you own, for a hero with nothing picked. */
+function rarestOwned(items) {
+  for (const s of shelvesOf(items.filter(i => i.rows.length > 0))) return s.items[0];
+  return null;
+}
 
-  // Audit B-21 — clear any pending disarm on unmount so the bag-modal
-  // close mid-armed doesn't fire setState on an unmounted card.
-  useEffect(() => () => {
-    if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
-  }, []);
-
-  const handleSellClick = useCallback(() => {
-    if (!armed) {
-      setArmed(true);
-      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
-      disarmTimerRef.current = setTimeout(() => setArmed(false), 3000);
-    } else {
-      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
-      setArmed(false);
-      onSell(unlisted[unlisted.length - 1], price); // sell the last-acquired copy
-    }
-  }, [armed, unlisted, price, onSell]);
-
+// ─── Empty state ──────────────────────────────────────────────────────────────
+function EmptyState({ icon: Icon, label, onShop }) {
   return (
-    <RarityFrame
-      rarity={item.item_rarity}
-      as={motion.div}
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item}`}
-    >
-      {/* Duplicate count badge */}
-      {count > 1 && (
-        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center">
-          ×{count}
-        </span>
-      )}
+    <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+      {Icon && <Icon className="w-10 h-10 text-muted-foreground/50" aria-hidden="true" />}
+      <p className="text-muted-foreground text-label">{label}</p>
+      {onShop && <ShopLink onShop={onShop} />}
+    </div>
+  );
+}
 
-      <StickerDisplay emoji={item.item_emoji} variant={item.variant} size={52} />
-      {item.variant && (
-        <span
-          className="text-micro font-bold"
-          style={{ color: VARIANTS[item.variant]?.color ?? 'hsl(var(--foreground))' }}
-        >
-          {VARIANTS[item.variant]?.badge}
-        </span>
-      )}
-      <span className="text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
-      <RarityBadge rarity={item.item_rarity} />
+function ShopLink({ onShop }) {
+  const { tFallback } = useLanguage();
+  return (
+    <button type="button" onClick={onShop} className="min-h-11 px-2 text-label font-semibold text-primary">
+      {tFallback('userBag.toCoinShop', 'Go to the coin shop')}
+    </button>
+  );
+}
 
-      {/* Sell duplicate button */}
-      {canSell ? (
-        <button
-          onClick={handleSellClick}
+// ─── Two-tap sell button ──────────────────────────────────────────────────────
+// First tap arms, second sells. Disarms on its own after a few seconds so a
+// stray return tap cannot land on a primed destructive action.
+function ArmedButton({ idle, armedLabel, onConfirm, disabled, className, armedClassName, resetKey, ms = 3000 }) {
+  const [armed, setArmed] = useState(false);
+  const timer = useRef(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => { setArmed(false); }, [resetKey]);
+  const onClick = () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (!armed) {
+      haptic('light');
+      setArmed(true);
+      timer.current = setTimeout(() => setArmed(false), ms);
+    } else {
+      setArmed(false);
+      onConfirm();
+    }
+  };
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={armed ? armedClassName : className}>
+      {armed ? armedLabel : idle}
+    </button>
+  );
+}
+
+// ─── Sticker hero ─────────────────────────────────────────────────────────────
+function StickerHero({ item, isDefault, onSell, selling, onShop }) {
+  const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
+  const count = item.rows.length;
+  const have = count > 0;
+  const unlisted = item.rows.filter(r => !r.is_listed);
+  // Sell the last-acquired unlisted copy. Any copy may be sold, the last one
+  // included ("even if it's really small").
+  const row = unlisted[unlisted.length - 1];
+  const price = row ? sellPriceFor(row.item_rarity, row.variant) : 0;
+  return (
+    <motion.div key={item.id} {...HERO_FADE} className="flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <Sticker
+          itemId={item.id} emoji={item.emoji} rarity={item.rarity} size={96} shadow dim={!have}
+          style={{ transform: 'rotate(-6deg)' }}
+        />
+        <div className="flex-1 min-w-0">
+          {isDefault && <span className="stamp">{tFallback('userBag.rarestYouOwn', 'Rarest you own')}</span>}
+          <p className="font-heading font-bold text-title truncate">{item.name}</p>
+          <p className="text-label">
+            <span className="font-semibold rarity-ink" style={inkStyle(item.rarity)}>{rarityName(tFallback, item.rarity)}</span>
+            <span className="text-muted-foreground">
+              {' · '}
+              {have
+                ? tFallback('userBag.youHave', 'You have {n}', { n: count })
+                : tFallback('collectionModal.notCollectedYet', 'Not collected yet')}
+            </span>
+          </p>
+        </div>
+      </div>
+      {have && row && (
+        <ArmedButton
+          resetKey={item.id}
           disabled={selling}
-          className={[
-            'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
-            armed
-              ? 'bg-destructive/80 text-white border border-destructive scale-105'
-              : 'bg-primary/15 text-primary dark:text-primary border border-primary/30 hover:bg-primary/25 active:bg-primary/25',
-          ].join(' ')}
-        >
-          {armed ? (
-            tFallback('userBag.confirmSell', 'Confirm sale?')
-          ) : (
-            <span className="flex items-center justify-center gap-1">
-              {sellLabel} · {COIN} {price}
+          onConfirm={() => onSell(row)}
+          idle={(
+            <span className="inline-flex items-center gap-1.5">
+              {sellLabelFor(count, tFallback)}
+              <FlexCoinIcon size={16} />
+              <span className="tabular-nums">{fmt(price)}</span>
             </span>
           )}
-        </button>
-      ) : (
-        <span className="text-muted-foreground text-micro font-medium mt-1">{tFallback("userBag.inBag", "In Bag")}</span>
+          armedLabel={tFallback('userBag.confirmSell', 'Confirm sale?')}
+          className="h-11 rounded-full border text-label font-semibold active:scale-[0.98] transition-transform duration-150"
+          armedClassName="h-11 rounded-full bg-destructive text-destructive-foreground text-label font-bold"
+        />
       )}
-    </RarityFrame>
+      {have && !row && (
+        <p className="text-label text-muted-foreground">{tFallback('userBag.allListed', 'Every copy is listed on the market')}</p>
+      )}
+      {!have && <ShopLink onShop={onShop} />}
+    </motion.div>
+  );
+}
+
+// ─── Equipped title and frame ─────────────────────────────────────────────────
+// One read for both tabs: the previews need the username and avatar, and the
+// title preview wears the equipped frame.
+function useEquipProfile(userId, enabled) {
+  return useQuery({
+    queryKey: ['userProfileEquip', userId],
+    queryFn: async () => {
+      // Resolve userId from the live session if the prop is missing —
+      // covers the auth-still-loading edge where user.id hasn't propagated
+      // through React context yet but supabase.auth has the session.
+      let resolved = userId;
+      if (!resolved) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        resolved = authUser?.id;
+      }
+      if (!resolved) return null;
+      const { data, error } = await safeSelect({
+        columns: ['equipped_title_id', 'equipped_frame_id', 'avatar_url', 'username'],
+        build: (cols) => supabase.from('user_profiles').select(cols).eq('id', resolved).maybeSingle(),
+      });
+      if (error) {
+        console.warn('[UserBag] read equipped items failed:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled,
+    staleTime: 10_000,
+  });
+}
+
+/**
+ * Wear or take off a title or frame. `column` is equipped_title_id or
+ * equipped_frame_id.
+ *
+ * Race-safe: the intent (what the user wants on right now) is held in a ref
+ * so two fast taps read the projected state rather than the same stale cache
+ * value, and in state so the hero updates before the server answers. ''
+ * means "explicitly nothing"; null means no intent. The intent clears once
+ * the server agrees, so a change from another device is not masked forever.
+ */
+function useEquip(column, userId, profile, featureTag) {
+  const { tFallback } = useLanguage();
+  const qc = useQueryClient();
+  const intentRef = useRef(null);
+  const [intent, setIntent] = useState(null);
+  const server = profile?.[column] ?? null;
+  useEffect(() => {
+    if (intentRef.current == null) return;
+    if ((intentRef.current === '' && server == null) || intentRef.current === server) {
+      intentRef.current = null;
+      setIntent(null);
+    }
+  }, [server]);
+  const current = intent == null ? server : (intent || null);
+
+  const equip = async (itemId) => {
+    let id = userId;
+    if (!id) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      id = authUser?.id;
+    }
+    if (!id) {
+      toast.error(column === 'equipped_title_id'
+        ? tFallback('userBag.signInRequiredToEquip2', 'Sign in required to equip titles')
+        : tFallback('userBag.signInRequiredToEquip', 'Sign in required to equip frames'));
+      return;
+    }
+    const projected = intentRef.current == null ? server : (intentRef.current || null);
+    const newId = projected === itemId ? null : itemId;
+    const prior = intentRef.current;
+    intentRef.current = newId == null ? '' : newId;
+    setIntent(intentRef.current);
+    haptic('light');
+    const { error } = await supabase.from('user_profiles').update({ [column]: newId }).eq('id', id);
+    if (error) {
+      // Revert so the hero does not show a state the server never took.
+      intentRef.current = prior;
+      setIntent(prior);
+      // The toast is generic on purpose: raw error.message leaks Postgres
+      // codes and column names. The two diagnosable cases keep their copy.
+      reportError(error, { feature: featureTag, level: 'warning', userId: id });
+      if (error.code === '42703' || new RegExp(`column.*${column}`, 'i').test(error.message || '')) {
+        toast.error(tFallback('userBag.databaseNotMigratedRunMigration', 'Database not migrated. Run migration 019'));
+      } else if (error.code === '42501') {
+        toast.error(tFallback('userBag.permissionDeniedSignInAgain', 'Permission denied. Sign in again'));
+      } else {
+        toast.error(tFallback('userBag.saveFailed', 'Could not save. Try again.'));
+      }
+      return;
+    }
+    patchProfile({ [column]: newId });
+    // No success toast: the hero and the shelf mark are the feedback.
+    qc.invalidateQueries({ queryKey: ['userProfileEquip', id] });
+    qc.invalidateQueries({ queryKey: ['hubAuthorsList'] });
+    qc.invalidateQueries({ queryKey: ['hubProfileLookup'] });
+    const type = column === 'equipped_title_id' ? 'title' : 'frame';
+    try { window.dispatchEvent(new CustomEvent('flexyn:loot-equipped', { detail: { type, id: newId } })); } catch {}
+  };
+
+  return { current, equip };
+}
+
+// The button under a title or frame hero.
+function WearButton({ have, wearing, onWear, onShop, wearLabel }) {
+  const { tFallback } = useLanguage();
+  if (!have) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-label text-muted-foreground">{tFallback('collectionModal.notCollectedYet', 'Not collected yet')}</span>
+        <ShopLink onShop={onShop} />
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onWear}
+      className={`h-11 rounded-full text-label font-bold active:scale-[0.98] transition-transform duration-150 ${
+        wearing ? 'border text-foreground' : 'bg-primary text-primary-foreground'
+      }`}
+    >
+      {wearing ? tFallback('userBag.takeOff', 'Take off') : wearLabel}
+    </button>
+  );
+}
+
+// ─── Titles: a Hub post header wearing the title you pick ─────────────────────
+function TitlesTab({ items, q, userId, profile, fallbackName, onShop }) {
+  const { tFallback } = useLanguage();
+  const { current, equip } = useEquip('equipped_title_id', userId, profile, 'userBag.equip-title');
+  const [picked, setPicked] = useState(null);
+  const shelves = useShelves(items, q);
+  const byId = useMemo(() => new Map(items.map(i => [i.id, i])), [items]);
+  const shown = byId.get(picked) ?? byId.get(current) ?? rarestOwned(items);
+  const name = profile?.username || fallbackName || '';
+
+  return (
+    <>
+      <div className="sticky top-0 z-10 -mx-5 px-5 pb-4 bg-card border-b">
+        {/* The Hub post header, exactly as a post shows it: name on top, the
+            title in its rarity colour on the meta row with time and privacy. */}
+        <div className="flex items-center gap-3 rounded-lg border bg-background p-3" aria-label={tFallback('userBag.hubPreview', 'How it looks on your posts')}>
+          <FramedAvatar frameId={profile?.equipped_frame_id} avatarUrl={profile?.avatar_url} initial={name[0]} size={36} />
+          <div className="min-w-0">
+            <p className="font-heading font-bold text-sm truncate">{name}</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {shown && (
+                <>
+                  <span className="font-semibold rarity-ink" style={inkStyle(shown.rarity)}>{shown.name}</span>
+                  <span aria-hidden="true">·</span>
+                </>
+              )}
+              <span>{tFallback('sync.justNow', 'just now')}</span>
+              <span aria-hidden="true">·</span>
+              <Globe2 className="w-3 h-3" aria-hidden="true" />
+              <span>{tFallback('hub.privacy.public', 'Public')}</span>
+            </p>
+          </div>
+        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          {shown ? (
+            <motion.div key={shown.id} {...HERO_FADE} className="pt-4 flex flex-col gap-2">
+              <p className="text-label">
+                <span className="font-semibold">{shown.name}</span>
+                <span className="text-muted-foreground"> · </span>
+                <span className="font-semibold rarity-ink" style={inkStyle(shown.rarity)}>{rarityName(tFallback, shown.rarity)}</span>
+              </p>
+              <WearButton
+                have={shown.rows.length > 0}
+                wearing={current === shown.id}
+                onWear={() => equip(shown.id)}
+                onShop={onShop}
+                wearLabel={tFallback('userBag.wearIt', 'Wear it')}
+              />
+            </motion.div>
+          ) : (
+            <p key="empty" className="pt-4 text-label text-muted-foreground">
+              {tFallback('userBag.noTitles', 'No titles yet. Open capsules to earn them.')}
+            </p>
+          )}
+        </AnimatePresence>
+      </div>
+      <ShelfList shelves={shelves} q={q} emptyMatch={tFallback('userBag.noTitlesMatch', 'No titles match "{q}".', { q })}>
+        {(it) => (
+          <ShelfTitle
+            key={it.id}
+            name={it.name}
+            rarity={it.rarity}
+            have={it.rows.length > 0}
+            wearing={current === it.id}
+            selected={shown?.id === it.id}
+            onSelect={() => setPicked(it.id)}
+          />
+        )}
+      </ShelfList>
+    </>
+  );
+}
+
+// ─── Frames: your avatar wearing the frame you pick ───────────────────────────
+function FramesTab({ items, q, userId, profile, fallbackName, onShop }) {
+  const { tFallback } = useLanguage();
+  const { current, equip } = useEquip('equipped_frame_id', userId, profile, 'userBag.equip-frame');
+  const [picked, setPicked] = useState(null);
+  const shelves = useShelves(items, q);
+  const byId = useMemo(() => new Map(items.map(i => [i.id, i])), [items]);
+  const shown = byId.get(picked) ?? byId.get(current) ?? rarestOwned(items);
+  const initial = (profile?.username || fallbackName || '?')[0];
+
+  return (
+    <>
+      <div className="sticky top-0 z-10 -mx-5 px-5 pb-4 bg-card border-b">
+        <AnimatePresence mode="wait" initial={false}>
+          {shown ? (
+            <motion.div key={shown.id} {...HERO_FADE} className="flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <FramedAvatar frameId={shown.id} avatarUrl={profile?.avatar_url} initial={initial} size={88} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading font-bold text-title truncate">{shown.name}</p>
+                  <p className="text-label font-semibold rarity-ink" style={inkStyle(shown.rarity)}>{rarityName(tFallback, shown.rarity)}</p>
+                </div>
+              </div>
+              <WearButton
+                have={shown.rows.length > 0}
+                wearing={current === shown.id}
+                onWear={() => equip(shown.id)}
+                onShop={onShop}
+                wearLabel={tFallback('userBag.equip', 'Equip')}
+              />
+            </motion.div>
+          ) : (
+            <p key="empty" className="text-label text-muted-foreground">
+              {tFallback('userBag.noFrames', 'No frames yet. Open capsules to earn them.')}
+            </p>
+          )}
+        </AnimatePresence>
+      </div>
+      <ShelfList shelves={shelves} q={q} emptyMatch={tFallback('userBag.noFramesMatch', 'No frames match "{q}".', { q })}>
+        {(it) => (
+          <ShelfFrame
+            key={it.id}
+            id={it.id}
+            name={it.name}
+            have={it.rows.length > 0}
+            wearing={current === it.id}
+            selected={shown?.id === it.id}
+            onSelect={() => setPicked(it.id)}
+            avatarUrl={profile?.avatar_url}
+            initial={initial}
+          />
+        )}
+      </ShelfList>
+    </>
+  );
+}
+
+// The shelves under a hero, or a line saying the search found nothing.
+function ShelfList({ shelves, q, emptyMatch, children }) {
+  if (q && shelves.length === 0) {
+    return <p className="pt-6 text-label text-muted-foreground text-center">{emptyMatch}</p>;
+  }
+  return (
+    <div className="pt-6 flex flex-col gap-6">
+      {shelves.map(s => (
+        <Shelf key={s.rarity} rarity={s.rarity} owned={s.owned} total={s.total}>
+          {s.items.map(children)}
+        </Shelf>
+      ))}
+    </div>
   );
 }
 
 // ─── Theme card ───────────────────────────────────────────────────────────────
+// Themes are off; this tab only appears for someone who already owns one,
+// because making owned items disappear reads as losing them.
 function ThemeCard({ item, activeLootThemeId, onApply }) {
   const { tFallback } = useLanguage();
   const lootTheme = getLootThemeById(item.item_id);
@@ -232,36 +591,19 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
   return (
     <RarityFrame
       rarity={item.item_rarity}
-      as={motion.div}
       active={isActive}
-      // NOTE: no `layout` prop — framer-motion's layout animation shifts
-      // sibling cards' positions when one becomes active, which lands stray
-      // taps on the wrong card. The active border highlight is enough
-      // feedback without animating the entire grid.
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item} ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item}`}
     >
-      {/* Preview swatches */}
       {lootTheme?.preview && (
         <div className="flex gap-1.5 justify-center mb-0.5">
           {lootTheme.preview.map((hex, i) => (
-            <div key={i} className="w-5 h-5 rounded-full ring-1 ring-white/20"
-              style={{ backgroundColor: hex }} />
+            <div key={i} className="w-5 h-5 rounded-full ring-1 ring-white/20" style={{ backgroundColor: hex }} />
           ))}
         </div>
       )}
       <span className="text-4xl leading-none">{item.item_emoji}</span>
       <span className="text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
-      {lootTheme?.animated && (
-        <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider">
-          {tFallback("userBag.animated", "Animated")}
-        </span>
-      )}
-      {/* Themes are off (src/lib/featureFlags.js) — a theme you already own
-          stays visible in the Bag, because making owned items disappear
-          reads as losing them. It just can't be equipped right now. */}
       <button
         onClick={() => onApply(item.item_id)}
         disabled={!THEMES_ENABLED}
@@ -284,279 +626,8 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
   );
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-function EmptyState({ icon: Icon, label }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-      <Icon className="w-10 h-10 text-muted-foreground/50" />
-      <p className="text-muted-foreground text-sm">{label}</p>
-    </div>
-  );
-}
-
-// ─── Title equip list ─────────────────────────────────────────────────────────
-
-function TitleList({ items, userId }) {
-  const { tFallback } = useLanguage();
-  const qc = useQueryClient();
-  const { data: profile } = useQuery({
-    queryKey: ['userProfileEquip', userId],
-    queryFn: async () => {
-      // Resolve userId from the live session if the prop is missing —
-      // covers the auth-still-loading edge where user.id hasn't propagated
-      // through React context yet but supabase.auth has the session.
-      let resolved = userId;
-      if (!resolved) {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        resolved = authUser?.id;
-      }
-      if (!resolved) return null;
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('equipped_title_id')
-        .eq('id', resolved)
-        .maybeSingle();
-      if (error) {
-        console.warn('[TitleList] read equipped_title_id failed:', error);
-        return null;
-      }
-      return data;
-    },
-    staleTime: 10_000,
-  });
-  // Race-safe equippedId: a useRef holds the "intent" — what the user wants
-  // equipped right now, regardless of whether the query cache has caught up.
-  // Without this, two fast taps on the same title (toggle off) could read
-  // the same pre-invalidate equippedId of `null` and re-equip the title
-  // instead of clearing it.
-  const intentRef = useRef(null);
-  // Clear the intent ref once the query has caught up — leaving it
-  // pinned forever caused a flicker when the server value moved
-  // independently (e.g. another device cleared the title; this device
-  // kept showing the local intent). Empty sentinel '' = explicitly
-  // unequipped; null = no intent expressed yet.
-  useEffect(() => {
-    if (intentRef.current == null) return;
-    const intentMatchesServer =
-      (intentRef.current === '' && (profile?.equipped_title_id == null))
-      || intentRef.current === profile?.equipped_title_id;
-    if (intentMatchesServer) intentRef.current = null;
-  }, [profile?.equipped_title_id]);
-  const equippedId = intentRef.current ?? profile?.equipped_title_id;
-
-  const equip = async (titleId) => {
-    let id = userId;
-    if (!id) {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      id = authUser?.id;
-    }
-    if (!id) {
-      toast.error(tFallback("userBag.signInRequiredToEquip2", "Sign in required to equip titles"));
-      return;
-    }
-    const newId = equippedId === titleId ? null : titleId;
-    // Record intent immediately so a follow-up tap sees the projected state.
-    // Sentinel '' = unequipped (so it isn't confused with "unknown" null).
-    const priorIntent = intentRef.current;
-    intentRef.current = newId == null ? '' : newId;
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({ equipped_title_id: newId })
-      .eq('id', id);
-    if (!error) patchProfile({ equipped_title_id: newId });
-    if (error) {
-      // Revert intent on failure so the UI doesn't show the wrong
-      // equipped state forever while the server still has the old value.
-      intentRef.current = priorIntent;
-      // Route to Sentry with full detail (feature tag + error). The user
-      // toast is intentionally generic — surfacing raw error.message
-      // leaks Postgres error codes / column names / RLS hints that aid
-      // attackers mapping the schema. The two diagnosable cases keep
-      // their actionable copy.
-      reportError(error, { feature: 'userBag.equip-title', level: 'warning', userId: id });
-      if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
-        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated. Run migration 019"));
-      } else if (error.code === '42501') {
-        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
-      } else {
-        toast.error(tFallback('userBag.saveFailed', 'Could not save. Try again.'));
-      }
-      return;
-    }
-    // No success toast — the "Equipped" pill on the card itself is the feedback.
-    // Stacking toasts on every tap was blocking the next button click.
-    qc.invalidateQueries({ queryKey: ['userProfileEquip', id] });
-    qc.invalidateQueries({ queryKey: ['hubAuthorsList'] });
-    qc.invalidateQueries({ queryKey: ['hubProfileLookup'] });
-    try { window.dispatchEvent(new CustomEvent('flexyn:loot-equipped', { detail: { type: 'title', id: newId } })); } catch {}
-  };
-
-  // Dedupe by item_id (multiple drops of the same title)
-  const seen = new Set();
-  const unique = items.filter(i => {
-    if (seen.has(i.item_id)) return false;
-    seen.add(i.item_id);
-    return true;
-  });
-
-  return (
-    <div className={TITLE.row}>
-      {unique.map(item => {
-        const isEquipped = equippedId === item.item_id;
-        const tint = rarityTint(item.item_rarity);
-        return (
-          <button
-            key={item.id}
-            onClick={() => equip(item.item_id)}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${TITLE.item} ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
-            }`}
-          >
-            <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-heading font-bold text-sm">{item.item_name}</p>
-              <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
-            </div>
-            <span className="text-micro font-bold uppercase tracking-wider text-primary shrink-0">
-              {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Frame equip list ─────────────────────────────────────────────────────────
-
-function FrameList({ items, userId }) {
-  const { tFallback } = useLanguage();
-  const qc = useQueryClient();
-  const { data: profile } = useQuery({
-    queryKey: ['userProfileEquipFrame', userId],
-    queryFn: async () => {
-      let resolved = userId;
-      if (!resolved) {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        resolved = authUser?.id;
-      }
-      if (!resolved) return null;
-      const { data, error } = await safeSelect({
-        columns: ['equipped_frame_id', 'avatar_url', 'username'],
-        build: (cols) => supabase
-          .from('user_profiles')
-          .select(cols)
-          .eq('id', resolved)
-          .maybeSingle(),
-      });
-      if (error) {
-        console.warn('[FrameList] read equipped_frame_id failed:', error);
-        return null;
-      }
-      return data;
-    },
-    staleTime: 10_000,
-  });
-  // See TitleList for the rationale on the intent ref — prevents a fast
-  // double-tap from reading the same pre-invalidate cache and re-equipping
-  // a frame that the user was trying to toggle off. Same flicker-clear
-  // pattern as TitleList — drop the intent once the server converges.
-  const intentRef = useRef(null);
-  useEffect(() => {
-    if (intentRef.current == null) return;
-    const matches =
-      (intentRef.current === '' && (profile?.equipped_frame_id == null))
-      || intentRef.current === profile?.equipped_frame_id;
-    if (matches) intentRef.current = null;
-  }, [profile?.equipped_frame_id]);
-  const equippedId = intentRef.current ?? profile?.equipped_frame_id;
-
-  const equip = async (frameId) => {
-    let id = userId;
-    if (!id) {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      id = authUser?.id;
-    }
-    if (!id) {
-      toast.error(tFallback("userBag.signInRequiredToEquip", "Sign in required to equip frames"));
-      return;
-    }
-    const newId = equippedId === frameId ? null : frameId;
-    const priorIntent = intentRef.current;
-    intentRef.current = newId == null ? '' : newId;
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({ equipped_frame_id: newId })
-      .eq('id', id);
-    if (!error) patchProfile({ equipped_frame_id: newId });
-    if (error) {
-      // Revert intent on failure so the UI doesn't drift from the server state.
-      intentRef.current = priorIntent;
-      // See TitleList equip for the rationale on generic toast + Sentry routing.
-      reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
-      if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
-        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated. Run migration 019"));
-      } else if (error.code === '42501') {
-        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
-      } else {
-        toast.error(tFallback('userBag.saveFailed', 'Could not save. Try again.'));
-      }
-      return;
-    }
-    // No success toast — the equipped border on the card is the feedback.
-    qc.invalidateQueries({ queryKey: ['userProfileEquipFrame', id] });
-    qc.invalidateQueries({ queryKey: ['hubAuthorsList'] });
-    qc.invalidateQueries({ queryKey: ['hubProfileLookup'] });
-    try { window.dispatchEvent(new CustomEvent('flexyn:loot-equipped', { detail: { type: 'frame', id: newId } })); } catch {}
-  };
-
-  const seen = new Set();
-  const unique = items.filter(i => {
-    if (seen.has(i.item_id)) return false;
-    seen.add(i.item_id);
-    return true;
-  });
-
-  return (
-    <div className={FRAME.row}>
-      {unique.map(item => {
-        const isEquipped = equippedId === item.item_id;
-        const frameDef = getLootFrameById(item.item_id);
-        const tint = rarityTint(item.item_rarity);
-        return (
-          <button
-            key={item.id}
-            onClick={() => equip(item.item_id)}
-            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${FRAME.item} ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
-            }`}
-          >
-            <div
-              className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center overflow-hidden"
-              style={frameDef?.css || {}}
-            >
-              {profile?.avatar_url ? (
-                <img loading="lazy" src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="font-heading font-bold text-foreground">
-                  {(profile?.username?.[0] || '?').toUpperCase()}
-                </span>
-              )}
-            </div>
-            <p className="font-heading font-bold text-xs text-center leading-tight">{item.item_name}</p>
-            <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
-            <span className="text-micro font-bold uppercase tracking-wider text-primary">
-              {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBatch }) {
+export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBatch, initialTab = 'capsules' }) {
   const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
@@ -564,30 +635,30 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   const { lootThemeId, setLootThemeId } = useTheme();
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
-  const [activeTab, setActiveTab] = useState('capsules');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [selling, setSelling] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-  const [collectionOpen, setCollectionOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [pickedSticker, setPickedSticker] = useState(null);
+  const [pickedTier, setPickedTier] = useState(null);
 
-  // Reset to the capsules tab when the bag is closed AND reset the
-  // search query — otherwise the next user (account switch on a shared
-  // device) opens to the prior session's tab + query, which can
-  // surface unexpected results if the new account doesn't own that
-  // inventory category.
+  // Open on the tab the caller asked for, and reset everything on close —
+  // otherwise the next user (account switch on a shared device) opens to the
+  // prior session's tab, query and selection.
   useEffect(() => {
-    if (!open) {
-      setActiveTab('capsules');
+    if (open) {
+      setActiveTab(initialTab || 'capsules');
+    } else {
       setQuery('');
+      setSearchOpen(false);
+      setPickedSticker(null);
+      setPickedTier(null);
     }
-  }, [open]);
+  }, [open, initialTab]);
 
-  // Preserve scroll position per tab so switching between Capsules
-  // and Stickers, then back to Capsules, doesn't snap to the top —
-  // a user browsing a long sticker list and tabbing away momentarily
-  // expects to return to where they were. Reset on close (same as
-  // tab + query) so account switch doesn't restore the prior user's
-  // scroll into the new user's content.
+  // Preserve scroll position per tab so switching away and back does not
+  // snap to the top. Reset on close, same as the tab and query.
   const scrollRef = useRef(null);
   const tabScrollMemoryRef = useRef({});
   useEffect(() => {
@@ -598,11 +669,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     const el = scrollRef.current;
     if (!el) return;
     const saved = tabScrollMemoryRef.current[activeTab];
-    if (typeof saved === 'number') {
-      el.scrollTop = saved;
-    } else {
-      el.scrollTop = 0;
-    }
+    el.scrollTop = typeof saved === 'number' ? saved : 0;
   }, [open, activeTab]);
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -611,15 +678,8 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   }, [activeTab]);
 
   const handleApplyTheme = useCallback((itemId) => {
-    if (lootThemeId === itemId) {
-      // Tap again to deactivate
-      setLootThemeId(null);
-    } else {
-      setLootThemeId(itemId);
-    }
-    // No toast — the "✓ Active" pill on the card is the feedback. The
-    // global theme also visibly changes immediately, so a toast would just
-    // overlay the next button the user wants to tap.
+    // Tap again to deactivate. No toast: the global theme visibly changes.
+    setLootThemeId(lootThemeId === itemId ? null : itemId);
   }, [lootThemeId, setLootThemeId]);
 
   // Capsules live in user_capsules (separate from inventory)
@@ -630,7 +690,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     staleTime: 15_000,
   });
 
-  // Stickers and themes live in user_inventory
+  // Stickers, titles, frames and themes live in user_inventory
   const { data: inventoryItems = [], isLoading: invLoading, error: invError } = useQuery({
     queryKey: ['userInventory', user?.email],
     queryFn:  () => inventory.listItems(user.email),
@@ -638,11 +698,10 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     staleTime: 30_000,
   });
 
-  // Surface fetch failures so a regression doesn't silently leave the bag stuck
-  // on an empty skeleton — which is what the comment on these queries always
-  // claimed, while the `onError` options carrying it had been inert since the
-  // react-query v5 upgrade removed them. `reportError` is imported at the top
-  // of this file, so the dynamic import these used is gone with them.
+  const { data: equipProfile } = useEquipProfile(user?.id, open && (activeTab === 'titles' || activeTab === 'frames'));
+
+  // Surface fetch failures so a regression doesn't silently leave the bag
+  // stuck on an empty state.
   useEffect(() => {
     if (capsError) reportError(capsError, { feature: 'userBag.capsules', level: 'warning', userEmail: user?.email });
   }, [capsError, user?.email]);
@@ -650,38 +709,19 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     if (invError) reportError(invError, { feature: 'userBag.inventory', level: 'warning', userEmail: user?.email });
   }, [invError, user?.email]);
 
-  // Group stickers by item_id so duplicates are visible. Skip rows
-  // with no item_id rather than collapsing them all under an
-  // 'undefined' key — corrupt rows would otherwise merge unrelated
-  // stickers into a single visual group.
-  const stickers = inventoryItems.filter(i => i.item_type === 'sticker');
-  const stickerGroups = Object.values(
-    stickers.reduce((acc, item) => {
-      const key = item.item_id;
-      if (key == null) return acc;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    }, {})
-  );
-  // (duplicateCount was used by the now-removed dupes badge + info bar.
-  //  Per-card ×N display does the same job inline without copy noise.)
+  const byType = useMemo(() => {
+    const out = { sticker: [], title: [], frame: [], theme: [] };
+    for (const r of inventoryItems) if (out[r.item_type]) out[r.item_type].push(r);
+    return out;
+  }, [inventoryItems]);
+  const stickerItems = useMemo(() => shelfItems('stickers', byType.sticker), [byType.sticker]);
+  const titleItems   = useMemo(() => shelfItems('titles', byType.title), [byType.title]);
+  const frameItems   = useMemo(() => shelfItems('frames', byType.frame), [byType.frame]);
+  const themes = byType.theme;
+  const isLoading = capsLoading || invLoading;
 
-  const themes     = inventoryItems.filter(i => i.item_type === 'theme');
-  const titles     = inventoryItems.filter(i => i.item_type === 'title');
-  const frames     = inventoryItems.filter(i => i.item_type === 'frame');
-  const isLoading  = capsLoading || invLoading;
-
-  // ── Search filter (My Bag search) ───────────────────────────────────
-  // Filters the ACTIVE tab's items by name (capsules by their type label).
-  // Empty query → everything. Tab count badges keep showing totals.
   const q = query.trim().toLowerCase();
-  const nameMatch = (i) => !q || (i?.item_name || '').toLowerCase().includes(q);
-  const fStickerGroups = q ? stickerGroups.filter(g => nameMatch(g[0])) : stickerGroups;
-  const fTitles = q ? titles.filter(nameMatch) : titles;
-  const fFrames = q ? frames.filter(nameMatch) : frames;
-  const fThemes = q ? themes.filter(nameMatch) : themes;
-  const fCapsules = q ? capsuleRows.filter(r => (r?.capsule_type || '').toLowerCase().includes(q)) : capsuleRows;
+  const stickerShelves = useShelves(stickerItems, q);
 
   // ── Coin balance ────────────────────────────────────────────────────────────
   // NOT `user.flex_coins` alone. That is AuthContext's bootstrap snapshot and
@@ -709,15 +749,16 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
   }, [qc, user?.id]);
 
-  // ── Sell a duplicate ────────────────────────────────────────────────────────
+  // ── Sell one copy ───────────────────────────────────────────────────────────
   const handleSell = useCallback(async (inventoryRow) => {
-    if (!user?.id) { toast.error(tFallback("userBag.notSigned", "Not signed in")); return; }
+    if (!user?.id) { toast.error(tFallback('userBag.notSigned', 'Not signed in')); return; }
     setSelling(true);
     try {
       // The server prices the sale and reports what it actually credited,
-      // so the toast shows that number rather than the one on the card.
+      // so the toast shows that number rather than the one on the button.
       const { coins, newBalance } = await inventory.sellItem(inventoryRow.id);
       applyServerBalance(newBalance);
+      haptic('success');
       qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
       toast.success(tFallback('userBag.soldOne', 'Sold {item} for {coins} coins.', { item: inventoryRow.item_name, coins }));
@@ -733,35 +774,18 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     }
   }, [user?.id, user?.email, qc, tFallback, applyServerBalance]);
 
-  // ── Sell every duplicate at once ────────────────────────────────────────────
-  // The per-card flow is arm-then-confirm, two taps per copy. A user
-  // sitting on 40 duplicates faced 80 taps to clear them. This sells every
-  // copy BEYOND THE FIRST of each sticker — never the last one, so the
+  // ── Sell every extra at once ────────────────────────────────────────────────
+  // Every copy BEYOND THE FIRST of each sticker; never the last one, so the
   // collection itself is never dented by a bulk action.
-  const [bulkArmed, setBulkArmed] = useState(false);
-  const bulkDisarmRef = useRef(null);
-  useEffect(() => () => {
-    if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
-  }, []);
-  // Disarm when the bag closes or the user leaves the Stickers tab —
-  // otherwise a stray return tap lands on a primed destructive action.
-  useEffect(() => {
-    if (!open || activeTab !== 'stickers') setBulkArmed(false);
-  }, [open, activeTab]);
-
-  const duplicateSales = stickerGroups.flatMap(group => {
-    const unlisted = group.filter(i => !i.is_listed);
+  const duplicateSales = useMemo(() => stickerItems.flatMap(it => {
+    const unlisted = it.rows.filter(i => !i.is_listed);
     const extras = unlisted.slice(0, Math.max(0, unlisted.length - 1)); // keep one
-    return extras.map(row => ({
-      row,
-      price: sellPriceFor(row.item_rarity, row.variant),
-    }));
-  });
+    return extras.map(row => ({ row, price: sellPriceFor(row.item_rarity, row.variant) }));
+  }), [stickerItems]);
   const duplicateTotal = duplicateSales.reduce((n, d) => n + d.price, 0);
 
   const handleSellAllDuplicates = useCallback(async () => {
     if (!user?.id || duplicateSales.length === 0) return;
-    setBulkArmed(false);
     setSelling(true);
     let sold = 0;
     let earned = 0;
@@ -786,6 +810,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
     setSelling(false);
     if (sold > 0) {
+      haptic('success');
       toast.success(sold === 1
         ? tFallback('userBag.soldDupOne', 'Sold 1 duplicate for {coins} coins.', { coins: earned })
         : tFallback('userBag.soldDupMany', 'Sold {n} duplicates for {coins} coins.', { n: sold, coins: earned }));
@@ -797,315 +822,239 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     }
   }, [user?.id, user?.email, duplicateSales, qc, tFallback, applyServerBalance]);
 
-  // ── Capsules grouped by type, for the batch-open bars ───────────────────────
-  const capsulesByType = fCapsules.reduce((acc, row) => {
-    const t = row.capsule_type || 'standard';
-    (acc[t] ||= []).push(row);
-    return acc;
-  }, {});
+  // ── Capsules by tier ────────────────────────────────────────────────────────
+  const capsulesByTier = useMemo(() => {
+    const out = {};
+    for (const row of capsuleRows) {
+      const t = CAPSULE_META[row.capsule_type] ? row.capsule_type : 'standard';
+      (out[t] ||= []).push(row);
+    }
+    return out;
+  }, [capsuleRows]);
+  const heldTiers = TIERS.filter(t => capsulesByTier[t]?.length);
+  const tier = heldTiers.includes(pickedTier) ? pickedTier : heldTiers[0];
 
-  // Capsules is the only one of the five with no Collection counterpart, so it
-  // is the only new key. The other four resolve to what that screen already
-  // says, which is the point.
-  const tabLabel = (tab) => tFallback(`collectionModal.tab.${tab.id}`, tab.label);
+  const openShop = () => setShopOpen(true);
 
   const TABS = [
-    { id: 'capsules', label: 'Capsules', icon: Package,  count: capsuleRows.length },
-    // "Stickers" tab no longer carries a "N dupes" badge — duplicates
-    // are already visualized by the per-card ×N count, so labeling the
-    // tab with "dupes" was redundant and a bit jargony.
-    { id: 'stickers', label: 'Stickers', icon: Sticker, count: stickers.length },
-    { id: 'titles',   label: 'Titles',   icon: Crown,    count: titles.length    },
-    { id: 'frames',   label: 'Frames',   icon: Square,   count: frames.length    },
-    { id: 'themes',   label: 'Themes',   icon: Palette,  count: themes.length    },
+    { id: 'capsules', label: tFallback('collectionModal.tab.capsules', 'Capsules'), count: capsuleRows.length },
+    { id: 'stickers', label: tFallback('collectionModal.tab.stickers', 'Stickers'), count: stickerItems.filter(i => i.rows.length).length },
+    { id: 'titles',   label: tFallback('collectionModal.tab.titles', 'Titles'),     count: titleItems.filter(i => i.rows.length).length },
+    { id: 'frames',   label: tFallback('collectionModal.tab.frames', 'Frames'),     count: frameItems.filter(i => i.rows.length).length },
+    ...(themes.length > 0 ? [{ id: 'themes', label: tFallback('collectionModal.tab.themes', 'Themes'), count: themes.length }] : []),
   ];
+  // Capsules carry no names worth searching, and themes are a short grid.
+  const canSearch = activeTab === 'stickers' || activeTab === 'titles' || activeTab === 'frames';
 
   if (!open) return null;
 
+  const pickedStickerItem = stickerItems.find(i => i.id === pickedSticker);
+  const heroSticker = pickedStickerItem ?? rarestOwned(stickerItems);
+
   return (
     <>
-    {/* CoinShopModal / CollectionModal sit OUTSIDE this AnimatePresence.
-        AnimatePresence requires every direct child to be keyed; three
-        unkeyed siblings produced a stream of "Encountered two children
-        with the same key" errors in the console (seen on device). They're
-        independent modals that own their own transitions, so they don't
-        belong in the bag's presence group at all. */}
+    {/* CoinShopModal sits OUTSIDE this AnimatePresence: every direct child of
+        AnimatePresence must be keyed, and the shop owns its own transition. */}
     <AnimatePresence>
-      {/* Centered modal (was bottom-sheet w/ drag handle). Screenshot
-          feedback flagged that the drag handle at the top suggested the
-          sheet could expand to fullscreen, but that interaction didn't
-          do anything — so they're back to a centered popup with no
-          drag affordance. Also dropped the drag-to-dismiss because
-          there's no longer a handle to grip. */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop. Two dials here, and the scrim is the one that reads as
-            "heavy" — 70% black flattened the marketplace behind the bag into
-            a grey slab. Softened to 55% black + 2px blur so the page is still
-            legibly there behind the modal without competing with it. */}
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
         <motion.div
-          className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+          className="absolute inset-0 bg-black/55"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         />
 
-        {/* Centered modal — zoom-in entrance, no drag */}
         <motion.div
-          className="relative z-10 bg-card border border-border shadow-2xl w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
-          initial={{ scale: 0.92, opacity: 0, y: 12 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 12 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={tFallback('userBag.title', 'My bag')}
+          className="relative z-10 bg-card border shadow-md w-full max-w-lg rounded-t-2xl sm:rounded-2xl h-[88vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
+          initial={{ y: 24, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 24, opacity: 0 }}
+          transition={{ duration: DURATION.slow, ease: EASE_OUT }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
-            <div className="flex items-center gap-3">
-              <ShoppingBag className="w-5 h-5 text-primary" />
-              <h2 className="font-heading font-bold text-lg">{tFallback("profile.myBag", "My Bag")}</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Collection — the Bag answers "what do I have"; this is the
-                  other half of the question. Same surface the Marketplace
-                  and the Capsule Opener open. */}
+          {/* Header: the title, your coins (which open the shop), search, close. */}
+          <header className="flex items-center gap-1 ps-5 pe-2 pt-4">
+            <h2 className="flex-1 font-heading font-bold text-title">{tFallback('userBag.title', 'My bag')}</h2>
+            <button
+              type="button"
+              onClick={openShop}
+              aria-label={tFallback('userBag.openCoinShop', 'Open the coin shop')}
+              className="min-h-11 px-2 inline-flex items-center gap-1.5 text-label font-semibold tabular-nums"
+            >
+              <FlexCoinIcon size={18} />
+              <span>{fmt(flexCoins)}</span>
+            </button>
+            {canSearch && (
               <button
-                onClick={() => setCollectionOpen(true)}
-                aria-label={tFallback("userBag.openCollection", "Open Collection")}
-                title={tFallback("userBag.collectionEverythingInTheGame", "Collection, everything in the game")}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+                type="button"
+                onClick={() => { setSearchOpen(v => !v); if (searchOpen) setQuery(''); }}
+                aria-label={tFallback('userBag.searchYourBag', 'Search your bag')}
+                aria-pressed={searchOpen}
+                className={`w-11 h-11 inline-flex items-center justify-center rounded-full ${searchOpen ? 'text-foreground' : 'text-muted-foreground'}`}
               >
-                <LibraryBig className="w-4.5 h-4.5" aria-hidden="true" />
+                <Search className="w-5 h-5" aria-hidden="true" />
               </button>
-              <button
-                onClick={() => setShopOpen(true)}
-                aria-label={tFallback("userBag.openCoinShop", "Open Coin Shop")}
-                className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 active:bg-primary/25 transition-colors"
-              >
-                <FlexCoinIcon size={18} />
-                <span className="text-primary dark:text-primary font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
-                <Store className="w-3.5 h-3.5 text-primary/80 dark:text-primary/80 ms-0.5" />
-              </button>
-              <button
-                onClick={onClose}
-                aria-label={tFallback("userBag.closeBag", "Close bag")}
-                className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1.5 rounded-lg hover:bg-secondary active:bg-secondary"
-              >
-                <X className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={tFallback('userBag.closeBag', 'Close bag')}
+              className="w-11 h-11 inline-flex items-center justify-center rounded-full text-muted-foreground"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </header>
 
-          {/* Tabs — 5 equal slices, stacked icon-over-label so even narrow
-              phones fit all of them without horizontal scroll. The tab row
-              uses table-fixed-style equal columns; nothing breaks layout. */}
-          <div className="grid grid-cols-5 border-b border-border w-full">
+          {/* Tabs: words and counts, an underline for the one you are on. */}
+          <nav className="px-5 pt-2 flex gap-5 border-b overflow-x-auto">
             {TABS.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
+              const on = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  title={tabLabel(tab)}
-                  aria-label={tabLabel(tab)}
-                  aria-pressed={isActive}
-                  className={[
-                    'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
-                    isActive ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground',
-                  ].join(' ')}
+                  aria-pressed={on}
+                  className={`shrink-0 pb-2.5 -mb-px border-b-2 text-label font-semibold transition-colors ${
+                    on ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'
+                  }`}
                 >
-                  <div className="flex items-center gap-1 max-w-full">
-                    {/* Five tabs across 375px leaves ~67px of usable width per
-                        cell. With the icon inline, every label truncated
-                        ("Caps…", "Stick…", "Them…") — verified on device. The
-                        icon is the first thing to go: it's decorative here,
-                        the word is not. Restored once there's room. */}
-                    <Icon className="w-3.5 h-3.5 shrink-0 hidden min-[420px]:block" />
-                    <span className="text-micro font-semibold truncate">{tabLabel(tab)}</span>
-                  </div>
-                  <span className={`text-micro px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                    {tab.count}
-                  </span>
-                  {/* Duplicate indicator — corner badge, doesn't take row space */}
-                  {tab.badge && (
-                    <span className="absolute top-0.5 end-0.5 text-micro px-1 leading-tight rounded-full bg-primary/20 text-primary dark:text-primary border border-primary/30 font-bold whitespace-nowrap">
-                      {tab.badge}
-                    </span>
-                  )}
+                  {tab.label} <span className="tabular-nums font-normal text-muted-foreground">{tab.count}</span>
                 </button>
               );
             })}
-          </div>
+          </nav>
 
-          {/* The sell-duplicates info bar was removed because the
-              per-card ×N count + the in-line "Sell duplicate" button
-              on every duplicate card already communicate both the
-              presence of duplicates and the action available. A
-              full-width banner repeating the count read as noise. */}
-
-          {/* Search */}
-          <div className="px-5 pt-3">
-            <div className="relative">
-              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          {canSearch && searchOpen && (
+            <div className="px-5 pt-3">
               <input
-                type="text"
+                type="search"
+                autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={tFallback("userBag.searchYourBag2", "Search your bag…")}
-                aria-label={tFallback("userBag.searchYourBag", "Search your bag")}
-                className="w-full bg-secondary/50 border border-border rounded-lg ps-9 pe-8 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                placeholder={tFallback('userBag.searchYourBag2', 'Search your bag…')}
+                aria-label={tFallback('userBag.searchYourBag', 'Search your bag')}
+                className="w-full h-11 bg-background border rounded-lg px-3 text-body placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
               />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  aria-label={tFallback("nutrition.search.clear", "Clear search")}
-                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground active:text-foreground"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
-          </div>
+          )}
 
-          {/* Content */}
-          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-5">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-5 pt-4"
+            style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}
+          >
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
             ) : activeTab === 'capsules' ? (
-              fCapsules.length === 0 ? (
-                <EmptyState icon={Package} label={q
-                  ? tFallback('userBag.noCapsulesMatch', 'No capsules match "{q}".', { q: query })
-                  : tFallback('userBag.noCapsules', 'No capsules yet. Level up to earn them.')} />
-              ) : (
-                <>
-                  {/* Batch open — one bar per type the user holds 2+ of.
-                      Opening ten capsules used to mean ten full trips
-                      through the opener modal. */}
-                  {onOpenCapsuleBatch && Object.entries(capsulesByType)
-                    .filter(([, rows]) => rows.length > 1)
-                    .map(([type, rows]) => {
-                      const take = Math.min(rows.length, 10);
-                      return (
+              tier ? (
+                <div className="flex flex-col">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div key={tier} {...HERO_FADE}>
+                      <CapsuleCard
+                        capsuleRow={capsulesByTier[tier][0]}
+                        rows={capsulesByTier[tier]}
+                        onOpenCapsule={onOpenCapsule}
+                        onOpenCapsuleBatch={onOpenCapsuleBatch}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                  {heldTiers.length > 1 && (
+                    <div className="mt-6 pt-4 border-t flex justify-center gap-6">
+                      {heldTiers.map(t => (
                         <button
-                          key={type}
+                          key={t}
                           type="button"
-                          onClick={() => onOpenCapsuleBatch(rows.slice(0, take))}
-                          className="w-full mb-3 flex items-center gap-3 px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 active:bg-primary/15 transition-colors text-start"
+                          onClick={() => { haptic('light'); setPickedTier(t); }}
+                          aria-pressed={t === tier}
+                          aria-label={`${tierName(tFallback, t)} ×${capsulesByTier[t].length}`}
+                          className={`flex flex-col items-center gap-1 transition-opacity duration-150 ${t === tier ? '' : 'opacity-55'}`}
                         >
-                          <CapsuleIcon type={type} size={26} className="shrink-0" />
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-sm font-bold leading-tight">
-                              {type === 'elite'
-                                ? tFallback('userBag.openNElite', 'Open {n} elite', { n: take })
-                                : type === 'premium'
-                                  ? tFallback('userBag.openNPremium', 'Open {n} premium', { n: take })
-                                  : tFallback('userBag.openNStandard', 'Open {n} standard', { n: take })}
-                            </span>
-                            <span className="block text-micro text-muted-foreground leading-tight">
-                              {rows.length > take
-                                ? tFallback('userBag.batchMore', 'One after another, then all of them at once. {n} more after.', { n: rows.length - take })
-                                : tFallback('userBag.batchHint', 'One after another, then all of them at once')}
-                            </span>
+                          <CapsuleCanister tier={t} height={56} />
+                          <span className="text-caption font-semibold tabular-nums">
+                            ×{capsulesByTier[t].length}
                           </span>
-                          <span className="text-xs font-bold text-primary shrink-0">{tFallback('userBag.openAll', 'Open all')}</span>
                         </button>
-                      );
-                    })}
-                  <motion.div layout className={TILE.row}>
-                    {fCapsules.map(row => (
-                      <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
-                    ))}
-                  </motion.div>
-                </>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center pt-4 gap-2 text-center">
+                  <CapsuleCanister tier="standard" height={120} style={{ opacity: 0.4 }} />
+                  <p className="pt-2 text-label text-muted-foreground">
+                    {tFallback('userBag.noCapsules', 'No capsules yet. Level up to earn them.')}
+                  </p>
+                  <ShopLink onShop={openShop} />
+                </div>
               )
             ) : activeTab === 'stickers' ? (
-              fStickerGroups.length === 0 ? (
-                <EmptyState icon={Package} label={q
-                  ? tFallback('userBag.noStickersMatch', 'No stickers match "{q}".', { q: query })
-                  : tFallback('userBag.noStickers', 'No stickers yet. Open a capsule.')} />
-              ) : (
-                <>
-                  {duplicateSales.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!bulkArmed) {
-                          setBulkArmed(true);
-                          if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
-                          bulkDisarmRef.current = setTimeout(() => setBulkArmed(false), 4000);
-                        } else {
-                          if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
-                          handleSellAllDuplicates();
-                        }
-                      }}
-                      disabled={selling}
-                      className={`w-full mb-3 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
-                        bulkArmed
-                          ? 'bg-destructive/80 text-white border-destructive'
-                          : 'bg-primary/15 text-primary dark:text-primary border-primary/30 hover:bg-primary/25 active:bg-primary/25'
-                      }`}
-                    >
-                      {selling
-                        ? tFallback('userBag.selling', 'Selling…')
-                        : bulkArmed
-                          ? tFallback('userBag.confirmSellDups', 'Sell {n} duplicates for {coin} {total}?', { n: duplicateSales.length, coin: COIN, total: duplicateTotal })
-                          : tFallback('userBag.sellAllDups', 'Sell all duplicates: {n} extra for {coin} {total}', { n: duplicateSales.length, coin: COIN, total: duplicateTotal })}
-                    </button>
-                  )}
-                  <motion.div layout className={TILE.row}>
-                    {fStickerGroups.map(group => (
-                      <StickerGroupCard
-                        key={group[0].item_id}
-                        group={group}
+              <>
+                <div className="sticky top-0 z-10 -mx-5 px-5 pb-4 bg-card border-b">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {heroSticker ? (
+                      <StickerHero
+                        key={heroSticker.id}
+                        item={heroSticker}
+                        isDefault={!pickedStickerItem}
                         onSell={handleSell}
                         selling={selling}
+                        onShop={openShop}
                       />
-                    ))}
-                  </motion.div>
-                </>
-              )
-            ) : activeTab === 'titles' ? (
-              fTitles.length === 0 ? (
-                <EmptyState icon={Crown} label={q
-                  ? tFallback('userBag.noTitlesMatch', 'No titles match "{q}".', { q: query })
-                  : tFallback('userBag.noTitles', 'No titles yet. Open capsules to earn them.')} />
-              ) : (
-                <TitleList items={fTitles} userId={user?.id} />
-              )
-            ) : activeTab === 'frames' ? (
-              fFrames.length === 0 ? (
-                <EmptyState icon={Square} label={q
-                  ? tFallback('userBag.noFramesMatch', 'No frames match "{q}".', { q: query })
-                  : tFallback('userBag.noFrames', 'No frames yet. Open capsules to earn them.')} />
-              ) : (
-                <FrameList items={fFrames} userId={user?.id} />
-              )
-            ) : (
-              fThemes.length === 0 ? (
-                <EmptyState
-                  icon={Palette}
-                  label={q
-                    ? tFallback('userBag.noThemesMatch', 'No themes match "{q}".', { q: query })
-                    : THEMES_ENABLED
-                      ? tFallback('userBag.noThemes', 'No themes yet. Open elite capsules.')
-                      // Don't send anyone spending Elite capsules chasing a
-                      // drop the server no longer rolls (migration 281).
-                      : tFallback('userBag.themesSoon', 'Themes are coming soon.')}
-                />
-              ) : (
-                <motion.div layout className={TILE.row}>
-                  {fThemes.map(item => (
-                    <ThemeCard
-                      key={item.id}
-                      item={item}
-                      activeLootThemeId={lootThemeId}
-                      onApply={handleApplyTheme}
+                    ) : (
+                      <EmptyState key="empty" icon={Package} label={tFallback('userBag.noStickers', 'No stickers yet. Open a capsule.')} onShop={openShop} />
+                    )}
+                  </AnimatePresence>
+                  {duplicateSales.length > 0 && (
+                    <ArmedButton
+                      ms={4000}
+                      disabled={selling}
+                      onConfirm={handleSellAllDuplicates}
+                      idle={selling
+                        ? tFallback('userBag.selling', 'Selling…')
+                        : tFallback('userBag.sellExtras', 'Sell {n} extras for {total} coins', { n: duplicateSales.length, total: fmt(duplicateTotal) })}
+                      armedLabel={tFallback('userBag.confirmSellExtras', 'Tap again to sell {n} extras', { n: duplicateSales.length })}
+                      className="mt-2 w-full min-h-11 text-label font-semibold text-primary"
+                      armedClassName="mt-2 w-full min-h-11 text-label font-bold text-destructive"
                     />
+                  )}
+                </div>
+                <ShelfList
+                  shelves={stickerShelves}
+                  q={q}
+                  emptyMatch={tFallback('userBag.noStickersMatch', 'No stickers match "{q}".', { q: query })}
+                >
+                  {(it) => (
+                    <ShelfSticker
+                      key={it.id}
+                      id={it.id}
+                      emoji={it.emoji}
+                      rarity={it.rarity}
+                      name={it.name}
+                      have={it.rows.length > 0}
+                      count={it.rows.length}
+                      selected={heroSticker?.id === it.id}
+                      onSelect={() => setPickedSticker(it.id)}
+                    />
+                  )}
+                </ShelfList>
+              </>
+            ) : activeTab === 'titles' ? (
+              <TitlesTab items={titleItems} q={q} userId={user?.id} profile={equipProfile} fallbackName={user?.username} onShop={openShop} />
+            ) : activeTab === 'frames' ? (
+              <FramesTab items={frameItems} q={q} userId={user?.id} profile={equipProfile} fallbackName={user?.username} onShop={openShop} />
+            ) : (
+              themes.length === 0 ? (
+                <EmptyState icon={Palette} label={tFallback('userBag.themesSoon', 'Themes are coming soon.')} />
+              ) : (
+                <div className={TILE.row}>
+                  {themes.map(item => (
+                    <ThemeCard key={item.id} item={item} activeLootThemeId={lootThemeId} onApply={handleApplyTheme} />
                   ))}
-                </motion.div>
+                </div>
               )
             )}
           </div>
@@ -1114,11 +1063,6 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     </AnimatePresence>
 
     <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
-    {collectionOpen && (
-      <Suspense fallback={null}>
-        <CollectionModal open={collectionOpen} onClose={() => setCollectionOpen(false)} />
-      </Suspense>
-    )}
     </>
   );
 }

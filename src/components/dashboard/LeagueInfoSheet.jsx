@@ -5,73 +5,248 @@
 //
 // Two separate systems live behind one card and this sheet is where the
 // reader learns they are separate (Kegan, 2026-09-30): STRENGTH decides your
-// league, TRAINING decides your week. Every number here is read from
-// `leagueTiers.js`, which mirrors the server's config, so the sheet cannot
-// drift from what `league_apply_strength_placement` and
-// `resolve_league_bracket_internal` actually do.
+// league, TRAINING decides your week. Since 2026-10-02 that split IS the
+// layout: one tab per system, so a reader sees only the half they asked
+// about. Each rule is a figure and one line (FigureRow) rather than a
+// paragraph, the ladder shows where the reader stands on it, and the edge
+// cases sit in a collapsed Fine print. The sheet used to be 475 words.
+//
+// Every number here is read from `leagueTiers.js`, which mirrors the
+// server's config, so the sheet cannot drift from what
+// `league_apply_strength_placement` and `resolve_league_bracket_internal`
+// actually do.
 //
 // Six tiers, not five: Legend sits above Diamond and is the terminal rank,
 // which is worth showing precisely because it is the thing being climbed
 // toward.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell } from 'lucide-react';
+import { Scale, ArrowUp, PauseCircle, ChevronDown, Trophy } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import {
   TIERS,
   MIN_QUALIFIED_FOR_PRIZE,
+  MAX_LEAGUE_SIZE,
   DEMOTE_MARGIN,
   SHIELD_LIFETIME_CAP,
   MAX_LEAGUE_LEVEL,
+  getTier,
+  nextTier,
   levelNumeral,
 } from '@/lib/leagueTiers';
 import { LeagueTierBadge } from '@/components/leagues/LeagueTierIcon';
+import FigureRow, { FigureRows } from '@/components/ui/FigureRow';
 
-const pct = (n) => `${Math.round(n * 100)}%`;
+const pct = (n) => Math.round(n * 100);
 
-function LadderRow({ tier, isLast }) {
+// Seasons are four weekly brackets and two qualified weeks keep the title
+// (league_season_stats, migration 312). Drawn, not computed: this is the
+// rule, not the reader's own season.
+const SEASON_WEEKS = 4;
+const SEASON_WEEKS_TO_KEEP = 2;
+
+function Tabs({ value, onChange, options }) {
+  return (
+    <div role="tablist" className="flex rounded-lg bg-secondary p-1">
+      {options.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={value === id}
+          onClick={() => onChange(id)}
+          className={`flex-1 rounded-sm py-1.5 text-caption font-semibold transition-colors ${
+            value === id ? 'bg-background text-foreground' : 'text-muted-foreground'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FinePrint({ children }) {
+  const { tFallback } = useLanguage();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="pt-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full min-h-[44px] items-center justify-between text-caption font-semibold text-muted-foreground"
+      >
+        {tFallback('league.info.finePrint', 'Fine print')}
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+      {open && <div className="flex flex-col gap-2 text-caption text-muted-foreground">{children}</div>}
+    </div>
+  );
+}
+
+// The ladder, top down, with the reader marked on it. Their own row is the
+// only one at full strength; the rest recede so the eye lands on "you".
+function Ladder({ tierId, score }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
+  const mine = tierId ? getTier(tierId) : null;
+  const next = mine ? nextTier(mine.id) : null;
+  const hasScore = typeof score === 'number' && Number.isFinite(score);
+  const span = next && mine ? next.strengthFloor - mine.strengthFloor : 0;
+  const into = hasScore && mine ? Math.max(0, Math.min(span, score - mine.strengthFloor)) : 0;
+
   return (
-    <div className={`flex items-center gap-2 py-2 ${isLast ? '' : 'border-b border-border/50'}`}>
-      {/* The tier colour lives here and nowhere else on the sheet, the same
-          rule the card and the standings follow, so the four-hue budget holds. */}
-      <LeagueTierBadge tier={tier.id} size={32} />
-      <span className="text-caption font-bold flex-1 min-w-0 truncate">
-        {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)}
-      </span>
-
-      <span className="w-16 text-end tabular-nums text-micro font-semibold">
-        {tier.strengthFloor > 0
-          ? fmt(tier.strengthFloor)
-          : <span className="text-muted-foreground font-normal">{tFallback('league.info.start', 'Start')}</span>}
-      </span>
-
-      <span className="w-14 text-end tabular-nums text-micro text-muted-foreground font-semibold">
-        {pct(tier.prizePct)}
-      </span>
-
-      <span className="flex items-center gap-1 w-10 justify-end tabular-nums">
-        <Dumbbell className="w-3 h-3 text-muted-foreground shrink-0" aria-hidden="true" />
-        <span className="text-micro text-muted-foreground font-semibold">{tier.minWorkouts}</span>
-      </span>
+    <div className="pt-4">
+      <div className="flex flex-col">
+        {[...TIERS].reverse().map((t) => {
+          const isMine = mine?.id === t.id;
+          return (
+            <div key={t.id} className={`flex items-center gap-2 py-1 ${mine && !isMine ? 'opacity-70' : ''}`}>
+              <span className="w-9 flex justify-center shrink-0">
+                <LeagueTierBadge tier={t.id} size={isMine ? 36 : 28} />
+              </span>
+              <span className={`flex-1 min-w-0 truncate text-caption ${isMine ? 'font-bold' : 'font-semibold'}`}>
+                {tFallback(`trophy.seasonTier.${t.id}`, t.label)}
+              </span>
+              {isMine && (
+                <span className="shrink-0 rounded-sm bg-primary/15 px-1.5 py-0.5 text-micro font-bold text-primary tabular-nums">
+                  {hasScore
+                    ? tFallback('league.info.youScore', 'You · {n}', { n: fmt(Math.round(score)) })
+                    : tFallback('league.info.you', 'You')}
+                </span>
+              )}
+              <span className="w-12 shrink-0 text-end tabular-nums text-micro text-muted-foreground">
+                {t.strengthFloor > 0 ? fmt(t.strengthFloor) : tFallback('league.info.start', 'Start')}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hasScore && next && span > 0 && (
+        <div className="pt-2">
+          <div className="h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${(into / span) * 100}%` }} />
+          </div>
+          <p className="pt-1 text-micro text-muted-foreground">
+            {tFallback('league.info.toNext', '{n} to {tier}', {
+              n: fmt(Math.max(0, Math.ceil(next.strengthFloor - score))),
+              tier: tFallback(`trophy.seasonTier.${next.id}`, next.label),
+            })}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function Rule({ title, body }) {
-  return (
-    <div>
-      <p className="text-caption font-bold">{title}</p>
-      <p className="text-caption text-muted-foreground pt-1">{body}</p>
-    </div>
-  );
-}
-
-export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', level = 1 }) {
+function LeagueTab({ tierId, score }) {
   const { tFallback } = useLanguage();
+  return (
+    <>
+      <Ladder tierId={tierId} score={score} />
+      <FigureRows className="mt-4">
+        <FigureRow figure="90" unit={tFallback('league.info.daysUnit', 'd')} label={tFallback('league.info.fig.window', 'window')}>
+          {tFallback('league.info.row.lifts', 'Presses, squats and deadlifts. Your second best session counts.')}
+        </FigureRow>
+        <FigureRow icon={Scale} label={tFallback('league.info.fig.fair', 'fair')}>
+          {tFallback('league.info.row.fair', 'Scaled to your bodyweight and age.')}
+        </FigureRow>
+        <FigureRow icon={ArrowUp} label={tFallback('league.info.fig.mondays', 'Mondays')}>
+          {tFallback('league.info.row.up', 'Up one league when your score passes the next floor.')}
+        </FigureRow>
+        <FigureRow figure={`−${pct(1 - DEMOTE_MARGIN)}`} unit="%" label={tFallback('league.info.fig.dropLine', 'drop line')}>
+          {tFallback('league.info.row.down', 'Down only below this. A Shield blocks one drop, {cap} in total.', { cap: SHIELD_LIFETIME_CAP })}
+        </FigureRow>
+        <FigureRow icon={PauseCircle} label={tFallback('league.info.fig.rest', 'rest')}>
+          {tFallback('league.info.restTitle', 'Time off never drops you')}
+        </FigureRow>
+      </FigureRows>
+      <FinePrint>
+        <p>{tFallback('league.info.fine.convert', 'Dumbbell, machine and push-up sets count too, converted to a barbell equivalent. Age adjusts from 40 and under 23.')}</p>
+        <p>{tFallback('league.info.fine.start', 'Your first finished workout places you. With no lifts to score yet, your onboarding answers pick the league, up to Silver.')}</p>
+        <p>{tFallback('league.info.fine.legend', 'Legend is the top. It plays a season board, and whoever leads it when the season ends takes a champion trophy minted once.')}</p>
+      </FinePrint>
+    </>
+  );
+}
+
+function WeekTab({ tierId, level }) {
+  const { tFallback } = useLanguage();
+  const tier = getTier(tierId || 'bronze');
+  const tierName = tFallback(`trophy.seasonTier.${tier.id}`, tier.label);
+  return (
+    <>
+      <FigureRows className="mt-4">
+        <FigureRow figure={tier.minWorkouts} unit={tFallback('league.info.perWeek', '/wk')} label={tFallback('league.info.fig.needs', '{tier} needs', { tier: tierName })}>
+          <span className="flex flex-col gap-1">
+            <span className="flex gap-1" aria-hidden="true">
+              {Array.from({ length: 7 }, (_, i) => (
+                <span key={i} className={`h-2 w-2 rounded-full ${i < tier.minWorkouts ? 'bg-primary' : 'bg-foreground/15'}`} />
+              ))}
+            </span>
+            {tFallback('league.info.row.days', 'Train on this many separate days to be ranked.')}
+          </span>
+        </FigureRow>
+        <FigureRow figure={MAX_LEAGUE_SIZE} label={tFallback('league.info.fig.bracket', 'per bracket')}>
+          {tFallback('league.info.row.rank', 'Ranked by days trained, then XP.')}
+        </FigureRow>
+        <FigureRow figure={pct(tier.prizePct)} unit="%" label={tFallback('league.info.fig.top', 'top')}>
+          {tFallback('league.info.row.prize', 'Win the full reward. Everyone else who trained wins a quarter.')}
+        </FigureRow>
+        <FigureRow figure={MIN_QUALIFIED_FOR_PRIZE} label={tFallback('league.info.fig.toPay', 'to pay out')}>
+          {tFallback('league.info.row.minQualified', 'Prizes start once this many people qualify.')}
+        </FigureRow>
+        <FigureRow icon={Trophy} label={tFallback('league.info.fig.payOnly', 'pays only')}>
+          {tFallback('league.info.row.noMove', 'The race never moves your league.')}
+        </FigureRow>
+      </FigureRows>
+
+      <p className="pt-6 kicker">
+        {tFallback('league.info.seasonHead', 'Season · 28 days')}
+      </p>
+      <div className="pt-2 flex gap-1" aria-hidden="true">
+        {Array.from({ length: SEASON_WEEKS }, (_, i) => (
+          <span key={i} className={`h-2 flex-1 rounded-full ${i < SEASON_WEEKS_TO_KEEP ? 'bg-success' : 'bg-foreground/15'}`} />
+        ))}
+      </div>
+      <p className="pt-1 text-caption">
+        {tFallback('league.info.seasonLine', 'Qualify in 2 of 4 weeks')}{' '}
+        <span className="text-muted-foreground">{tFallback('league.info.seasonPrize', 'for a title and trophy')}</span>
+      </p>
+
+      {/* Drawn in the reader's own league, with their current level marked,
+          so the rule is shown rather than described. */}
+      <p className="pt-6 kicker">
+        {tFallback('league.info.levelsHead', 'Levels · one per week you qualify')}
+      </p>
+      <div className="flex justify-between pt-2">
+        {Array.from({ length: MAX_LEAGUE_LEVEL }, (_, i) => i + 1).map((lv) => (
+          <div key={lv} className="flex flex-col items-center gap-1">
+            <LeagueTierBadge tier={tier.id} level={lv} size={lv === level ? 48 : 40} />
+            <span
+              className={`text-micro tabular-nums ${lv === level ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
+              aria-current={lv === level ? 'true' : undefined}
+            >
+              {levelNumeral(lv)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <FinePrint>
+        <p>{tFallback('league.info.fine.mixed', 'Too few people training in your league? You race in the nearest bracket, still for your own league’s reward.')}</p>
+        <p>{tFallback('league.info.fine.levels', 'Moving to another league starts you at I again.')}</p>
+      </FinePrint>
+    </>
+  );
+}
+
+export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', level = 1, score = null }) {
+  const { tFallback } = useLanguage();
+  const [tab, setTab] = useState('league');
   if (!open) return null;
 
   return (
@@ -89,129 +264,19 @@ export default function LeagueInfoSheet({ open, onClose, tierId = 'bronze', leve
               'Your strength decides your league. Your training decides your week.',
             )}
           </p>
-
-          {/* ── The ladder ─────────────────────────────────────────── */}
-          <div className="pt-6">
-            <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
-              {tFallback('league.info.ladder', 'The ladder')}
-            </p>
-            <div className="flex items-center gap-2 pt-2 pb-1 border-b border-border">
-              <span className="w-6 shrink-0" />
-              <span className="text-micro text-muted-foreground flex-1">
-                {tFallback('league.info.colTier', 'Tier')}
-              </span>
-              <span className="text-micro text-muted-foreground w-16 text-end">
-                {tFallback('league.info.colStrength', 'Strength')}
-              </span>
-              <span className="text-micro text-muted-foreground w-14 text-end">
-                {tFallback('league.info.colPrize', 'Prize')}
-              </span>
-              <span className="text-micro text-muted-foreground w-10 text-end">
-                {tFallback('league.info.colDays', 'Days')}
-              </span>
-            </div>
-            {TIERS.map((t, i) => (
-              <LadderRow key={t.id} tier={t} isLast={i === TIERS.length - 1} />
-            ))}
-            <p className="text-micro text-muted-foreground pt-2">
-              {tFallback(
-                'league.info.ladderNoteStrength',
-                'Strength is the score a league starts at. Prize is the share of qualified people who win the full reward each week. Days is how many separate days you need to train to be ranked.',
-              )}
-            </p>
-          </div>
-
-          {/* ── The rules ──────────────────────────────────────────── */}
-          <div className="pt-6 flex flex-col gap-6">
-            <Rule
-              title={tFallback('league.info.startTitle', 'Where you start')}
-              body={tFallback(
-                'league.info.startBody',
-                'You get your first league when you finish your first workout. Until you have a Strength Score, your onboarding answers pick it, up to Silver. Your first real score then replaces that guess, up or down.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.scoreTitle', 'Your Strength Score')}
-              body={tFallback(
-                'league.info.scoreBodyAll',
-                'We read your presses, squats and deadlifts from the last 90 days, barbell, dumbbell, machine or push-ups, and turn each into a barbell equivalent. The total is compared to your bodyweight and adjusted for age from 40 and under 23, so lifters of every size and age compete fairly. Each lift counts at your second best session, so one great day or one typo cannot place you.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.moveTitle', 'Moving between leagues')}
-              body={tFallback(
-                'league.info.moveBody',
-                'Your first score places you straight into the league it earns. After that you move one league per Monday: up when your score reaches the next league, down only when it falls {margin} below your own. A Shield blocks one drop, and you can own {cap} in total.',
-                { margin: pct(1 - DEMOTE_MARGIN), cap: SHIELD_LIFETIME_CAP },
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.restTitle', 'Time off never drops you')}
-              body={tFallback(
-                'league.info.restBody',
-                'If there is no score to read, because you have not lifted in 90 days or have no bodyweight saved, you keep your league until there is.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.raceTitle', 'The weekly race')}
-              body={tFallback(
-                'league.info.raceBody',
-                'Every Monday you join a bracket of up to 30 people. You are ranked by days trained, then XP. Once {n} people qualify, the top of the bracket wins the full reward for their league and everyone else who trained wins a quarter of it. The race pays out but never moves your league.',
-                { n: MIN_QUALIFIED_FOR_PRIZE },
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.mixedTitle', 'Small leagues share a bracket')}
-              body={tFallback(
-                'league.info.mixedBody',
-                'When too few people in your league are training that week, you race in the nearest bracket instead. You still play for your own league’s reward.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.seasonTitle', 'Seasons last 28 days')}
-              body={tFallback(
-                'league.info.seasonBodyStrength',
-                'Four weeks to one season. Qualify in any two of them and you keep a permanent title and trophy for the highest league you reached. A new season does not move your league.',
-              )}
-            />
-            <Rule
-              title={tFallback('league.info.legendTitle', 'Legend is the end of the ladder')}
-              body={tFallback(
-                'league.info.legendBody',
-                'There is nothing above it, so Legend plays a season-long board instead. Whoever tops it when the season ends takes a champion trophy minted once and never issued again.',
-              )}
+          <div className="pt-4">
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              options={[
+                ['league', tFallback('league.info.tabLeague', 'Your league')],
+                ['week', tFallback('league.info.tabWeek', 'Your week')],
+              ]}
             />
           </div>
-
-          {/* ── Levels ─────────────────────────────────────────────
-              Drawn in the reader's own league, with their current level
-              marked, so the rule is shown rather than described. Last,
-              after the weekly race it depends on: it sat between the
-              ladder and the Strength Score that explains the ladder. */}
-          <div className="pt-6">
-            <p className="text-caption font-bold">
-              {tFallback('league.info.levelsTitle', 'Four levels in every league')}
-            </p>
-            <p className="text-caption text-muted-foreground pt-1">
-              {tFallback(
-                'league.info.levelsBody',
-                'Every week you qualify adds a level, up to IV. Moving to another league starts you at I again. Levels show how long you have held your league and do not change your bracket.',
-              )}
-            </p>
-            <div className="flex justify-between pt-2">
-              {Array.from({ length: MAX_LEAGUE_LEVEL }, (_, i) => i + 1).map((lv) => (
-                <div key={lv} className="flex flex-col items-center gap-1">
-                  <LeagueTierBadge tier={tierId} level={lv} size={48} />
-                  <span
-                    className={`text-micro tabular-nums ${lv === level ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
-                    aria-current={lv === level ? 'true' : undefined}
-                  >
-                    {levelNumeral(lv)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {tab === 'league'
+            ? <LeagueTab tierId={tierId} score={score} />
+            : <WeekTab tierId={tierId} level={level} />}
         </div>
       </DialogContent>
     </Dialog>

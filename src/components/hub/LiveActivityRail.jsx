@@ -95,7 +95,7 @@ export default function LiveActivityRail() {
             <span className="absolute inline-flex w-full h-full rounded-full bg-success opacity-75 animate-ping" />
             <span className="relative inline-flex w-2 h-2 rounded-full bg-success" />
           </span>
-          <span className="text-micro font-bold uppercase tracking-[0.18em] text-success">
+          <span className="kicker text-success">
             {tFallback('liveActivity.title', 'Live now')}
           </span>
           <span className="text-micro text-muted-foreground">

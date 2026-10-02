@@ -44,7 +44,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
   return (
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <h3 className="eyebrow">
           {tFallback("recentlyViewedRail.recentlyViewed", "Recently viewed")}
         </h3>
         <button

@@ -246,7 +246,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
         <div className="mt-5">
           <div className="flex items-center gap-1.5 mb-1 px-1">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">{tFallback("gymFeedTab.fromTheFlexynCommunity", "From the Flexyn community")}</h3>
+            <h3 className="eyebrow text-primary">{tFallback("gymFeedTab.fromTheFlexynCommunity", "From the Flexyn community")}</h3>
           </div>
           <p className="text-micro text-muted-foreground mb-3 px-1">{tFallback('gymFeedTab.communitySubtitle', 'Trending posts while your gym gets going.')}</p>
           <div className="space-y-2">

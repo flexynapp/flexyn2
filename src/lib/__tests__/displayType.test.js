@@ -102,4 +102,41 @@ describe('display type', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  // Kegan, 2026-10-02: small spaced capitals above a group ("ASKING",
+  // "TODAY'S DROP") are one of the loudest tells of a generated app. A
+  // label is .eyebrow (a small heading) or .kicker (a quiet label), both
+  // sentence case. Capitals survive only on chips and badges (a short tag
+  // on a filled or outlined shape, like LIVE or NEW) and in the arcade
+  // games, whose HUD is a game look.
+  it('sets no small label in spaced capitals', () => {
+    const games = /HeavyBird|SweatJetpack|SnakeGame/;
+    const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(rel);
+      return /\.jsx$/.test(e.name) ? [rel] : [];
+    });
+    const offenders = [];
+    for (const f of walk('src').filter((x) => !games.test(x))) {
+      for (const m of read(f).matchAll(/(["'`])((?:(?!\1)[^\n])*?\buppercase\b(?:(?!\1)[^\n])*?)\1/g)) {
+        const toks = m[2].replace(/\$\{[^}]*\}/g, ' ').split(/\s+/);
+        const small = toks.some((t) => /^text-(?:micro|caption|xs|label|\[\d+px\])$/.test(t));
+        // A chip is a SHAPE: a fill, an outline or a rounded edge. Padding
+        // alone is not one, which is how the Settings group headings
+        // (px-1, nothing else) passed as chips while reading as labels.
+        const chip = toks.some((t) => /^(?:bg-|rounded|border(?:$|-(?![bltrsexy]-|[bltrsexy]$)))/.test(t));
+        if (small && !chip) offenders.push(`${f}: ${m[2].slice(0, 80)}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps both label styles in sentence case with no letter spacing', () => {
+    const css = read('src/index.css');
+    for (const cls of ['eyebrow', 'kicker']) {
+      const block = css.match(new RegExp(`\\.${cls}\\b[^{]*\\{([^}]*)\\}`))?.[1] ?? '';
+      expect(block, `.${cls}`).not.toBe('');
+      expect(block).not.toMatch(/text-transform|letter-spacing:\s*0?\.[1-9]|letter-spacing:\s*[1-9]/);
+    }
+  });
 });

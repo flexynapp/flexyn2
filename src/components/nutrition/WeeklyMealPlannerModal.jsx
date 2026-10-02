@@ -181,7 +181,7 @@ function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, on
             )}
           </p>
 
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
+          <p className="eyebrow mt-6 mb-2">
             {tFallback('weeklyMealPlannerModal.replaceOne', 'Replace one of them')}
           </p>
           <div className="space-y-1.5">
@@ -310,7 +310,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
   // remounted each keystroke — that would drop focus mid-typing.
   const renderInput = (f) => (
     <div key={f.key}>
-      <label className={`text-micro font-bold uppercase tracking-wide ${f.color}`}>{tFallback(`nutrient.${f.key.replace(/_(g|mg|mcg|iu)$/, '')}`, f.label)}</label>
+      <label className={`kicker ${f.color}`}>{tFallback(`nutrient.${f.key.replace(/_(g|mg|mcg|iu)$/, '')}`, f.label)}</label>
       <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
         <input
           type="number"
@@ -350,7 +350,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
         </div>
         <div className="p-4 space-y-4 overflow-y-auto">
           <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("photoMealResultModal.mealName", "Meal name")}</label>
+            <label className="kicker">{tFallback("photoMealResultModal.mealName", "Meal name")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -362,7 +362,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 
           {/* Macros — always shown. */}
           <div>
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("weeklyMealPlannerModal.macros", "Macros")}</p>
+            <p className="eyebrow mb-2">{tFallback("weeklyMealPlannerModal.macros", "Macros")}</p>
             <div className="grid grid-cols-2 gap-2">
               {MANUAL_MACRO_FIELDS.map(renderInput)}
             </div>
@@ -374,9 +374,9 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <button
               type="button"
               onClick={() => setShowMicros(s => !s)}
-              className="w-full flex items-center justify-between px-1 py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+              className="eyebrow w-full flex items-center justify-between px-1 py-1 hover:text-foreground active:text-foreground transition-colors"
             >
-              {tFallback("nutrition.vitaminsAndMinerals", "Vitamins & Minerals")}
+              {tFallback("nutrition.vitaminsAndMinerals", "Vitamins & minerals")}
               <ChevronDown className={`w-4 h-4 transition-transform ${showMicros ? 'rotate-180' : ''}`} />
             </button>
             {showMicros && (
@@ -784,7 +784,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                     sel ? 'bg-primary text-primary-foreground' : 'bg-card border border-border hover:bg-secondary active:bg-secondary'
                   }`}
                 >
-                  <span className={`text-micro font-semibold uppercase tracking-wide ${sel ? 'opacity-80' : 'text-muted-foreground'}`}>
+                  <span className={`kicker ${sel ? 'opacity-80' : 'text-muted-foreground'}`}>
                     {fmtDate(d, { weekday: 'short' })}
                   </span>
                   <span className="font-heading font-bold text-base leading-none">
@@ -893,7 +893,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                       <div key={slot.key}>
                         <div className="flex items-baseline gap-2 px-1 pb-1">
                           <span aria-hidden="true" className="text-micro">{slot.emoji}</span>
-                          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{slotLabel(slot)}</span>
+                          <span className="kicker">{slotLabel(slot)}</span>
                           {items.length > 1 && (
                             <span className="ms-auto text-micro font-bold text-primary tabular-nums">
                               {items.length} · {fmtNum(Math.round(slotTotal.calories))} cal

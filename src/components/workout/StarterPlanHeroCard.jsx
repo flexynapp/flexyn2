@@ -103,7 +103,7 @@ export default function StarterPlanHeroCard({
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span className="text-micro font-bold tracking-[0.18em] uppercase text-primary">
+          <span className="kicker text-primary">
             {tFallback('workout.starter.kicker', 'Built by your AI Coach')}
           </span>
         </div>
