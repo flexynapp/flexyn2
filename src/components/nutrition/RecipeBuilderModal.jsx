@@ -445,7 +445,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             <button
               type="button"
               onClick={() => setMicrosOpen(o => !o)}
-              className="mt-4 w-full flex items-center justify-between py-1.5 text-micro font-bold uppercase tracking-wide text-muted-foreground"
+              className="eyebrow mt-4 w-full flex items-center justify-between py-1.5"
             >
               <span>More nutrients · vitamins, minerals &amp; more</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${microsOpen ? 'rotate-180' : ''}`} />
