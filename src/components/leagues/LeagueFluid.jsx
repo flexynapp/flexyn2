@@ -53,6 +53,14 @@ float noise(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
              mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
+// Cartoon edges and ink lines: hard, with a thin smoothed rim so they do
+// not stair-step. (Cartoon mode also draws at full resolution; see size().)
+float aaw(float x) { return 0.006; }
+float inkAt(float x, float th) {
+  float h = 0.036;
+  return 1.0 - smoothstep(h - 0.006, h + 0.006, abs(x - th));
+}
+
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.5;
@@ -94,7 +102,7 @@ void main() {
   float pourRaw = clamp(uMix * 2.4 - d * 0.9 + (n - 0.5) * 0.9, 0.0, 1.0);
   float pour = pourRaw * pourRaw * (3.0 - 2.0 * pourRaw);
   // Cartoon: the new colour arrives as a hard front, not a blend.
-  if (uCartoon > 0.5) pour = step(0.5, pourRaw);
+  if (uCartoon > 0.5) pour = smoothstep(0.5 - aaw(pourRaw), 0.5 + aaw(pourRaw), pourRaw);
   vec3 c0 = mix(uA0, uB0, pour);
   vec3 c1 = mix(uA1, uB1, pour);
   vec3 c2 = mix(uA2, uB2, pour);
@@ -104,7 +112,7 @@ void main() {
   // edges between them, the way acrylic lies when it is poured, instead of a
   // haze of one colour.
   // Cartoon: hard edges, no blend at all between two paints.
-  float e = uCartoon > 0.5 ? 0.002 : 0.03;
+  float e = uCartoon > 0.5 ? aaw(v) : 0.03;
   vec3 col = c0;
   col = mix(col, c1, smoothstep(0.3 - e, 0.3 + e, v));
   col = mix(col, c2, smoothstep(0.5 - e, 0.5 + e, v));
@@ -114,11 +122,10 @@ void main() {
   // Cartoon: a dark ink line where one paint meets the next, and along the
   // front of a new colour pouring in, like a cel-shaded paint mix.
   if (uCartoon > 0.5) {
-    float w = 0.016;
-    float ink = 1.0 - step(w, abs(v - 0.3));
-    ink = max(ink, 1.0 - step(w, abs(v - 0.5)));
-    ink = max(ink, 1.0 - step(w, abs(v - 0.73)));
-    ink = max(ink, (1.0 - step(0.03, abs(pourRaw - 0.5))) * step(0.02, uMix) * step(uMix, 0.98));
+    float ink = inkAt(v, 0.3);
+    ink = max(ink, inkAt(v, 0.5));
+    ink = max(ink, inkAt(v, 0.73));
+    ink = max(ink, inkAt(pourRaw, 0.5) * step(0.02, uMix) * step(uMix, 0.98));
     col = mix(col, uBg * 0.4, ink);
   }
 
@@ -264,8 +271,11 @@ export default function LeagueFluid({ from, to, phase, chargeMs, down = false, s
     const size = () => {
       // Half the CSS size: the field is soft everywhere, so the upscale is
       // invisible and the fill rate a quarter of a full-resolution draw.
-      const w = Math.max(1, Math.round(canvas.clientWidth * 0.5));
-      const h = Math.max(1, Math.round(canvas.clientHeight * 0.5));
+      // Cartoon edges are hard, and a half-size upscale stair-steps them,
+      // so cartoon draws at the CSS size (still not the device's pixels).
+      const k = cartoon ? 1 : 0.5;
+      const w = Math.max(1, Math.round(canvas.clientWidth * k));
+      const h = Math.max(1, Math.round(canvas.clientHeight * k));
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
