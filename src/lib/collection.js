@@ -65,10 +65,10 @@ const SOURCES = {
  * never orphaned — it just isn't chaseable right now.
  */
 export const COLLECTION_TABS = [
-  { id: 'stickers', label: 'Stickers' },
-  { id: 'titles',   label: 'Titles'   },
-  { id: 'frames',   label: 'Frames'   },
-  ...(THEMES_ENABLED ? [{ id: 'themes', label: 'Themes' }] : []),
+  { id: 'stickers' },
+  { id: 'titles' },
+  { id: 'frames' },
+  ...(THEMES_ENABLED ? [{ id: 'themes' }] : []),
 ];
 
 /** Every catalog entry for a tab, deduped by id, in catalog order. */

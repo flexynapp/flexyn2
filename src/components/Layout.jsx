@@ -598,6 +598,7 @@ export default function Layout() {
         onClose={bag.closeBag}
         onOpenCapsule={bag.openCapsule}
         onOpenCapsuleBatch={bag.openCapsuleBatch}
+        initialTab={bag.bagTab}
       />
       {/* My Journal — ONE global mount. It lived inside ProfileMenu, which
           renders twice, so the open state was split across two copies and
