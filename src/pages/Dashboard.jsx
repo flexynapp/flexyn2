@@ -129,7 +129,7 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
  * column). Readiness is not in the hero; it has its own row below.
  */
 // One slide of Today's carousel past the week.
-function renderGlanceSlide(slide, active) {
+export function renderGlanceSlide(slide, active) {
   if (slide.trend) return <TrendFocal trend={slide.trend} active={active} />;
   switch (slide.id) {
     case 'fuel': return <FuelFocal fuel={slide.fuel} active={active} />;

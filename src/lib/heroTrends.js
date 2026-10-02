@@ -134,11 +134,16 @@ export function summarize(points, kind) {
 export function strengthTrend(logs = [], now = new Date()) {
   const lift = pickLift(logs, now);
   if (!lift) return { ...summarize([], 'strength'), lift: null };
+  return liftTrend(logs, lift.name, now);
+}
+
+/** Estimated-max trend on one named lift, same rules as the hero's. */
+export function liftTrend(logs = [], name, now = new Date()) {
   const since = now.getTime() - WINDOW_DAYS * DAY_MS;
-  const points = buildTrendPoints(logs, lift.name, since)
+  const points = buildTrendPoints(logs, name, since)
     .filter((p) => p.e1rm > 0)
     .map((p) => ({ t: p.t, v: Math.round(p.e1rm) }));
-  return { ...summarize(dedupeByDay(points, Math.max), 'strength'), lift: lift.name };
+  return { ...summarize(dedupeByDay(points, Math.max), 'strength'), lift: name };
 }
 
 /** Body weight trend from weigh-ins. Same-day entries keep the latest one. */

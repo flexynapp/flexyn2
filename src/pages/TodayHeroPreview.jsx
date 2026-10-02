@@ -40,7 +40,7 @@ const quest = (id, label, target, progress, done, claimed) => ({
 
 // The rest of the carousel, built with the same pure builders the live hook
 // uses, so the bench shows exactly what those builders produce.
-function sampleGlance(logs, now) {
+export function sampleGlance(logs, now) {
   const later = new Date(Date.now());
   return {
     duel: duelGlance({

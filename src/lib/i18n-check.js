@@ -160,6 +160,9 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // Today page: "min" and "XP" read the same in Spanish.
+    'today.session.minutes',
+    'today.todo.xp',
     // Today hero: "pts" is the points abbreviation Spanish uses too.
     'dashboard.glance.war.points',
     // "lb" is the pound abbreviation both languages use on a gym floor.
@@ -248,6 +251,9 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'league.info.daysUnit',
   ]),
   fr: new Set([
+    // Today page: "min" and "XP" read the same in French.
+    'today.session.minutes',
+    'today.todo.xp',
     // Today hero: "pts" is the French points abbreviation too.
     'dashboard.glance.war.points',
     // "lb" is the pound abbreviation both languages use on a gym floor.
