@@ -39,6 +39,7 @@ uniform vec2 uCentre;
 uniform vec3 uA0, uA1, uA2, uA3;
 uniform vec3 uB0, uB1, uB2, uB3;
 uniform vec3 uBg;
+uniform float uCartoon;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -76,7 +77,11 @@ void main() {
   // The pull toward the crest never crosses it (the radius it reads from
   // only shrinks, and shrinks less further out), so nothing folds back on
   // itself however far the paint has spread.
-  vec2 p = uv * exp(-uSpread / (d + 0.5)) * 1.25 + vec2(0.16, -0.06) * t;
+  // The spread is capped where it reads from: uncapped, a long stage (a
+  // capsule open stirred on every tap, or a reveal left on screen) zoomed
+  // into the crest until the floor was one flat colour. Past the cap the
+  // paint keeps drifting and folding, it just stops growing.
+  vec2 p = uv * exp(-min(uSpread, 1.1) / (d + 0.5)) * 1.25 + vec2(0.16, -0.06) * t;
   // Two rounds of warping: q bends space, r bends it again through q.
   vec2 q = vec2(fbm(p + vec2(0.0, t * 0.09)), fbm(p + vec2(5.2, 1.3) - t * 0.07));
   vec2 r = vec2(fbm(p + 3.4 * q + vec2(1.7, 9.2) + t * 0.12),
@@ -86,8 +91,10 @@ void main() {
   float v = clamp((n - 0.5) * 2.7 + 0.5, 0.0, 1.0);
 
   // The league's colour pours out from the crest along the folds.
-  float pour = clamp(uMix * 2.4 - d * 0.9 + (n - 0.5) * 0.9, 0.0, 1.0);
-  pour = pour * pour * (3.0 - 2.0 * pour);
+  float pourRaw = clamp(uMix * 2.4 - d * 0.9 + (n - 0.5) * 0.9, 0.0, 1.0);
+  float pour = pourRaw * pourRaw * (3.0 - 2.0 * pourRaw);
+  // Cartoon: the new colour arrives as a hard front, not a blend.
+  if (uCartoon > 0.5) pour = step(0.5, pourRaw);
   vec3 c0 = mix(uA0, uB0, pour);
   vec3 c1 = mix(uA1, uB1, pour);
   vec3 c2 = mix(uA2, uB2, pour);
@@ -96,13 +103,24 @@ void main() {
   // Poured paint: flat layers of the league's four colours with thin soft
   // edges between them, the way acrylic lies when it is poured, instead of a
   // haze of one colour.
-  float e = 0.03;
+  // Cartoon: hard edges, no blend at all between two paints.
+  float e = uCartoon > 0.5 ? 0.002 : 0.03;
   vec3 col = c0;
   col = mix(col, c1, smoothstep(0.3 - e, 0.3 + e, v));
   col = mix(col, c2, smoothstep(0.5 - e, 0.5 + e, v));
   col = mix(col, c3, smoothstep(0.73 - e, 0.73 + e, v));
   // A bright lip along the edge of the lightest paint, where it catches light.
-  col += (c3 - col) * 0.5 * smoothstep(0.05, 0.0, abs(v - 0.73));
+  col += (c3 - col) * 0.5 * smoothstep(0.05, 0.0, abs(v - 0.73)) * (1.0 - uCartoon);
+  // Cartoon: a dark ink line where one paint meets the next, and along the
+  // front of a new colour pouring in, like a cel-shaded paint mix.
+  if (uCartoon > 0.5) {
+    float w = 0.016;
+    float ink = 1.0 - step(w, abs(v - 0.3));
+    ink = max(ink, 1.0 - step(w, abs(v - 0.5)));
+    ink = max(ink, 1.0 - step(w, abs(v - 0.73)));
+    ink = max(ink, (1.0 - step(0.03, abs(pourRaw - 0.5))) * step(0.02, uMix) * step(uMix, 0.98));
+    col = mix(col, uBg * 0.4, ink);
+  }
 
   // Full colour across the screen, a little calmer under the words and the
   // ladder at the bottom, and a darker pool right behind the crest so a gold
@@ -183,6 +201,9 @@ const SPLASH_TAU = 0.45;
  * @param {number} [props.pulse] a counter; each change stirs the paint once,
  *   so a tap can churn it (the capsule open stirs it on every crack)
  * @param {number} [props.pulseSize] how hard the next stir is, 0 to 1
+ * @param {boolean} [props.cartoon] hard edges and a dark ink line between
+ *   the paints instead of soft ones, a cel-shaded paint mix (the capsule
+ *   open uses it)
  * @param {number} [props.strength] how loud the paint runs, 0 to 1 (1 is
  *   the rank up's own level; the capsule open runs a Common quieter)
  *
@@ -190,7 +211,7 @@ const SPLASH_TAU = 0.45;
  * starting colour and the new one pours in from the anchor, so a stage can
  * walk through several colours without a cut.
  */
-export default function LeagueFluid({ from, to, phase, chargeMs, down = false, still = false, anchorRef, pulse = 0, pulseSize = 0.5, strength = 1 }) {
+export default function LeagueFluid({ from, to, phase, chargeMs, down = false, still = false, anchorRef, pulse = 0, pulseSize = 0.5, strength = 1, cartoon = false }) {
   const canvasRef = useRef(null);
   const live = useRef({ phase, chargeMs, down, phaseAt: null });
   live.current.phase = phase;
@@ -230,7 +251,7 @@ export default function LeagueFluid({ from, to, phase, chargeMs, down = false, s
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const u = (name) => gl.getUniformLocation(prog, name);
     const U = {
-      res: u('uRes'), t: u('uT'), energy: u('uEnergy'), mix: u('uMix'), spread: u('uSpread'), centre: u('uCentre'), bg: u('uBg'),
+      res: u('uRes'), t: u('uT'), energy: u('uEnergy'), mix: u('uMix'), spread: u('uSpread'), centre: u('uCentre'), bg: u('uBg'), cartoon: u('uCartoon'),
       a: [u('uA0'), u('uA1'), u('uA2'), u('uA3')], b: [u('uB0'), u('uB1'), u('uB2'), u('uB3')],
     };
     let palA = fluidPalette(from);
@@ -238,6 +259,7 @@ export default function LeagueFluid({ from, to, phase, chargeMs, down = false, s
     palA.forEach((c, i) => gl.uniform3fv(U.a[i], c));
     palB.forEach((c, i) => gl.uniform3fv(U.b[i], c));
     gl.uniform3fv(U.bg, BG);
+    gl.uniform1f(U.cartoon, cartoon ? 1 : 0);
 
     const size = () => {
       // Half the CSS size: the field is soft everywhere, so the upscale is
