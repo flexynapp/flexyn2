@@ -20,6 +20,7 @@ import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
+import { isNative } from '@/lib/native';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
@@ -196,9 +197,11 @@ const AuthenticatedApp = () => {
   }
 
   // Capsule open test bench: deploy previews and localhost only, never
-  // production. Above the auth gate so it opens on a phone without signing
-  // in to the preview. It writes nothing; see src/pages/CapsuleOpenPreview.jsx.
-  if (typeof window !== 'undefined' && window.location.pathname === '/preview/capsule-open'
+  // production, and never the native app, whose web view is also served
+  // from localhost. Above the auth gate so it opens on a phone without
+  // signing in to the preview. It writes nothing; see
+  // src/pages/CapsuleOpenPreview.jsx.
+  if (typeof window !== 'undefined' && !isNative() && window.location.pathname === '/preview/capsule-open'
       && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
     return (
       <Suspense fallback={null}>
