@@ -16,7 +16,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Flame, Coins, Zap, Users, ChevronRight } from 'lucide-react';
+import { Flame, Zap, Users, ChevronRight, Check } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import ReadinessRing from '@/components/dashboard/ReadinessRing';
@@ -55,7 +56,6 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
 
   const total = rows.length;
   const claimed = rows.filter(q => q.claimed_at).length;
-  const completed = rows.filter(q => q.completed_at).length;
   const pct = total > 0 ? Math.round((claimed / total) * 100) : 0;
   const perfect = total > 0 && claimed === total;
 
@@ -106,40 +106,33 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
                   ? tFallback('quests.headingPerfect', 'Perfect day')
                   : tFallback('quests.heading', '{n} to go', { n: total - claimed })}
               </p>
-              <p className="text-caption text-muted-foreground leading-snug mt-1">
-                {perfect
-                  ? tFallback('quests.subPerfect', 'Everything today is claimed. New set at midnight, your local time.')
-                  : tFallback('quests.sub', 'Claim every quest today for the perfect-day bonus and to keep your streak alive.')}
-              </p>
+              {/* One line under the heading, figures only: the run, the best
+                  run and lifetime perfect days. It used to be a sentence
+                  plus a three-cell row that read 0 / 0 / 0 for anyone new,
+                  so a reader with nothing to show now sees nothing. */}
+              {(streakLive > 0 || (stats?.longestStreak ?? 0) > 0) && (
+                <p className="flex items-center gap-2 mt-1 text-micro text-muted-foreground tabular-nums">
+                  {streakLive > 0 && (
+                    <span className="flex items-center gap-0.5 font-heading font-bold text-body text-primary">
+                      <Flame className="w-4 h-4" aria-hidden="true" />
+                      <span aria-label={tFallback('quests.streakAria', '{n} day streak', { n: streakLive })}>{streakLive}</span>
+                    </span>
+                  )}
+                  <span>
+                    {tFallback('quests.bestShort', 'best {n}', { n: stats?.longestStreak ?? 0 })}
+                    {(stats?.perfectDays ?? 0) > 0 && (
+                      <> · {tFallback('quests.perfectShort', '{n} perfect', { n: stats.perfectDays })}</>
+                    )}
+                  </span>
+                </p>
+              )}
+              {perfect && (
+                <p className="text-caption text-muted-foreground mt-1">
+                  {tFallback('quests.newSetMidnight', 'New set at midnight.')}
+                </p>
+              )}
             </div>
           </div>
-
-          {/* ── streak ─────────────────────────────────────────────────
-              Three fixed cells, so grid-cols-3 rather than tileRow() —
-              the count isn't decided by data (CLAUDE.md). Hairline
-              dividers, no card: this is read-only data that isn't a
-              widget, so it gets no surface of its own. */}
-          <div className="mt-6 grid grid-cols-3 divide-x divide-border rtl:divide-x-reverse border-y border-border">
-            <StatCell
-              value={streakLive}
-              label={tFallback('quests.streak', 'Day streak')}
-              accent={streakLive > 0}
-              Icon={Flame}
-            />
-            <StatCell
-              value={stats?.longestStreak ?? 0}
-              label={tFallback('quests.longest', 'Best run')}
-            />
-            <StatCell
-              value={stats?.perfectDays ?? 0}
-              label={tFallback('quests.perfectDays', 'Perfect days')}
-            />
-          </div>
-          {streakLive === 0 && (stats?.longestStreak ?? 0) > 0 && (
-            <p className="text-micro text-muted-foreground/80 leading-snug mt-2">
-              {tFallback('quests.streakBroken', 'Your run ended. Claim everything today to start a new one.')}
-            </p>
-          )}
 
           {/* ── the quests ─────────────────────────────────────────── */}
           <div className="mt-6">
@@ -149,9 +142,6 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
                 {tFallback('quests.listHeading', "Today's set")}
               </h3>
             </div>
-            <p className="text-micro text-muted-foreground mb-2 px-1">
-              {tFallback('quests.listSub', 'Tap a quest to go where you can finish it.')}
-            </p>
             <ul className="space-y-2">
               {rows.map(q => (
                 <QuestDetailRow
@@ -167,66 +157,41 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
           </div>
 
           {/* ── the perfect-day bonus ──────────────────────────────────
-              Stated as a promise before it is earned and as a receipt
-              after. A bonus nobody knows about is not an incentive, and
-              the card has no room to explain one. */}
-          <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-              {tFallback('quests.bonusHeading', 'FINISH ALL {n}', { n: total })}
-            </p>
-            <div className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
-              stats?.bonusClaimedToday ? 'bg-success/10' : 'bg-secondary/40'
+              A promise before it is earned and a receipt after, drawn as one
+              row with its rewards as icons. It pays itself when the last
+              quest is claimed, so there is no button to hunt for. */}
+          <div className={`mt-6 flex items-center gap-3 rounded-lg px-3 py-2.5 ${
+            stats?.bonusClaimedToday ? 'bg-success/10' : 'bg-secondary/40'
+          }`}>
+            <span className={`shrink-0 w-8 h-8 rounded-sm flex items-center justify-center ${
+              stats?.bonusClaimedToday ? 'bg-success text-white' : 'bg-primary text-primary-foreground'
             }`}>
-              <span className={`shrink-0 w-8 h-8 rounded-sm flex items-center justify-center ${
-                stats?.bonusClaimedToday ? 'bg-success text-white' : 'bg-primary text-primary-foreground'
-              }`}>
-                <Flame className="w-4 h-4" aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-caption font-semibold leading-tight">
-                  {stats?.bonusClaimedToday
-                    ? tFallback('quests.bonusEarned', 'Perfect-day bonus banked')
-                    : tFallback('quests.bonusPending', 'Perfect-day bonus')}
-                </p>
-                <p className="text-micro text-muted-foreground tabular-nums mt-0.5">
-                  +{PERFECT_DAY_BONUS.coinReward} {tFallback('hub.coins', 'coins')}
-                  {' · '}+{PERFECT_DAY_BONUS.xpReward} XP
-                  {' · '}
-                  <span className="text-primary font-semibold">
-                    +{PERFECT_DAY_BONUS.crewXp} {tFallback('quests.crewShort', 'crew')}
-                  </span>
-                </p>
-              </div>
-              {!stats?.bonusClaimedToday && (
-                <span className="shrink-0 text-micro font-bold tabular-nums text-muted-foreground">
-                  {claimed}/{total}
-                </span>
-              )}
-            </div>
-            {/* The bonus pays itself the moment the last quest is claimed —
-                there is no button, and saying so stops someone hunting for
-                one. */}
-            <p className="text-micro text-muted-foreground/80 leading-snug mt-2">
-              {tFallback('quests.bonusAuto', 'Paid automatically when you claim the last one.')}
+              {stats?.bonusClaimedToday
+                ? <Check className="w-4 h-4" aria-hidden="true" />
+                : <Flame className="w-4 h-4" aria-hidden="true" />}
+            </span>
+            <p className="min-w-0 flex-1 text-caption font-semibold leading-tight">
+              {stats?.bonusClaimedToday
+                ? tFallback('quests.bonusEarned', 'Perfect-day bonus banked')
+                : tFallback('quests.bonusAll', 'All {n}', { n: total })}
             </p>
+            <RewardIcons
+              xp={PERFECT_DAY_BONUS.xpReward}
+              coins={PERFECT_DAY_BONUS.coinReward}
+              crew={PERFECT_DAY_BONUS.crewXp}
+              tFallback={tFallback}
+            />
           </div>
 
-          {/* ── today's haul ───────────────────────────────────────── */}
-          <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-              {tFallback('quests.haulHeading', 'BANKED TODAY')}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <HaulCell Icon={Coins} value={haul.coins} label={tFallback('hub.coins', 'coins')} />
-              <HaulCell Icon={Zap} value={haul.xp} label="XP" />
-              <HaulCell Icon={Users} value={haul.crew} label={tFallback('quests.crewXp', 'crew XP')} accent />
+          {/* ── today's haul: one line, figures only ───────────────── */}
+          {(haul.xp > 0 || haul.coins > 0) && (
+            <div className="mt-4 flex items-center justify-between gap-2 px-1">
+              <span className="text-micro font-semibold text-muted-foreground">
+                {tFallback('quests.bankedToday', 'Banked today')}
+              </span>
+              <RewardIcons xp={haul.xp} coins={haul.coins} crew={haul.crew} tFallback={tFallback} />
             </div>
-            <p className="text-micro text-muted-foreground/80 leading-relaxed mt-3">
-              {haul.crew > 0
-                ? tFallback('quests.haulCrew', "A quarter of every quest's XP goes to your crew on top of your own. A crew quest sends all of it. Nothing is taken from you to pay it.")
-                : tFallback('quests.haulNoCrew', 'Join a crew and a share of every quest you claim goes to their level too. On top of your own XP, not out of it.')}
-            </p>
-          </div>
+          )}
 
           <button
             type="button"
@@ -243,27 +208,23 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
   );
 }
 
-function StatCell({ value, label, accent = false, Icon }) {
+// Rewards as icons and numbers: XP bolt, the coin, and crew XP when there is
+// any. Labels ride on aria-label so a screen reader still hears the words.
+function RewardIcons({ xp = 0, coins = 0, crew = 0, tFallback }) {
   return (
-    <div className="px-2 py-3 text-center">
-      <p className={`font-heading font-black text-title tabular-nums leading-none flex items-center justify-center gap-1 ${
-        accent ? 'text-primary' : 'text-foreground'
-      }`}>
-        {Icon && accent && <Icon className="w-4 h-4" aria-hidden="true" />}
-        {value}
-      </p>
-      <p className="text-micro text-muted-foreground mt-1 leading-tight">{label}</p>
-    </div>
-  );
-}
-
-function HaulCell({ Icon, value, label, accent = false }) {
-  return (
-    <div className="flex flex-col items-center gap-1 rounded-lg bg-secondary/40 py-2.5">
-      <Icon className={`w-4 h-4 ${accent ? 'text-primary' : 'text-muted-foreground'}`} aria-hidden="true" />
-      <p className="font-heading font-bold text-body tabular-nums leading-none">{value}</p>
-      <p className="text-micro text-muted-foreground leading-tight">{label}</p>
-    </div>
+    <span className="shrink-0 flex items-center gap-2 text-caption font-bold tabular-nums">
+      <span className="flex items-center gap-0.5" aria-label={`${xp} XP`}>
+        <Zap className="w-3.5 h-3.5 text-primary" aria-hidden="true" />{xp}
+      </span>
+      <span className="flex items-center gap-1" aria-label={`${coins} ${tFallback('hub.coins', 'coins')}`}>
+        <FlexCoinIcon size={14} />{coins}
+      </span>
+      {crew > 0 && (
+        <span className="flex items-center gap-0.5 text-primary" aria-label={`${crew} ${tFallback('quests.crewXp', 'crew XP')}`}>
+          <Users className="w-3.5 h-3.5" aria-hidden="true" />+{crew}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -275,7 +236,6 @@ function QuestDetailRow({ quest, onClaim, onGo, t, tFallback }) {
   const tappable = !claimed;
 
   const label = (() => { const k = `quest.${def.id}.label`; const v = t(k); return v === k ? def.label : v; })();
-  const desc = (() => { const k = `quest.${def.id}.desc`; const v = t(k); return v === k ? def.description : v; })();
 
   // Guard the division: a corrupt seed row with target 0 would make this
   // Infinity (or NaN when both are 0) and render an invalid `width: NaN%`.
@@ -317,7 +277,6 @@ function QuestDetailRow({ quest, onClaim, onGo, t, tFallback }) {
               {tierLabel}
             </span>
           </div>
-          <p className="text-micro text-muted-foreground/80 leading-snug mt-0.5">{desc}</p>
 
           <div className="flex items-center gap-2 mt-1.5">
             {/* 4px on foreground/12, matching the readiness breakdown rows.
