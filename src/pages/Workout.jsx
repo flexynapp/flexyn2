@@ -101,6 +101,7 @@ import { saveWorkoutCardio, cardioEntryHasData, blankCardioEntry, workoutCardioS
 import * as cardioData from '@/lib/data/cardio';
 import * as regimensData from '@/lib/data/regimens';
 import * as goalsData from '@/lib/data/goals';
+import { useMarkSessionActive } from '@/lib/activeSession';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -283,6 +284,8 @@ export default function Workout() {
   // the timer continuous. Drives the live MM:SS clock in the header
   // AND the auto-filled duration field on save.
   const [startedAt, setStartedAt] = useState(null);
+  // Tells interrupting surfaces (the first-week check-in) to wait.
+  useMarkSessionActive('workout', started);
 
   // Live-activity presence (migration 088). When the user starts a
   // workout, mark them active for 90 min so followers see a green dot

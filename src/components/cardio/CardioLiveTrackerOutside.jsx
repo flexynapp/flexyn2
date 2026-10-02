@@ -36,6 +36,7 @@ import {
 } from '@/lib/cardioVoiceCoach';
 import { snapshot, readSnapshot, clearSnapshot } from '@/lib/cardioSession';
 import { track, EVENTS } from '@/lib/analytics';
+import { useMarkSessionActive } from '@/lib/activeSession';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   const autoPauseEnabled = cardioAutoPause !== false;
 
   const [status, setStatus] = useState('idle');
+  useMarkSessionActive('cardio-outside', status === 'tracking' || status === 'paused');
   const [error, setError] = useState(null);
   const [, forceTick] = useState(0);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);

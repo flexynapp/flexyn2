@@ -32,6 +32,7 @@ import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
 import { reportError } from '@/lib/reportError';
 import { track, EVENTS } from '@/lib/analytics';
+import { useMarkSessionActive } from '@/lib/activeSession';
 
 export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, userProfile = {} }) {
   const { t, tFallback } = useLanguage();
@@ -40,6 +41,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   const queryClient = useQueryClient();
 
   const [status, setStatus] = useState('idle');
+  useMarkSessionActive('cardio-indoor', status === 'tracking' || status === 'paused');
   const [, forceTick] = useState(0);
   const [distanceInputUnits, setDistanceInputUnits] = useState('');
   const [incline, setIncline] = useState(env === 'treadmill' ? 0 : null);

@@ -32,6 +32,7 @@ import SkinPrompt from '@/components/skins/SkinPrompt';
 import SkinSlot from '@/components/skins/SkinSlot';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt';
 import LoginStreakSync from '@/components/LoginStreakSync';
+import FirstWeekCheckin from '@/components/checkin/FirstWeekCheckin';
 import LaunchSplash from './components/LaunchSplash';
 import Layout from './components/Layout';
 
@@ -505,6 +506,9 @@ const AuthenticatedApp = () => {
         welcome-back cron mis-fired for them. Renders null.
       */}
       <LoginStreakSync />
+      {/* First-week check-in sheet: once a day for a new account's first
+          seven days, never during a workout. Renders null otherwise. */}
+      <FirstWeekCheckin />
     </>
   );
 };

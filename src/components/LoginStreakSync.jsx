@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as loginStreak from '@/lib/data/loginStreak';
 import * as notifications from '@/lib/data/notifications';
+import { mayBeInFirstWeek } from '@/lib/data/firstWeekCheckin';
 
 // Days on which a coin reward triggers the in-app notification (and
 // the corresponding push). Kept in sync with the toast logic below.
@@ -51,27 +52,35 @@ export default function LoginStreakSync() {
     loginStreak.recordLogin(user).then((result) => {
       if (!result?.isNewDay || result.coinsAwarded <= 0) return;
 
-      // ── Streak toast ────────────────────────────────────────────────
-      const tplKey = result.freezeUsed
-        ? 'dashboard.streakSavedToast'
-        : 'dashboard.streakDayToast';
-      const msg = t(tplKey, { day: result.streak, coins: result.coinsAwarded });
-      toast.success(msg, { icon: '🔥', duration: 4500 });
+      // In an account's first week the check-in sheet is the day's
+      // reward moment (components/checkin/FirstWeekCheckin.jsx). The
+      // streak coins still land; only the toast and confetti step aside
+      // so two rewards don't stack on one launch.
+      const quiet = mayBeInFirstWeek(user.created_at, new Date(), { unknown: false });
 
-      // Full confetti burst on milestone streak days (7, 14, 30, 60, 100…)
-      if (MILESTONE_DAYS.has(result.streak)) {
-        import('canvas-confetti').then(({ default: confetti }) => {
-          const fire = (opts) => confetti({
-            particleCount: 120,
-            spread: 80,
-            gravity: 0.9,
-            colors: ['#f97316', '#fbbf24', '#ef4444', '#a855f7', '#3b82f6'],
-            ...opts,
-          });
-          fire({ origin: { x: 0.2, y: 0.55 } });
-          setTimeout(() => fire({ origin: { x: 0.8, y: 0.55 } }), 180);
-          setTimeout(() => fire({ origin: { x: 0.5, y: 0.4 }, particleCount: 60, spread: 50 }), 350);
-        }).catch(() => {});
+      // ── Streak toast ────────────────────────────────────────────────
+      if (!quiet) {
+        const tplKey = result.freezeUsed
+          ? 'dashboard.streakSavedToast'
+          : 'dashboard.streakDayToast';
+        const msg = t(tplKey, { day: result.streak, coins: result.coinsAwarded });
+        toast.success(msg, { icon: '🔥', duration: 4500 });
+
+        // Full confetti burst on milestone streak days (7, 14, 30, 60, 100…)
+        if (MILESTONE_DAYS.has(result.streak)) {
+          import('canvas-confetti').then(({ default: confetti }) => {
+            const fire = (opts) => confetti({
+              particleCount: 120,
+              spread: 80,
+              gravity: 0.9,
+              colors: ['#f97316', '#fbbf24', '#ef4444', '#a855f7', '#3b82f6'],
+              ...opts,
+            });
+            fire({ origin: { x: 0.2, y: 0.55 } });
+            setTimeout(() => fire({ origin: { x: 0.8, y: 0.55 } }), 180);
+            setTimeout(() => fire({ origin: { x: 0.5, y: 0.4 }, particleCount: 60, spread: 50 }), 350);
+          }).catch(() => {});
+        }
       }
 
       // Elite capsule sub-toast on milestone days.
