@@ -39,6 +39,16 @@ describe('RankUpSequence', () => {
     expect(screen.getByRole('heading', { name: 'Gold League' })).toBeInTheDocument();
   });
 
+  it('only a promotion cracks; a placement and a demotion change shape', () => {
+    const tier = { kind: 'tier', from: { tier: 'silver', level: 4 }, to: { tier: 'gold', level: 1 } };
+    const { container, unmount } = render(<RankUpSequence move={tier} onClose={() => {}} />);
+    expect(container.querySelectorAll('[data-crack]').length).toBeGreaterThan(0);
+    unmount();
+    const placed = { kind: 'placed', from: null, to: { tier: 'gold', level: 1 } };
+    const r = render(<RankUpSequence move={placed} onClose={() => {}} />);
+    expect(r.container.querySelectorAll('[data-crack]')).toHaveLength(0);
+  });
+
   it('a level step names the level and skips the break', () => {
     render(<RankUpSequence move={level} onClose={() => {}} />);
     step(450, 900, 10);
@@ -49,7 +59,8 @@ describe('RankUpSequence', () => {
   it('a demotion is quiet and ends on the way back', () => {
     const down = { kind: 'down', from: { tier: 'gold', level: 3 }, to: { tier: 'silver', level: 1 } };
     render(<RankUpSequence move={down} strength={{ score: 220, next_tier: 'gold', next_floor: 250 }} onClose={() => {}} />);
-    step(450, 1800, 10);
+    // It greys, then the crest changes shape, then the lower league lands.
+    step(450, 600, 1200, 10);
     expect(screen.getByRole('heading', { name: 'Silver League' })).toBeInTheDocument();
     expect(screen.getByText('Moved down')).toBeInTheDocument();
     expect(screen.getByText(/Down from Gold League III/)).toBeInTheDocument();
@@ -58,11 +69,12 @@ describe('RankUpSequence', () => {
     expect(screen.getByRole('button', { name: 'Win it back' })).toBeInTheDocument();
   });
 
-  it('a first placement breaks a blank shield and names the league', () => {
+  it('a first placement grows a blank shield into its league and names it', () => {
     const placed = { kind: 'placed', from: null, to: { tier: 'silver', level: 1 } };
     render(<RankUpSequence move={placed} strength={{ score: 180, next_tier: 'gold', next_floor: 250 }} onClose={() => {}} />);
     expect(screen.getByText('Your first league')).toBeInTheDocument();
-    step(450, 1500, 250);
+    // The charge, then the shape changes in grey (no break), then the colour.
+    step(450, 1500, 900, 10);
     expect(screen.getByRole('heading', { name: 'Silver League' })).toBeInTheDocument();
     expect(screen.getByText('Your league')).toBeInTheDocument();
     expect(screen.getByText('Set by your first workout.')).toBeInTheDocument();

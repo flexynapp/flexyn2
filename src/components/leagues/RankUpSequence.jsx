@@ -21,9 +21,15 @@
 // gains its new ornament and lands.
 //
 // A demotion is its own, sombre sequence (Kegan, 2026-09-30): no sunburst
-// colour, no sparks, no shake. The crest greys and sinks, the lower one
-// rises quietly in its place, and it ends on the road back: the league they
-// left, and the Strength Score it takes to return.
+// colour, no sparks, no shake. The crest greys where it stands and sinks a
+// little while its outline melts into the lower league's (CrestMorph), the
+// lower league's colour comes up on it, and it ends on the road back: the
+// league they left, and the Strength Score it takes to return. A first
+// placement uses the same morph after the charge: wings grow out of the
+// blank grey shield and the league's colour lands on it.
+//
+// Behind all of it the league's own colours churn (LeagueFluid), the old
+// league's giving way to the new one's as the crest changes.
 //
 // The last beat is the point. A promotion that ends on the crest you just
 // got is a trophy; one that ends on the next crest, dimmed, with a bar that
@@ -42,6 +48,8 @@ import { TIERS, getTier, nextTier, leagueTierName } from '@/lib/leagueTiers';
 import { rankDramaFor } from '@/lib/rankUp';
 import { chargeBeats, chargeFrames, flyFrames, impactFrames, landingFrames } from '@/lib/rankUpMotion';
 import { OpenerStage, useOpenerFx } from '@/components/capsules/openFx';
+import LeagueFluid from '@/components/leagues/LeagueFluid';
+import CrestMorph from '@/components/leagues/CrestMorph';
 import TierIcon from '@/components/leagues/LeagueTierIcon';
 import { Button } from '@/components/ui/button';
 
@@ -78,12 +86,23 @@ const BLANK = { tier: 'bronze', level: 1 };
 const MUTED = '#89949F';
 const SLAM_MS = 900;
 const LEVEL_MS = 720;
+// The crest morph: how long the shape takes to change, and how long the
+// colour takes to arrive over it. A demotion greys first and changes
+// slower; nothing about it should feel quick.
+const MORPH_MS = 900;
+const MORPH_LAND_MS = 760;
+const DOWN_GREY_MS = 600;
+const DOWN_MORPH_MS = 1200;
+const REST = 'translate(0px, 0px) rotate(0deg) scale(1)';
 // Layers that are about to move are promoted up front, so the first frame
 // of each beat does not pay for building them.
 const LAYER = { willChange: 'transform, opacity' };
 // Not 0: a fully transparent layer is not drawn, so it would be drawn for
 // the first time on the frame it is needed. This is invisible and ready.
 const PARKED = 0.001;
+// The sunburst sits over the league's swirling backdrop (LeagueFluid), so it
+// is turned down to a hint: two full-strength backdrops fight each other.
+const RAYS_UNDER_FLUID = 0.45;
 
 /** A flat copy of a crest laid over it: white for the heat of a charge, grey
  *  for a demotion. Its filter is static (drawn once); only its opacity
@@ -133,21 +152,30 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const fmt = useNumberFormatter();
   const fx = useOpenerFx();
   const drama = rankDramaFor(move);
-  // A first placement runs the promotion's stage: there is no league to
-  // break, so a blank shield stands in for it, charges and breaks open.
+  // A first placement runs the promotion's charge on a blank grey shield.
   const isPlaced = move.kind === 'placed';
   const isTier = move.kind === 'tier' || isPlaced;
   const isDown = move.kind === 'down';
+  // Only a promotion breaks. A first placement and a demotion change shape
+  // instead (Kegan, 2026-10-02): the crest melts into the new league's
+  // outline in grey, and the colour arrives after the shape has landed.
+  const breaks = move.kind === 'tier';
+  const isMorph = isPlaced || isDown;
   const motion = isTier ? 'tier' : move.kind;
+  const landKind = isPlaced ? 'morph' : motion;
+  const landMs = isPlaced ? MORPH_LAND_MS : isTier ? SLAM_MS : LEVEL_MS;
   const from = move.from ?? BLANK;
   const fromTier = getTier(from.tier);
   const toTier = getTier(move.to.tier);
   // A demotion keeps the stage grey: the only colour on it is the crest.
   const color = isDown ? MUTED : toTier.color;
+  // The backdrop opens in the league they had (grey before a first
+  // placement) and ends in the one they have now.
+  const fluidFrom = isPlaced ? MUTED : fromTier.color;
 
   // When the new crest hits, and so when the words after it start.
   const impactAt = isDown ? 600
-    : landingFrames({ kind: motion, duration: isTier ? SLAM_MS : LEVEL_MS }).impact;
+    : landingFrames({ kind: landKind, duration: landMs }).impact;
   const hit = fx.reduced ? 0 : Math.round(impactAt) + drama.hold;
   const [phase, setPhase] = useState(() => (fx.reduced ? 'landed' : 'enter'));
   // The ladder's mark moves a beat after the crest lands, not with it.
@@ -161,6 +189,9 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const oldTintRef = useRef(null);
   const newHotRef = useRef(null);
   const ctaRef = useRef(null);
+  const crestBoxRef = useRef(null);
+  const morphRef = useRef(null);
+  const morphLayerRef = useRef(null);
 
   useBodyScrollLock();
 
@@ -210,25 +241,22 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     fx.aimAt(oldRef.current);
     const el = oldRef.current;
     if (isDown) {
-      // No tell and no beats: one low pulse as the crest greys and sinks.
+      // No tell and no beats: one low pulse as the crest greys where it
+      // stands and starts, slowly, to sink. The shape changes next.
       triggerHaptic('warning');
       el?.animate?.(
-        [
-          { transform: 'none', opacity: 1, easing: 'cubic-bezier(0.3, 0, 0.5, 1)' },
-          { transform: 'translateY(-4px)', opacity: 1, offset: 0.2, easing: 'cubic-bezier(0.55, 0, 0.75, 0.35)' },
-          { transform: 'translateY(36px) scale(0.9)', opacity: 0 },
-        ],
-        { duration: drama.charge, fill: 'forwards' },
+        [{ transform: 'none' }, { transform: 'translateY(6px)' }],
+        { duration: DOWN_GREY_MS + DOWN_MORPH_MS, easing: 'cubic-bezier(0.45, 0, 0.55, 1)', fill: 'forwards' },
       );
       oldTintRef.current?.animate?.(
         [{ opacity: 0 }, { opacity: 0.9 }],
-        { duration: drama.charge * 0.7, easing: 'ease-in-out', fill: 'forwards' },
+        { duration: DOWN_GREY_MS, easing: 'ease-in-out', fill: 'forwards' },
       );
-      later(() => setPhase('landed'), drama.charge);
+      later(() => setPhase('morph'), DOWN_GREY_MS);
       return;
     }
     // The tell: the new league's colour starts turning behind the old crest.
-    fx.setRays(color, drama.rays * 0.45, { fast: isTier });
+    fx.setRays(color, drama.rays * 0.45 * RAYS_UNDER_FLUID, { fast: isTier });
     const c = chargeFrames({ kind: motion, duration: drama.charge });
     charge.current = c;
     el?.animate?.(c.crest, { duration: drama.charge, easing: 'linear', fill: 'forwards' });
@@ -253,8 +281,27 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
         later(() => implode(color, d, 380 + i * 12), t - d);
       }
     });
-    later(() => setPhase(isTier ? 'break' : 'landed'), drama.charge);
-  }, [phase, fx, color, drama, isTier, isDown, motion, later, implode]);
+    later(() => setPhase(breaks ? 'break' : isMorph ? 'morph' : 'landed'), drama.charge);
+  }, [phase, fx, color, drama, isTier, isDown, isMorph, breaks, motion, later, implode]);
+
+  // The morph: the greyed crest hands over to a grey copy drawn on exactly
+  // its outline, which then melts into the new league's outline.
+  useLayoutEffect(() => {
+    if (phase !== 'morph') return;
+    const ms = isDown ? DOWN_MORPH_MS : MORPH_MS;
+    morphLayerRef.current?.animate?.([{ opacity: PARKED }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'forwards' });
+    if (isPlaced) {
+      // The charge's heat leaves as the shape starts to move, and the crest
+      // settles back from where the charge left it.
+      oldTintRef.current?.animate?.([{ opacity: charge.current?.hotEnd ?? 0.5 }, { opacity: 0 }], { duration: 260, easing: 'ease-out', fill: 'forwards' });
+      const end = charge.current?.end;
+      const from = end ? `translate(0px, ${end.y}px) rotate(0deg) scale(${end.scale})` : REST;
+      oldRef.current?.animate?.([{ transform: from }, { transform: REST }], { duration: ms, easing: 'cubic-bezier(0.33, 0, 0.2, 1)', fill: 'forwards' });
+      triggerHaptic('subtle');
+    }
+    morphRef.current?.play(ms);
+    later(() => setPhase('landed'), ms);
+  }, [phase, isDown, isPlaced, later]);
 
   useLayoutEffect(() => {
     if (phase !== 'break') return;
@@ -293,31 +340,40 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     if (phase !== 'landed') return;
     const el = newRef.current;
     const point = fx.aimAt(el);
-    fx.setRays(color, drama.rays, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
+    fx.setRays(color, drama.rays * RAYS_UNDER_FLUID, { double: isTier && ['diamond', 'legend'].includes(toTier.id), fast: false });
     later(() => setLadderMoved(true), fx.reduced ? 0 : hit + 150);
     if (fx.reduced || typeof el?.animate !== 'function') return;
+    // After a morph the grey shape stays under the new crest until its
+    // colour is fully there, then goes.
+    const retire = (at) => oldRef.current?.animate?.([{ opacity: 1 }, { opacity: 0 }], { delay: at, duration: 200, fill: 'forwards' });
     if (isDown) {
-      // The lower crest rises quietly into place. Nothing hits.
+      // The lower league's colour comes up quietly on the shape it has
+      // already taken, and the crest lifts back from where it sank. Nothing
+      // hits.
       el.animate(
         [
-          { transform: 'translateY(28px) scale(0.96)', opacity: 0 },
+          { transform: 'translateY(6px)', opacity: 0 },
           { transform: 'none', opacity: 1 },
         ],
-        { duration: 1100, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' },
+        { duration: 1000, easing: 'cubic-bezier(0.33, 0, 0.2, 1)', fill: 'backwards' },
       );
+      retire(800);
       return;
     }
-    const duration = isTier ? SLAM_MS : LEVEL_MS;
+    const duration = landMs;
     const { frames, impact } = landingFrames({
-      kind: motion, duration, startScale: charge.current?.end?.scale ?? 1, startY: charge.current?.end?.y ?? 0,
+      kind: landKind, duration, startScale: charge.current?.end?.scale ?? 1, startY: charge.current?.end?.y ?? 0,
     });
     el.animate(frames, { duration, easing: 'linear', fill: 'backwards' });
-    newHotRef.current?.animate?.(
-      isTier
-        ? [{ opacity: 0.9 }, { opacity: 0.9, offset: impact / duration }, { opacity: 0 }]
-        : [{ opacity: charge.current?.hotEnd ?? 0.3 }, { opacity: 0.45, offset: impact / duration }, { opacity: 0 }],
-      { duration: impact + 520, easing: 'ease-out', fill: 'forwards' },
-    );
+    if (isMorph) retire(impact);
+    else {
+      newHotRef.current?.animate?.(
+        isTier
+          ? [{ opacity: 0.9 }, { opacity: 0.9, offset: impact / duration }, { opacity: 0 }]
+          : [{ opacity: charge.current?.hotEnd ?? 0.3 }, { opacity: 0.45, offset: impact / duration }, { opacity: 0 }],
+        { duration: impact + 520, easing: 'ease-out', fill: 'forwards' },
+      );
+    }
     const t = setTimeout(() => {
       fx.burst(point, null, { color, drama, scale: isTier ? 1 : 0.6, shake: false });
       // The screen takes the hit as one smooth dip, sized by the league.
@@ -344,8 +400,9 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
 
   // Tapping the stage mid-charge goes straight to the landing.
   const skip = () => {
-    if (phase !== 'enter' && phase !== 'charge') return;
+    if (phase !== 'enter' && phase !== 'charge' && phase !== 'morph') return;
     clearTimers();
+    morphRef.current?.stop();
     oldRef.current?.getAnimations?.().forEach((a) => a.cancel());
     setPhase('landed');
   };
@@ -412,7 +469,9 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
     : null;
 
   const landed = phase === 'landed';
-  const charging = phase === 'enter' || phase === 'charge';
+  // Before the new crest takes over: the old one, its name and, on a
+  // morph, the grey shape, are on screen.
+  const charging = phase === 'enter' || phase === 'charge' || phase === 'morph';
   const beat = (n) => ({ animationDelay: `${hit + n * 130}ms` });
   const toIndex = TIERS.findIndex((t) => t.id === toTier.id);
   // A first placement has no league to mark yet.
@@ -434,6 +493,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       aria-labelledby="rank-up-title"
       onClick={skip}
     >
+      <LeagueFluid from={fluidFrom} to={color} phase={phase} chargeMs={drama.charge} down={isDown} still={fx.reduced} anchorRef={crestBoxRef} />
       <OpenerStage fx={fx} />
       <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
         <header className="h-[60px] shrink-0 flex items-center justify-between">
@@ -457,14 +517,14 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               first frame, while the screen is still fading in, and are handed
               over by opacity: mounting one mid-sequence cost a dropped frame
               at the start of the charge. */}
-          <div className="relative mx-auto" style={{ width: 176, height: 176 }}>
+          <div ref={crestBoxRef} className="relative mx-auto" style={{ width: 176, height: 176 }}>
             {!fx.reduced && (
               <div ref={oldRef} className={`absolute inset-0 rank-crest ${phase === 'enter' ? 'reveal-rise' : ''}`}
-                style={{ ...LAYER, opacity: charging ? undefined : 0 }} aria-hidden="true">
+                style={{ ...LAYER, opacity: charging || (isMorph && landed) ? undefined : 0 }} aria-hidden="true">
                 <LeagueTierIcon tier={fromTier.id} level={from.level} className={CREST} />
                 {isPlaced && <Tint tier={fromTier.id} level={from.level} start={0.92} tone="grey" />}
                 <Tint ref={oldTintRef} tier={fromTier.id} level={from.level} tone={isDown ? 'grey' : 'hot'} />
-                {isTier && (
+                {breaks && (
                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden="true">
                     {CRACK_STEPS.map((step, i) => (
                       <g key={i} data-crack={step.beat} opacity="0" fill="none" strokeLinejoin="round" strokeLinecap="round">
@@ -474,9 +534,14 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
                     ))}
                   </svg>
                 )}
+                {isMorph && (
+                  <div ref={morphLayerRef} className="absolute inset-0" style={{ opacity: PARKED, willChange: 'opacity' }}>
+                    <CrestMorph ref={morphRef} from={from} to={move.to} grey={isDown ? 0.9 : 0.92} className={CREST} />
+                  </div>
+                )}
               </div>
             )}
-            {isTier && !fx.reduced && (
+            {breaks && !fx.reduced && (
               <>
                 <div ref={leftRef} className="absolute inset-0 rank-crest pointer-events-none" style={{ ...LAYER, clipPath: LEFT_CLIP, opacity: PARKED }} aria-hidden="true">
                   <LeagueTierIcon tier={fromTier.id} level={from.level} className={CREST} />

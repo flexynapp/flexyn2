@@ -116,6 +116,17 @@ export function landingFrames({ kind, duration, startScale = 1, startY = 0 }) {
   const steps = 60;
   const frames = [];
   let impact = duration * 0.4;
+  if (kind === 'morph') {
+    // The shape has already landed, in grey. The colour arrives over it on
+    // a soft swell and settles, and the moment it is fully there is the hit.
+    const s = spring(1.07, 1, { duration, bounce: 0.3, steps });
+    const fade = 0.32;
+    s.forEach((v, i) => {
+      const u = Math.min(1, i / (steps * fade));
+      frames.push({ transform: `translate(0px, 0px) scale(${f(v, 4)})`, opacity: f(u * u * (3 - 2 * u), 3) });
+    });
+    return { frames, impact: duration * fade };
+  }
   if (kind === 'tier') {
     const s = spring(2.2, 1, { duration, bounce: 0.42, steps });
     const y = spring(-26, 0, { duration, bounce: 0.3, steps });
