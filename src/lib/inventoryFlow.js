@@ -47,6 +47,9 @@ export function useBagFlow(t) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [bagOpen, setBagOpen] = useState(false);
+  // Which tab the bag opens on. The market's Collection entry asks for
+  // Stickers; everything else gets the default.
+  const [bagTab, setBagTab] = useState('capsules');
   // The capsules the opener is running: one row or several of one tier.
   const [opening, setOpening] = useState(null);
   // Where the open started. Collecting from the bag lands back in the bag;
@@ -72,7 +75,10 @@ export function useBagFlow(t) {
     staleTime: 30_000,
   });
 
-  const openBag = useCallback(() => setBagOpen(true), []);
+  const openBag = useCallback((tab = 'capsules') => {
+    setBagTab(typeof tab === 'string' ? tab : 'capsules');
+    setBagOpen(true);
+  }, []);
   const closeBag = useCallback(() => setBagOpen(false), []);
 
   const begin = useCallback((rows, from) => {
@@ -171,7 +177,7 @@ export function useBagFlow(t) {
   // Global events: "open the bag" from any surface, and "open these
   // capsules" from the Capsules page.
   useEffect(() => {
-    const onBag = () => setBagOpen(true);
+    const onBag = (e) => openBag(e?.detail?.tab);
     const onCapsules = (e) => begin(e?.detail?.rows ?? [], 'page');
     window.addEventListener(OPEN_BAG_EVENT, onBag);
     window.addEventListener(OPEN_CAPSULES_EVENT, onCapsules);
@@ -179,10 +185,11 @@ export function useBagFlow(t) {
       window.removeEventListener(OPEN_BAG_EVENT, onBag);
       window.removeEventListener(OPEN_CAPSULES_EVENT, onCapsules);
     };
-  }, [begin]);
+  }, [begin, openBag]);
 
   return {
     bagOpen,
+    bagTab,
     openBag,
     closeBag,
     opening,
@@ -199,8 +206,9 @@ export function useBagFlow(t) {
 
 // Convenience: anywhere outside the bag-owning component can call this
 // to request that the bag be opened.
-export function requestOpenBag() {
-  window.dispatchEvent(new CustomEvent(OPEN_BAG_EVENT));
+// `tab` picks the tab it opens on ('stickers' from the market's Collection).
+export function requestOpenBag(tab) {
+  window.dispatchEvent(new CustomEvent(OPEN_BAG_EVENT, { detail: { tab } }));
 }
 
 /** Ask the global opener to open these capsule rows (one tier, up to ten). */
