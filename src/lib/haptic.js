@@ -24,6 +24,16 @@
 //
 // Rate limiting: at most one haptic per 80ms — prevents accidental
 // haptic spam from rapid taps or buggy loops.
+//
+// Two engines, one vocabulary. In a browser this is `navigator.vibrate`,
+// which Android honours and iOS Safari IGNORES, so an iPhone never felt any
+// of it. Inside the Capacitor app it goes through @capacitor/haptics instead,
+// which reaches the Taptic Engine on iOS and the vibrator on Android. The
+// web path is unchanged. The plugin only exists in a native build made after
+// it was installed; on an older build the call rejects and is swallowed.
+
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { isNative } from './native';
 
 const LS_KEY = 'flexyn.hapticsDisabled';
 const PATTERNS = {
@@ -33,6 +43,29 @@ const PATTERNS = {
   subtle:  [6],
   // Tiny high-frequency "ready to go" tickle — fast rapid pulses.
   buzz:    [8, 8, 8, 8, 8],
+};
+
+// Native equivalents, chosen by meaning rather than by matching the ms
+// pattern: iOS has a fixed set of system feels and a success is a
+// notification, not two impacts.
+const NATIVE = {
+  primary: () => Haptics.impact({ style: ImpactStyle.Medium }),
+  success: () => Haptics.notification({ type: NotificationType.Success }),
+  warning: () => Haptics.notification({ type: NotificationType.Warning }),
+  subtle: () => Haptics.impact({ style: ImpactStyle.Light }),
+  buzz: () => Haptics.impact({ style: ImpactStyle.Light }),
+};
+
+// Short names for the same hierarchy, so a call site reads as intent:
+// `haptic('light')` on a tap that commits something small, `haptic('medium')`
+// on the one primary action of a screen. They map onto the patterns above
+// rather than adding new ones, so there is still exactly one vocabulary.
+// triggerHaptic resolves them too: ten call sites passed 'light' to it and
+// got the heavier primary tick, because only haptic() knew the alias.
+const ALIASES = {
+  light: 'subtle',
+  medium: 'primary',
+  heavy: 'warning',
 };
 
 let lastFiredAt = 0;
@@ -52,19 +85,24 @@ function prefersReducedMotion() {
 /**
  * Fire a haptic pulse. Intensity defaults to 'primary'. Safe to call
  * from anywhere — gracefully no-ops on platforms without navigator.
- * vibrate (iOS Safari pre-16.4, desktops, etc).
+ * vibrate (iOS Safari, desktops, etc) outside the native app.
  *
- * @param {'primary'|'success'|'warning'|'subtle'} intensity
+ * @param {'primary'|'success'|'warning'|'subtle'|'buzz'|'light'|'medium'|'heavy'} intensity
  */
 export function triggerHaptic(intensity = 'primary') {
-  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  const name = PATTERNS[intensity] ? intensity : (ALIASES[intensity] || 'primary');
+  const native = isNative();
+  if (!native && (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function')) return;
   if (isDisabled()) return;
-  if (prefersReducedMotion() && intensity !== 'warning') return; // warnings still fire for safety
+  if (prefersReducedMotion() && name !== 'warning') return; // warnings still fire for safety
   const now = Date.now();
   if (now - lastFiredAt < MIN_GAP_MS) return;
   lastFiredAt = now;
-  const pattern = PATTERNS[intensity] || PATTERNS.primary;
-  try { navigator.vibrate(pattern); } catch { /* ignore */ }
+  if (native) {
+    try { Promise.resolve(NATIVE[name]()).catch(() => {}); } catch { /* ignore */ }
+    return;
+  }
+  try { navigator.vibrate(PATTERNS[name]); } catch { /* ignore */ }
 }
 
 /**
@@ -84,22 +122,12 @@ export function getHapticsDisabled() {
   return isDisabled();
 }
 
-// Short names for the same hierarchy, so a call site reads as intent:
-// `haptic('light')` on a tap that commits something small, `haptic('medium')`
-// on the one primary action of a screen. They map onto the patterns above
-// rather than adding new ones, so there is still exactly one vocabulary.
-const ALIASES = {
-  light: 'subtle',
-  medium: 'primary',
-  heavy: 'warning',
-};
-
 /**
- * Alias of triggerHaptic that also accepts light / medium / heavy.
- * Same settings, reduced motion and rate limit rules apply.
+ * Same as triggerHaptic, defaulting to 'light'. Same settings, reduced
+ * motion and rate limit rules apply.
  *
  * @param {'light'|'medium'|'heavy'|'primary'|'success'|'warning'|'subtle'} [intensity]
  */
 export function haptic(intensity = 'light') {
-  triggerHaptic(ALIASES[intensity] || intensity);
+  triggerHaptic(intensity);
 }

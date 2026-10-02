@@ -106,4 +106,85 @@ describe('haptic', () => {
     haptic('success');
     expect(navigator.vibrate).toHaveBeenLastCalledWith([18, 60, 18]);
   });
+
+  it('triggerHaptic resolves light / medium / heavy instead of falling back to primary', async () => {
+    const { triggerHaptic } = await import('../haptic');
+    triggerHaptic('light');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([6]);
+    vi.advanceTimersByTime(200);
+    triggerHaptic('heavy');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([28]);
+    vi.advanceTimersByTime(200);
+    triggerHaptic('nonsense');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([10]);
+  });
+});
+
+describe('haptic inside the native app', () => {
+  const impact = vi.fn(() => Promise.resolve());
+  const notification = vi.fn(() => Promise.resolve());
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.resetModules();
+    impact.mockClear();
+    notification.mockClear();
+    navigator.vibrate = vi.fn(() => true);
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    try { localStorage.removeItem('flexyn.hapticsDisabled'); } catch { /* ignore */ }
+    vi.doMock('../native', () => ({ isNative: () => true }));
+    vi.doMock('@capacitor/haptics', () => ({
+      Haptics: { impact, notification },
+      ImpactStyle: { Light: 'LIGHT', Medium: 'MEDIUM', Heavy: 'HEAVY' },
+      NotificationType: { Success: 'SUCCESS', Warning: 'WARNING', Error: 'ERROR' },
+    }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock('../native');
+    vi.doUnmock('@capacitor/haptics');
+    vi.useRealTimers();
+  });
+
+  it('uses the plugin, not navigator.vibrate', async () => {
+    const { triggerHaptic } = await import('../haptic');
+    triggerHaptic('subtle');
+    expect(impact).toHaveBeenLastCalledWith({ style: 'LIGHT' });
+    vi.advanceTimersByTime(200);
+    triggerHaptic('success');
+    expect(notification).toHaveBeenLastCalledWith({ type: 'SUCCESS' });
+    vi.advanceTimersByTime(200);
+    triggerHaptic('warning');
+    expect(notification).toHaveBeenLastCalledWith({ type: 'WARNING' });
+    expect(navigator.vibrate).not.toHaveBeenCalled();
+  });
+
+  it('works on iOS, where navigator.vibrate does not exist', async () => {
+    navigator.vibrate = undefined;
+    const { triggerHaptic } = await import('../haptic');
+    triggerHaptic('primary');
+    expect(impact).toHaveBeenLastCalledWith({ style: 'MEDIUM' });
+  });
+
+  it('keeps the settings toggle, reduced motion and rate limit', async () => {
+    const { triggerHaptic, setHapticsDisabled } = await import('../haptic');
+    setHapticsDisabled(true);
+    triggerHaptic();
+    expect(impact).not.toHaveBeenCalled();
+    setHapticsDisabled(false);
+    triggerHaptic();
+    triggerHaptic();
+    expect(impact).toHaveBeenCalledTimes(1);
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true });
+    vi.advanceTimersByTime(200);
+    triggerHaptic('subtle');
+    expect(impact).toHaveBeenCalledTimes(1);
+  });
+
+  it('swallows a rejection from an app build without the plugin', async () => {
+    impact.mockImplementationOnce(() => Promise.reject(new Error('not implemented')));
+    const { triggerHaptic } = await import('../haptic');
+    expect(() => triggerHaptic('primary')).not.toThrow();
+    await Promise.resolve();
+  });
 });
