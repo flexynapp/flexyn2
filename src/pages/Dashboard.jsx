@@ -71,9 +71,12 @@ import LeagueCard from '@/components/dashboard/LeagueCard';
 const SeasonCeremonyModal = React.lazy(() => import('@/components/dashboard/SeasonCeremonyModal'));
 // Lead Lifter reveal: once per won trophy, so lazy for the same reason.
 const LeadTrophyReveal = React.lazy(() => import('@/components/dashboard/LeadTrophyReveal'));
+const RankUpSequence = React.lazy(() => import('@/components/leagues/RankUpSequence'));
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
 import { enqueueReveal } from '@/lib/rewardQueue';
+import { consumeRankUp, consumePlacement } from '@/lib/rankUp';
+import * as leaguesData from '@/lib/data/leagues';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
@@ -665,6 +668,56 @@ export default function Dashboard() {
       clearTimeout(t);
     };
   }, [user?.id, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Rank up ───────────────────────────────────────────────────────────────
+  //
+  // League moves happen on the server (the Monday roll, or a first real
+  // Strength Score replacing the onboarding guess), usually while the user is
+  // away, so the sequence plays on the next visit. Same query key as
+  // LeagueCard, so this costs no extra round trip, and it re-checks whenever
+  // that poll brings back a new league or level. rankUp.js keeps the last
+  // league this device showed; a move up celebrates, a move down gets the
+  // quieter sequence. A first placement (the league appearing after the first
+  // workout) is the server's call: my_league_strength carries a one-shot
+  // `reveal_pending`, marked seen as the reveal starts, so it plays once per
+  // account on whichever device opens Today first.
+  const { data: rankLeague } = useQuery({
+    queryKey: ['myLeague', user?.id],
+    queryFn: () => leaguesData.getMyLeague(user),
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  });
+  const { data: rankStrength, isFetched: rankStrengthFetched } = useQuery({
+    queryKey: ['myLeagueStrength', user?.id],
+    queryFn: () => leaguesData.getMyStrength(user),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+  const [rankUp, setRankUp] = useState(null);
+  const rankTier = rankLeague?.tier?.id;
+  const rankLevel = rankLeague?.level;
+  const revealPending = rankStrength?.reveal_pending === true;
+  useEffect(() => {
+    // Wait for both reads: a pending placement must win over the ordinary
+    // comparison, which would otherwise record the league silently first.
+    if (!user?.id || !rankTier || !rankStrengthFetched) return undefined;
+    // After first paint settles, like the other reveals here.
+    const t = setTimeout(() => {
+      const placement = consumePlacement(user.id, rankStrength, rankLevel);
+      if (placement) {
+        // Never rejects; a failed mark only means it plays again next visit.
+        leaguesData.markLeagueRevealSeen()
+          .finally(() => queryClient.invalidateQueries({ queryKey: ['myLeagueStrength', user.id] }));
+        enqueueReveal(() => { setRankUp(placement); return 0; });
+        return;
+      }
+      const move = consumeRankUp(user.id, { tier: rankTier, level: rankLevel });
+      if (move) enqueueReveal(() => { setRankUp(move); return 0; });
+    }, 2800);
+    return () => clearTimeout(t);
+    // rankStrength is read only for its pending flag and tier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, rankTier, rankLevel, rankStrengthFetched, revealPending]);
 
   // ── Lead Lifter reveal ────────────────────────────────────────────────────
   //
@@ -2132,7 +2185,19 @@ export default function Dashboard() {
         </Suspense>
       )}
 
-      {leadRevealOpen && leadTrophies.length > 0 && (
+      {rankUp && (
+        <Suspense fallback={null}>
+          <RankUpSequence
+            move={rankUp}
+            strength={rankStrength}
+            onClose={() => setRankUp(null)}
+            onViewLeague={() => setLeagueModalOpen(true)}
+          />
+        </Suspense>
+      )}
+
+      {/* Held back while a rank up is on screen, so the two never stack. */}
+      {leadRevealOpen && !rankUp && leadTrophies.length > 0 && (
         <Suspense fallback={null}>
           <LeadTrophyReveal
             open={leadRevealOpen}
