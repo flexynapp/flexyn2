@@ -20,7 +20,7 @@
 //   TIMEOUT              no response inside the budget
 //   NETWORK              never reached the function
 //
-// On success: { ok: true, kind: 'answer' | 'plan', reply, goal }.
+// On success: { ok: true, kind: 'answer' | 'plan', reply, goal, card }.
 // `kind: 'plan'` means "the user wants a session built" — the caller runs the
 // deterministic planBuilder with `goal` rather than trusting prose.
 
@@ -132,6 +132,10 @@ export async function askCoachLLM({
       kind: data.kind === 'plan' ? 'plan' : 'answer',
       reply: String(data.reply),
       goal: String(data.goal || ''),
+      // The reply's parts, for bundles that draw them (2026-10-02). Raw: the
+      // caller resolves its visuals against the digest it sent. `reply` above
+      // is the same answer as text and stays the fallback.
+      card: data.card && typeof data.card === 'object' ? data.card : null,
       // Which model actually answered. The function has always sent this back
       // on `usage` and it was dropped here, so a caller had no way to tell
       // which tier produced a reply — which is exactly what you want to know
