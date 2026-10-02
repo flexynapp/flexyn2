@@ -497,7 +497,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       <OpenerStage fx={fx} />
       <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
         <header className="h-[60px] shrink-0 flex items-center justify-between">
-          <p className="reveal-rise text-micro font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="reveal-rise text-label font-medium text-muted-foreground">
             {isPlaced ? tFallback('rankUp.headPlaced', 'Placement') : tFallback('rankUp.head', 'League update')}
           </p>
           <button
@@ -576,7 +576,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
               {fromName}
             </p>
             <div className="[grid-area:1/1]" style={shown}>
-              <p className={`${anim(isDown ? 'reveal-rise' : 'reveal-new')} inline-block text-micro font-bold uppercase tracking-widest`} style={{ ...beat(0), color }}>
+              <p className={`${anim(isDown ? 'reveal-rise' : 'reveal-new')} inline-block text-caption font-medium`} style={{ ...beat(0), color }}>
                 {eyebrow}
               </p>
               <h2 id="rank-up-title" className={`${anim(isDown ? 'reveal-rise' : 'reveal-stamp')} font-display text-3xl leading-tight pt-2`} style={beat(0.4)}>
