@@ -43,6 +43,7 @@ import { formatNotificationTime, groupByDay, BUCKET } from '@/lib/notificationTi
 import { actorKey, actorRefOf, collectActorRefs } from '@/lib/notificationActor';
 import { iconFor, stripLeadingEmoji } from '@/lib/notificationIcon';
 import NotificationNowCard from '@/components/notifications/NotificationNowCard';
+import { DURATION, EASE_IN, TIER } from '@/lib/motion';
 
 const PAGE_SIZE = 50;
 
@@ -217,15 +218,49 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     });
   }, [open, rows]);
 
+  // ── Opening a tab clears its count ──────────────────────────────────
+  //
   // Each tab shows how many UNREAD rows it holds, and nothing when that is
   // zero. It used to show totals over the loaded page ("All 50" was the page
   // size), which never said where anything new was.
+  //
+  // Kegan, 2026-10-02: a count left sitting on the tab you are already
+  // looking at reads as something still waiting. So the selected tab never
+  // shows one, and opening People or Earned counts its rows as seen, which
+  // clears that tab's count for the rest of this visit and takes them off
+  // All's count too. The rows themselves keep their new mark until the
+  // sheet closes (the read is still committed on exit, see above), so you
+  // can still see which ones were new.
+  //
+  // All is the tab the sheet opens on, so it does NOT count as having seen
+  // everything: if it did, People and Earned would lose their counts the
+  // instant the sheet opened and could never say where anything new was.
+  const [seenIds, setSeenIds] = useState(() => new Set());
+  // Returning the same Set when it is already empty skips a render. That
+  // matters: an extra render on open re-runs the read snapshot above with a
+  // fresh `rows` default and can flush a read before the user has left.
+  useEffect(() => {
+    if (open) setSeenIds(prev => (prev.size === 0 ? prev : new Set()));
+  }, [open]);
+  useEffect(() => {
+    if (!open || filter === 'all') return;
+    const fresh = rows.filter(r => !r.is_read && matchesFilter(r.type, filter) && !seenIds.has(r.id));
+    if (fresh.length === 0) return;
+    setSeenIds(prev => {
+      const next = new Set(prev);
+      for (const r of fresh) next.add(r.id);
+      return next;
+    });
+  }, [open, filter, rows, seenIds]);
+
   const unreadByFilter = useMemo(() => {
-    const unread = rows.filter(r => !r.is_read);
+    const unread = rows.filter(r => !r.is_read && !seenIds.has(r.id));
     const out = {};
-    for (const f of FILTERS) out[f.id] = unread.filter(r => matchesFilter(r.type, f.id)).length;
+    for (const f of FILTERS) {
+      out[f.id] = f.id === filter ? 0 : unread.filter(r => matchesFilter(r.type, f.id)).length;
+    }
     return out;
-  }, [rows]);
+  }, [rows, seenIds, filter]);
 
   const filteredRows = useMemo(
     () => (filter === 'all' ? rows : rows.filter(r => matchesFilter(r.type, filter))),
@@ -447,11 +482,21 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                     }`}
                   >
                     {tFallback(f.labelKey, f.label)}
-                    {n > 0 && (
-                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold tabular-nums inline-flex items-center justify-center">
-                        {n > 9 ? '9+' : n}
-                      </span>
-                    )}
+                    {/* An answer-tier exit: the count shrinks away under the
+                        tap that cleared it, rather than blinking out. */}
+                    <AnimatePresence initial={false}>
+                      {n > 0 && (
+                        <motion.span
+                          key="count"
+                          initial={{ scale: 0.6, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1, transition: TIER.answer.spring }}
+                          exit={{ scale: 0.6, opacity: 0, transition: { duration: DURATION.fast, ease: EASE_IN } }}
+                          className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold tabular-nums inline-flex items-center justify-center"
+                        >
+                          {n > 9 ? '9+' : n}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </button>
                 );
               })}

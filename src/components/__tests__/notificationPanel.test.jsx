@@ -265,9 +265,33 @@ describe('found by looking at it', () => {
     ];
     renderPanel();
     await screen.findByText('Social unread');
-    expect(screen.getByRole('button', { name: /^All/ }).textContent).toBe('All2');
+    // All is the tab on screen, so it carries no count of its own.
+    expect(screen.getByRole('button', { name: /^All/ }).textContent).toBe('All');
     expect(screen.getByRole('button', { name: /^People/ }).textContent).toBe('People1');
     expect(screen.getByRole('button', { name: /^Earned/ }).textContent).toBe('Earned1');
+  });
+
+  // Kegan, 2026-10-02: a count left on the tab you opened reads as
+  // something still waiting.
+  it('clears a tab\'s count when it is opened, and keeps the rows marked new', async () => {
+    listRows = [
+      row({ id: 'a', type: 'friend_follow', title: 'Social unread', is_read: false }),
+      row({ id: 'b', type: 'pr_set',        title: 'Wins unread',   is_read: false }),
+    ];
+    renderPanel();
+    await screen.findByText('Social unread');
+    fireEvent.click(screen.getByRole('button', { name: /^Earned/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Earned/ }).textContent).toBe('Earned'));
+    // All drops by the same row; People, not yet opened, keeps its count.
+    expect(screen.getByRole('button', { name: /^All/ }).textContent).toBe('All1');
+    expect(screen.getByRole('button', { name: /^People/ }).textContent).toBe('People1');
+    // Going back to All does not bring Earned's count back.
+    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
+    expect(screen.getByRole('button', { name: /^Earned/ }).textContent).toBe('Earned');
+    // The row still looks new until the sheet closes.
+    fireEvent.click(screen.getByRole('button', { name: /^Earned/ }));
+    expect((await screen.findByText('Wins unread')).className).toContain('font-semibold');
   });
 
   it('draws no emoji: the icon comes from the type, and the title loses its leading emoji', async () => {
