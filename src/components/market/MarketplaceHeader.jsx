@@ -10,6 +10,7 @@
 import { RefreshCw } from 'lucide-react';
 import { useNumberFormatter } from '@/lib/intl';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import AnimatedNumber from '@/components/AnimatedNumber';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -41,7 +42,7 @@ export default function MarketplaceHeader({
         aria-label={tFallback('marketplaceHeader.balance', 'Your coins: {n}', { n: fmt(flexCoins) })}
       >
         <FlexCoinIcon size={18} />
-        <span aria-hidden="true">{fmt(flexCoins)}</span>
+        <span aria-hidden="true"><AnimatedNumber roll value={flexCoins} format={fmt} /></span>
       </span>
       {/* The icon spins while the refetch is in flight and the button
           disables itself: a refresh that returns identical data changes

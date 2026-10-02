@@ -56,13 +56,12 @@ describe('ExerciseFormPanel', () => {
     show('Bench Press');
     fireEvent.click(screen.getByRole('button', { name: /how to do bench press/i }));
 
-    // Lazy — the geometry and the poses are a separate chunk.
+    // Lazy — the geometry and the poses are a separate chunk. One figure
+    // plays the rep; the three positions are named once for screen readers.
     await waitFor(() =>
-      expect(document.querySelectorAll('svg[viewBox="0 0 200 200"]')).toHaveLength(3),
+      expect(document.querySelectorAll('svg[viewBox="0 0 200 200"]')).toHaveLength(1),
     );
-    for (const cue of posesFor('Bench Press').labels) {
-      expect(screen.getByText(cue)).toBeInTheDocument();
-    }
+    expect(screen.getByText(posesFor('Bench Press').labels.join(', '))).toBeInTheDocument();
     for (const step of guideFor('Bench Press').steps) {
       expect(screen.getByText(step)).toBeInTheDocument();
     }
@@ -72,13 +71,13 @@ describe('ExerciseFormPanel', () => {
     show('Back Squat');
     fireEvent.click(screen.getByRole('button', { name: /how to do back squat/i }));
     await waitFor(() =>
-      expect(document.querySelectorAll('svg[viewBox="0 0 200 200"]')).toHaveLength(3),
+      expect(document.querySelectorAll('svg[viewBox="0 0 200 200"]')).toHaveLength(1),
     );
     // role="img" AND aria-hidden together is a contradiction; only the
     // latter is correct here.
     expect(document.querySelectorAll('svg[role="img"]')).toHaveLength(0);
     expect(document.querySelectorAll('svg[viewBox="0 0 200 200"][aria-hidden="true"]'))
-      .toHaveLength(3);
+      .toHaveLength(1);
   });
 
   it('renders nothing at all for a name it cannot resolve', () => {

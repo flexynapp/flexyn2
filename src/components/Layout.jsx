@@ -28,6 +28,7 @@ import BackToTopButton from './BackToTopButton';
 import TabQuickActionMenu from './TabQuickActionMenu';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
+import { TodayIcon, TrainIcon, HubIcon, YouIcon } from './nav/TabIcons';
 import { NavVisibilityContext } from '@/lib/NavVisibilityContext';
 import OneShotTooltip from './OneShotTooltip';
 import SkinSlot from './skins/SkinSlot';
@@ -80,7 +81,9 @@ function NavTab({ item, to, isActive, badge = 0, showDot = false, hasQuickAction
           // labels sit on one baseline beside the taller + button.
           className="relative flex items-center justify-center w-9 h-9"
         >
-          <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : ''}`} />
+          {item.motionIcon
+            ? <item.motionIcon active={isActive} />
+            : <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : ''}`} />}
           {/* Unread direct messages. Messages moved into Social, so the
               count moved with it: a badge on a header icon for a page the
               header no longer links to would point nowhere. Primary, not
@@ -99,9 +102,12 @@ function NavTab({ item, to, isActive, badge = 0, showDot = false, hasQuickAction
               : tFallback('layout.newPostsInHub', 'New posts in Hub')}
           />
         </motion.div>
-        <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
+        {/* The weight snaps rather than animating: a tweened font-weight
+            re-lays the label out every frame, so the whole row nudged
+            sideways while it changed. */}
+        <span className={isActive ? 'font-bold' : 'font-medium'}>
           {item.label}
-        </motion.span>
+        </span>
       </Link>
     </motion.div>
   );
@@ -290,10 +296,10 @@ export default function Layout() {
   }), [navigate]);
 
   const navItems = [
-    { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard },
-    { path: '/workout',   label: tFallback('nav.train', 'Train'),   icon: Play },
-    { path: '/hub',       label: tFallback('nav.hub', 'Hub'), icon: Users, isSocial: true },
-    { path: '/you',       label: tFallback('nav.you', 'You'),       icon: UserCircle },
+    { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard, motionIcon: TodayIcon },
+    { path: '/workout',   label: tFallback('nav.train', 'Train'),   icon: Play, motionIcon: TrainIcon },
+    { path: '/hub',       label: tFallback('nav.hub', 'Hub'), icon: Users, isSocial: true, motionIcon: HubIcon },
+    { path: '/you',       label: tFallback('nav.you', 'You'),       icon: UserCircle, motionIcon: YouIcon },
   ];
   const activeTab = tabForPath(location.pathname);
   const [quickLogOpen, setQuickLogOpen] = useState(false);
@@ -537,9 +543,10 @@ export default function Layout() {
                 showLongPressHint={idx === 0}
                 onLongPress={(el) => openQuickMenu(item.path, el)}
                 onTap={() => {
-                  // Light haptic on every tab tap — matches iOS tab bars.
-                  // 'light' is a 10ms pulse that's felt but not obtrusive.
-                  triggerHaptic('light');
+                  // Light haptic on every tab tap, matching iOS tab bars:
+                  // the answer tier's 'subtle' (6ms on Android, a light
+                  // impact in the native app).
+                  triggerHaptic('subtle');
                   // A different tab reopens where you left it; the tab you
                   // are on goes back to its top.
                   if (onRoot) {
