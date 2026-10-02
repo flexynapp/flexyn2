@@ -58,7 +58,7 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
       <span className={colorClass}>
         <MotionValueCounter motionValue={motionValue} unit={weightUnit} />
       </span>
-      <span className="text-micro text-muted-foreground uppercase tracking-wider">
+      <span className="kicker">
         {/* formatWeight already prints the unit, so the label is only "vol". */}
         {tFallback('liveVolumePill.vol', 'vol')}
       </span>

@@ -53,7 +53,7 @@ function Tile({ label, value, unit, color = 'text-foreground', tint = 'bg-second
           {num(value)}<span className="text-micro font-semibold align-top ms-0.5">{unit}</span>
         </p>
       )}
-      <p className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="kicker mt-0.5">{label}</p>
     </div>
   );
 }
@@ -237,7 +237,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             {(!readOnly || imageUrl) && (
               <div className="absolute top-3 start-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1">
                 <Sparkles className="w-3 h-3 text-white" />
-                <span className="text-micro font-bold uppercase tracking-wide text-white">{tFallback("photoMealResultModal.photoAi", "Photo-AI")}</span>
+                <span className="kicker text-white">{tFallback("photoMealResultModal.photoAi", "Photo-AI")}</span>
               </div>
             )}
             <div className="absolute bottom-0 inset-x-0 p-3">
@@ -338,7 +338,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 you can add/remove ingredients; the core macros re-total live. */}
             {(editing || editItems.length > 0) && (
               <div className="px-4 pt-4">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{tFallback("photoMealResultModal.ingredients", "Ingredients")}</p>
+                <p className="eyebrow mb-1.5">{tFallback("photoMealResultModal.ingredients", "Ingredients")}</p>
 
                 {editing ? (
                   <div className="space-y-2">
@@ -374,7 +374,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                             { k: 'fat_g',     lbl: 'F',   color: 'text-primary' },
                           ].map(({ k, lbl, color }) => (
                             <div key={k} className="flex flex-col items-center">
-                              <label className={`text-micro font-bold uppercase tracking-wide ${color}`}>{lbl}</label>
+                              <label className={`kicker ${color}`}>{lbl}</label>
                               <Input
                                 type="number" inputMode="decimal" min="0"
                                 value={it[k]}

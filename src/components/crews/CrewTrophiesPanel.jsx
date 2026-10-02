@@ -189,7 +189,7 @@ function Contributions({ challengeId, fmt, tFallback }) {
   return (
     <>
       <p className="text-micro font-bold text-muted-foreground tracking-wide mt-6">
-        {tFallback('crewTrophies.carrying', "WHO'S CARRYING IT")}
+        {tFallback('crewTrophies.carrying', "Who's carrying it")}
       </p>
       <div className="mt-2">
         {sorted.map((m, i) => (
@@ -287,7 +287,7 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
     >
       {/* ── The chase ──────────────────────────────────────────────── */}
       <p className="text-micro font-bold text-muted-foreground tracking-wide">
-        {tFallback('crewTrophies.chase', 'THE CHASE')}
+        {tFallback('crewTrophies.chase', 'The chase')}
       </p>
 
       {active ? (
@@ -381,7 +381,7 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
       {/* ── The shelf ──────────────────────────────────────────────── */}
       <div className="flex items-baseline justify-between mt-6">
         <p className="text-micro font-bold text-muted-foreground tracking-wide">
-          {tFallback('crewTrophies.shelf', 'TROPHY SHELF')}
+          {tFallback('crewTrophies.shelf', 'Trophy shelf')}
         </p>
         {trophies.length > 0 && (
           <span className="font-heading font-bold text-micro text-success tabular-nums">
@@ -441,8 +441,8 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
           <div className="h-px bg-border mt-6" />
           <p className="text-micro font-bold text-muted-foreground tracking-wide mt-6">
             {trophies.length > 0
-              ? tFallback('crewTrophies.stillOut', 'STILL OUT THERE')
-              : tFallback('crewTrophies.whatsOut', "WHAT'S OUT THERE")}
+              ? tFallback('crewTrophies.stillOut', 'Still out there')
+              : tFallback('crewTrophies.whatsOut', "What's out there")}
           </p>
           <div className="mt-2">
             {remaining.map((row, i) => (

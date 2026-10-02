@@ -52,7 +52,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               {tFallback("cycleTrackerCard.startDate", "Start date")}
             </label>
             <input
@@ -65,7 +65,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
             />
           </div>
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               Notes (optional)
             </label>
             <input

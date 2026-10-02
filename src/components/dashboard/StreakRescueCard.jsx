@@ -72,7 +72,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate }) {
           <Flame className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold tracking-[0.04em] text-primary">
+          <p className="kicker text-primary">
             {tFallback('streakRescue.kicker', '{n}-day streak at risk', { n: streakDays })}
           </p>
           <p className="text-sm font-heading font-bold truncate">

@@ -316,7 +316,7 @@ function ChallengerHeader({ invite }) {
       </div>
 
       <div className="text-center">
-        <span className="text-micro font-semibold tracking-[0.2em] uppercase text-primary">
+        <span className="kicker text-primary">
           {tFallback("duelInviteLanding.duelChallenge", "Duel challenge")}
         </span>
         <h1 className="font-heading font-bold text-2xl mt-1">

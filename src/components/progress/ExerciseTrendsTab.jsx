@@ -300,7 +300,7 @@ export default function ExerciseTrendsTab({ logs }) {
                   aria-expanded={isOpen}
                   className="w-full flex items-center justify-between gap-2 min-h-[44px] pb-1.5 border-b border-border text-start"
                 >
-                  <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="kicker">
                     {tFallback(`muscleGroups.${muscleKey(label)}`, label)}
                     <span className="ms-2 normal-case tracking-normal font-medium">
                       {names.length}

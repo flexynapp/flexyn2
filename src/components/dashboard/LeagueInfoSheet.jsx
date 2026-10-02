@@ -204,7 +204,7 @@ function WeekTab({ tierId, level }) {
         </FigureRow>
       </FigureRows>
 
-      <p className="pt-6 text-micro font-bold uppercase tracking-widest text-muted-foreground">
+      <p className="pt-6 kicker">
         {tFallback('league.info.seasonHead', 'Season · 28 days')}
       </p>
       <div className="pt-2 flex gap-1" aria-hidden="true">
@@ -219,7 +219,7 @@ function WeekTab({ tierId, level }) {
 
       {/* Drawn in the reader's own league, with their current level marked,
           so the rule is shown rather than described. */}
-      <p className="pt-6 text-micro font-bold uppercase tracking-widest text-muted-foreground">
+      <p className="pt-6 kicker">
         {tFallback('league.info.levelsHead', 'Levels · one per week you qualify')}
       </p>
       <div className="flex justify-between pt-2">

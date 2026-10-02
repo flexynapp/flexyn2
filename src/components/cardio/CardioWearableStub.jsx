@@ -173,7 +173,7 @@ export default function CardioWearableStub() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Watch className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tFallback("cardioWearableStub.wearableDevices", "Wearable Devices")}</p>
+          <p className="kicker">{tFallback("cardioWearableStub.wearableDevices", "Wearable Devices")}</p>
         </div>
         {WEARABLES.map(w => (
           <motion.div
@@ -196,7 +196,7 @@ export default function CardioWearableStub() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Smartphone className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tFallback("cardioWearableStub.healthPlatforms", "Health Platforms")}</p>
+          <p className="kicker">{tFallback("cardioWearableStub.healthPlatforms", "Health Platforms")}</p>
         </div>
         {HEALTH_PLATFORMS.map(p => (
           <motion.div

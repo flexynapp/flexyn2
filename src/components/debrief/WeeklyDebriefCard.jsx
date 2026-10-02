@@ -265,14 +265,14 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             <p className="text-micro text-muted-foreground">{d.week_start} → {d.week_end}</p>
           )}
         </div>
-        <span className="text-micro font-bold uppercase tracking-widest text-primary">{tFallback("app.name", "Flexyn")}</span>
+        <span className="kicker text-primary">{tFallback("app.name", "Flexyn")}</span>
       </div>
 
       {/* ── HERO — the one dominant element, and the only thing that bleeds
              past the 16px inset. It answers the first question a review has
              to answer, which is not "how much" but "did you show up". ── */}
       <div className="mt-4 px-4 py-4 bg-secondary/40 border-y border-border">
-        <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+        <p className="kicker">
           {sessions > 0 ? 'You showed up' : 'You rested'}
         </p>
         <div className="flex items-end justify-between gap-3 mt-1">
@@ -640,7 +640,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             the week, everything above is a scoreboard rather than a review. */}
         {insight && (
           <div className="rounded-xl bg-secondary/40 border border-border px-3 py-3">
-            <p className="text-micro font-bold uppercase tracking-widest text-primary mb-1">{tFallback("weeklyDebriefCard.theRead", "The read")}</p>
+            <p className="eyebrow text-primary mb-1">{tFallback("weeklyDebriefCard.theRead", "The read")}</p>
             <p className="text-[13px] text-foreground leading-relaxed">{insight}</p>
           </div>
         )}

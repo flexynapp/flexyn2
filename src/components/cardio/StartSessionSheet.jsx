@@ -84,7 +84,7 @@ function Pill({ selected, disabled, onClick, children, className = '' }) {
 function Row({ label, dim, children }) {
   return (
     <div className={dim ? 'opacity-40 pointer-events-none' : ''}>
-      <p className="text-micro font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
+      <p className="eyebrow mb-1.5">
         {label}
       </p>
       <div className="flex gap-2">{children}</div>
@@ -152,7 +152,7 @@ export default function StartSessionSheet({ open, onClose, lastLog, onStart }) {
     <SheetShell
       open={open}
       onClose={onClose}
-      kicker={tFallback('cardio.start.kicker', 'START A SESSION')}
+      kicker={tFallback('cardio.start.kicker', 'Start a session')}
       labelledBy="cardio-start-title"
     >
       <div className="mt-3 space-y-4">

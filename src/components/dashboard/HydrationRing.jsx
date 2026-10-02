@@ -159,7 +159,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-micro font-bold tracking-[0.04em] text-info">
+            <p className="kicker text-info">
               {tFallback('hydration.kicker', 'Hydration')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">

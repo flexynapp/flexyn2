@@ -65,7 +65,7 @@ function PeopleList({ icon: Icon, title, description, rows, keyOf, labelOf, acti
     <div className="py-2">
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-        <h3 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <h3 className="eyebrow">{title}</h3>
       </div>
       {description && <p className="text-caption text-muted-foreground leading-snug mb-2">{description}</p>}
       <ul className="space-y-2">

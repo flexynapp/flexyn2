@@ -452,7 +452,7 @@ export default function InjuryForm({ onClose }) {
                 <div className="space-y-3">
                   {activeList.length > 0 && (
                     <>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tFallback('injuries.section.active', 'Active')}</p>
+                      <p className="kicker">{tFallback('injuries.section.active', 'Active')}</p>
                       {activeList.map(inj => (
                         <InjuryCard
                           key={inj.id}
@@ -490,7 +490,7 @@ export default function InjuryForm({ onClose }) {
                       ) : (
                         <>
                           <div className="flex items-center justify-between mt-4">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tFallback('injuries.section.cleared', 'Cleared')}</p>
+                            <p className="kicker">{tFallback('injuries.section.cleared', 'Cleared')}</p>
                             <button
                               type="button"
                               onClick={() => setShowCleared(false)}
@@ -570,7 +570,7 @@ export default function InjuryForm({ onClose }) {
 
               {changed.removed.length > 0 && (
                 <div className="mt-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  <p className="eyebrow mb-2">
                     {tFallback('injuries.changed.out', "Out, until you're cleared")}
                   </p>
                   <div className="rounded-lg border border-border bg-card p-3">
@@ -585,7 +585,7 @@ export default function InjuryForm({ onClose }) {
 
               {changed.remainingGroups.length > 0 && (
                 <div className="mt-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  <p className="eyebrow mb-2">
                     {tFallback('injuries.changed.still', 'Still yours')}
                   </p>
                   <div className="rounded-lg border border-border p-3">
@@ -626,7 +626,7 @@ export default function InjuryForm({ onClose }) {
             <motion.div key="new" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               {/* Muscle group */}
               <div className="mb-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback('injuries.form.area', 'Affected area')}</p>
+                <p className="eyebrow mb-2">{tFallback('injuries.form.area', 'Affected area')}</p>
                 <div className="flex flex-wrap gap-2">
                   {MUSCLE_GROUPS.map(mg => (
                     <button
@@ -647,7 +647,7 @@ export default function InjuryForm({ onClose }) {
 
               {/* Severity */}
               <div className="mb-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback('injuries.form.severity', 'Severity')}</p>
+                <p className="eyebrow mb-2">{tFallback('injuries.form.severity', 'Severity')}</p>
                 <div className="space-y-2">
                   {SEVERITY_OPTIONS.map(opt => (
                     <button
@@ -667,7 +667,7 @@ export default function InjuryForm({ onClose }) {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.injuredOn', 'Injured on')}</p>
+                  <p className="eyebrow mb-1">{tFallback('injuries.form.injuredOn', 'Injured on')}</p>
                   <input
                     type="date"
                     onClick={openPickerOnClick}
@@ -679,7 +679,7 @@ export default function InjuryForm({ onClose }) {
                   />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.estRecovery', 'Est. recovery')}</p>
+                  <p className="eyebrow mb-1">{tFallback('injuries.form.estRecovery', 'Est. recovery')}</p>
                   <input
                     type="date"
                     onClick={openPickerOnClick}
@@ -693,7 +693,7 @@ export default function InjuryForm({ onClose }) {
 
               {/* Notes */}
               <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.notes', 'Notes (optional)')}</p>
+                <p className="eyebrow mb-1">{tFallback('injuries.form.notes', 'Notes (optional)')}</p>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}

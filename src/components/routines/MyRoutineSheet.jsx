@@ -199,7 +199,7 @@ export default function MyRoutineSheet({ open, onClose }) {
               {/* Your routines */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="kicker">
                     Your routines {routines.length > 0 && `(${routines.length}/${MAX_ROUTINES})`}
                   </p>
                   <button
@@ -254,7 +254,7 @@ export default function MyRoutineSheet({ open, onClose }) {
 
               {/* Templates */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("myRoutineSheet.startFromATemplate", "Start from a template")}</p>
+                <p className="eyebrow mb-2">{tFallback("myRoutineSheet.startFromATemplate", "Start from a template")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {TEMPLATES.map(t => (
                     <button key={t.name} onClick={() => createNew(t.name, t.days)} disabled={saving || routines.length >= MAX_ROUTINES}
@@ -288,7 +288,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                   <div key={idx} className={`rounded-2xl border bg-card ${isOpen ? '' : 'overflow-hidden'} ${isToday ? 'border-primary/60' : 'border-border'}`}>
                     <button onClick={() => setExpandedDay(isOpen ? null : idx)} className="w-full flex items-center gap-3 p-3 text-start">
                       <div className="w-12 shrink-0">
-                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
+                        <p className="kicker">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
                         {isToday && <p className="text-micro font-bold text-primary">TODAY</p>}
                       </div>
                       <div className="flex-1 min-w-0">

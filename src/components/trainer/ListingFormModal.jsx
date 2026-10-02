@@ -89,7 +89,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, on
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("achievementDefs.cat.regimen", "Regimen")}</label>
+            <label className="kicker">{tFallback("achievementDefs.cat.regimen", "Regimen")}</label>
             <select
               value={regimenId}
               onChange={(e) => setRegimenId(e.target.value)}
@@ -108,7 +108,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, on
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("cardioPlanned.title", "Title")}</label>
+            <label className="kicker">{tFallback("cardioPlanned.title", "Title")}</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 120))}
@@ -118,7 +118,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, on
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("regimens.description", "Description")}</label>
+            <label className="kicker">{tFallback("regimens.description", "Description")}</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
@@ -129,7 +129,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, on
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price (USD)</label>
+            <label className="kicker">Price (USD)</label>
             <div className="relative mt-1">
               <DollarSign className="w-4 h-4 text-muted-foreground absolute start-2.5 top-1/2 -translate-y-1/2" />
               <Input

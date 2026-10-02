@@ -299,7 +299,7 @@ export default function GymEdit() {
       <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
         {/* Cover */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.coverImage", "Cover image")}</label>
+          <label className="kicker block mb-1">{tFallback("gymEdit.coverImage", "Cover image")}</label>
           <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-violet-500/15 aspect-[3/1] mb-2">
             {form.cover_url
               ? <img loading="lazy" src={form.cover_url} alt="" className="w-full h-full object-cover" />
@@ -314,7 +314,7 @@ export default function GymEdit() {
 
         {/* Logo */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.logo", "Logo")}</label>
+          <label className="kicker block mb-1">{tFallback("gymEdit.logo", "Logo")}</label>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
               {form.logo_url
@@ -331,7 +331,7 @@ export default function GymEdit() {
 
         {/* Name */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Gym name *</label>
+          <label className="kicker block mb-1">Gym name *</label>
           <Input
             value={form.name}
             onChange={(e) => setForm(f => ({ ...f, name: e.target.value.slice(0, 80) }))}
@@ -341,7 +341,7 @@ export default function GymEdit() {
 
         {/* Description */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("regimens.description", "Description")}</label>
+          <label className="kicker block mb-1">{tFallback("regimens.description", "Description")}</label>
           <Textarea
             value={form.description}
             onChange={(e) => setForm(f => ({ ...f, description: e.target.value.slice(0, 500) }))}
@@ -356,7 +356,7 @@ export default function GymEdit() {
         {/* Contact */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.phone", "Phone")}</label>
+            <label className="kicker block mb-1">{tFallback("gymEdit.phone", "Phone")}</label>
             <Input
               type="tel"
               inputMode="tel"
@@ -365,7 +365,7 @@ export default function GymEdit() {
             />
           </div>
           <div>
-            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.website", "Website")}</label>
+            <label className="kicker block mb-1">{tFallback("gymEdit.website", "Website")}</label>
             <Input
               type="url"
               inputMode="url"
@@ -379,7 +379,7 @@ export default function GymEdit() {
         {/* Geo */}
         <div className="rounded-xl border border-dashed border-border p-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">{tFallback("gymEdit.mapPin", "Map pin")}</p>
+            <p className="kicker">{tFallback("gymEdit.mapPin", "Map pin")}</p>
             <button
               type="button"
               onClick={captureLocation}
@@ -479,7 +479,7 @@ function HoursEditor({ value, onChange }) {
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="kicker">
           <Clock className="w-3 h-3 inline-block me-1" /> {tFallback("gymEdit.hours", "Hours")}
         </p>
         <button
@@ -532,7 +532,7 @@ function AmenitiesEditor({ value, onChange }) {
   };
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
-      <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">
+      <p className="eyebrow mb-2">
         {tFallback("gymEdit.amenities", "Amenities")}
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -586,7 +586,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="kicker">
           <ImageIcon className="w-3 h-3 inline-block me-1" /> {tFallback("gymEdit.photoGallery", "Photo gallery")}
         </p>
         <label className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded cursor-pointer">

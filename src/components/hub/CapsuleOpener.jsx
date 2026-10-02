@@ -1101,7 +1101,7 @@ export default function CapsuleOpener({
             )}
 
             <div className="px-5 pt-6 flex flex-col items-center gap-2">
-              <span className="text-label font-semibold uppercase tracking-wider text-muted-foreground" role="status">
+              <span className="kicker" role="status">
                 {tFallback('capsuleOpener.rolling', 'Rolling')}
               </span>
               {isBatch && phase === 'spinning' && (

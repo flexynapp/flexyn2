@@ -50,7 +50,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
         className="w-full flex items-center justify-between px-3 py-2 text-start hover:bg-secondary active:bg-secondary transition-colors"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wide">
+        <span className="kicker flex items-center gap-1.5">
           <Percent className="w-3 h-3" /> {tFallback("capsuleRarityOdds.dropRates", "Drop rates")}
         </span>
         {open

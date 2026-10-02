@@ -33,7 +33,7 @@ export default function TrainHeroSlide({ onClick, tone = 'primary', kicker, titl
     >
       <div className="flex items-center justify-between gap-6 p-6 md:p-8">
         <div className="min-w-0">
-          <span className={`block text-micro font-bold tracking-[0.25em] uppercase mb-2 ${t.kicker}`}>{kicker}</span>
+          <span className={`eyebrow block mb-2 ${t.kicker}`}>{kicker}</span>
           <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{title}</span>
           <span className="text-label text-muted-foreground mt-2 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{blurb}</span>
           {pill && (

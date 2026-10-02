@@ -225,7 +225,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
     <li className="border border-border rounded-xl p-3 bg-card">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="kicker">
             {trade.iAmSender ? 'You offered' : `${counterparty} offered`}
           </p>
           <p className="text-xs text-muted-foreground truncate">{counterparty}</p>
@@ -280,7 +280,7 @@ function ItemChip({ item, label }) {
     <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-secondary/40 border border-border">
       <span className="text-xl shrink-0">{item.emoji || '✨'}</span>
       <div className="min-w-0">
-        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground/80">{label}</p>
+        <p className="kicker">{label}</p>
         <p className="text-xs font-semibold truncate">{item.name || item.itemId || 'Item'}</p>
       </div>
     </div>

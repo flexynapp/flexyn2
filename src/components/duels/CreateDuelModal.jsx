@@ -457,7 +457,7 @@ export default function CreateDuelModal({
               className="px-4 py-4 space-y-5"
             >
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tFallback('createDuelModal.duelType', 'Duel Type')}</p>
+                <p className="kicker">{tFallback('createDuelModal.duelType', 'Duel Type')}</p>
                 {DUEL_TYPES.map(({ id, label, icon: Icon, description }) => {
                   const active = selectedType === id;
                   const unavailable = id === 'session' && !sessionOk;
@@ -496,7 +496,7 @@ export default function CreateDuelModal({
 
               {/* Time window: a segmented control with a sliding thumb. */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback('createDuelModal.timeWindow', 'Time Window')}</p>
+                <p className="eyebrow mb-2">{tFallback('createDuelModal.timeWindow', 'Time Window')}</p>
                 <div role="radiogroup" className="flex p-1 rounded-xl bg-secondary">
                   {WINDOWS.map((h) => {
                     const active = windowHours === h;

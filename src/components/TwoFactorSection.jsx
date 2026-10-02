@@ -126,7 +126,7 @@ export default function TwoFactorSection() {
     <div className="border-t border-border pt-3 mt-1">
       <div className="flex items-center gap-2 mb-2">
         <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("twoFactorSection.twoFactorAuth", "Two-factor auth")}</h3>
+        <h3 className="eyebrow">{tFallback("twoFactorSection.twoFactorAuth", "Two-factor auth")}</h3>
       </div>
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -211,7 +211,7 @@ export default function TwoFactorSection() {
               )}
               {enrollment.secret && (
                 <div className="mb-3 text-center">
-                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback("twoFactorSection.manualKey", "Manual key")}</p>
+                  <p className="kicker">{tFallback("twoFactorSection.manualKey", "Manual key")}</p>
                   <p className="text-xs font-mono tracking-wide break-all">{enrollment.secret}</p>
                 </div>
               )}

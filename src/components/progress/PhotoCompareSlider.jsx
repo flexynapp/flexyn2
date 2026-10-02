@@ -168,7 +168,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
       {/* Pickers — a fixed count of two, so grid is right here. */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <p className="eyebrow mb-1.5">
             {tFallback('photos.compareBefore', 'Before')}
           </p>
           <PhotoPicker
@@ -180,7 +180,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
           />
         </div>
         <div>
-          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <p className="eyebrow mb-1.5">
             {tFallback('photos.compareAfter', 'After')}
           </p>
           <PhotoPicker

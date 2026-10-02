@@ -509,7 +509,7 @@ export default function CardioManualForm({
           <div className="space-y-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
             <div className="flex items-center gap-2 mb-1">
               <Waves className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-500">{tFallback("cardioManualForm.swimDetails", "Swim Details")}</span>
+              <span className="kicker text-blue-500">{tFallback("cardioManualForm.swimDetails", "Swim Details")}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

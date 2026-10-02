@@ -57,7 +57,7 @@ export default function NutritionFocal({ entries = [], userProfile = {}, waterUn
   };
 
   const numeral = 'font-display tabular-nums text-foreground';
-  const caption = 'text-micro font-bold uppercase tracking-[0.04em] text-muted-foreground';
+  const caption = 'kicker';
 
   const figure = s.logged ? (
     <FocalRing

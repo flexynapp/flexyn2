@@ -83,7 +83,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
   // an exit animation would never get to run. Entry animates, exit is
   // instant — same as every other dismissible surface on the page today.
   return (
-    <SheetShell open={open} onClose={onClose} kicker={tFallback('quests.kicker', 'DAILY QUESTS · TODAY')} labelledBy="quests-sheet-title">
+    <SheetShell open={open} onClose={onClose} kicker={tFallback('quests.kicker', 'Daily quests · Today')} labelledBy="quests-sheet-title">
 
           {/* ── the dial ────────────────────────────────────────────────
               Same component the Readiness sheet leads with, wound by

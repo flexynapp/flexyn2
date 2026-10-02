@@ -177,12 +177,12 @@ export default function PastYouSheet({ open, onClose, match }) {
             </div>
           ) : (
             <div className="mb-6">
-              <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+              <p className="kicker">
                 {isCardio ? tFallback('gymRivalMenu.metricDistance', 'Total distance this week') : tFallback('gymRivalMenu.metricVolume', 'Total volume this week')}
               </p>
               <div className="flex items-end justify-between gap-2 mt-2">
-                <span className="text-micro font-black uppercase tracking-wider text-success">{tFallback('friendLeaderboard.you', 'You')}</span>
-                <span className="text-micro font-black uppercase tracking-wider text-primary">{tFallback('pastYou.title', 'Past You')}</span>
+                <span className="kicker text-success">{tFallback('friendLeaderboard.you', 'You')}</span>
+                <span className="kicker text-primary">{tFallback('pastYou.title', 'Past You')}</span>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-heading font-black text-3xl tabular-nums text-success">{you == null ? '—' : metricText(you)}</span>
@@ -210,7 +210,7 @@ export default function PastYouSheet({ open, onClose, match }) {
 
           {checkpoints.some((c) => c.status !== 'skipped') && (
             <div className="mb-6">
-              <p className="text-micro font-black uppercase tracking-wider text-muted-foreground mb-1">
+              <p className="eyebrow mb-1">
                 {tFallback('pastYou.checkpointsTitle', 'Checkpoints')}
               </p>
               <ul>
@@ -251,7 +251,7 @@ export default function PastYouSheet({ open, onClose, match }) {
           {goals && (
             <div className="mb-6">
               <div className="flex items-baseline justify-between gap-2 mb-1">
-                <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+                <p className="kicker">
                   {tFallback('pastYou.goalsTitle', 'Weekly goals')}
                 </p>
                 <p className="text-micro font-bold text-muted-foreground tabular-nums">
@@ -308,7 +308,7 @@ export default function PastYouSheet({ open, onClose, match }) {
           {!settled && (
             <>
               <div className="mb-6">
-                <p className="text-micro font-black uppercase tracking-wider text-primary">{tFallback('gymRivalMenu.winnerTakes', 'Winner takes')}</p>
+                <p className="kicker text-primary">{tFallback('gymRivalMenu.winnerTakes', 'Winner takes')}</p>
                 <p className="font-heading font-black text-base mt-1 tabular-nums">
                   {tFallback('pastYou.prizeLine', '{xp} XP · {coins} coins · {caps} capsule', {
                     xp: fmt(PAST_YOU_REWARD.xp), coins: fmt(PAST_YOU_REWARD.coins), caps: String(PAST_YOU_REWARD.capsules),

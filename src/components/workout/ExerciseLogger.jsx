@@ -561,7 +561,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 // that used to sit in three places on the card face.
 function ExerciseSetup({ exercise, onChange, isBarbell, barLbs, onBarChange, hasImplement, onOpenPicker, recentSessions, tap }) {
   const { tFallback } = useLanguage();
-  const sectionLabel = 'text-micro font-bold uppercase tracking-wide text-muted-foreground';
+  const sectionLabel = 'kicker';
   return (
     <div className="px-4 pb-6 flex flex-col gap-6">
       {(isBarbell || hasImplement) && (

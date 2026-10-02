@@ -87,7 +87,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+                      <span className="kicker text-primary">
                         {tFallback('workout.tutorial.step', 'Tip {n} / {total}', {
                           n: step + 1,
                           total: STEP_KEYS.length,

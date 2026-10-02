@@ -2845,14 +2845,14 @@ export default function Workout() {
                     )}
                     {slide.id === 'gauntlet' && (
                       <TrainHeroSlide onClick={() => navigate('/gauntlet')} tone="soft" icon={Trophy}
-                        kicker={tFallback("workout.challengeYourself", "CHALLENGE YOURSELF")}
+                        kicker={tFallback("workout.challengeYourself", "Challenge yourself")}
                         title={tFallback("workout.theGauntlet", "The Gauntlet")}
                         blurb="10 challenges. One path. Prove what you are made of."
                         pill={gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'} />
                     )}
                     {slide.id === 'crew-wars' && (
                       <TrainHeroSlide onClick={() => setCrewWarsOpen(true)} tone="success" icon={Shield}
-                        kicker={tFallback("workout.crewBattles", "CREW BATTLES")}
+                        kicker={tFallback("workout.crewBattles", "Crew battles")}
                         title={tFallback("workout.crewWars", "Crew Wars")}
                         blurb={tFallback('workout.crewWarsBlurb', 'Rally your crew. Crush rivals. Dominate the leaderboard.')}
                         pill={tFallback("workout.joinTheFight", "Join the fight")} pulse />
@@ -2926,7 +2926,7 @@ export default function Workout() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-micro font-semibold tracking-[0.18em] uppercase text-primary">
+                        <span className="kicker text-primary">
                           {tFallback('workout.repeatLast', 'Repeat last workout')}
                         </span>
                       </div>

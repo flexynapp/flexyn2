@@ -156,7 +156,7 @@ export default function SignInToContinue({
   const orRule = (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-px bg-border" />
-      <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+      <span className="kicker">
         {tFallback('signIn.or', 'or')}
       </span>
       <div className="flex-1 h-px bg-border" />

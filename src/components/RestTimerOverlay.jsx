@@ -128,7 +128,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
           onClick={onExpand}
           className="flex-1 text-center px-2 py-1 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
         >
-          <div className="text-micro font-semibold tracking-[0.2em] uppercase opacity-80 leading-none mb-0.5">
+          <div className="eyebrow mb-0.5">
             {isDone ? t('restTimer.done') : t('restTimer.rest')}
           </div>
           <div className="font-heading font-bold text-2xl tabular-nums leading-none">
@@ -183,7 +183,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
       </div>
 
       <div className="mb-4">
-        <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
+        <span className="eyebrow block mb-2">
           {t('restTimer.defaultRest')}
         </span>
         <div className="grid grid-cols-3 gap-1.5">
@@ -211,7 +211,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
           30/30 and 40/20 cover broad HIIT territory; EMOM = "every
           minute on the minute" = 60s rest interval. */}
       <div className="mb-4">
-        <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
+        <span className="eyebrow block mb-2">
           {tFallback("restTimerOverlay.hiitPresets", "HIIT presets")}
         </span>
         {/* NOT keyed, deliberately. Tabata and EMOM are protocol names lifters

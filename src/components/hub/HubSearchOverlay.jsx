@@ -341,7 +341,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   {recentSearches.length > 0 && (
                     <div className="w-full mb-8">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 text-start">{tFallback("hubSearchOverlay.recentSearches", "Recent Searches")}</h3>
+                      <h3 className="eyebrow mb-3 text-start">{tFallback("hubSearchOverlay.recentSearches", "Recent Searches")}</h3>
                       <div className="space-y-1.5">
                         {recentSearches.map((user, idx) => (
                           <RecentSearchCard
@@ -563,7 +563,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
       {/* Center: handle + tier */}
       <div className="flex-1 min-w-0">
         <p className="font-heading font-bold text-base truncate">@{username}</p>
-        <span className={`text-micro font-bold uppercase tracking-widest ${tier.text}`}>{tier.name}</span>
+        <span className={`kicker ${tier.text}`}>{tier.name}</span>
       </div>
 
       {/* Right: Add button (if not following) OR level badge */}

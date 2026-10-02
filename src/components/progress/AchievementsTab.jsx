@@ -358,7 +358,7 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
       {/* Next up — the whole point of the ladder structure. */}
       {tab === 'progress' && nextUp.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <h3 className="eyebrow mb-2">
             {tFallback('progress.nextUp', 'Next up')}
           </h3>
           <div className="space-y-2">

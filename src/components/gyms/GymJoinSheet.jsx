@@ -267,7 +267,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
           </>
         ) : (
           <>
-            <p className="text-micro font-semibold tracking-wide uppercase text-muted-foreground">
+            <p className="kicker">
               {tFallback('gymJoinSheet.thisWeekAt', 'This week at {name}', { name: pick?.name })}
             </p>
             {/* Ranked by active days, not volume — mig 275's reasoning:

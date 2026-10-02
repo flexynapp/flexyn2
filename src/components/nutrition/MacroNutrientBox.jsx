@@ -174,7 +174,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
       {totals.carbs_g > 0 && (
       <div className="mt-3 pt-3 border-t border-border/40">
         <div className="flex items-center justify-between">
-          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <span className="kicker flex items-center gap-1.5">
             <TransText k="macroNutrientBox.netCarbs" en="Net carbs {formula}"
               values={{ formula: <span className="font-normal normal-case opacity-70">{tFallback("macroNutrientBox.netCarbsFormula", "(carbs − fiber)")}</span> }} />
             <button

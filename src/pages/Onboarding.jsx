@@ -1499,7 +1499,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
         {/* Username */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           style={{ marginBottom: 'var(--fluid-section)' }}>
-          <label htmlFor="onboarding-username" className="block text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <label htmlFor="onboarding-username" className="kicker block mb-2">
             {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
           </label>
           <input
@@ -1541,7 +1541,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
         {/* Age drag section */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="relative">
-          <div className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2 text-center">
+          <div className="eyebrow mb-2 text-center">
             {tFallback('onboarding.about.agePrompt', 'How old are you?')}
           </div>
 
@@ -1601,13 +1601,13 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
                 type="button"
                 onClick={handleAgeTap}
                 aria-label={tFallback('onboarding.about.ageTapAria', 'Tap to type your age')}
-                className="text-micro font-semibold tracking-wider uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
+                className="kicker mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
                 // This LOOKS like a caption but is a real control — tapping it
                 // opens the keypad. It was 28px tall, so the affordance the
                 // copy advertises was the hardest thing on the step to hit.
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: '0 8px', minHeight: 44 }}
               >
-                {tFallback('onboarding.about.ageHint', 'TAP TO TYPE OR DRAG')}
+                {tFallback('onboarding.about.ageHint', 'Tap to type or drag')}
               </button>
             )}
 
@@ -1688,7 +1688,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
               data for nothing. "Prefer not to say" replaces "Other", which as
               a sex option told the calculator nothing anyway; both land on the
               same conservative middle value. */}
-          <div className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <div className="eyebrow mb-2">
             {tFallback('onboarding.about.sexPrompt', 'What sex were you assigned at birth?')}
           </div>
           {/* Four options, because "Other" and "Prefer not to say" are not the
@@ -1946,10 +1946,10 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 </div>
               </button>
             )}
-            <div className="text-micro font-semibold tracking-wider uppercase text-muted-foreground mt-2">
+            <div className="kicker mt-2">
               {unit === 'cm'
-                ? tFallback('onboarding.height.tapHintMetric', 'CM · TAP TO TYPE')
-                : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
+                ? tFallback('onboarding.height.tapHintMetric', 'cm · Tap to type')
+                : tFallback('onboarding.height.tapHintImperial', 'ft · in · Tap to type')}
             </div>
             <div className="text-micro text-muted-foreground/70 tabular-nums mt-1">≈ {displaySecondary}</div>
             {heightHint && (
@@ -2282,7 +2282,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 <NumberReel value={value} />
               </div>
             )}
-            <div className="text-micro font-bold tracking-wider uppercase text-primary mt-1">{unit === 'kg' ? tFallback('onboarding.weight.unitKg', 'KG') : tFallback('onboarding.weight.unitLb', 'LBS')}</div>
+            <div className="kicker text-primary mt-1">{unit === 'kg' ? tFallback('onboarding.weight.unitKg', 'kg') : tFallback('onboarding.weight.unitLb', 'lb')}</div>
             <div className="text-micro text-muted-foreground tabular-nums mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
           </div>
         </div>
@@ -2293,7 +2293,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         {/* Dial hint — the gauge above is the input: drag it up/down to set,
             tap the number to type. Replaces the old horizontal scrubber. */}
         <div className="flex items-center justify-center gap-1.5 mt-3 mb-1" aria-hidden="true">
-          <span className="text-micro font-semibold tracking-wider uppercase text-muted-foreground/80">
+          <span className="kicker">
             {tFallback('onboarding.weight.dialHint', 'Tap to type · drag to set')}
           </span>
         </div>
@@ -2400,7 +2400,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             initial={{ opacity: 1, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative text-micro font-bold tracking-wider uppercase text-primary mt-1">
+            className="kicker relative text-primary mt-1">
             {intensityLabel}
           </motion.div>
         </motion.div>
@@ -2437,10 +2437,10 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             them to lie. */}
         <div>
           <div className="flex items-baseline justify-between mb-3">
-            <div className="text-micro font-semibold tracking-wider uppercase text-muted-foreground">
+            <div className="kicker">
               {tFallback('onboarding.schedule.preferredTime', 'Preferred time')}
             </div>
-            <div className="text-micro font-medium tracking-wider uppercase text-muted-foreground/70">
+            <div className="kicker">
               {tFallback('onboarding.schedule.pickAll', 'Pick all that apply')}
             </div>
           </div>
@@ -2606,7 +2606,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
         {value.length < 5 && (
           <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              <p className="eyebrow mb-2">
                 {tFallback('onboarding.injury.muscleGroup', 'Muscle group')}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -2630,7 +2630,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              <p className="eyebrow mb-2">
                 {tFallback('onboarding.injury.severity', 'Severity')}
               </p>
               <div className="flex gap-2">

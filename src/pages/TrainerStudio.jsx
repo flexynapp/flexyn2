@@ -189,7 +189,7 @@ export default function TrainerStudio() {
               <div key={id} className="rounded-2xl border border-border bg-card p-3 text-center">
                 <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                 <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback(`trainerStudio.stat.${id}`, label)}</p>
+                <p className="kicker">{tFallback(`trainerStudio.stat.${id}`, label)}</p>
               </div>
             ))}
           </div>

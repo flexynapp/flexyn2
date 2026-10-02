@@ -149,7 +149,7 @@ export default function FoodSearchSheet({ open, onClose, onPick }) {
 
             {/* Results */}
             <div className="flex-1 overflow-y-auto px-5 pb-5">
-              <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">
+              <p className="eyebrow mb-2">
                 {query.trim()
                   ? tFallback('nutrition.search.results', 'Results')
                   : tFallback('nutrition.search.recent', 'Your foods')}

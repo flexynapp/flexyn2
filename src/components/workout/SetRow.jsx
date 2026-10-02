@@ -561,7 +561,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="kicker">
             {tFallback('setRow.howHard', 'How hard')}
           </p>
           {/* RPE, the 1 to 10 "how hard was that" scale. Tap the active
@@ -604,7 +604,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             as the placeholder, so a cue like "watch elbow flare" follows
             the lifter through the exercise without retyping. */}
         <div className="flex flex-col gap-2">
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="kicker">
             {tFallback('setRow.feel', 'Feel')}
           </p>
           <div className="flex items-center gap-1">

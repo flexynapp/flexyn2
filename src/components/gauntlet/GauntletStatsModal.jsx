@@ -12,7 +12,7 @@ function StatPill({ label, value, accent }) {
   return (
     <div className="flex flex-col items-center gap-1 flex-1">
       <span className={`text-xl font-black ${accent}`}>{value}</span>
-      <span className="text-micro text-muted-foreground uppercase tracking-wider leading-tight text-center">{label}</span>
+      <span className="kicker leading-tight text-center">{label}</span>
     </div>
   );
 }
@@ -128,7 +128,7 @@ export default function GauntletStatsModal({
                   </motion.div>
                 )}
 
-                <p className="text-xs font-bold uppercase tracking-widest text-purple-400 mb-1">
+                <p className="eyebrow text-purple-400 mb-1">
                   {type === 'weekly'
                     ? tFallback('gauntletStatsModal.communityGauntlet', 'Community Gauntlet')
                     : tFallback('gauntletStatsModal.gauntletPath', 'Gauntlet Path')}
@@ -159,7 +159,7 @@ export default function GauntletStatsModal({
 
               {/* Global stats */}
               <div className="px-5 py-4">
-                <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground mb-3 text-center">
+                <p className="eyebrow mb-3 text-center">
                   {tFallback("gauntletStatsModal.communityStats", "Community Stats")}
                 </p>
                 <div className="flex gap-2">
