@@ -4,11 +4,12 @@
 // with the swoosh embossed on it and grade bars stamped under a rule on the
 // base. From the round 2 capsule design.
 //
-// The tier reads as MATERIAL, not colour. Standard is polished steel, Premium
-// brushed champagne, Elite black anodised, and the number of grade bars under
-// the rule (one, two, three) says the same thing to anyone who cannot tell
-// the finishes apart. That is also why none of the three uses a rarity hue:
-// the rarity colours belong to what comes OUT of a capsule.
+// The tier reads as MATERIAL: a bronze, silver, gold ladder (Kegan's pick,
+// option 5, 2026-10-02), so the value order is one everybody already knows
+// from medals. Elite also carries a dark band round its body, and the number
+// of grade bars under the rule (one, two, three) says the same thing to
+// anyone who cannot tell the finishes apart. None of the three uses a rarity
+// hue: the rarity colours belong to what comes OUT of a capsule.
 //
 // The design stamped a serial number ("No. 0182") above the rule. Capsules
 // have no serial in the database, so the stamp is left off rather than
@@ -22,19 +23,21 @@ import { useId } from 'react';
 // ticks, the stamp ink and the lid's swoosh. Straight from the design.
 export const CANISTER_FINISH = {
   standard: {
-    base: '#7E8891', shade: '#5C656E', hi: '#A6AFB7', hot: '#D3D9DE',
-    collar: '#2E363E', collarHi: '#434D56', groove: '#4C565F', ink: '#4F5861',
-    swooshHi: '#A6AFB7', swoosh: '#5C656E', bars: 1, brushed: null,
+    base: '#B0703F', shade: '#8A522A', hi: '#D79A66', hot: '#F2C9A2',
+    collar: '#2E363E', collarHi: '#434D56', groove: '#4C565F', ink: '#5E3519',
+    swooshHi: '#D79A66', swoosh: '#8A522A', bars: 1, brushed: null,
   },
   premium: {
-    base: '#C3B8A5', shade: '#9E937F', hi: '#DCD3C4', hot: '#F1ECE3',
-    collar: '#8A949D', collarHi: '#B5BDC4', groove: '#5C656E', ink: '#8C826F',
-    swooshHi: '#E8E1D5', swoosh: '#9E937F', bars: 2, brushed: '#B1A692',
+    base: '#BFC8D0', shade: '#8E99A3', hi: '#E3E9EE', hot: '#FFFFFF',
+    collar: '#2E363E', collarHi: '#434D56', groove: '#4C565F', ink: '#5C656E',
+    swooshHi: '#E3E9EE', swoosh: '#8E99A3', bars: 2, brushed: null,
   },
   elite: {
-    base: '#262D34', shade: '#181D22', hi: '#37414B', hot: '#5E6973',
-    collar: '#C9D0D6', collarHi: '#EEF1F3', groove: '#7E8891', ink: '#56616C',
-    swooshHi: '#46515C', swoosh: '#12161A', bars: 3, brushed: null,
+    base: '#D9A93B', shade: '#A87A1E', hi: '#F2CE6A', hot: '#FFF3C4',
+    collar: '#2E363E', collarHi: '#434D56', groove: '#4C565F', ink: '#7A5512',
+    swooshHi: '#F2CE6A', swoosh: '#A87A1E', bars: 3, brushed: null,
+    gem: '#F37616',
+    rings: [{ top: 104, h: 4, color: '#262D34', hi: '#46515C' }],
   },
 };
 
