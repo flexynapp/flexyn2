@@ -24,14 +24,16 @@ import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRo
 import { buildDashboardRows, reorderFrozen, flattenRows } from '@/lib/dashboardRows';
 // Opens only on a tap, so it waits for one rather than riding in the Today chunk.
 const GoalsModal = React.lazy(() => import('@/components/goals/GoalsModal'));
-import TodayGoalCard from '@/components/dashboard/TodayGoalCard';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
 import WeekFocal from '@/components/glance/WeekFocal';
 import TrendFocal from '@/components/glance/TrendFocal';
 import HeroPager from '@/components/HeroPager';
-import { heroTrendSlides } from '@/lib/heroTrends';
+import { heroTrendSlides, liftTrends } from '@/lib/heroTrends';
+import { todaySession } from '@/lib/todaySession';
+import { starterPlanName } from '@/lib/starterPlanText';
+import { SessionLineup, LiftProgress } from '@/components/today/TodayTraining';
 import { orderHeroSlides } from '@/lib/heroGlance';
 import { useHeroGlance } from '@/hooks/useHeroGlance';
 import { FuelFocal, DuelFocal, WarFocal, QuestsFocal, GoalFocal, PatternFocal } from '@/components/glance/GlanceFocals';
@@ -177,6 +179,7 @@ export function HeroCard({
   logs, bodyMetrics = [], userProfile, now,
   glance = null, onOpenSlide,
   onPrimary, t, tFallback, plan = null, resume = null,
+  session = null, liftsShown = false,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   //
@@ -209,13 +212,24 @@ export function HeroCard({
   // order heroGlance.js sets: a contest on a clock, today's fuel and
   // quests, the goal nearest done, the trend lines, the weekly pattern.
   // Each slide exists only when it has something real to say.
-  const slides = useMemo(() => [
-    { id: 'week' },
-    ...orderHeroSlides({
-      ...(glance || {}),
-      trends: heroTrendSlides({ logs, bodyMetrics, now }),
-    }),
-  ], [logs, bodyMetrics, now, glance]);
+  //
+  // Option B (Kegan, 2026-10-02): with a session due, the first slide IS the
+  // session, the week ring around it and its lifts drawn as figures. Quests
+  // sit in the To do row under the page, and the strength line in Your lifts,
+  // so neither repeats here.
+  const slides = useMemo(() => {
+    const trends = heroTrendSlides({ logs, bodyMetrics, now })
+      .filter((tr) => !(liftsShown && tr.kind === 'strength'));
+    return [
+      { id: session ? 'session' : 'week' },
+      ...orderHeroSlides({ ...(glance || {}), quests: null, trends }),
+    ];
+  }, [logs, bodyMetrics, now, glance, session, liftsShown]);
+  const sessionDetail = session
+    ? tFallback('today.session.detail', '{lifts} lifts, about {min} min', {
+      lifts: session.lifts.length, min: session.minutes,
+    })
+    : null;
 
   return (
     <motion.div
@@ -237,7 +251,16 @@ export function HeroCard({
           autoRotate={false}
           dotsClassName="justify-center mt-2.5"
           renderSlide={(slide, { isActive }) => (
-            slide.id === 'week' ? (
+            slide.id === 'session' ? (
+              <ErrorBoundary label="SessionFocal">
+                <WeekFocal
+                  week={week}
+                  headline={session.name}
+                  detail={sessionDetail}
+                  visual={<SessionLineup session={session} />}
+                />
+              </ErrorBoundary>
+            ) : slide.id === 'week' ? (
               <ErrorBoundary label="WeekFocal">
                 <WeekFocal week={week} aside={<TodayStreakLine streak={streak} trainedToday={hasWorkedOutToday} />} />
               </ErrorBoundary>
@@ -264,7 +287,7 @@ export function HeroCard({
         className="group relative w-full min-h-[44px] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-1.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-2 text-start select-none-ui transition-all"
       >
         <span className="min-w-0">
-          <span className="kicker block mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
+          <span className="text-label font-medium block mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
             {hasWorkedOutToday
               ? t('dashboard.hero.label.again')
               : plan
@@ -397,6 +420,7 @@ export const MERGED_SECTIONS = new Set(['readiness', 'recovery', 'goals']);
 
 const SECTION_LABELS = {
   readiness:    (tF) => tF('dashboard.section.readiness',    'Readiness'),
+  lifts:        (tF) => tF('today.lifts.title',              'Your lifts'),
   // Was 'Nutrition & Recovery' — the macro / calorie / hydration widgets
   // moved off the dashboard (Nutrition owns them) and what's left is the
   // three signals you log at the end of the day.
@@ -512,6 +536,7 @@ export default function Dashboard() {
   // the order so a restored section lands where it used to sit, and so
   // mergeWidgetOrder keeps recognising the ids in saved layouts.
   const defaultWidgetOrder = [
+    'lifts',                 // Your lifts: estimated max per lift, trending
     'fuel',                  // calories and water, taps through to Nutrition
     'recovery',              // "Tonight" — sleep · mood · steps
     'streak', 'challenges',  // both full-width; one "today" block
@@ -1349,6 +1374,15 @@ export default function Dashboard() {
   }, []);
   const today = useMemo(() => new Date(todayMs), [todayMs]);
   const heroGlance = useHeroGlance({ userProfile, goals, logs, cardioLogs, now: today });
+  // Today's session, lift by lift, and the lifts charted under the hero.
+  const heroSession = useMemo(() => {
+    const s = todaySession(heroPlan, logs, { now: today });
+    return s ? { ...s, name: starterPlanName(s.name, tFallback) } : null;
+  }, [heroPlan, logs, today, tFallback]);
+  const liftTrendList = useMemo(
+    () => liftTrends({ logs, names: heroSession?.lifts.map((l) => l.name) || [], now: today }),
+    [logs, heroSession, today],
+  );
 
   // parseLocalDate so a 'YYYY-MM-DD' DATE column is interpreted in the
   // user's local TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight,
@@ -1530,7 +1564,16 @@ export default function Dashboard() {
       case 'fuel': return (
         <React.Fragment key="fuel">
           <ErrorBoundary label="TodayLogCard">
-            <TodayLogCard userProfile={userProfile} readiness={readiness} onOpenReadiness={openReadiness} />
+            <TodayLogCard variant="strip" userProfile={userProfile} readiness={readiness} onOpenReadiness={openReadiness} />
+          </ErrorBoundary>
+        </React.Fragment>
+      );
+      // "Your lifts" (option B, 2026-10-02): today's lifts, or the most
+      // trained, with their estimated max over the last weeks.
+      case 'lifts': return (
+        <React.Fragment key="lifts">
+          <ErrorBoundary label="LiftProgress">
+            <LiftProgress trends={liftTrendList} onOpen={() => navigate('/progress')} />
           </ErrorBoundary>
         </React.Fragment>
       );
@@ -1591,20 +1634,7 @@ export default function Dashboard() {
         <React.Fragment key="challenges">
           <div>
             <ErrorBoundary label="DailyQuestsCard">
-              <DailyQuestsCard
-                title={tFallback('today.todo.title', 'To do')}
-                goalSlot={goalsLoading ? null : (
-                  <ErrorBoundary label="TodayGoalCard">
-                    <TodayGoalCard
-                      goals={goals}
-                      logs={logs}
-                      cardioLogs={cardioLogs}
-                      onOpen={() => openGoals()}
-                      onCreate={() => openGoals(true)}
-                    />
-                  </ErrorBoundary>
-                )}
-              />
+              <DailyQuestsCard compact title={tFallback('today.todo.title', 'To do')} />
             </ErrorBoundary>
           </div>
         </React.Fragment>
@@ -1971,6 +2001,8 @@ export default function Dashboard() {
           // With a plan due, the button starts THAT session through the
           // startRegimen hand-off Workout.jsx consumes (phase 0).
           plan={heroPlan}
+          session={hasWorkedOutToday ? null : heroSession}
+          liftsShown={liftTrendList.length > 0 && !hiddenSections.has('lifts')}
           onPrimary={() => (heroPlan
             ? navigate('/workout', { state: { startRegimen: heroPlan } })
             : navigate('/workout?freestyle=1'))}

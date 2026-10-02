@@ -21,6 +21,7 @@ import { claimQuestWithFeedback } from '@/lib/questClaim';
 import { QuestProgress } from '@/components/dashboard/questVisuals';
 import useCountUp from '@/hooks/useCountUp';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
+import { TodoPeek } from '@/components/today/TodayTraining';
 
 // Lazy — the sheet is a modal that only mounts on tap, per the lazy-loading
 // rule in CLAUDE.md. It pulls in the stats RPC and the streak strip, none of
@@ -30,7 +31,10 @@ const QuestsSheet = React.lazy(() => import('@/components/dashboard/QuestsSheet'
 // `title` and `goalSlot` are how Today makes this its "To do" block: the
 // goal row sits above the quests so the two read as one list to finish.
 // StatsHubModal renders the card bare and keeps the Daily Quests title.
-export default function DailyQuestsCard({ onNavigated, title, goalSlot = null }) {
+//
+// `compact` is Today's one line (option B, Kegan 2026-10-02): the pips and the
+// XP banked, and a tap opens the same sheet, which is where quests are claimed.
+export default function DailyQuestsCard({ onNavigated, title, goalSlot = null, compact = false }) {
   // There was a collapse chevron here, and board 07 doesn't draw one. It
   // existed to buy back vertical space from a card that ran ~220px in a
   // 171px column; the card is ~150px on its own row now, so the control was
@@ -157,6 +161,32 @@ export default function DailyQuestsCard({ onNavigated, title, goalSlot = null })
   const crewTotal = annotated.reduce((sum, q) => sum + (q.definition?.crewXpReward ?? 0), 0);
   const allClaimed = annotated.length > 0 && claimedCount === annotated.length;
 
+  const sheet = sheetOpen && (
+    <Suspense fallback={null}>
+      <QuestsSheet
+        open
+        onClose={() => setSheetOpen(false)}
+        quests={annotated}
+        onClaim={handleClaim}
+        onGo={(q) => { setSheetOpen(false); goToQuest(q); }}
+      />
+    </Suspense>
+  );
+
+  if (compact) {
+    return (
+      <>
+        <TodoPeek
+          done={claimedCount}
+          total={annotated.length}
+          xp={Math.round(countedXp ?? xpToday)}
+          onOpen={() => setSheetOpen(true)}
+        />
+        {sheet}
+      </>
+    );
+  }
+
   return (
     <Card ref={cardRef} className="relative p-0 overflow-hidden">
       {/* The header is the way into the sheet. Its right side is the day's
@@ -233,17 +263,7 @@ export default function DailyQuestsCard({ onNavigated, title, goalSlot = null })
         ))}
       </AnimatePresence>
 
-      {sheetOpen && (
-        <Suspense fallback={null}>
-          <QuestsSheet
-            open
-            onClose={() => setSheetOpen(false)}
-            quests={annotated}
-            onClaim={handleClaim}
-            onGo={(q) => { setSheetOpen(false); goToQuest(q); }}
-          />
-        </Suspense>
-      )}
+      {sheet}
     </Card>
   );
 }

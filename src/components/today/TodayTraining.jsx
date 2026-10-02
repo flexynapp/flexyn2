@@ -378,7 +378,12 @@ export function LogStrip({ items = [], onLog }) {
         const Icon = LOG_ICONS[it.id];
         return (
           <li key={it.id}>
-            <button type="button" onClick={() => onLog?.(it.id)} className="flex flex-col items-center gap-1 min-w-[56px]">
+            <button
+              type="button"
+              onClick={() => onLog?.(it.id)}
+              aria-label={it.value ? `${names[it.id]}, ${it.value}` : names[it.id]}
+              className="flex flex-col items-center gap-1 min-w-[56px]"
+            >
               <LogRing share={it.share}>
                 <Icon className={`w-5 h-5 ${it.share >= 1 ? 'text-primary' : 'text-foreground'}`} strokeWidth={1.75} aria-hidden="true" />
               </LogRing>

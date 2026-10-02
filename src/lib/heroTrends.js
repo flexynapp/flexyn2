@@ -146,6 +146,45 @@ export function liftTrend(logs = [], name, now = new Date()) {
   return { ...summarize(dedupeByDay(points, Math.max), 'strength'), lift: name };
 }
 
+/**
+ * The lifts Today's "Your lifts" rows chart: today's session's lifts when a
+ * plan is due, otherwise the most-trained ones. Only ready trends with a
+ * loaded estimated max, so bodyweight work never charts a zero.
+ *
+ * @param {object} p
+ * @param {Array}  p.logs   workout_logs
+ * @param {string[]} [p.names]  lifts to prefer, in order
+ * @param {number} [p.max=3]
+ */
+export function liftTrends({ logs = [], names = [], now = new Date(), max = 3 } = {}) {
+  const ranked = [...names];
+  // The most-trained lifts follow, so a plan whose lifts have too little
+  // history still fills the rows from what the user does train.
+  const since = now.getTime() - WINDOW_DAYS * DAY_MS;
+  const tally = new Map();
+  for (const log of logs) {
+    const d = parseLocalDate(log?.date);
+    if (!d || d.getTime() < since) continue;
+    for (const ex of log.exercises || []) {
+      if (ex?.name) tally.set(ex.name, (tally.get(ex.name) || 0) + 1);
+    }
+  }
+  for (const [name] of [...tally].sort((a, b) => b[1] - a[1])) {
+    ranked.push(name);
+  }
+  const out = [];
+  const seen = new Set();
+  for (const name of ranked) {
+    const key = String(name).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const tr = liftTrend(logs, name, now);
+    if (tr.ready && tr.last?.v > 0) out.push(tr);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** Body weight trend from weigh-ins. Same-day entries keep the latest one. */
 export function weightTrend(bodyMetrics = [], now = new Date()) {
   const since = now.getTime() - WINDOW_DAYS * DAY_MS;
