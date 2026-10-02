@@ -158,7 +158,7 @@ export const RARITY = {
 // ── Capsule glyph ─────────────────────────────────────────────────────
 // Text-only fallback for the capsule. Anywhere a capsule is RENDERED,
 // use <CapsuleIcon type=… /> (src/components/loot/CapsuleIcon.jsx) — it
-// draws the actual gachapon sphere. This map exists for the surfaces
+// draws the canister from the capsule shelf. This map exists for the surfaces
 // that can only hold a string: toast titles, push-notification icons,
 // catalog rows.
 //
