@@ -1,10 +1,12 @@
 // src/components/capsules/CrackStage.jsx
 //
-// Option A for the capsule open: "crack it". The user taps the canister and
-// every tap is a strike. A strike either climbs one rarity (the cracks and
-// the seam light up in the new colour, a rung on the ladder slams in, the
-// rarity's name stamps above the canister) or opens the canister on what it
-// has reached. The script comes from climbPlan in src/lib/capsuleClimb.js.
+// The capsule open: "crack it" (Kegan's pick, 2026-10-02). The user taps
+// the canister and every tap is a strike. A strike either climbs one rarity
+// (the cracks and the seam light up in the new colour, a rung on the ladder
+// slams in, the rarity's name stamps above the canister, and its colour
+// pours into the field behind) or opens the canister on what it has
+// reached. Every strike stirs the field. The script comes from climbPlan in
+// src/lib/capsuleClimb.js.
 //
 // Why this and not a reel: a reel is six seconds of watching, the same six
 // seconds every time. Here a Common is one tap and about a second, and only
@@ -53,13 +55,6 @@ const CLIMB_FRAMES = [
   { transform: 'translateY(2px) scale(1.04, 0.96)', offset: 0.65 },
   { transform: 'none' },
 ];
-// The near miss: the canister leans toward the next rung and sags back.
-const FIZZLE_FRAMES = [
-  { transform: 'scale(1.035)' },
-  { transform: 'translateY(-6px) scale(1.06)', offset: 0.35 },
-  { transform: 'scale(0.98, 1.02)', offset: 0.75 },
-  { transform: 'scale(1.035)' },
-];
 
 /**
  * @param {object} fx           the opener's stage (useOpenerFx)
@@ -79,7 +74,6 @@ export default function CrackStage({ fx, rarity, tier, batch = false, onDone }) 
   const [at, setAt] = useState('common');       // the rung reached so far
   const [cracks, setCracks] = useState(0);
   const [stamp, setStamp] = useState(null);      // { key, rarity } above the canister
-  const [fizzle, setFizzle] = useState(null);    // the rung that flickers
   const [open, setOpen] = useState(false);
   const [struck, setStruck] = useState(false);
 
@@ -136,18 +130,18 @@ export default function CrackStage({ fx, rarity, tier, batch = false, onDone }) 
     setCracks(c => Math.min(CRACKS.length, c + 1));
     animate(STRIKE_FRAMES, t.decide, 'cubic-bezier(0.3, 0.8, 0.4, 1)');
     fx.burst(aim(0.4), 'common', { scale: 0.22, shake: false });
+    fx.paint({ stir: 0.35 });
     triggerHaptic('subtle');
 
     later(() => {
       if (step.kind === 'climb') {
         const to = step.to;
         const rank = climbRank(to);
-        const tint = rarityTint(to).color;
         setAt(to);
         setStamp({ key: stepRef.current, rarity: to });
         animate(CLIMB_FRAMES, t.climb);
         fx.burst(aim(0.45), to, { scale: 0.5 + rank * 0.13, shake: rank >= 2 });
-        fx.setRays(tint, Math.min(0.15, 0.035 + rank * 0.024), { fast: rank >= 3, double: rank >= 4 });
+        fx.paint({ rarity: to, mood: 'landed', stir: dramaFor(to).stir });
         triggerHaptic(rank >= 3 ? 'success' : 'primary');
         later(settle, t.climb);
         return;
@@ -157,27 +151,18 @@ export default function CrackStage({ fx, rarity, tier, batch = false, onDone }) 
         later(settle, 200);
         return;
       }
-      // The open. A near miss first, sometimes.
-      const pop = () => {
-        doneRef.current = true;
-        setOpen(true);
-        setFizzle(null);
-        animate([{ transform: 'scale(1.1, 0.86)' }, { transform: 'scale(0.95, 1.07)', offset: 0.4 }, { transform: 'none' }], 420,
-          'cubic-bezier(0.3, 1.3, 0.5, 1)');
-        const d = dramaFor(step.to);
-        fx.burst(aim(0.45), step.to, { scale: 0.6, shake: d.shake > 0 });
-        triggerHaptic('primary');
-        later(onDone, t.afterPop);
-      };
-      if (step.fizzle && !fx.reduced) {
-        const nextRung = CLIMB_LADDER[climbRank(step.to) + 1];
-        setFizzle(nextRung);
-        animate(FIZZLE_FRAMES, t.fizzle, 'ease-in-out');
-        triggerHaptic('subtle');
-        later(pop, t.fizzle);
-      } else {
-        pop();
-      }
+      // The open: the lid goes and the field churns, then settles into the
+      // colour the canister opened on.
+      doneRef.current = true;
+      setOpen(true);
+      animate([{ transform: 'scale(1.1, 0.86)' }, { transform: 'scale(0.95, 1.07)', offset: 0.4 }, { transform: 'none' }], 420,
+        'cubic-bezier(0.3, 1.3, 0.5, 1)');
+      const d = dramaFor(step.to);
+      fx.burst(aim(0.45), step.to, { scale: 0.6, shake: d.shake > 0 });
+      fx.paint({ rarity: step.to, mood: 'break', stir: 1 });
+      later(() => fx.paint({ mood: 'landed' }), 420);
+      triggerHaptic('primary');
+      later(onDone, t.afterPop);
     }, t.decide);
   }, [waiting, plan, animate, aim, fx, later, settle, onDone, t]);
   strikeRef.current = strike;
@@ -185,7 +170,9 @@ export default function CrackStage({ fx, rarity, tier, batch = false, onDone }) 
   // First auto strike, for someone who only watches.
   useEffect(() => {
     aim();
-    fx.setRays(null, 0.03);
+    // Each capsule starts on Common, so in a batch the field pours back to
+    // grey before the next one is struck.
+    fx.paint({ rarity: 'common', mood: waiting ? 'enter' : 'landed' });
     if (waiting) return undefined;
     autoRef.current = later(() => strikeRef.current(), t.firstAuto);
     return () => clearTimeout(autoRef.current);
@@ -258,20 +245,19 @@ export default function CrackStage({ fx, rarity, tier, batch = false, onDone }) 
       <div className="flex items-center gap-1.5" aria-hidden="true">
         {rungs.map((r) => {
           const lit = climbRank(r) <= climbRank(at);
-          const flick = fizzle === r;
           const c = rarityTint(r).color;
           return (
             <span
               key={r}
-              className={`block h-2 w-9 rounded-full ${lit && r !== 'common' ? 'climb-rung-lit' : ''} ${flick ? 'climb-rung-fizzle' : ''}`}
-              style={{ background: lit || flick ? c : 'hsl(var(--border))' }}
+              className={`block h-2 w-9 rounded-full ${lit && r !== 'common' ? 'climb-rung-lit' : ''}`}
+              style={{ background: lit ? c : 'hsl(var(--border))' }}
             />
           );
         })}
       </div>
 
       <span
-        className="text-label font-semibold uppercase tracking-wider text-muted-foreground transition-opacity duration-300"
+        className="text-label font-medium text-muted-foreground transition-opacity duration-300"
         style={{ opacity: struck ? 0 : 1 }}
       >
         {tFallback('capsuleOpener.tapToCrack', 'Tap to crack')}

@@ -6,7 +6,7 @@ const never = () => 0.99;
 
 describe('climbPlan', () => {
   it('opens a Common on the first strike', () => {
-    expect(climbPlan('common', { rng: never })).toEqual([{ kind: 'open', to: 'common', fizzle: false }]);
+    expect(climbPlan('common', { rng: never })).toEqual([{ kind: 'open', to: 'common' }]);
   });
 
   it('climbs one rung per strike and opens on the real rarity', () => {
@@ -43,8 +43,12 @@ describe('climbPlan', () => {
     expect(plan.at(-1).to).toBe('mythic');
   });
 
-  it('never fizzles at the top of the ladder', () => {
-    for (let k = 0; k < 30; k++) expect(climbPlan('animated', { rng: () => 0 }).at(-1).fizzle).toBe(false);
-    expect(climbPlan('common', { rng: () => 0 }).at(-1).fizzle).toBe(true);
+  it('never stages a near miss on the open', () => {
+    for (const r of CLIMB_LADDER) {
+      for (const v of [0, 0.5, 0.99]) {
+        const open = climbPlan(r, { rng: () => v }).at(-1);
+        expect(open).toEqual({ kind: 'open', to: r });
+      }
+    }
   });
 });

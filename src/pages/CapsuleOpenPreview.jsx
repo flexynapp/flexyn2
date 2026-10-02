@@ -1,8 +1,8 @@
 // src/pages/CapsuleOpenPreview.jsx
 //
-// A test bench for the capsule open, so the hands-on options can be tried
-// with a thumb on a real phone. Tapping is the whole point of them, and a
-// recording cannot show what a tap feels like.
+// A test bench for the capsule open, so the crack can be tried with a thumb
+// on a real phone. Tapping is the whole point of it, and a recording cannot
+// show what a tap feels like.
 //
 // Only reachable on a Netlify deploy preview or localhost (see App.jsx);
 // production never routes here. It renders the real CapsuleOpener with a
@@ -15,12 +15,7 @@ import { rarityTint } from '@/components/loot/RarityVisuals';
 
 // Labels here are for the bench only and never ship to a user, so they are
 // plain English rather than catalog keys.
-const LABEL = { style: 'Style', capsule: 'Capsule', one: 'Open one', random: 'Random, real odds', four: 'Open 4 (first is epic)' };
-const STYLES = [
-  ['crack', 'A. Crack it'],
-  ['flip', 'B. Flip it'],
-  ['reel', 'Today (reel)'],
-];
+const LABEL = { capsule: 'Capsule', one: 'Open one', random: 'Random, real odds', four: 'Open 4 (first is epic)' };
 const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'animated'];
 const TIERS = ['standard', 'premium', 'elite'];
 
@@ -40,7 +35,6 @@ function fakeRoll(rarityFor) {
 }
 
 export default function CapsuleOpenPreview() {
-  const [style, setStyle] = useState('crack');
   const [tier, setTier] = useState('standard');
   const [run, setRun] = useState(null);
 
@@ -63,14 +57,6 @@ export default function CapsuleOpenPreview() {
 
   return (
     <div className="dark min-h-screen bg-background text-foreground px-4 py-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <span className="eyebrow">{LABEL.style}</span>
-        <div className="flex flex-wrap gap-2">
-          {STYLES.map(([k, label]) => (
-            <button key={k} type="button" className={chip(style === k)} onClick={() => setStyle(k)}>{label}</button>
-          ))}
-        </div>
-      </div>
       <div className="flex flex-col gap-2">
         <span className="eyebrow">{LABEL.capsule}</span>
         <div className="flex flex-wrap gap-2">
@@ -106,7 +92,6 @@ export default function CapsuleOpenPreview() {
           key={run.key}
           rows={run.rows}
           next={null}
-          openStyle={style}
           rollCapsule={run.roll}
           loadInventory={async () => []}
           onClaim={async () => setRun(null)}

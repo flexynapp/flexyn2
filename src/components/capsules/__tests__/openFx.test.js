@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DRAMA, dramaFor, chargeMs } from '../openFx';
+import { DRAMA, dramaFor } from '../openFx';
 
 const LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
 
@@ -9,26 +9,24 @@ describe('capsule open drama', () => {
   });
 
   it('never gets smaller as the rarity climbs', () => {
-    for (const key of ['rays', 'rings', 'sparks', 'shake', 'flash', 'hold', 'charge']) {
+    for (const key of ['paint', 'stir', 'rings', 'sparks', 'shake', 'flash', 'hold']) {
       for (let i = 1; i < LADDER.length; i++) {
         expect(DRAMA[LADDER[i]][key], `${key} at ${LADDER[i]}`).toBeGreaterThanOrEqual(DRAMA[LADDER[i - 1]][key]);
       }
     }
   });
 
-  // The hot charge tints the stage before the reel runs. Below epic it must
-  // not, or every common would announce itself and the reel would lose its
-  // suspense.
-  it('tells only on epic or better', () => {
-    expect(LADDER.filter(r => DRAMA[r].hot)).toEqual(['epic', 'legendary', 'mythic', 'animated']);
+  // The colour field is the whole background now, so it runs on every
+  // open, a Common included, and never past the rank up's own level.
+  it('keeps the colour field between visible and full', () => {
+    for (const r of LADDER) {
+      expect(DRAMA[r].paint).toBeGreaterThan(0);
+      expect(DRAMA[r].paint).toBeLessThanOrEqual(1);
+      expect(DRAMA[r].stir).toBeLessThanOrEqual(1);
+    }
   });
 
   it('falls back to common for an unknown rarity', () => {
     expect(dramaFor('nope')).toBe(DRAMA.common);
-  });
-
-  it('shortens the charge in a batch and skips it under reduced motion', () => {
-    expect(chargeMs('epic', { batch: true })).toBeLessThan(chargeMs('epic'));
-    expect(chargeMs('legendary', { reduced: true })).toBe(0);
   });
 });

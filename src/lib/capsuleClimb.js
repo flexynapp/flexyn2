@@ -10,14 +10,16 @@
 // opens. The climb never goes past the real rarity and never stops short of
 // it: the ladder only ever tells the truth, just a step at a time.
 //
-// Two things keep the hundredth open from feeling scripted:
+// A "hold" keeps the hundredth open from feeling scripted: now and then a
+// strike cracks the shell and decides nothing, so the rhythm of taps is not
+// a readout of the rarity. At most one per open, and never on a
+// Legendary-or-better climb, which is long enough.
 //
-// - A "hold": now and then a strike cracks the shell and decides nothing,
-//   so the rhythm of taps is not a readout of the rarity. At most one per
-//   open, and never on a Legendary-or-better climb, which is long enough.
-// - A "fizzle": on the opening strike, the next rarity's pip sometimes
-//   flickers on and dies before the lid goes. The near miss is where most
-//   of the tension in a crate opening comes from, and it costs a beat.
+// There is deliberately no near miss. An earlier draft flickered the next
+// rung on before the lid went, which is a slot machine's trick: it shows a
+// win that was never possible, it sits badly beside the exact odds the
+// capsule publishes, and App Review reads it as loot-box pressure. The
+// ladder only ever lights a rung the roll actually reached.
 //
 // Pure: no React, no timers. `rng` is injectable so tests can pin it.
 
@@ -31,7 +33,6 @@ export function climbRank(rarity) {
 }
 
 const HOLD_CHANCE = 0.22;
-const FIZZLE_CHANCE = 0.4;
 
 /**
  * The strikes for one open, in order.
@@ -39,7 +40,7 @@ const FIZZLE_CHANCE = 0.4;
  * @param {string} rarity           what the server rolled
  * @param {object} [opts]
  * @param {() => number} [opts.rng] Math.random by default
- * @returns {Array<{ kind: 'climb'|'hold'|'open', to?: string, fizzle?: boolean }>}
+ * @returns {Array<{ kind: 'climb'|'hold'|'open', to?: string }>}
  *   `to` on a climb is the rarity it reaches; on the open it is the rarity
  *   it opens on (the real one, or 'mythic' for a mythic roll).
  */
@@ -54,8 +55,6 @@ export function climbPlan(rarity, { rng = Math.random } = {}) {
     strikes.push({ kind: 'climb', to: CLIMB_LADDER[i + 1] });
   }
   if (holdAt === top) strikes.push({ kind: 'hold' });
-  // There is nothing above the top rung to flicker toward.
-  const fizzle = top < CLIMB_LADDER.length - 1 && rng() < FIZZLE_CHANCE;
-  strikes.push({ kind: 'open', to: rarity === 'mythic' ? 'mythic' : CLIMB_LADDER[top], fizzle });
+  strikes.push({ kind: 'open', to: rarity === 'mythic' ? 'mythic' : CLIMB_LADDER[top] });
   return strikes;
 }
