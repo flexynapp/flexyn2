@@ -314,12 +314,16 @@ export default function GymHub() {
                     aria-label={tFallback("gymHub.viewMembers", "View members")}
                   >
                     <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
-                    {(gym.member_count === 1 ? ' member' : ' members')}
+                    {' '}{gym.member_count === 1
+                      ? tFallback('gymHub.memberWord.one', 'member')
+                      : tFallback('gymHub.memberWord.other', 'members')}
                   </button>
                 ) : (
                   <span className="flex items-center gap-1 text-muted-foreground">
                     <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
-                    {(gym.member_count === 1 ? ' member' : ' members')}
+                    {' '}{gym.member_count === 1
+                      ? tFallback('gymHub.memberWord.one', 'member')
+                      : tFallback('gymHub.memberWord.other', 'members')}
                   </span>
                 )}
                 {isOwner && (
@@ -469,13 +473,13 @@ export default function GymHub() {
 
       {(isMember || isOwner) && (
         <>
-          <div className="flex gap-1 border-b border-border mb-4">
+          <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
             {TABS.map(({ id: tid, label, Icon }) => (
               <button
                 key={tid}
                 type="button"
                 onClick={() => setTab(tid)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === tid
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'

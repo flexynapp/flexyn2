@@ -2473,6 +2473,8 @@
   "gymHub.leaveFailed": "Impossible de quitter. Réessayez.",
   "gymHub.left": "Vous avez quitté la salle.",
   "gymHub.locationNotePlaceholder": "Note de lieu (p. ex. Rack à squat 3)",
+  "gymHub.memberWord.one": "membre",
+  "gymHub.memberWord.other": "membres",
   "gymHub.needTitleAndStart": "Ajoutez un titre et une heure de début avant de créer l’événement.",
   "gymHub.newEvent": "Nouvel événement",
   "gymHub.noEventsScheduled": "Aucun événement programmé",
