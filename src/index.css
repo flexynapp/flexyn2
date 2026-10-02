@@ -801,15 +801,47 @@
   /* The foil glint: one flat bone band crossing the plate at an angle. */
   @keyframes reveal-sheen {
     from { transform: translateX(-160%) skewX(-18deg); }
-    to   { transform: translateX(260%) skewX(-18deg); }
+    /* 260% left a sliver of the band on the plate's right edge, held there
+       by the fill. It now clears the plate and fades as it goes. */
+    80%  { opacity: 1; }
+    to   { transform: translateX(340%) skewX(-18deg); opacity: 0; }
   }
   .reveal-sheen { animation: reveal-sheen 900ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+  /* The hands-on opens (capsules/CrackStage, FlipStage). A crack snaps in
+     from where it starts; a rung slams in when the climb reaches it; the
+     near miss flickers the next rung on and lets it die. */
+  .crack-in { transform-box: view-box; animation: crack-in 160ms cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+  @keyframes crack-in {
+    from { transform: scale(0.2); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  .climb-rung-lit { animation: climb-rung 360ms cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+  @keyframes climb-rung {
+    from { transform: scaleX(0.3) scaleY(2.4); }
+    to   { transform: none; }
+  }
+  .canister-breathe { transform-origin: 50% 96%; animation: canister-breathe 640ms ease-in-out infinite; }
+  @keyframes canister-breathe {
+    0%, 100% { transform: none; }
+    50%      { transform: scale(1.025, 1.035); }
+  }
+  .climb-rung-fizzle { animation: climb-fizzle 460ms linear both; }
+  @keyframes climb-fizzle {
+    0%   { opacity: 0; }
+    18%  { opacity: 0.9; }
+    30%  { opacity: 0.2; }
+    48%  { opacity: 0.75; }
+    70%  { opacity: 0.1; }
+    100% { opacity: 0; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .canister-lid-lift, .sticker-land,
     .canister-charge, .canister-charge-hot, .canister-wait, .canister-lid-fly,
     .opener-rays-main, .opener-rays-back,
-    .reveal-stamp, .reveal-rise, .reveal-new { animation: none; }
+    .reveal-stamp, .reveal-rise, .reveal-new,
+    .crack-in, .climb-rung-lit, .climb-rung-fizzle, .canister-breathe { animation: none; }
     .canister-seam { animation: none; opacity: 1; }
     .reveal-sheen { display: none; }
   }

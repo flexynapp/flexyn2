@@ -44,6 +44,16 @@ export const DRAMA = {
   animated:  { rays: 0.15,  rings: 3, sparks: 26, shake: 10, flash: 0.28, sheen: true, hot: true,  hold: 700, charge: 2200 },
 };
 
+// ─── Beats for the hands-on opens (CrackStage, FlipStage) ─────────────────────
+// ms. `decide` is the swell between a tap and its answer, the moment of
+// truth on every strike; it is short enough that mashing feels like
+// mashing. `auto` strikes for someone who only watches. A batch runs the
+// same beats tighter, one capsule after another.
+export const OPEN_TIMING = {
+  single: { decide: 220, climb: 380, fizzle: 460, afterPop: 480, firstAuto: 1800, auto: 1300, rise: 640, flip: 200 },
+  batch:  { decide: 150, climb: 260, fizzle: 300, afterPop: 240, firstAuto: 700,  auto: 550,  rise: 420, flip: 160 },
+};
+
 /** The drama table row for a rarity, falling back to common. */
 export function dramaFor(rarity) {
   return DRAMA[rarity] ?? DRAMA.common;

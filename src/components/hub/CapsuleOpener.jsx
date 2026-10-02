@@ -41,6 +41,8 @@ import { SetBar, NotchedCorner } from '@/components/capsules/parts';
 import { tierName, tierFinish, rarityName } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { OpenerStage, useOpenerFx, dramaFor, chargeMs } from '@/components/capsules/openFx';
+import CrackStage from '@/components/capsules/CrackStage';
+import FlipStage from '@/components/capsules/FlipStage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // A reel card, from the design: 112 by 164, 12 apart.
@@ -732,9 +734,19 @@ function describeResult(item, results, inv) {
 // only ever on screen after the roll failed, or without autoStart.
 const STOW_MS = 900;
 
+/**
+ * @param {'reel'|'crack'|'flip'} [openStyle]  how the open is staged. 'reel'
+ *   is the charge and the spinning reel; 'crack' and 'flip' are the
+ *   hands-on options (CrackStage, FlipStage).
+ * @param {Function} [rollCapsule]   stands in for the server roll, for the
+ *   preview bench only. Production never passes it.
+ * @param {Function} [loadInventory] same, for the inventory read.
+ */
 export default function CapsuleOpener({
   rows, next, onClaim, onClaimAndOpenNext, onClose, autoStart = true,
+  openStyle = 'reel', rollCapsule = rollOneCapsule, loadInventory = inventory.listItems,
 }) {
+  const handsOn = openStyle === 'crack' || openStyle === 'flip';
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const { user } = useAuth();
@@ -797,7 +809,7 @@ export default function CapsuleOpener({
       // Each capsule is its own server roll; parallel is safe because the
       // RPC locks one row and no two targets share a row.
       rolled = await Promise.all(targets.map(async (c) => {
-        const res = await rollOneCapsule(c.id);
+        const res = await rollCapsule(c.id);
         return { capsuleId: c.id, item: res?.item ?? null, granted: !!res?.granted };
       }));
     } catch (err) {
@@ -826,7 +838,9 @@ export default function CapsuleOpener({
     // Best pull first on the reveal plate; the reels still run in shelf order.
     const best = ok.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a));
     const specs = ok.map(({ capsuleId, item }) => ({ capsuleId, item, ...buildReel(item), variant: makeSpin() }));
-    const encoreSpec = isEncoreTier(best.item.rarity)
+    // The hands-on opens climb or flip into a legendary on their own; the
+    // encore is the reel's way of making one feel bigger.
+    const encoreSpec = !handsOn && isEncoreTier(best.item.rarity)
       ? { ...buildLegendaryReel(best.item), item: best.item, variant: makeSpin() }
       : null;
 
@@ -843,9 +857,9 @@ export default function CapsuleOpener({
     // What the set looks like now. A failed read hides the set lines on the
     // reveal rather than printing numbers from before the open.
     if (user?.email) {
-      inventory.listItems(user.email).then(setInv).catch(() => setInv(null));
+      Promise.resolve(loadInventory(user.email)).then(setInv).catch(() => setInv(null));
     }
-  }, [targets, tFallback, user?.email]);
+  }, [targets, tFallback, user?.email, rollCapsule, loadInventory, handsOn]);
 
   useEffect(() => {
     if (autoStart) handleOpen();
@@ -889,14 +903,14 @@ export default function CapsuleOpener({
   }, [fx, reelDrama.hot, reelRarity, reelTint]);
 
   useEffect(() => {
-    if (phase !== 'spinning' || stage !== 'charge' || !currentReel) return undefined;
+    if (handsOn || phase !== 'spinning' || stage !== 'charge' || !currentReel) return undefined;
     fx.aimAt(canisterRef.current, 0.45);
     // The tell: an epic-or-better pull tints the stage while it charges.
     if (reelDrama.hot) fx.setRays(reelTint, 0.07, { fast: true });
     else fx.setRays(null, 0.03);
     chargeTimerRef.current = setTimeout(pop, chargeFor);
     return () => { if (chargeTimerRef.current) clearTimeout(chargeTimerRef.current); };
-  }, [phase, stage, currentReel, chargeFor, pop, fx, reelDrama.hot, reelTint]);
+  }, [handsOn, phase, stage, currentReel, chargeFor, pop, fx, reelDrama.hot, reelTint]);
 
   useEffect(() => {
     if (phase === 'rolling') fx.setRays(null, 0.02);
@@ -930,6 +944,12 @@ export default function CapsuleOpener({
     const t = setTimeout(() => setPhase('revealing'), 800);
     return () => clearTimeout(t);
   }, [phase, encoreSettled, encore, fx]);
+
+  // A hands-on stage finished: the next capsule, or the reveal.
+  const handleStageDone = useCallback(() => {
+    if (reelIndex + 1 < reels.length) setReelIndex(i => i + 1);
+    else setPhase('revealing');
+  }, [reelIndex, reels.length]);
 
   const skip = useCallback(() => setPhase('revealing'), []);
 
@@ -982,7 +1002,9 @@ export default function CapsuleOpener({
     ? tFallback('capsuleOpener.tierCapsules', '{tier} capsules', { tier: tierName(tFallback, tier) })
     : tFallback('capsuleOpener.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) });
 
-  const onStage = phase === 'rolling' || (phase === 'spinning' && currentReel);
+  const onStage = !handsOn && (phase === 'rolling' || (phase === 'spinning' && currentReel));
+  const onHandsOn = handsOn && (phase === 'rolling' || (phase === 'spinning' && currentReel));
+  const HandsOnStage = openStyle === 'flip' ? FlipStage : CrackStage;
   const charging = phase === 'spinning' && stage === 'charge';
   const standClass = phase === 'rolling'
     ? 'canister-wait'
@@ -1119,6 +1141,35 @@ export default function CapsuleOpener({
           </div>
         )}
 
+        {/* ── HANDS-ON: crack it, or flip it ──────────────────────────────── */}
+        {onHandsOn && (
+          <div className="flex-1 flex flex-col">
+            <HandsOnStage
+              key={phase === 'spinning' ? currentReel.capsuleId : 'waiting'}
+              fx={fx}
+              tier={tier}
+              rarity={phase === 'spinning' ? currentReel.item.rarity : null}
+              batch={isBatch}
+              onDone={handleStageDone}
+            />
+            <div className="px-5 flex flex-col items-center gap-2">
+              {isBatch && phase === 'spinning' && (
+                <>
+                  <span className="stamp">
+                    {tFallback('capsuleOpener.capsuleOf', 'Capsule {i} of {n}', { i: reelIndex + 1, n: reels.length })}
+                  </span>
+                  <button type="button" onClick={skip} className="h-11 px-4 text-label font-semibold text-foreground">
+                    {tFallback('capsuleOpener.skip', 'Skip to results')}
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="px-5 pt-4 pb-6 mt-auto">
+              <PityMeter bar snapshot={pitySnapshot} />
+            </div>
+          </div>
+        )}
+
         {/* ── ENCORE: a legendary or better gets one more spin ───────────── */}
         {phase === 'encore' && encore && (
           <div className="flex-1 flex flex-col justify-center gap-6 pb-6">
@@ -1143,6 +1194,7 @@ export default function CapsuleOpener({
         {phase === 'revealing' && shown && (
           <Reveal
             fx={fx}
+            entrance={openStyle === 'flip' ? 'flip' : 'slam'}
             results={results}
             pick={pick}
             setPick={setPick}
@@ -1181,7 +1233,64 @@ export default function CapsuleOpener({
 // the pull. Picking another row in a batch replays a smaller hit.
 const PLATE_MS = 560;
 
-function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, stowing, onCollect, onCollectNext }) {
+// The flip option hands the card over edge-on (see FlipStage): the plate
+// turns in from -90 degrees instead of slamming down, and the hit lands as
+// it faces the user.
+const FLIP_IN = [
+  { transform: 'perspective(700px) translateY(-6px) scale(1.06) rotateY(-90deg)', opacity: 1 },
+  { transform: 'perspective(700px) translateY(-10px) scale(1.14) rotateY(8deg)', opacity: 1, offset: 0.55 },
+  { transform: 'perspective(700px) scale(0.98) rotateY(-2deg)', offset: 0.8 },
+  { transform: 'none', opacity: 1 },
+];
+const SLAM_IN = [
+  { transform: 'perspective(700px) translateY(48px) scale(0.3) rotateY(-120deg)', opacity: 0 },
+  { transform: 'perspective(700px) translateY(30px) scale(0.55) rotateY(-80deg)', opacity: 1, offset: 0.2 },
+  { transform: 'perspective(700px) translateY(-8px) scale(1.12) rotateY(10deg)', opacity: 1, offset: 0.62 },
+  { transform: 'perspective(700px) scale(0.97) rotateY(-3deg)', offset: 0.82 },
+  { transform: 'none', opacity: 1 },
+];
+
+// The plate tilts under the finger, and on a rare or better the foil band
+// follows the tilt. Something to play with on a screen the user lands on a
+// hundred times. Transform only, written straight to the element so a drag
+// never re-renders the reveal.
+const TILT_MAX = 14; // degrees
+function usePlateTilt(reduced) {
+  const tiltRef = useRef(null);
+  const foilRef = useRef(null);
+  const set = (rx, ry) => {
+    const el = tiltRef.current;
+    if (el) el.style.transform = `perspective(600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+    const foil = foilRef.current;
+    if (foil) {
+      foil.style.opacity = String(Math.min(1, (Math.abs(rx) + Math.abs(ry)) / TILT_MAX));
+      foil.style.transform = `translateX(${(ry / TILT_MAX) * 120}%) skewX(-18deg)`;
+    }
+  };
+  const move = (e) => {
+    if (reduced || (e.pointerType === 'mouse' && e.buttons === 0)) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    const y = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+    const el = tiltRef.current;
+    if (el) el.style.transition = 'transform 60ms linear';
+    set(-y * TILT_MAX, x * TILT_MAX);
+  };
+  const release = () => {
+    const el = tiltRef.current;
+    if (el) el.style.transition = 'transform 520ms cubic-bezier(0.3, 1.5, 0.5, 1)';
+    const foil = foilRef.current;
+    if (foil) foil.style.transition = 'opacity 400ms ease';
+    set(0, 0);
+  };
+  return {
+    tiltRef,
+    foilRef,
+    handlers: { onPointerDown: move, onPointerMove: move, onPointerUp: release, onPointerLeave: release, onPointerCancel: release },
+  };
+}
+
+function Reveal({ fx, entrance = 'slam', results, pick, setPick, inv, fmt, tier, next, collecting, stowing, onCollect, onCollectNext }) {
   const { tFallback } = useLanguage();
   const item = results[pick].item;
   const tint = rarityTint(item.rarity);
@@ -1194,7 +1303,8 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
   const arrivedRef = useRef(false);
   // The first arrival is the big one; a row pick is a smaller replay.
   const [big] = useState(() => !fx.reduced);
-  const firstHit = big ? Math.round(PLATE_MS * 0.62) : 0;
+  const firstHit = big ? Math.round(entrance === 'flip' ? 460 * 0.55 : PLATE_MS * 0.62) : 0;
+  const tilt = usePlateTilt(fx.reduced);
   const beat = (n) => ({ animationDelay: `${firstHit + (big ? drama.hold : 0) + n * 110}ms` });
 
   useLayoutEffect(() => {
@@ -1205,14 +1315,9 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
     const point = fx.aimAt(el);
     fx.setRays(tint.color, drama.rays, { double: isEncoreTier(item.rarity) });
     if (fx.reduced || typeof el.animate !== 'function') return undefined;
-    const dur = first ? PLATE_MS : 380;
-    el.animate([
-      { transform: 'perspective(700px) translateY(48px) scale(0.3) rotateY(-120deg)', opacity: 0 },
-      { transform: 'perspective(700px) translateY(30px) scale(0.55) rotateY(-80deg)', opacity: 1, offset: 0.2 },
-      { transform: 'perspective(700px) translateY(-8px) scale(1.12) rotateY(10deg)', opacity: 1, offset: 0.62 },
-      { transform: 'perspective(700px) scale(0.97) rotateY(-3deg)', offset: 0.82 },
-      { transform: 'none', opacity: 1 },
-    ], { duration: dur, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'backwards' });
+    const flipIn = first && entrance === 'flip';
+    const dur = first ? (flipIn ? 460 : PLATE_MS) : 380;
+    el.animate(flipIn ? FLIP_IN : SLAM_IN, { duration: dur, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'backwards' });
     const t = setTimeout(() => {
       fx.burst(point, item.rarity, { scale: first ? 1 : 0.45, shake: first });
       if (first) {
@@ -1220,7 +1325,7 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
           ?? (rarityRank(item.rarity) >= rarityRank('rare') ? 'primary' : 'subtle');
         triggerHaptic(pattern);
       }
-    }, Math.round(dur * 0.62));
+    }, Math.round(dur * (flipIn ? 0.55 : 0.62)));
     return () => clearTimeout(t);
     // The arrival and each row pick, nothing else.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1257,7 +1362,8 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
           because then the list is what fills the space. */}
       <div className={isBatch ? '' : 'flex-1 flex flex-col justify-center'}>
       <div className="flex flex-col items-center gap-4 px-5 pt-3">
-        <div ref={plateRef} className="relative">
+        <div ref={plateRef} className="relative touch-none" {...tilt.handlers}>
+          <div ref={tilt.tiltRef} className="relative">
           <div
             className="relative rounded-2xl bg-card border flex items-center justify-center overflow-hidden"
             style={{
@@ -1282,6 +1388,14 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
                 aria-hidden="true"
               />
             )}
+            {drama.sheen && (
+              <span
+                ref={tilt.foilRef}
+                className="absolute inset-y-[-20%] start-[33%] w-[34%] bg-[#F5F2F0]/15 pointer-events-none"
+                style={{ opacity: 0, transform: 'skewX(-18deg)' }}
+                aria-hidden="true"
+              />
+            )}
             <NotchedCorner />
           </div>
           {info.set && (
@@ -1298,6 +1412,7 @@ function Reveal({ fx, results, pick, setPick, inv, fmt, tier, next, collecting, 
               {tFallback('capsuleOpener.newStamp', 'New')}
             </span>
           )}
+          </div>
         </div>
         <div
           key={`name-${pick}`}

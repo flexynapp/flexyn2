@@ -88,6 +88,7 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 // bootstrap — lazy-loading them would introduce a visible loading flash).
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CapsuleOpenPreview = lazy(() => import('./pages/CapsuleOpenPreview'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
@@ -191,6 +192,20 @@ const AuthenticatedApp = () => {
         <Route path="/p/gym/:id" element={<PublicGymLanding />} />
         <Route path="*" element={<PublicGymLanding />} />
       </Routes>
+    );
+  }
+
+  // Capsule open test bench: deploy previews and localhost only, never
+  // production. Above the auth gate so it opens on a phone without signing
+  // in to the preview. It writes nothing; see src/pages/CapsuleOpenPreview.jsx.
+  if (typeof window !== 'undefined' && window.location.pathname === '/preview/capsule-open'
+      && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="*" element={<CapsuleOpenPreview />} />
+        </Routes>
+      </Suspense>
     );
   }
 
