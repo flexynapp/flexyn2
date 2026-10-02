@@ -23,6 +23,7 @@ import { Check } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import BottomSheet from '@/components/ui/BottomSheet';
+import CheckinLook from './CheckinLooks';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -37,6 +38,8 @@ import {
   mayBeInFirstWeek,
   msUntilLocalMidnight,
 } from '@/lib/data/firstWeekCheckin';
+
+const CHECKIN_LOOK = import.meta.env.VITE_CHECKIN_LOOK || 'base';
 
 // A paused workout this recent is still a workout in progress.
 const PAUSED_IS_ACTIVE_MS = 3 * 60 * 60 * 1000;
@@ -188,6 +191,29 @@ export function CheckinSheet({ open, state, today, user, onClaimed, onClose, cla
   };
 
   const title = tFallback('firstWeekCheckin.title', 'Day {n} of 7', { n: state?.day });
+
+  // Design proposals (2026-10-02), compiled in only when a preview build sets
+  // VITE_CHECKIN_LOOK. Vite inlines the constant, so a normal build drops
+  // this branch and the module entirely. Removed once Kegan picks one.
+  if (CHECKIN_LOOK !== 'base') {
+    return (
+      <CheckinLook
+        look={CHECKIN_LOOK}
+        open={open}
+        title={title}
+        days={days}
+        today={state?.day}
+        todayEntry={todayEntry}
+        claimed={claimed}
+        justClaimed={justClaimed}
+        busy={busy}
+        failed={failed}
+        onClaim={onClaim}
+        onClose={onClose}
+        totalXp={user?.total_xp}
+      />
+    );
+  }
 
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
