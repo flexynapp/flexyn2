@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/lib/toast';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
 import {
@@ -38,6 +38,7 @@ import {
 } from '@/lib/data/gymBusinesses';
 import { useLanguage } from '@/lib/LanguageContext';
 import { shareOrigin } from '@/lib/appOrigin';
+import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 
 const TABS = [
   { id: 'feed',       label: 'Feed',        Icon: MessageSquare },
@@ -46,11 +47,13 @@ const TABS = [
   { id: 'leaderboard', label: 'Leaderboard', Icon: Trophy },
 ];
 
+// Unit suffixes reuse keys that already ship in every released locale
+// (the trophy units and the league day suffix), so nothing new to translate.
 const LB_MODES = [
-  { id: 'volume',      label: 'Volume',      suffix: 'lb' },
-  { id: 'consistency', label: 'Consistency', suffix: 'days' },
-  { id: 'xp',          label: 'XP',          suffix: 'xp' },
-  { id: 'streak',      label: 'Streak',      suffix: 'd' },
+  { id: 'volume',      label: 'Volume',      suffixKey: 'trophy.unit.lb',   suffix: 'lb' },
+  { id: 'consistency', label: 'Consistency', suffixKey: 'trophy.unit.days', suffix: 'days' },
+  { id: 'xp',          label: 'XP',          suffixKey: 'gymHub.lbMode.xp', suffix: 'XP' },
+  { id: 'streak',      label: 'Streak',      suffixKey: 'league.daySuffix', suffix: 'd' },
 ];
 
 /**
@@ -527,6 +530,7 @@ export default function GymHub() {
 // ── Events Tab ──────────────────────────────────────────────────────
 function EventsTab({ gymId, canCreate, gymOwnerId }) {
   const { tFallback } = useLanguage();
+  const fmtDate = useDateFormatter();
   const { user } = useAuth();
   const isOwner = !!(user?.id && gymOwnerId && user.id === gymOwnerId);
   const [events, setEvents] = useState([]);
@@ -699,7 +703,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {parsed ? format(parsed, "EEE MMM d 'at' h:mm a") : tFallback('gymHub.dateUnavailable', 'Date unavailable')}
+                  {parsed ? fmtDate(parsed, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : tFallback('gymHub.dateUnavailable', 'Date unavailable')}
                   {e.location_note && ` · ${e.location_note}`}
                   {isPast && ` · ${tFallback('gymHub.eventEnded', 'ended')}`}
                 </p>
@@ -747,6 +751,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
 // ── Leaderboard Tab ─────────────────────────────────────────────────
 function LeaderboardTab({ gymId, meUserId }) {
   const { tFallback } = useLanguage();
+  const fmtNum = useNumberFormatter();
   const [mode, setMode] = useState('volume');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -760,6 +765,7 @@ function LeaderboardTab({ gymId, meUserId }) {
   }, [gymId, mode]);
 
   const modeMeta = useMemo(() => LB_MODES.find(m => m.id === mode), [mode]);
+  const modeSuffix = modeMeta ? tFallback(modeMeta.suffixKey, modeMeta.suffix) : '';
   const myRow = rows.find(r => r.user_id === meUserId);
 
   return (
@@ -791,7 +797,7 @@ function LeaderboardTab({ gymId, meUserId }) {
               <span className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("league.yourRank", "Your rank")}</span>
               <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
             </span>
-            <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>
+            <span className="font-bold tabular-nums">{fmtNum(Math.round(myRow.value))} {modeSuffix}</span>
           </div>
         ) : rows.length > 0 ? (
           <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-3 text-xs text-muted-foreground">
@@ -832,7 +838,7 @@ function LeaderboardTab({ gymId, meUserId }) {
                   @{r.username || '—'}
                 </span>
                 <span className="text-sm font-bold tabular-nums">
-                  {Math.round(r.value).toLocaleString()} <span className="text-xs text-muted-foreground">{modeMeta?.suffix}</span>
+                  {fmtNum(Math.round(r.value))} <span className="text-xs text-muted-foreground">{modeSuffix}</span>
                 </span>
               </div>
             );
