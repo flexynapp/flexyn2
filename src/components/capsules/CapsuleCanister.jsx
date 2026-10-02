@@ -57,6 +57,20 @@ const KNURL = [
 
 const BRUSH_LINES = Array.from({ length: 34 }, (_, i) => 14 + i * 4.4);
 
+/**
+ * A painted ring round the turning: a strip that follows the canister's
+ * curvature, with a thin highlight along its top edge. `top` and `h` are in
+ * the drawing's units.
+ */
+function Ring({ top, h, color, hi }) {
+  return (
+    <>
+      <path d={`M26 ${top}A34 7.5 0 0 0 94 ${top}V${top + h}A34 7.5 0 0 1 26 ${top + h}Z`} fill={color} />
+      {hi && <path d={`M26 ${top + 0.8}A34 7.5 0 0 0 94 ${top + 0.8}`} fill="none" stroke={hi} strokeWidth="0.9" opacity="0.8" />}
+    </>
+  );
+}
+
 /** The turned bands every surface of the canister shares. */
 function Turning({ f }) {
   return (
@@ -74,11 +88,17 @@ function Turning({ f }) {
   );
 }
 
-function Lid({ f, clipId }) {
+function Lid({ f: base, clipId }) {
+  // A finish may give the lid its own material (`lid`), and paint rings on
+  // it (`lidRings`); without either the lid is turned from the body's stock.
+  const f = base.lid ? { ...base, ...base.lid } : base;
   return (
     <>
       <clipPath id={clipId}><path d={LID} /></clipPath>
-      <g clipPath={`url(#${clipId})`}><Turning f={f} /></g>
+      <g clipPath={`url(#${clipId})`}>
+        <Turning f={f} />
+        {base.lidRings?.map(r => <Ring key={r.top} {...r} />)}
+      </g>
       <path d="M29 25C40 21 80 21 91 25" fill="none" stroke={EDGE} strokeWidth="1" opacity="0.5" />
       <path d={SWOOSH} transform="translate(0 1.4)" fill="none" stroke={f.swooshHi} strokeWidth="4.2" strokeLinecap="round" />
       <path d={SWOOSH} fill="none" stroke={f.swoosh} strokeWidth="4.2" strokeLinecap="round" />
@@ -126,7 +146,10 @@ export default function CapsuleCanister({
 
       {/* Base */}
       <clipPath id={bodyClip}><path d={BODY} /></clipPath>
-      <g clipPath={`url(#${bodyClip})`}><Turning f={f} /></g>
+      <g clipPath={`url(#${bodyClip})`}>
+        <Turning f={f} />
+        {f.rings?.map(r => <Ring key={r.top} {...r} />)}
+      </g>
       <path d="M26 74A34 7.5 0 0 0 94 74V86A34 7.5 0 0 1 26 86Z" fill={f.collar} />
       <path d="M26 75.5A34 7.5 0 0 0 94 75.5" fill="none" stroke={f.collarHi} strokeWidth="1.2" />
       {KNURL.map(([x, y, w]) => (
@@ -167,7 +190,7 @@ export default function CapsuleCanister({
           )}
           {/* The latch. */}
           <rect x="77.64" y="67.75" width="8.43" height="22" rx="2" fill={f.collar} stroke={EDGE} strokeWidth="1.4" />
-          <rect x="79.24" y="70.25" width="5.23" height="6" rx="1" fill={f.collarHi} />
+          <rect x="79.24" y="70.25" width="5.23" height="6" rx="1" fill={f.gem ?? f.collarHi} />
           <circle cx="81.85" cy="84.75" r="1.6" fill={EDGE} />
         </>
       )}
