@@ -23,6 +23,7 @@ import { ArrowUp, ArrowRight, Pause, Hourglass, HeartPulse } from 'lucide-react'
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { cleanCoachText } from '@/lib/aiCoach/markdownLite';
+import { DURATION, EASE_OUT, SPRING, STAGGER, staggerContainer, staggerItem } from '@/lib/motion';
 
 const TONE = {
   go:   { Icon: ArrowUp,    cls: 'bg-success/15 text-success', key: 'coach.tone.go',   en: 'Go ahead' },
@@ -31,13 +32,13 @@ const TONE = {
   care: { Icon: HeartPulse, cls: 'bg-info/15 text-info', key: 'coach.tone.care', en: 'Take it easy' },
 };
 
-// Each row arrives just after the one above it, so the answer reads in the
-// order it was written: verdict, reasons, what to do.
-const list = { hidden: {}, shown: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } } };
-const row = {
-  hidden: { opacity: 0, y: 6 },
-  shown: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } },
-};
+// Answer tier of the app's motion rules: every number comes from
+// src/lib/motion.js. Each row arrives just after the one above it, so the
+// answer reads in the order it was written: verdict, reasons, what to do.
+// The step is wider than the list default so four rows read as a sequence.
+const ROW_STEP = STAGGER * 2;
+const list = staggerContainer({ stagger: ROW_STEP });
+const row = staggerItem;
 
 /**
  * @param {object}  props
@@ -54,7 +55,7 @@ export default function CoachAnswerCard({ card, animate = true }) {
     <motion.div
       variants={list}
       initial={play ? 'hidden' : false}
-      animate="shown"
+      animate="show"
       className="flex flex-col"
       data-coach-card=""
     >
@@ -77,7 +78,7 @@ export default function CoachAnswerCard({ card, animate = true }) {
         <ul className="mt-2 flex flex-col divide-y divide-border/60 border-t border-border/60">
           {card.points.map((p, i) => (
             <motion.li key={i} variants={row} className="flex items-center gap-2 py-2">
-              {p.viz && <Figure viz={p.viz} play={play} delay={0.12 + i * 0.07} />}
+              {p.viz && <Figure viz={p.viz} play={play} delay={(i + 1) * ROW_STEP + DURATION.fast} />}
               <span className="min-w-0 text-sm leading-snug">{cleanCoachText(p.text)}</span>
             </motion.li>
           ))}
@@ -216,7 +217,7 @@ function Dots({ total, filled, hue, play, delay }) {
               className={`absolute inset-0 rounded-full ${hue}`}
               initial={play ? { scale: 0 } : false}
               animate={{ scale: 1 }}
-              transition={{ delay: delay + i * 0.06, type: 'spring', stiffness: 520, damping: 22 }}
+              transition={{ ...SPRING.pop, delay: delay + i * STAGGER }}
             />
           )}
         </span>
@@ -235,7 +236,7 @@ function Bars({ total, filled, play, delay }) {
               className="absolute inset-0 origin-bottom bg-info"
               initial={play ? { scaleY: 0 } : false}
               animate={{ scaleY: 1 }}
-              transition={{ delay: delay + i * 0.05, duration: 0.22, ease: 'easeOut' }}
+              transition={{ delay: delay + i * STAGGER, duration: DURATION.fast, ease: EASE_OUT }}
             />
           )}
         </span>
@@ -257,7 +258,7 @@ function Ring({ pct, play, delay, children }) {
           className="stroke-info"
           initial={play ? { pathLength: 0 } : false}
           animate={{ pathLength: pct / 100 }}
-          transition={{ delay, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay, duration: DURATION.slow, ease: EASE_OUT }}
         />
       </svg>
       <span className="font-heading text-sm font-semibold tabular-nums">{children}</span>
