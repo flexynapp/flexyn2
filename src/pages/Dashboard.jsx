@@ -32,6 +32,9 @@ import WeekFocal from '@/components/glance/WeekFocal';
 import TrendFocal from '@/components/glance/TrendFocal';
 import HeroPager from '@/components/HeroPager';
 import { heroTrendSlides } from '@/lib/heroTrends';
+import { orderHeroSlides } from '@/lib/heroGlance';
+import { useHeroGlance } from '@/hooks/useHeroGlance';
+import { FuelFocal, DuelFocal, WarFocal, QuestsFocal, GoalFocal, PatternFocal } from '@/components/glance/GlanceFocals';
 import * as bodyMetricsData from '@/lib/data/bodyMetrics';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import TodayStreakLine, { STREAK_MIN_SHOWN } from '@/components/dashboard/TodayStreakLine';
@@ -122,9 +125,54 @@ import { cardioLogsKey } from '@/lib/data/cardioKeys';
  * under the sentence (TodayStreakLine says why it is never the profile
  * column). Readiness is not in the hero; it has its own row below.
  */
+// One slide of Today's carousel past the week.
+function renderGlanceSlide(slide, active) {
+  if (slide.trend) return <TrendFocal trend={slide.trend} active={active} />;
+  switch (slide.id) {
+    case 'fuel': return <FuelFocal fuel={slide.fuel} active={active} />;
+    case 'duel': return <DuelFocal duel={slide.duel} active={active} />;
+    case 'war': return <WarFocal war={slide.war} active={active} />;
+    case 'quests': return <QuestsFocal quests={slide.quests} active={active} />;
+    case 'goal': return <GoalFocal goal={slide.goal} active={active} />;
+    case 'pattern': return <PatternFocal pattern={slide.pattern} active={active} />;
+    default: return null;
+  }
+}
+
+// A slide is a button to where its number lives (the duel, the crew, the
+// food log, the goals sheet, Progress). Quests have no target: their full
+// card sits just below the hero, so the slide reads as the glance of it.
+// A click that ends a swipe is ignored (the pointer moved more than a tap
+// would), so paging never opens a slide by accident.
+function HeroSlideTap({ slide, onOpen, children }) {
+  const downAt = useRef(null);
+  if (!onOpen || slide.id === 'quests') return children;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onPointerDown={(e) => { downAt.current = { x: e.clientX, y: e.clientY }; }}
+      onClick={(e) => {
+        const d = downAt.current;
+        downAt.current = null;
+        if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return;
+        onOpen(slide);
+      }}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(slide); }
+      }}
+      className="block w-full text-start rounded-lg cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, bodyMetrics = [], userProfile, now,
+  glance = null, onOpenSlide,
   onPrimary, t, tFallback, plan = null, resume = null,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
@@ -154,10 +202,17 @@ export function HeroCard({
   }
 
   const week = useMemo(() => weekSummary({ logs, profile: userProfile, now }), [logs, userProfile, now]);
+  // The week first, always. Then whatever is live for this person, in the
+  // order heroGlance.js sets: a contest on a clock, today's fuel and
+  // quests, the goal nearest done, the trend lines, the weekly pattern.
+  // Each slide exists only when it has something real to say.
   const slides = useMemo(() => [
     { id: 'week' },
-    ...heroTrendSlides({ logs, bodyMetrics, now }).map((trend) => ({ id: `trend-${trend.kind}`, trend })),
-  ], [logs, bodyMetrics, now]);
+    ...orderHeroSlides({
+      ...(glance || {}),
+      trends: heroTrendSlides({ logs, bodyMetrics, now }),
+    }),
+  ], [logs, bodyMetrics, now, glance]);
 
   return (
     <motion.div
@@ -184,8 +239,10 @@ export function HeroCard({
                 <WeekFocal week={week} aside={<TodayStreakLine streak={streak} trainedToday={hasWorkedOutToday} />} />
               </ErrorBoundary>
             ) : (
-              <ErrorBoundary label="TrendFocal">
-                <TrendFocal trend={slide.trend} active={isActive} />
+              <ErrorBoundary label={`HeroSlide:${slide.id}`}>
+                <HeroSlideTap slide={slide} onOpen={onOpenSlide}>
+                  {renderGlanceSlide(slide, isActive)}
+                </HeroSlideTap>
               </ErrorBoundary>
             )
           )}
@@ -1238,6 +1295,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
   const today = useMemo(() => new Date(todayMs), [todayMs]);
+  const heroGlance = useHeroGlance({ userProfile, goals, logs, cardioLogs, now: today });
 
   // parseLocalDate so a 'YYYY-MM-DD' DATE column is interpreted in the
   // user's local TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight,
@@ -1845,6 +1903,14 @@ export default function Dashboard() {
           bodyMetrics={bodyMetrics}
           userProfile={userProfile}
           now={today}
+          glance={heroGlance}
+          onOpenSlide={(slide) => {
+            if (slide.id === 'duel') navigate('/duels');
+            else if (slide.id === 'war') navigate('/hub?feed=crews', { state: { openCrewId: slide.war.crewId } });
+            else if (slide.id === 'fuel') navigate('/nutrition');
+            else if (slide.id === 'goal') openGoals();
+            else navigate('/progress');
+          }}
           // The hero's own button ("Start your first workout" / "Continue
           // the streak" / "Log another") opens a freestyle session directly.
           // ?freestyle=1 is handled in Workout.jsx — landing on that page's

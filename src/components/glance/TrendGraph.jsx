@@ -31,10 +31,10 @@ import { EASE_OUT } from '@/lib/motion';
 
 // Reward tier timing (Codex motion tiers, 300 to 700ms). Kept here until
 // motion.js carries named Reward durations; move them there with it.
-const DRAW_S = 0.7;
+export const DRAW_S = 0.7;
 const PROJECT_S = 0.35;
-const SETTLE_WAIT_S = 0.32;
-const DRAW_EASE = [0.33, 1, 0.68, 1];
+export const SETTLE_WAIT_S = 0.32;
+export const DRAW_EASE = [0.33, 1, 0.68, 1];
 
 // Slows every duration below by this factor. 1 everywhere in the app; the
 // preview bench raises it so the draw can be judged frame by frame on a

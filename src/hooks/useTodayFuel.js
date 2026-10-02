@@ -6,7 +6,7 @@
 // same number Today shows.
 //
 // The query key extends the Nutrition page's ['nutritionLogs', email, date]
-// rather than reusing it. This selects four columns; sharing the exact key
+// rather than reusing it. This selects seven columns; sharing the exact key
 // would hand the Nutrition page these partial rows from cache. The longer
 // key still matches every invalidate that page issues, because react query
 // matches keys by prefix, so logging a meal there refreshes this too.
@@ -27,11 +27,15 @@ export const todayKey = () => format(new Date(), 'yyyy-MM-dd');
 export function summariseFuel(entries = []) {
   let calories = 0;
   let waterOz = 0;
+  const macros = { protein: 0, carbs: 0, fat: 0 };
   for (const e of entries) {
-    if (isWaterEntry(e)) waterOz += waterEntryOz(e);
-    else calories += Number(e.calories) || 0;
+    if (isWaterEntry(e)) { waterOz += waterEntryOz(e); continue; }
+    calories += Number(e.calories) || 0;
+    macros.protein += Number(e.protein) || 0;
+    macros.carbs += Number(e.carbs) || 0;
+    macros.fat += Number(e.fat) || 0;
   }
-  return { calories: Math.round(calories), waterOz: Math.round(waterOz) };
+  return { calories: Math.round(calories), waterOz: Math.round(waterOz), macros };
 }
 
 export function useTodayFuel(userProfile = {}) {
@@ -63,7 +67,7 @@ export function useTodayFuel(userProfile = {}) {
     queryFn: async () => {
       const { data } = await supabase
         .from('nutrition_logs')
-        .select('calories, food_name, meal_type, created_at')
+        .select('calories, protein, carbs, fat, food_name, meal_type, created_at')
         .eq('user_id', logUserId)
         .eq('date', today);
       return data || [];
@@ -73,7 +77,7 @@ export function useTodayFuel(userProfile = {}) {
   });
 
   const visible = useMemo(() => filterAfterReset(rows, userProfile), [rows, userProfile]);
-  const { calories, waterOz } = useMemo(() => summariseFuel(visible), [visible]);
+  const { calories, waterOz, macros } = useMemo(() => summariseFuel(visible), [visible]);
   const targets = useNutritionTargets(userProfile);
   return {
     today,
@@ -81,6 +85,8 @@ export function useTodayFuel(userProfile = {}) {
     isLoading,
     visible,
     calories,
+    macros,
+    targets,
     waterOz,
     calorieGoal: Math.round(Number(targets?.calories) || 2000),
     waterGoal: dailyWaterGoalOz(userProfile),
