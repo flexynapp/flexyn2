@@ -16,7 +16,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenBag } from '@/lib/inventoryFlow';
-import { isDailyChestReady } from '@/lib/dailyChest';
+import { isDailyChestReady, announceDailyChestClaimed } from '@/lib/dailyChest';
 import { getProfile, patchProfile } from '@/api/profileCache';
 import { reportError } from '@/lib/reportError';
 
@@ -57,6 +57,7 @@ export default function DailyChestCard() {
       const { data, error } = await supabase.rpc('claim_daily_chest');
       if (error) throw error;
       try { localStorage.setItem(`daily_chest_claimed_${user.id}`, new Date().toISOString()); } catch { /* ignore */ }
+      announceDailyChestClaimed();
       qc.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       qc.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
