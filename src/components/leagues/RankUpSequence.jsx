@@ -50,7 +50,7 @@ import { chargeBeats, chargeFrames, flyFrames, impactFrames, landingFrames } fro
 import { OpenerStage, useOpenerFx } from '@/components/capsules/openFx';
 import LeagueFluid from '@/components/leagues/LeagueFluid';
 import CrestMorph from '@/components/leagues/CrestMorph';
-import TierIcon from '@/components/leagues/LeagueTierIcon';
+import TierIcon, { PALETTES } from '@/components/leagues/LeagueTierIcon';
 import { Button } from '@/components/ui/button';
 
 // The crack the old crest breaks along, as a fraction of its box. The two
@@ -84,6 +84,13 @@ const CREST = 'w-44 h-44';
 // What a first placement breaks open: the plainest shield, greyed.
 const BLANK = { tier: 'bronze', level: 1 };
 const MUTED = '#89949F';
+// The backdrop's paints, deepest to lightest: a league's rim, dark, own
+// colour and light, and the grey a first placement opens in.
+const paintOf = (id) => {
+  const p = PALETTES[id] ?? PALETTES.bronze;
+  return [p.rim, p.dark, getTier(id).color, p.light];
+};
+const GREY_PAINT = ['#2A2F35', '#4B525A', '#6B737C', '#9AA2AB'];
 const SLAM_MS = 900;
 const LEVEL_MS = 720;
 // The crest morph: how long the shape takes to change, and how long the
@@ -169,9 +176,11 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
   const toTier = getTier(move.to.tier);
   // A demotion keeps the stage grey: the only colour on it is the crest.
   const color = isDown ? MUTED : toTier.color;
-  // The backdrop opens in the league they had (grey before a first
-  // placement) and ends in the one they have now.
-  const fluidFrom = isPlaced ? MUTED : fromTier.color;
+  // The backdrop is painted in the league they are in now, its crest's own
+  // four colours (Kegan, 2026-10-02). A first placement opens in grey and
+  // the paint pours in when the league's colour lands.
+  const leaguePaint = paintOf(toTier.id);
+  const fluidFrom = isPlaced ? GREY_PAINT : leaguePaint;
 
   // When the new crest hits, and so when the words after it start.
   const impactAt = isDown ? 600
@@ -493,7 +502,7 @@ export default function RankUpSequence({ move, strength, onClose, onViewLeague }
       aria-labelledby="rank-up-title"
       onClick={skip}
     >
-      <LeagueFluid from={fluidFrom} to={color} phase={phase} chargeMs={drama.charge} down={isDown} still={fx.reduced} anchorRef={crestBoxRef} />
+      <LeagueFluid from={fluidFrom} to={leaguePaint} phase={phase} chargeMs={drama.charge} down={isDown} still={fx.reduced} anchorRef={crestBoxRef} />
       <OpenerStage fx={fx} />
       <div ref={fx.shakeRef} className="relative mx-auto w-full max-w-lg flex-1 flex flex-col min-h-0 px-6" style={LAYER}>
         <header className="h-[60px] shrink-0 flex items-center justify-between">
