@@ -54,6 +54,26 @@ describe('display type', () => {
     expect(block).toMatch(/font-weight:\s*800/);
   });
 
+  // Kegan, 2026-10-02: the market listing read as vibe coded because
+  // .stamp set its set number in the condensed face, a voice no other
+  // in-app screen used. The condensed face is .font-hero's alone.
+  it('reaches the condensed face only through .font-hero', () => {
+    const css = read('src/index.css');
+    const users = [];
+    for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      if (/var\(--font-display\)/.test(m[2])) users.push(m[1].trim().split('\n').pop().trim());
+    }
+    expect(users).toEqual(['.font-hero']);
+    const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(rel);
+      return /\.jsx?$/.test(e.name) ? [rel] : [];
+    });
+    // An inline style or a canvasFont(…, 'display') is the same leak by a
+    // different door.
+    expect(walk('src').filter((f) => /--font-display|canvasFont\([^)]*['"]display['"]/.test(read(f)))).toEqual([]);
+  });
+
   it('uses the hero style on onboarding and sign in, nowhere else', () => {
     const allowed = new Set(['src/pages/Onboarding.jsx', 'src/pages/SignInToContinue.jsx']);
     const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => {

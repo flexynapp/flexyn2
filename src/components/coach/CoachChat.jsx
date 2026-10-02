@@ -20,6 +20,7 @@ import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
 import { parseBoldSegments, cleanCoachText, parseCoachBlocks } from '@/lib/aiCoach/markdownLite';
 import { followUpsFor } from '@/lib/aiCoach/followUps';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
+import CoachAnswerCard from '@/components/coach/CoachAnswerCard';
 import { toast } from '@/lib/toast';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -301,6 +302,10 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout, initial
         // A generated workout/plan rides along as a structured payload the
         // chat renders as an interactive, saveable card.
         plan: result.plan || null,
+        // The answer as parts with its figures already resolved, so the
+        // bubble draws a card. Absent on the rules path and on one-liners,
+        // where `text` is the whole answer.
+        card: result.card || null,
         capped: !!result.capped,
       };
       setMessages(prev => [...prev, reply]);
@@ -578,8 +583,13 @@ function CoachReply({ text }) {
   );
 }
 
+// A reply that arrived as a card plays its arrival once. Reopening the chat
+// later shows the same card still, rather than replaying every answer.
+const FRESH_MS = 5000;
+
 function MessageBubble({ m }) {
   const isUser = m.role === 'user';
+  const card = !isUser && m.card && typeof m.card === 'object' && Array.isArray(m.card.points) ? m.card : null;
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -588,7 +598,7 @@ function MessageBubble({ m }) {
       className={`flex mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm break-words ${
+        className={`${card ? 'w-[92%] px-3.5 py-3' : 'max-w-[85%] px-3 py-2'} rounded-2xl text-sm break-words ${
           isUser
             ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap'
             : 'bg-secondary text-foreground rounded-bl-sm'
@@ -596,7 +606,11 @@ function MessageBubble({ m }) {
       >
         {/* User messages are echoed verbatim: they are the user's own words,
             not our copy. */}
-        {isUser ? m.text : <CoachReply text={m.text} />}
+        {isUser
+          ? m.text
+          : card
+            ? <CoachAnswerCard card={card} animate={Date.now() - (m.ts || 0) < FRESH_MS} />
+            : <CoachReply text={m.text} />}
       </div>
     </motion.div>
   );

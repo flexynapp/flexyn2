@@ -1,7 +1,7 @@
 // src/components/capsules/parts.jsx
 //
-// Small drawn pieces the capsule and market screens share: the set bar,
-// the notched plate corner, and the drop-rate bar.
+// Small drawn pieces the capsule and market screens share: the set bar and
+// the notched plate corner.
 
 import { useEffect, useState } from 'react';
 import { rarityTint } from '@/components/loot/RarityVisuals';
@@ -58,30 +58,5 @@ export function NotchedCorner() {
       <path d="M28 0L0 28H13A15 15 0 0 0 28 13Z" fill="hsl(var(--border))" />
       <path d="M28 0L0 28" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1" />
     </svg>
-  );
-}
-
-/**
- * Drop rates as one bar of rarity segments plus a legend. `segments` comes
- * from oddsSegments(); `fmtPct` formats a number like 1.8 for the locale.
- */
-export function OddsBar({ segments, fmtPct, rarityLabel }) {
-  return (
-    <>
-      <div className="flex h-2 rounded-full overflow-hidden gap-0.5" aria-hidden="true">
-        {segments.map(s => (
-          <span key={s.rarity} className="block min-w-[3px]" style={{ width: `${s.pct}%`, background: s.color }} />
-        ))}
-      </div>
-      <ul className="flex flex-wrap gap-x-2 gap-y-1">
-        {segments.map(s => (
-          <li key={s.rarity} className="flex items-center gap-1 text-caption text-muted-foreground">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: rarityTint(s.rarity).color }} aria-hidden="true" />
-            {rarityLabel(s.rarity)}
-            <span className="tabular-nums text-foreground font-semibold">{fmtPct(s.pct)}</span>
-          </li>
-        ))}
-      </ul>
-    </>
   );
 }
