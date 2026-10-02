@@ -614,7 +614,7 @@ function ExerciseSetup({ exercise, onChange, isBarbell, barLbs, onBarChange, has
           onChange={(e) => onChange({ ...exercise, tempo: e.target.value.slice(0, 12) || null })}
           placeholder="3-1-2"
           maxLength={12}
-          className="w-full h-11 px-3 text-sm font-mono bg-transparent border border-border rounded-lg outline-none focus:border-foreground/40"
+          className="w-full h-11 px-3 text-sm tabular-nums bg-transparent border border-border rounded-lg outline-none focus:border-foreground/40"
         />
         <span className="text-xs text-muted-foreground">
           {tFallback('exerciseLogger.tempoHint', 'Seconds down, pause, then up')}

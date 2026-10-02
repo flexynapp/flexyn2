@@ -58,3 +58,17 @@ describe('hardcodedFont: what counts as typing a face by hand', () => {
     [`ctx.font = canvasFont('bold', 24);`],
   ])('leaves %s alone', (s) => expect(hits(s)).toBe(0));
 });
+
+// The token's own declaration is not a use, and the lookbehind that says so
+// is the easy part to break.
+describe('monoFace: what counts as setting monospace', () => {
+  const hits = (s) => (s.match(new RegExp(RULES.monoFace.re.source, 'g')) || []).length;
+  it.each([
+    [`className="font-mono text-micro"`],
+    [`style={{ fontFamily: 'var(--font-mono)' }}`],
+  ])('catches %s', (s) => expect(hits(s)).toBe(1));
+  it.each([
+    [`--font-mono: ui-monospace, monospace;`],
+    [`className="tabular-nums"`],
+  ])('leaves %s alone', (s) => expect(hits(s)).toBe(0));
+});

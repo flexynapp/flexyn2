@@ -633,14 +633,19 @@
   }
 
   /* ── Capsules and Market (round 2 design) ─────────────────────────
-     .stamp is the machined label: the display face at 11px, tracked
-     wide, muted. It marks set numbers and shelf captions, never copy.
-     .eyebrow is the section label above a group. */
+     .stamp is the small label on a set number or shelf caption, never
+     copy. .eyebrow is the section label above a group. Both are the text
+     face in small tracked capitals, the same label every other screen
+     uses. .stamp used to be the condensed face at 800, tracked 1.4px,
+     which put a third voice on the capsule, market and sticker set
+     screens only; Kegan called the listing page vibe coded for it
+     (2026-10-02). The condensed face belongs to .font-hero alone, and
+     displayType.test.js fails if another rule reaches for it. */
   .stamp {
-    font-family: var(--font-display);
-    font-weight: 800;
+    font-family: var(--font-heading);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.4px;
+    letter-spacing: 0.6px;
     font-size: 11px;
     line-height: 1.2;
     color: hsl(var(--muted-foreground));
