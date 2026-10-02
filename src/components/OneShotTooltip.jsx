@@ -269,11 +269,15 @@ export default function OneShotTooltip({
             position: 'fixed',
             left,
             top,
-            transform,
             zIndex: 60,
             pointerEvents: 'none',
           }}
         >
+          {/* The centring translate lives on its own element. On the
+              motion.div it was overwritten by framer's own transform (the
+              y and scale it animates), so every bubble hung off to the
+              right of its anchor and ran past the screen edge. */}
+          <div style={{ transform, width: 'max-content' }}>
           <div
             ref={bubbleRef}
             style={{ pointerEvents: 'auto' }}
@@ -292,6 +296,7 @@ export default function OneShotTooltip({
               className="absolute start-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-primary"
               style={isTop ? { bottom: -3 } : { top: -3 }}
             />
+          </div>
           </div>
         </motion.div>
       )}

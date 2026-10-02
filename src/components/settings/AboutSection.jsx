@@ -12,7 +12,7 @@
 // now a real 44px row rather than 11px of grey text.
 
 import { useState } from 'react';
-import { Bug, ShieldAlert, Lightbulb } from 'lucide-react';
+import { Bug, ShieldAlert, Lightbulb, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
@@ -89,6 +89,7 @@ export default function AboutSection() {
             that vanishes is harder to find again than one that explains
             itself, and the hint carries the reason. */}
         <ActionRow
+          icon={RotateCcw}
           label={tFallback('settings.tips.reset', 'Show one-time tips again')}
           hint={seenTips > 0
             ? tFallback(
