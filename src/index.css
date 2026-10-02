@@ -635,14 +635,14 @@
   /* ── Labels ───────────────────────────────────────────────────────
      Two label styles, and no small spaced capitals anywhere (Kegan,
      2026-10-02: the tracked-caps eyebrow is one of the loudest tells of a
-     generated app). Both are sentence case and set no letter spacing.
+     generated app; he picked option A, the quiet label). Both are
+     sentence case, muted, medium weight, with no letter spacing, so the
+     content leads and the label steps back.
 
-     .eyebrow names a group: a small heading in the foreground colour,
-     bold, at body size. It sits above a list, a stat block or a field
-     group. .kicker is the quiet label beside or above a value ("Listed
-     by", a stat name, a form field): caption size, medium, muted.
-     .stamp is the kicker on a set number or shelf caption, kept as its
-     own name because the capsule screens use it.
+     .eyebrow names a group (above a list, a stat block, a field group)
+     at label size. .kicker is the label beside or above one value ("Listed
+     by", a stat name, a form field) at caption size. .stamp is the kicker
+     on a shelf caption, kept as its own name for the capsule screens.
 
      These used to be ~300 hand-typed `text-micro font-bold uppercase
      tracking-wider` strings, which is how they drifted into eight
@@ -650,12 +650,11 @@
      colour utility on the element (text-primary, text-success) still
      wins, because utilities load after components. */
   .eyebrow {
-    font-family: var(--font-heading);
-    font-size: var(--text-body);
-    font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: -0.005em;
-    color: hsl(var(--foreground));
+    font-family: var(--font-body);
+    font-size: var(--text-label);
+    font-weight: 500;
+    line-height: 1.35;
+    color: hsl(var(--muted-foreground));
   }
   .kicker,
   .stamp {

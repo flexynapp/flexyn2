@@ -1303,8 +1303,8 @@ govern hierarchy, which tokens can't encode.
   lists those files and fails the suite on any other. A number that should
   line up takes `tabular-nums`, not a monospace face.
   **No small spaced capitals** (Kegan, 2026-10-02): a label is `.eyebrow`
-  (a group heading, sentence case, bold, body size) or `.kicker` (a quiet
-  label, caption size, muted), both in `src/index.css`. Never hand-type
+  (names a group: 13px, medium, muted) or `.kicker` (labels one value:
+  12px, medium, muted), both sentence case, both in `src/index.css`. Never hand-type
   `text-micro font-bold uppercase tracking-wider`; that pattern had drifted
   into eight trackings across ~300 sites. Capitals survive only on chips
   and badges (LIVE, NEW) and in the arcade games; `displayType.test.js`

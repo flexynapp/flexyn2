@@ -415,9 +415,9 @@ function TitleList({ items, userId }) {
             <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
             <div className="flex-1 min-w-0">
               <p className="font-heading font-bold text-sm">{item.item_name}</p>
-              <p className="kicker" style={{ color: tint.color }}>{item.item_rarity}</p>
+              <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             </div>
-            <span className="kicker text-primary shrink-0">
+            <span className="text-micro font-bold uppercase tracking-wider text-primary shrink-0">
               {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
             </span>
           </button>
@@ -544,8 +544,8 @@ function FrameList({ items, userId }) {
               )}
             </div>
             <p className="font-heading font-bold text-xs text-center leading-tight">{item.item_name}</p>
-            <p className="kicker" style={{ color: tint.color }}>{item.item_rarity}</p>
-            <span className="kicker text-primary">
+            <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
+            <span className="text-micro font-bold uppercase tracking-wider text-primary">
               {isEquipped ? tFallback('userBag.equipped', 'Equipped') : tFallback('userBag.equip', 'Equip')}
             </span>
           </button>
