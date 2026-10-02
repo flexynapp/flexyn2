@@ -186,7 +186,7 @@ export default function ReferralSheet({
               <section className="pt-4 border-t border-border/50">
                 <label
                   htmlFor="referral-redeem"
-                  className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2"
+                  className="kicker block mb-2"
                 >
                   {hasClaimed && !claimedOk
                     ? tFallback('referral.redeem.usedLabel', 'Invite code')

@@ -124,7 +124,7 @@ export default function ProfileLiftStats({ userId, longestStreak, isOwn, usernam
       {topLifts.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="kicker">
               {tFallback('profileLifts.topLifts', 'Best lifts')}
             </span>
             <span className="text-xs text-muted-foreground">

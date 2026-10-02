@@ -304,7 +304,7 @@ function FinishStats({ workout, includeBarWeight, weightUnit, distanceUnit, summ
         {cells.map((c) => (
           <div key={c.label} className="rounded-lg border border-border px-2 py-2 text-center">
             <span className="block font-heading text-xl font-bold tabular-nums">{c.value}</span>
-            <span className="block text-micro text-muted-foreground uppercase tracking-wide">{c.label}</span>
+            <span className="kicker block">{c.label}</span>
           </div>
         ))}
       </div>

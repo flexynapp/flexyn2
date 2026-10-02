@@ -162,6 +162,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
     // Today hero: "pts" is the points abbreviation Spanish uses too.
     'dashboard.glance.war.points',
+    // "lb" is the pound abbreviation both languages use on a gym floor.
+    'onboarding.weight.unitLb',
     // "Spam" is the word Spanish uses for it.
     'reportPlayer.reason.spam',
     // "min" is the minute abbreviation Spanish uses too.
@@ -239,10 +241,17 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'stickerSet.count',
     // The kilogram symbol is the same in every Latin-script language.
     'onboarding.weight.unitKg',
+    // Readiness bar (2026-10-02): "h" for hours and "est." for estimated
+    // are the abbreviations Spanish writes too, and "d" is día.
+    'readinessBar.hours',
+    'readinessBar.est',
+    'league.info.daysUnit',
   ]),
   fr: new Set([
     // Today hero: "pts" is the French points abbreviation too.
     'dashboard.glance.war.points',
+    // "lb" is the pound abbreviation both languages use on a gym floor.
+    'onboarding.weight.unitLb',
     // "Spam" and "story" are the words French uses (the app's own fr copy
     // already says "une story").
     'reportPlayer.reason.spam',
@@ -424,6 +433,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'stickerSet.count',
     // The kilogram symbol is the same in every Latin-script language.
     'onboarding.weight.unitKg',
+    // Readiness bar (2026-10-02): "h" for heures and "est." for estimé
+    // are the abbreviations French writes too.
+    'readinessBar.hours',
+    'readinessBar.est',
   ]),
   // German. Populated 2026-08-16 while the locale went 67% -> 99.4%: a
   // translation push SURFACES cognates rather than removing them, so the

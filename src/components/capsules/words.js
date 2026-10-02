@@ -13,9 +13,9 @@ export function tierName(tf, tier) {
 }
 
 export function tierFinish(tf, tier) {
-  if (tier === 'premium') return tf('capsules.finish.premium', 'Brushed champagne');
-  if (tier === 'elite') return tf('capsules.finish.elite', 'Black anodised');
-  return tf('capsules.finish.standard', 'Polished steel');
+  if (tier === 'premium') return tf('capsules.finish.premium', 'Polished silver');
+  if (tier === 'elite') return tf('capsules.finish.elite', 'Polished gold');
+  return tf('capsules.finish.standard', 'Polished bronze');
 }
 
 // What each tier is for, in words the published odds support: premium rolls

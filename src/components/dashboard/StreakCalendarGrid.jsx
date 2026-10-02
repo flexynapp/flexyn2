@@ -102,7 +102,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
             Muted put the only label that says what you are looking at behind
             the day numbers; the drawing has it lead the card and lets the
             "N days hit" count be the muted half of the pair. */}
-        <p className="text-micro font-bold uppercase tracking-wide text-foreground">
+        <p className="kicker text-foreground">
           {format(month, 'MMMM', { locale: dateLocale })}
         </p>
         <p className="text-micro text-muted-foreground tabular-nums">
@@ -111,7 +111,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {weekdayLetters.map((d, i) => (
-          <span key={`wd-${i}-${d}`} className="text-micro text-center font-bold uppercase tracking-wide text-muted-foreground/70">
+          <span key={`wd-${i}-${d}`} className="kicker text-center">
             {d}
           </span>
         ))}

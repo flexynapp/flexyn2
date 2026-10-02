@@ -24,6 +24,19 @@ describe('resolveVisual', () => {
     expect(resolveVisual('top_lift', 'bench press', ctx)).toMatchObject({ weight: 185, reps: 5, units: 'lb' });
   });
 
+  // Logs are stored in lb. A kg user must see kg numbers, not lb numbers
+  // labelled kg (found in the 2026-10-02 audit).
+  it('converts lifts and bodyweight to kg for a kg user', () => {
+    const kg = {
+      ...ctx,
+      units: 'kg',
+      bodyTrend: { currentLb: 180, changeLb: -4.4, overDays: 14 },
+    };
+    expect(resolveVisual('top_lift', 'Bench Press', kg)).toMatchObject({ weight: 83.9, units: 'kg' });
+    expect(resolveVisual('body_trend', '', kg)).toMatchObject({ current: 81.6, change: -2, units: 'kg' });
+    expect(resolveVisual('body_trend', '', { ...kg, bodyTrend: { currentLb: 180 } })).toMatchObject({ current: 81.6, change: null });
+  });
+
   it('returns null when the data is not there, never a zero', () => {
     expect(resolveVisual('protein', '', ctx)).toBeNull();
     expect(resolveVisual('body_trend', '', ctx)).toBeNull();

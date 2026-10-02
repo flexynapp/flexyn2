@@ -191,7 +191,7 @@ export default function ReferralCard({ asRow = false }) {
       <div className="px-4 py-3 flex items-center justify-between gap-2 border-b border-border/40">
         <div className="flex items-center gap-2 min-w-0">
           <Gift className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-primary truncate">
+          <span className="kicker text-primary truncate">
             {tFallback('referral.kicker', 'Invite friends')}
           </span>
         </div>

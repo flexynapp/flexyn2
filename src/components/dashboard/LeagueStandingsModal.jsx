@@ -95,7 +95,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
       {infoOpen && (
         <Suspense fallback={null}>
-          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} />
+          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} tierId={data?.tier?.id} level={data?.level} score={strength?.score} />
         </Suspense>
       )}
     </Dialog>
@@ -231,7 +231,7 @@ function Body({ data, season, strength, userId, t, tFallback, fmt, onOpenMember,
             <span>{totalMembers} {tFallback('league.members', 'members')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="kicker">
               {tFallback('league.daysLeft', 'Days left')}
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>

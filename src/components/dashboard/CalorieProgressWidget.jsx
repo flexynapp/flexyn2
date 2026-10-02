@@ -31,7 +31,7 @@ function MacroBar({ label, consumed, goal, color }) {
   return (
     <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
+        <span className="kicker">{label}</span>
         <span className="text-micro font-bold text-foreground">{Math.round(consumed)}g</span>
       </div>
       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -129,7 +129,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
               <Flame className="w-3.5 h-3.5 text-primary" />
             </div>
-            <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
+            <span className="kicker">{tFallback('calories.kicker', 'Calories')}</span>
           </div>
           <div className="flex items-center gap-1 text-micro text-muted-foreground">
             <Apple className="w-3 h-3" />

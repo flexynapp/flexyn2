@@ -39,7 +39,7 @@ export default function LeadTrophyReveal({ open, onClose, items, onOpenTrophyCas
       <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
         <div className="px-6 pt-6 pb-6 flex flex-col">
           <DialogHeader className="space-y-0 text-start">
-            <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="kicker">
               {tFallback('league.leadReveal.eyebrow', 'Lead Lifter, week {week}', { week: t.week })}
             </p>
             <DialogTitle className="font-heading font-bold text-2xl leading-tight pt-2">
@@ -71,7 +71,7 @@ export default function LeadTrophyReveal({ open, onClose, items, onOpenTrophyCas
           {rest.length > 0 && (
             <div className="pt-6">
               <div className="border-t border-border pt-2" />
-              <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+              <p className="kicker">
                 {tFallback('league.leadReveal.alsoWon', 'Also won')}
               </p>
               <div className="flex flex-col gap-2 pt-2">

@@ -72,7 +72,7 @@ function StatPill({ icon: Icon, value, label, className = '' }) {
         <Icon className="w-3.5 h-3.5 text-primary" />
         <span className="font-heading font-bold text-sm tabular-nums">{value ?? 0}</span>
       </div>
-      <span className="text-micro text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="kicker">{label}</span>
     </div>
   );
 }

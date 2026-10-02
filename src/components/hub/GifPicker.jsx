@@ -71,7 +71,7 @@ export default function GifPicker({ open, onPick, onClose }) {
       style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("gifPicker.gifs", "GIFs")}</span>
+        <span className="kicker">{tFallback("gifPicker.gifs", "GIFs")}</span>
         <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label={tFallback("common.close", "Close")}>
           <X className="w-3.5 h-3.5" />
         </button>

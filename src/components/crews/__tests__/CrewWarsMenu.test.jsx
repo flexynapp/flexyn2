@@ -114,15 +114,15 @@ beforeEach(() => {
 });
 
 describe('CrewWarsMenu — no active war', () => {
-  it('says No Active Wars rather than navigating to the Hub', async () => {
+  it('says No active wars rather than navigating to the Hub', async () => {
     show();
-    expect(await screen.findByText('No Active Wars')).toBeTruthy();
+    expect(await screen.findByText('No active wars')).toBeTruthy();
     expect(navigate).not.toHaveBeenCalled();
   });
 
   it('offers a close control and a button to the crew page', async () => {
     show();
-    await screen.findByText('No Active Wars');
+    await screen.findByText('No active wars');
     expect(screen.getByLabelText('Close')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Go to Iron Legion/ })).toBeTruthy();
   });
@@ -130,7 +130,7 @@ describe('CrewWarsMenu — no active war', () => {
   it('hands the crew id to Hub as router state, not as an event', async () => {
     const dispatch = vi.spyOn(window, 'dispatchEvent');
     show();
-    await screen.findByText('No Active Wars');
+    await screen.findByText('No active wars');
 
     await userEvent.click(screen.getByRole('button', { name: /Go to Iron Legion/ }));
 
@@ -149,7 +149,7 @@ describe('CrewWarsMenu — no active war', () => {
 
   it('drops the record cell for a crew that never has — no "0–0"', async () => {
     show({ crew: { ...CREW, wars_won: 0, wars_lost: 0, wars_drawn: 0 } });
-    await screen.findByText('No Active Wars');
+    await screen.findByText('No active wars');
     expect(screen.queryByText('0–0')).toBeNull();
     expect(screen.queryByText('RECORD')).toBeNull();
   });
@@ -158,7 +158,7 @@ describe('CrewWarsMenu — no active war', () => {
     // null means "we do not know", and it must not render as 0 lifters.
     getCrewMemberCount.mockResolvedValue(null);
     show();
-    await screen.findByText('No Active Wars');
+    await screen.findByText('No active wars');
     await waitFor(() => expect(screen.queryByText(/0 lifters/)).toBeNull());
   });
 });

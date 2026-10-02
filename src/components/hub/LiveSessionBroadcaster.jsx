@@ -276,7 +276,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
           {phase === 'setup' && (
             <>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                <label className="kicker block mb-1.5">
                   {tFallback("liveSessionBroadcaster.sessionTitle", "Session title")}
                 </label>
                 <input
@@ -310,7 +310,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
           {phase === 'live' && (
             <>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                <label className="kicker block mb-1.5">
                   {tFallback("liveSessionBroadcaster.currentExercise", "Current exercise")}
                 </label>
                 <input
@@ -324,7 +324,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
               <div className="grid grid-cols-2 gap-3">
                 {/* Set counter */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("insights.goal.set", "Set")}</label>
+                  <label className="kicker">{tFallback("insights.goal.set", "Set")}</label>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setSet(s => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 active:bg-secondary/80">
                       <ChevronDown className="w-4 h-4" />
@@ -338,7 +338,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
 
                 {/* Reps counter */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("trends.metric.reps", "Reps")}</label>
+                  <label className="kicker">{tFallback("trends.metric.reps", "Reps")}</label>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 active:bg-secondary/80">
                       <ChevronDown className="w-4 h-4" />

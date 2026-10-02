@@ -101,7 +101,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
           <div className="space-y-4">
             {/* Metric */}
             <div>
-              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="kicker block mb-1.5">
                 {tFallback('createBounty.metric', 'Metric')}
               </label>
               <select
@@ -124,7 +124,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                 >
-                  <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  <label className="kicker block mb-1.5">
                     {tFallback('createBounty.exercise', 'Exercise')}
                   </label>
                   <input
@@ -141,7 +141,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
 
             {/* Target value */}
             <div>
-              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="kicker block mb-1.5">
                 {tFallback('createBounty.target', 'Target value to beat')}
               </label>
               <input
@@ -156,7 +156,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
 
             {/* Difficulty */}
             <div>
-              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="kicker block mb-1.5">
                 {tFallback('createBounty.difficulty', 'Difficulty (sets reward)')}
               </label>
               <div className="grid grid-cols-3 gap-2">

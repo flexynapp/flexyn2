@@ -66,7 +66,7 @@ export default function WeekCalorieStrip({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <p className="flex-1 min-w-0 text-center text-micro font-bold tracking-[0.07em] truncate">
+        <p className="kicker flex-1 min-w-0 text-center truncate">
           {rangeLabel}
         </p>
         <button

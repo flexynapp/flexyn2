@@ -102,10 +102,10 @@ function HeadToHead({ label, youLabel, you, them, youText, themText, rivalName, 
 
   return (
     <div className="mb-6">
-      <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="kicker">{label}</p>
       <div className="flex items-end justify-between gap-2 mt-2">
-        <span className="text-micro font-black uppercase tracking-wider text-success">{youLabel}</span>
-        <span className="text-micro font-black uppercase tracking-wider text-primary truncate max-w-[55%]">@{rivalName}</span>
+        <span className="kicker text-success">{youLabel}</span>
+        <span className="kicker text-primary truncate max-w-[55%]">@{rivalName}</span>
       </div>
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-heading font-black text-3xl tabular-nums text-success">{youText}</span>
@@ -150,7 +150,7 @@ function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
   return (
     <div className="flex items-center gap-2 py-2 border-b border-border last:border-b-0">
       <span className={`flex-1 text-end text-sm font-bold tabular-nums ${userWins === true ? 'text-success' : 'text-foreground'}`}>{userVal}</span>
-      <span className="flex items-center gap-1 w-28 justify-center text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+      <span className="kicker flex items-center gap-1 w-28 justify-center shrink-0">
         <Icon className="w-3 h-3" /> {label}
       </span>
       <span className={`flex-1 text-start text-sm font-bold tabular-nums ${userWins === false ? 'text-success' : 'text-foreground'}`}>{rivalVal}</span>
@@ -369,7 +369,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </motion.p>
                 ) : (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="w-full">
-                    <p className="text-micro font-black uppercase tracking-[0.2em] text-primary mb-1">
+                    <p className="eyebrow text-primary mb-1">
                       {tFallback('gymRivalMenu.yourRivalThisWeek', 'Your rival this week')}
                     </p>
                     <p className="font-heading font-black text-2xl">@{rivalName}</p>
@@ -427,13 +427,13 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
 
                 {myResult === 'win' && (
                   <div className="mb-6">
-                    <p className="text-micro font-black uppercase tracking-wider text-success mb-2">
+                    <p className="eyebrow text-success mb-2">
                       {tFallback('gymRivalMenu.paidOut', 'Paid out')}
                     </p>
                     <div className="grid grid-cols-3 gap-2 text-center border-y border-border py-3">
-                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.xp)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">XP</p></div>
-                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.coins)}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.coins', 'Coins')}</p></div>
-                      <div><p className="font-heading font-black text-lg tabular-nums">{paidOut.capsules}</p><p className="text-micro text-muted-foreground uppercase tracking-wider">{tFallback('gymRivalMenu.capsules', 'Capsules')}</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.xp)}</p><p className="kicker">XP</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{fmt(paidOut.coins)}</p><p className="kicker">{tFallback('gymRivalMenu.coins', 'Coins')}</p></div>
+                      <div><p className="font-heading font-black text-lg tabular-nums">{paidOut.capsules}</p><p className="kicker">{tFallback('gymRivalMenu.capsules', 'Capsules')}</p></div>
                     </div>
                   </div>
                 )}
@@ -464,7 +464,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     {tFallback('gymRivalMenu.stalledDesc', 'It was never accepted by both sides, so the weekly settlement skips it. Nothing you log will score against it.')}
                   </p>
                 </div>
-                <p className="text-micro font-black uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="eyebrow mb-1">
                   {tFallback('gymRivalMenu.why', 'Why')}
                 </p>
                 <div className="mb-6">
@@ -500,7 +500,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 </div>
                 {week && (
                   <>
-                    <p className="text-micro font-black uppercase tracking-wider text-muted-foreground mb-1">
+                    <p className="eyebrow mb-1">
                       {tFallback('gymRivalMenu.whoLogged', 'Who logged')}
                     </p>
                     <div className="mb-4">
@@ -551,14 +551,14 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 </div>
 
                 {/* Read-only data gets hairlines, not a card. */}
-                <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+                <p className="kicker">
                   {tFallback('gymRivalMenu.sizeThemUp', 'Size them up')}
                 </p>
                 <div className="mb-2">
                   <div className="flex items-center gap-2 pt-2 pb-1">
-                    <span className="flex-1 text-end text-micro font-black uppercase tracking-wider text-success">{tFallback('friendLeaderboard.you', 'You')}</span>
+                    <span className="kicker flex-1 text-end text-success">{tFallback('friendLeaderboard.you', 'You')}</span>
                     <span className="w-28" />
-                    <span className="flex-1 text-start text-micro font-black uppercase tracking-wider text-primary truncate">@{rivalName}</span>
+                    <span className="kicker flex-1 text-start text-primary truncate">@{rivalName}</span>
                   </div>
                   <StatRow icon={Award} label={tFallback('gymRivalMenu.level', 'Level')} userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
                   <StatRow icon={Swords} label={tFallback('gymRivalMenu.record', 'W / L')} userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
@@ -576,7 +576,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     fair. Absent on rows rolled before migration 364. */}
                 {quality && (
                   <div className="mb-6">
-                    <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+                    <p className="kicker">
                       {tFallback('gymRivalMenu.matchQuality', 'Match quality')}
                     </p>
                     <p className="text-sm font-bold mt-1">
@@ -591,7 +591,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                 )}
 
-                <p className="text-micro font-black uppercase tracking-wider text-primary">
+                <p className="kicker text-primary">
                   {tFallback('gymRivalMenu.howItStarts', 'How it starts')}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1 mb-6">
@@ -713,7 +713,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 )}
 
                 <div className="mb-6">
-                  <p className="text-micro font-black uppercase tracking-wider text-primary">
+                  <p className="kicker text-primary">
                     {tFallback('gymRivalMenu.winnerTakes', 'Winner takes')}
                   </p>
                   <p className="font-heading font-black text-base mt-1 tabular-nums">

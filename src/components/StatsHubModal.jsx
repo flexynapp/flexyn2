@@ -172,7 +172,7 @@ export default function StatsHubModal({ open, onClose }) {
                 the modal, which also holds leaderboards, league and quests.
                 The screen-reader DialogTitle above keeps the modal's own
                 name for that reason. */}
-            <p className="text-micro uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
+            <p className="eyebrow mb-3">
               {tFallback('statsHub.levelEyebrow', 'Your level')}
             </p>
             <div className="flex items-start justify-between gap-3">
@@ -196,7 +196,7 @@ export default function StatsHubModal({ open, onClose }) {
                     <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur w-fit max-w-full">
                       <span className="text-sm leading-none shrink-0">{equippedTitle.emoji}</span>
                       <span
-                        className="text-micro font-bold uppercase tracking-wider truncate"
+                        className="kicker truncate"
                         style={{ color: titleRarity?.color || 'white' }}
                       >
                         {equippedTitle.name}

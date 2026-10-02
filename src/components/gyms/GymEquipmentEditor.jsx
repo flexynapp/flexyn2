@@ -190,7 +190,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-start justify-between gap-2 mb-1">
-        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="kicker">
           {tFallback('gymEquipEditor.title', 'Equipment')}
         </p>
         {!loading && (

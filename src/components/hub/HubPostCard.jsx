@@ -287,7 +287,7 @@ function PollCard({ post, userEmail }) {
       <div className="rounded-xl border border-border bg-secondary/20 p-3">
         <div className="flex items-center gap-1.5 mb-2">
           <BarChart3 className="w-3.5 h-3.5 text-primary" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">{tFallback("hubPostCard.poll", "Poll")}</p>
+          <p className="kicker">{tFallback("hubPostCard.poll", "Poll")}</p>
         </div>
         <p className="text-sm font-semibold text-foreground mb-3">{question}</p>
         <div className="space-y-2">
@@ -341,7 +341,7 @@ function PollCard({ post, userEmail }) {
         {/* Vote timeline */}
         {showTimeline && timelineVotes.length > 0 && (
           <div className="mt-3 border-t border-border pt-2">
-            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">{tFallback("hubPostCard.voteHistory", "Vote history")}</p>
+            <p className="eyebrow mb-2">{tFallback("hubPostCard.voteHistory", "Vote history")}</p>
             <div className="relative ps-3">
               {/* Vertical line */}
               <div className="absolute start-1 top-0 bottom-0 w-px bg-border" />

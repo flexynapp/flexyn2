@@ -25,9 +25,7 @@ import WeekDots from '@/components/glance/WeekDots';
 
 const NUMERAL = 'font-display tabular-nums text-foreground';
 const NUMERAL_SIZE = { fontSize: 'clamp(2.25rem, 11vw, 2.75rem)' };
-// Sentence case, no tracking: the label rule (Kegan, 2-Oct). Becomes .kicker
-// once that class lands with the font rule.
-const CAPTION = 'text-label font-medium text-muted-foreground';
+const CAPTION = 'kicker';
 
 /**
  * @param {object} props

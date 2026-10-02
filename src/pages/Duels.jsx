@@ -308,7 +308,7 @@ export default function Duels() {
         {/* Active / Pending */}
         {active.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.status.active", "Active")}</p>
+            <p className="eyebrow mb-2">{tFallback("duels.status.active", "Active")}</p>
             <div className="space-y-2">
               {active.map((d, i) => (
                 <DuelRow key={d.id} index={i} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
@@ -320,7 +320,7 @@ export default function Duels() {
         {/* Completed / History */}
         {history.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.history", "History")}</p>
+            <p className="eyebrow mb-2">{tFallback("duels.history", "History")}</p>
             <div className="space-y-2">
               {history.map((d, i) => (
                 <DuelRow key={d.id} index={active.length + i} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />

@@ -201,7 +201,7 @@ export default function FriendLeaderboardPanel() {
                         {row.is_self ? (
                           <>
                             {row.username}
-                            <span className="ms-1.5 text-micro font-bold uppercase tracking-wider text-primary/80">
+                            <span className="kicker ms-1.5 text-primary/80">
                               {tFallback('friendLeaderboard.you', 'You')}
                             </span>
                           </>

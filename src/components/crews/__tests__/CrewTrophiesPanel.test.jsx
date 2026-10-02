@@ -163,7 +163,7 @@ describe('while a chase is running', () => {
     await screen.findByText('The First Million');
     // The shelf is empty in this fixture, so the heading is the
     // no-trophies variant. It becomes STILL OUT THERE once one is won.
-    expect(screen.getByText("WHAT'S OUT THERE")).toBeTruthy();
+    expect(screen.getByText("What's out there")).toBeTruthy();
     expect(screen.getByText('The Century')).toBeTruthy();
     expect(screen.getByText('The Foundry')).toBeTruthy();
   });
@@ -185,11 +185,11 @@ describe('the ladder', () => {
 
   it('shows the ladder on an empty shelf instead of a zero', async () => {
     mount(RANK.MEMBER);
-    await screen.findByText('TROPHY SHELF');
+    await screen.findByText('Trophy shelf');
     // No count is rendered at zero, and the copy invites rather than
     // reporting nothing.
     expect(screen.getByText(/No trophies yet/)).toBeTruthy();
-    expect(screen.getByText("WHAT'S OUT THERE")).toBeTruthy();
+    expect(screen.getByText("What's out there")).toBeTruthy();
     expect(screen.getByText('The First Million')).toBeTruthy();
   });
 
@@ -207,8 +207,8 @@ describe('the shelf', () => {
     ]);
     mount(RANK.MEMBER);
     expect(await screen.findByText('Unbroken')).toBeTruthy();
-    expect(screen.getByText('STILL OUT THERE')).toBeTruthy();
-    expect(screen.queryByText("WHAT'S OUT THERE")).toBeNull();
+    expect(screen.getByText('Still out there')).toBeTruthy();
+    expect(screen.queryByText("What's out there")).toBeNull();
   });
 
   it('drops the contribution list once the shelf carries weight', async () => {
@@ -221,7 +221,7 @@ describe('the shelf', () => {
     // Big form: no trophies yet, so the chase is the subject of the page.
     getCrewChallengeCatalog.mockResolvedValue([active]);
     const big = mount(RANK.MEMBER);
-    expect(await screen.findByText("WHO'S CARRYING IT")).toBeTruthy();
+    expect(await screen.findByText("Who's carrying it")).toBeTruthy();
     big.unmount();
 
     // Compact form: a trophy on the shelf, so the chase is one status line.
@@ -230,7 +230,7 @@ describe('the shelf', () => {
     ]);
     mount(RANK.MEMBER);
     await screen.findByText('The First Million');
-    expect(screen.queryByText("WHO'S CARRYING IT")).toBeNull();
+    expect(screen.queryByText("Who's carrying it")).toBeNull();
   });
 });
 

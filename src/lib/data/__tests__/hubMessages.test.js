@@ -432,3 +432,34 @@ describe('sendMessage — sender identity for notifications', () => {
     expect(_msgState.createCalls[0].sender_name).toBe('liftheavy');
   });
 });
+
+describe('sendMessage — conversation preview bump', () => {
+  const base = { conversationId: 'conv-1', senderEmail: 'me@x.com', body: 'see you at 6' };
+
+  it('bumps through bump_my_conversation so a reply from either participant moves the inbox', async () => {
+    const { ownedRows } = await import('@/lib/data/ownedRows');
+    ownedRows('hub_conversations').update.mockClear();
+    await hubMessages.sendMessage(base);
+    const call = _sbState.rpcCalls.find(c => c.name === 'bump_my_conversation');
+    expect(call.args).toEqual({ p_conversation_id: 'conv-1', p_preview: 'see you at 6' });
+    expect(ownedRows('hub_conversations').update).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the direct update only while the RPC does not exist yet', async () => {
+    const { ownedRows } = await import('@/lib/data/ownedRows');
+    ownedRows('hub_conversations').update.mockClear();
+    _sbState.rpcByName.bump_my_conversation = { data: null, error: { code: 'PGRST202' } };
+    await hubMessages.sendMessage(base);
+    expect(ownedRows('hub_conversations').update).toHaveBeenCalledWith('conv-1',
+      expect.objectContaining({ last_message_preview: 'see you at 6' }));
+  });
+
+  it('does not fall back on any other RPC error', async () => {
+    const { ownedRows } = await import('@/lib/data/ownedRows');
+    ownedRows('hub_conversations').update.mockClear();
+    _sbState.rpcByName.bump_my_conversation = { data: null, error: { code: '42501' } };
+    const sent = await hubMessages.sendMessage(base);
+    expect(sent).toBeTruthy();
+    expect(ownedRows('hub_conversations').update).not.toHaveBeenCalled();
+  });
+});

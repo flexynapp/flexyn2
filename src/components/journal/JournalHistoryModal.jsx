@@ -90,7 +90,7 @@ function EntryRow({ e, isActive, onPick, onAskDelete, tFallback, fmtDate }) {
         className="flex-1 min-w-0 text-start ps-4 pe-2 py-3"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+          <span className="kicker">{label}</span>
           {/* The rail is suppressed on a mood-only row: the mood is the
               content there, and repeating it two inches to the right says
               the same thing twice on one line. */}

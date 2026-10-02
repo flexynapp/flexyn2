@@ -231,7 +231,7 @@ export default function WorkoutStreakBanner() {
               : tFallback('dashboard.workoutDaysStreak', 'day workout streak')}
           </span>
           {isPersonalBest && (
-            <span className={`ms-2 text-micro font-bold uppercase tracking-wider ${atRisk ? 'text-primary' : 'text-success'}`}>
+            <span className={`kicker ms-2 ${atRisk ? 'text-primary' : 'text-success'}`}>
               {tFallback('dashboard.best', 'Best')}
             </span>
           )}

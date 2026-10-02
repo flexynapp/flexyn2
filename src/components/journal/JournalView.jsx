@@ -996,8 +996,8 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                     boundary — the standard the League seasons board set for
                     locked and dead-end states. */}
                 <div className="border-t border-border mt-8 pt-3">
-                  <p className="text-micro font-bold tracking-[0.06em] text-muted-foreground">
-                    {tFallback('journal.lockedLabel', 'LOCKED')}
+                  <p className="kicker">
+                    {tFallback('journal.lockedLabel', 'Locked')}
                   </p>
                   <p className="text-sm text-foreground mt-1">
                     {tFallback('journal.locked', 'Entries older than 7 days are read-only.')}
@@ -1107,11 +1107,11 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
               sits under the date where the user is already looking. */}
           {!readOnly && !body.trim() && chips.length > 0 && (
             <div className="px-4 pb-3 pt-8 shrink-0" data-no-swipe>
-              <p className="text-micro font-bold tracking-[0.06em] text-muted-foreground">
+              <p className="kicker">
                 {/* The query is already keyed to the active day — only the
                     label has to follow it, or a chip from last Tuesday's
                     session is announced as today's. */}
-                {isToday ? tFallback('journal.fromToday', 'FROM TODAY') : tFallback('journal.fromThatDay', 'FROM THAT DAY')}
+                {isToday ? tFallback('journal.fromToday', 'From today') : tFallback('journal.fromThatDay', 'From that day')}
               </p>
               <div className="border-t border-border mt-1.5 pt-2 flex flex-wrap gap-2">
                 {chips.map(c => (

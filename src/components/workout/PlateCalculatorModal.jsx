@@ -81,7 +81,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
 
             {/* Target weight input */}
             <div>
-              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("nutritionOnboarding.step.target.weightLabel", "Target weight")}</label>
+              <label className="kicker">{tFallback("nutritionOnboarding.step.target.weightLabel", "Target weight")}</label>
               <div className="relative mt-1">
                 <input
                   type="number"
@@ -98,7 +98,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
 
             {/* Bar selector */}
             <div>
-              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</label>
+              <label className="kicker">{tFallback("exerciseLogger.bar", "Bar")}</label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {BAR_PRESETS.map((bar) => {
                   const active = bar.lbs === barLbs;
@@ -129,7 +129,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                 <p className="text-sm font-semibold">Just the bar — no plates needed.</p>
               ) : (
                 <>
-                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">{tFallback("plateCalculatorModal.perSide", "Per side")}</p>
+                  <p className="eyebrow mb-1">{tFallback("plateCalculatorModal.perSide", "Per side")}</p>
                   <p className="font-heading font-black text-lg mb-2">{breakdownText}</p>
                   <PlateDiagram plates={perSide} barLbs={barLbs} />
                   {remainderLbs > 0.1 && (

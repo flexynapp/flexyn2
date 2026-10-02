@@ -6,10 +6,10 @@
 //
 // Marketplace remains player-to-player. This is the system shop.
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { X, Loader2, Sparkles } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
@@ -17,35 +17,26 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem, getCapsuleOdds, BEST_VALUE_SKU } from '@/lib/data/coinShop';
-import CapsuleIcon from '@/components/loot/CapsuleIcon';
+import CapsuleCanister from '@/components/capsules/CapsuleCanister';
+import Sticker from '@/components/capsules/Sticker';
+import { tierName, rarityName } from '@/components/capsules/words';
+import { inkStyle, SHELF_ORDER } from '@/components/loot/Shelf';
+import { stickerSet } from '@/lib/capsuleShelf';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { haptic } from '@/lib/haptic';
+import { DURATION, EASE_OUT } from '@/lib/motion';
 
-/**
- * Shop row icon. Capsule SKUs draw the real capsule; everything else
- * (streak freeze) is still a glyph. The catalog's `icon` string stays the
- * fallback — it's what the purchase toast uses, which can't hold a node.
- */
-function ShopIcon({ item, size }) {
-  if (item?.grants?.type === 'capsule') {
-    return <CapsuleIcon type={item.grants.capsuleType} size={size} className="shrink-0" />;
-  }
-  return <div className="shrink-0 leading-none" style={{ fontSize: size }} aria-hidden="true">{item?.icon}</div>;
-}
+// Layout (option C of the bag redesign, Kegan 2026-10-02): one capsule at a
+// time, picked with a three-way switch. The canister, then the odds as a
+// ladder rarest first, then a strip of real stickers each rarity can drop.
+// It replaced three ringed rows, each with its own badge and a one-line odds
+// summary, which hid the full table behind "epic+" arithmetic.
 
-// Rarity accent per SKU. The bag and the marketplace already colour items by
-// rarity; the shop sold the *sources* of those items as flat neutral rows, so
-// an Elite Capsule looked exactly like a Standard one in the place you buy it.
-const RARITY_STYLE = {
-  common:   { ring: 'ring-slate-400/30',   text: 'text-slate-400',   glow: '' },
-  uncommon: { ring: 'ring-success/40', text: 'text-success', glow: '' },
-  rare:     { ring: 'ring-info/40',     text: 'text-info',     glow: 'shadow-info/10' },
-  epic:     { ring: 'ring-primary/50', text: 'text-primary', glow: 'shadow-primary/20' },
-};
+const TIERS = ['standard', 'premium', 'elite'];
+const SKU_FOR = { standard: 'capsule_standard', premium: 'capsule_premium', elite: 'capsule_elite' };
 
 // Spending this much or more asks for confirmation first. A single mistap on
-// the Elite row currently spends 1,000 coins — roughly a month of daily
-// quests — with no undo. Habitica gates every spend behind a confirm modal;
-// gating only the expensive half keeps the cheap path fast.
+// Elite spends 1,000 coins, roughly a month of daily quests, with no undo.
 const CONFIRM_THRESHOLD = 350;
 
 // SKU → camelCase translation-key segment. Single source of truth so adding
@@ -56,6 +47,36 @@ const SKU_TO_CAMEL = {
   capsule_elite:    'eliteCapsule',
   streak_freeze:    'streakFreeze',
 };
+
+// How many sticker faces the preview strip shows per rarity.
+const FACES_PER_RARITY = 3;
+
+/**
+ * Published drop odds as a ladder, rarest first, each rarity with a few of
+ * the real stickers it can give. Both app stores require loot-box odds to be
+ * disclosed before purchase, and these are the full table, not a summary.
+ */
+export function OddsLadder({ table, fmtPct }) {
+  const { tFallback } = useLanguage();
+  const set = useMemo(() => stickerSet(), []);
+  const rows = SHELF_ORDER.filter(r => (table?.[r] ?? 0) > 0);
+  return (
+    <ul className="flex flex-col divide-y" aria-label={tFallback('collectionModal.capsuleOdds', 'Capsule odds')}>
+      {rows.map(r => {
+        const faces = set.filter(s => s.rarity === r).slice(0, FACES_PER_RARITY);
+        return (
+          <li key={r} className="h-11 flex items-center gap-2">
+            <span className="w-24 shrink-0 text-label font-semibold rarity-ink" style={inkStyle(r)}>{rarityName(tFallback, r)}</span>
+            <span className="flex-1 flex items-center -space-x-1.5 rtl:space-x-reverse" aria-hidden="true">
+              {faces.map(f => <Sticker key={f.id} itemId={f.id} emoji={f.emoji} rarity={f.rarity} size={26} />)}
+            </span>
+            <span className="text-label font-semibold tabular-nums">{fmtPct(table[r] * 100)}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 // There was an "admin sandbox" here — a hardcoded username list that granted
 // free capsules by inserting straight into user_capsules, and showed those
@@ -114,6 +135,7 @@ export default function CoinShopModal({ open, onClose }) {
         const itemNameKey = camel ? `shop.${camel}.name` : null;
         const translatedName = itemNameKey ? t(itemNameKey) : null;
         const displayName = translatedName && translatedName !== itemNameKey ? translatedName : item.name;
+        haptic('success');
         toast.success(t('shop.purchasedToast', { item: displayName }), { icon: item.icon });
         queryClient.invalidateQueries({ queryKey: ['coinShopProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -134,6 +156,19 @@ export default function CoinShopModal({ open, onClose }) {
     }
   };
 
+  const [tier, setTier] = useState('standard');
+  useEffect(() => { if (!open) setTier('standard'); }, [open]);
+  const fmtPct = (n) => `${fmt(n, { maximumFractionDigits: 1 })}%`;
+  const sku = SKU_FOR[tier];
+  const item = SHOP_CATALOG[sku];
+  const odds = getCapsuleOdds(sku);
+  const freeze = SHOP_CATALOG.streak_freeze;
+  const buy = (target) => {
+    haptic('light');
+    if (SHOP_CATALOG[target].price >= CONFIRM_THRESHOLD) setConfirmSku(target);
+    else handlePurchase(target);
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -142,21 +177,23 @@ export default function CoinShopModal({ open, onClose }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4"
+        className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
       >
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 30, opacity: 0 }}
-          transition={{ type: 'spring', damping: 24, stiffness: 280 }}
+          transition={{ duration: DURATION.slow, ease: EASE_OUT }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full md:w-[460px] max-h-[88vh] bg-card border-t md:border md:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label={tFallback('shop.title', 'Coin shop')}
+          className="relative w-full md:w-[460px] max-h-[88vh] bg-card border-t md:border md:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col shadow-md"
           drag="y"
           // Handle-only. With a live listener framer writes
           // `touch-action: pan-x` here, and touch-action resolves down the
-          // ancestor chain — so the `overflow-y-auto` item list below could
-          // not be panned, and the shop was capped at whatever fitted in
-          // 88vh. See BottomSheet.jsx for the full mechanism.
+          // ancestor chain — so the scrolling body below could not be
+          // panned. See BottomSheet.jsx for the full mechanism.
           dragListener={false}
           dragControls={dragControls}
           dragConstraints={{ top: 0, bottom: 0 }}
@@ -165,55 +202,92 @@ export default function CoinShopModal({ open, onClose }) {
             if (info.velocity.y >= 300 || info.offset.y >= 80) onClose?.();
           }}
         >
-          {/* Header — doubles as the drag surface, since this sheet has no
-              pill. The close button is excluded so a pointerdown that starts
-              a drag can't swallow its tap. */}
+          {/* Header — doubles as the drag surface. The close button is
+              excluded so a pointerdown that starts a drag can't swallow its
+              tap. */}
           <div
             onPointerDown={(e) => {
               if (e.target.closest('button')) return;
               dragControls.start(e);
             }}
-            className="flex items-center justify-between p-4 border-b border-border cursor-grab active:cursor-grabbing touch-none select-none">
-            <div>
-              <h2 className="font-heading font-bold text-base">{t('shop.title')}</h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <FlexCoinIcon size={14} />
-                <span className="font-bold tabular-nums text-sm">{fmt(balance)}</span>
-                <span className="text-micro text-muted-foreground">{t('shop.balance')}</span>
-              </div>
-            </div>
+            className="flex items-center gap-2 ps-5 pe-2 pt-4 touch-none select-none"
+          >
+            <h2 className="flex-1 font-heading font-bold text-title">{tFallback('shop.title', 'Coin shop')}</h2>
+            <span className="inline-flex items-center gap-1.5 text-label font-semibold tabular-nums" aria-label={tFallback('shop.balanceAria', 'Your balance: {n} coins', { n: fmt(balance) })}>
+              <FlexCoinIcon size={18} />
+              {fmt(balance)}
+            </span>
             <button
               onClick={onClose}
-              aria-label={tFallback("common.close", "Close")}
-              className="p-1.5 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
+              aria-label={tFallback('common.close', 'Close')}
+              className="w-11 h-11 inline-flex items-center justify-center rounded-full text-muted-foreground"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Items */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {Object.values(SHOP_CATALOG).map((item) => (
-              <ShopRow
-                key={item.sku}
-                item={item}
-                balance={balance}
-                busy={busySku === item.sku}
-                onBuy={() => {
-                  if (item.price >= CONFIRM_THRESHOLD) setConfirmSku(item.sku);
-                  else handlePurchase(item.sku);
-                }}
-                fmt={fmt}
-                t={t}
-              />
-            ))}
-          </div>
+          <div className="flex-1 overflow-y-auto px-5 pt-4" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+            {/* The three capsules, one at a time. */}
+            <div className="flex gap-1 p-1 rounded-full bg-background" role="tablist">
+              {TIERS.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={t === tier}
+                  onClick={() => { haptic('light'); setTier(t); }}
+                  className={`flex-1 h-9 rounded-full text-label font-semibold transition-colors duration-150 ${
+                    t === tier ? 'bg-card text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {tierName(tFallback, t)}
+                </button>
+              ))}
+            </div>
 
-          {/* Footer hint — the only "how do I get coins?" affordance in the
-              modal, so it stays visible rather than being replaced by an
-              error state. */}
-          <div className="p-3 border-t border-border text-micro text-center text-muted-foreground">
-            {t('shop.hint')}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={tier}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+                className="pt-6 flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-4">
+                  <CapsuleCanister tier={tier} height={128} />
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    {sku === BEST_VALUE_SKU && (
+                      <span className="text-caption font-semibold text-primary">{tFallback('shop.bestValue', 'Best value')}</span>
+                    )}
+                    <p className="font-heading font-bold text-title">
+                      {tFallback('userBag.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, tier) })}
+                    </p>
+                  </div>
+                </div>
+                {odds && (
+                  <div className="pt-4">
+                    <OddsLadder table={odds.table} fmtPct={fmtPct} />
+                  </div>
+                )}
+                <div className="pt-4">
+                  <BuyButton price={item.price} balance={balance} busy={busySku === sku} onBuy={() => buy(sku)} fmt={fmt} full />
+                </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Streak freeze: the one thing here that is not a capsule. */}
+            <div className="mt-6 pt-4 border-t flex items-center gap-3">
+              <span className="w-12 shrink-0 flex justify-center text-3xl leading-none" aria-hidden="true">{freeze.icon}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-body font-semibold">{t('shop.streakFreeze.name')}</span>
+                <span className="block text-caption text-muted-foreground">{t('shop.streakFreeze.desc')}</span>
+              </span>
+              <BuyButton price={freeze.price} balance={balance} busy={busySku === freeze.sku} onBuy={() => buy(freeze.sku)} fmt={fmt} />
+            </div>
+
+            {/* The only "how do I get coins?" line in the shop. */}
+            <p className="pt-6 text-caption text-center text-muted-foreground">{t('shop.hint')}</p>
           </div>
 
           {/* Confirm step for expensive SKUs. */}
@@ -223,37 +297,38 @@ export default function CoinShopModal({ open, onClose }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-5 z-10"
+                className="absolute inset-0 bg-black/55 flex items-center justify-center p-5 z-10"
                 onClick={() => setConfirmSku(null)}
               >
                 <motion.div
-                  initial={{ scale: 0.94, opacity: 0 }}
+                  initial={{ scale: 0.96, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.94, opacity: 0 }}
+                  exit={{ scale: 0.96, opacity: 0 }}
+                  transition={{ duration: DURATION.fast, ease: EASE_OUT }}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full max-w-[300px] rounded-2xl bg-card border border-border p-4 text-center shadow-2xl"
+                  className="w-full max-w-[300px] rounded-2xl bg-card border p-4 text-center shadow-md flex flex-col items-center gap-2"
                 >
-                  <div className="mb-2 flex justify-center">
-                    <ShopIcon item={SHOP_CATALOG[confirmSku]} size={40} />
-                  </div>
-                  <p className="font-heading font-bold text-sm">
+                  {SHOP_CATALOG[confirmSku]?.grants?.type === 'capsule'
+                    ? <CapsuleCanister tier={SHOP_CATALOG[confirmSku].grants.capsuleType} height={72} />
+                    : <span className="text-4xl leading-none" aria-hidden="true">{SHOP_CATALOG[confirmSku]?.icon}</span>}
+                  <p className="font-heading font-bold text-body">
                     {t(`shop.${SKU_TO_CAMEL[confirmSku]}.name`)}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 mb-3">
+                  <p className="text-label text-muted-foreground">
                     {tFallback('shop.confirmBody', 'Spend {n} coins? This cannot be undone.', {
                       n: fmt(SHOP_CATALOG[confirmSku].price),
                     })}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="pt-2 w-full flex gap-2">
                     <button
                       onClick={() => setConfirmSku(null)}
-                      className="flex-1 py-2 rounded-lg bg-secondary text-xs font-bold"
+                      className="flex-1 h-11 rounded-full border text-label font-semibold"
                     >
                       {tFallback('common.cancel', 'Cancel')}
                     </button>
                     <button
-                      onClick={() => { const sku = confirmSku; setConfirmSku(null); handlePurchase(sku); }}
-                      className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+                      onClick={() => { const target = confirmSku; setConfirmSku(null); handlePurchase(target); }}
+                      className="flex-1 h-11 rounded-full bg-primary text-primary-foreground text-label font-bold"
                     >
                       {tFallback('shop.confirmBuy', 'Buy')}
                     </button>
@@ -269,91 +344,40 @@ export default function CoinShopModal({ open, onClose }) {
   );
 }
 
-function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
+/**
+ * Price on a button. Short of coins, it is not a dead grey button: it says
+ * how far off you are (Habitica's balanceInfo does the same), and stays
+ * disabled. The median live balance is well under the cheapest capsule, so
+ * this is what most people see.
+ */
+function BuyButton({ price, balance, busy, onBuy, fmt, full = false }) {
   const { tFallback } = useLanguage();
-  const affordable = balance >= item.price;
-  const shortfall = Math.max(0, item.price - balance);
-  const progress = Math.min(100, (balance / item.price) * 100);
-  const odds = getCapsuleOdds(item.sku);
-  const rarity = RARITY_STYLE[item.rarity] || RARITY_STYLE.common;
-  const isBestValue = item.sku === BEST_VALUE_SKU;
-  // Translation key derived from sku via SKU_TO_CAMEL (single source of truth).
-  const camelKey = SKU_TO_CAMEL[item.sku] || null;
-  const nameKey = camelKey ? `shop.${camelKey}.name` : null;
-  const descKey = camelKey ? `shop.${camelKey}.desc` : null;
-  const translatedName = nameKey ? t(nameKey) : null;
-  const translatedDesc = descKey ? t(descKey) : null;
-  const displayName = translatedName && translatedName !== nameKey ? translatedName : item.name;
-  const displayDesc = translatedDesc && translatedDesc !== descKey ? translatedDesc : item.description;
-
+  const short = Math.max(0, price - balance);
+  const width = full ? 'w-full' : 'shrink-0';
+  if (short > 0) {
+    return (
+      <button
+        type="button"
+        disabled
+        className={`${width} h-11 px-4 rounded-full border inline-flex items-center justify-center gap-1.5 text-label font-semibold text-muted-foreground tabular-nums`}
+      >
+        <FlexCoinIcon size={14} />
+        {fmt(price)}
+        <span className="font-normal">· {tFallback('shop.toGo', '{n} to go', { n: fmt(short) })}</span>
+      </button>
+    );
+  }
   return (
-    <div className={`rounded-xl bg-background/60 border border-border/50 p-3 ring-1 ${rarity.ring} ${rarity.glow} ${isBestValue ? 'shadow-md' : ''}`}>
-      <div className="flex items-center gap-3">
-        <ShopIcon item={item} size={30} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className={`font-heading font-bold text-sm truncate ${rarity.text}`}>{displayName}</p>
-            {/* Best value is computed from real price-per-epic in
-                coinShop.js, not hand-labelled, so it can't drift out of
-                sync with the odds table. */}
-            {isBestValue && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-micro font-bold uppercase tracking-wider">
-                <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
-                {tFallback('shop.bestValue', 'Best value')}
-              </span>
-            )}
-          </div>
-          <p className="text-micro text-muted-foreground">{displayDesc}</p>
-          {/* Published drop odds. Both app stores require these to be
-              disclosed before a loot-box purchase, and the Elite copy used
-              to claim "guaranteed epic+" when the real number is 30%. */}
-          {odds && (
-            <p className="text-micro text-muted-foreground/80 tabular-nums mt-0.5">
-              {tFallback('shop.odds', '{epic}% epic+ · {legendary}% legendary+', {
-                epic: (odds.epicPlus * 100).toFixed(1),
-                legendary: (odds.legendaryPlus * 100).toFixed(1),
-              })}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={onBuy}
-          disabled={!affordable || busy}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity shrink-0"
-        >
-          {/* Show a spinner while the purchase RPC is in flight — the
-              disabled-button state alone gave no signal that anything
-              was happening and users would tap again, blocked by busySku
-              but with no feedback explaining why. */}
-          {busy && <Loader2 className="w-3 h-3 animate-spin" />}
-          <FlexCoinIcon size={12} />
-          <span className="tabular-nums">{fmt(item.price)}</span>
-        </button>
-      </div>
-
-      {/* Unaffordable is a gap, not a dead end.
-          The median live balance is 5 coins against a 100-coin cheapest SKU,
-          so a padlock and a greyed button is what almost everyone sees — with
-          nothing telling them how short they are or what closes the gap.
-          Habitica's balanceInfo.vue flags *which* currency is short and by
-          how much rather than just disabling; same idea here. */}
-      {!affordable && (
-        <div className="mt-2">
-          <div className="h-1 rounded-full bg-border overflow-hidden">
-            <motion.div
-              className="h-full rounded-full bg-primary/70"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
-          <p className="text-micro text-muted-foreground mt-1 tabular-nums">
-            {tFallback('shop.shortBy', '{n} coins to go. Earn them from daily quests, streaks and level-ups.', {
-              n: fmt(shortfall),
-            })}
-          </p>
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={onBuy}
+      disabled={busy}
+      className={`${width} h-11 px-5 rounded-full bg-primary text-primary-foreground inline-flex items-center justify-center gap-1.5 text-label font-bold tabular-nums active:scale-[0.98] transition-transform duration-150`}
+    >
+      {/* A spinner while the purchase RPC is in flight: a disabled button
+          alone gave no signal and people tapped again. */}
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlexCoinIcon size={14} />}
+      {tFallback('shop.buyFor', 'Buy for {n}', { n: fmt(price) })}
+    </button>
   );
 }

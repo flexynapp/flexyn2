@@ -23,6 +23,7 @@ import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/play
 import LanguagePicker from '../LanguagePicker';
 import { Group, Row, ToggleRow, SegmentedControl } from './SettingsPrimitives';
 import SkinToggle from '../skins/SkinToggle';
+import TipsRows from './TipsRows';
 import { detectTimeZone } from '@/lib/intl';
 
 export default function PreferencesSection() {
@@ -119,6 +120,7 @@ export default function PreferencesSection() {
           checked={levelAnimationsEnabled}
           onChange={setLevelAnimationsEnabled}
         />
+        <TipsRows />
       </Group>
 
       <Group title={tFallback('settings.group.feedback', 'Feedback')}>

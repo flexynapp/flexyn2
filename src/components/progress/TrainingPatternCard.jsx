@@ -33,7 +33,7 @@ export default function TrainingPatternCard({ workoutLogs = [] }) {
         <Calendar className="w-4 h-4 text-primary" />
       </div>
       <div className="min-w-0">
-        <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="kicker">
           {tFallback('trainingPattern.kicker', 'Your training rhythm')}
         </p>
         <p className="text-sm font-medium leading-tight mt-0.5">

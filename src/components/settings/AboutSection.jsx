@@ -12,12 +12,11 @@
 // now a real 44px row rather than 11px of grey text.
 
 import { useState } from 'react';
-import { Bug, ShieldAlert, Lightbulb } from 'lucide-react';
+import { Bug, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
-import { countSeenTooltips, resetAllSeenTooltips } from '@/lib/tooltipRegistry';
 import { toast } from '@/lib/toast';
 import BugReportDialog from '../BugReportDialog';
 import { Group, ActionRow, NavRow } from './SettingsPrimitives';
@@ -26,27 +25,6 @@ export default function AboutSection() {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [bugReportOpen, setBugReportOpen] = useState(false);
-
-  // The one-time hints (long-press the tabs, double-tap to react, the PR
-  // proximity bar, smart paste) fire once per device and then never again —
-  // that "never again" is the point, and it is also a dead end the moment
-  // you want to see one: on a new phone, showing someone the app, or
-  // checking a hint still lands where it should. Read once on mount rather
-  // than live; a hint firing while you are sitting in Settings isn't a case
-  // worth a subscription.
-  const [seenTips, setSeenTips] = useState(() => countSeenTooltips());
-
-  const resetTips = () => {
-    const cleared = resetAllSeenTooltips();
-    setSeenTips(0);
-    toast.success(
-      tFallback(
-        'settings.tips.resetDone',
-        'Tips reset. They will show again the next time you reach each one.',
-      ),
-      { description: `${cleared} ${cleared === 1 ? 'tip' : 'tips'} restored` },
-    );
-  };
 
   const copyDiagnostics = async () => {
     // Explicitly detect a missing clipboard API rather than letting
@@ -74,24 +52,9 @@ export default function AboutSection() {
           label={t('bugReport.button')}
           onClick={() => setBugReportOpen(true)}
         />
-        {/* Disabled rather than hidden when there is nothing to reset: a row
-            that vanishes is harder to find again than one that explains
-            itself, and the hint carries the reason. */}
-        <ActionRow
-          icon={Lightbulb}
-          label={tFallback('settings.tips.reset', 'Show one-time tips again')}
-          hint={seenTips > 0
-            ? tFallback(
-                'settings.tips.resetHint',
-                'The hints that appear once and never again. Long-press shortcuts, double-tap to react',
-              )
-            : tFallback(
-                'settings.tips.resetNone',
-                'No tips to bring back. None have shown on this device yet',
-              )}
-          onClick={resetTips}
-          disabled={seenTips === 0}
-        />
+        {/* The one-time tips switch lived here until 2026-10-02 and moved
+            to Preferences › Display (TipsRows): it is how the app behaves,
+            not help or a bug report. */}
         {/* Moderator-only. Gated by isAppAdmin() so it isn't even
             discoverable for everyone else. */}
         {isAppAdmin(user) && (

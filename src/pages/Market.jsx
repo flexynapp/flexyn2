@@ -3,11 +3,10 @@
 // here so it's reachable by URL and so a "Message seller" CTA can
 // navigate cleanly to /messages with a pending conversation target.
 
-import { useState } from 'react';
 import { GraduationCap, Lock } from 'lucide-react';
 import MarketplaceFeed from '@/components/market/MarketplaceFeed';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import CollectionModal from '@/components/loot/CollectionModal';
+import { requestOpenBag } from '@/lib/inventoryFlow';
 import DailyFlexynDrop from '@/components/market/DailyFlexynDrop';
 import { useStartConversation } from '@/lib/hubMessaging';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -15,12 +14,11 @@ import { useLanguage } from '@/lib/LanguageContext';
 export default function Market() {
   const { tFallback } = useLanguage();
   const startConversation = useStartConversation();
-  const [indexOpen, setIndexOpen] = useState(false);
 
   return (
     <div className="px-4 pt-1 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto">
       <ErrorBoundary label="Market">
-        <MarketplaceFeed onStartConversation={startConversation} onOpenCollection={() => setIndexOpen(true)} />
+        <MarketplaceFeed onStartConversation={startConversation} onOpenCollection={() => requestOpenBag('stickers')} />
       </ErrorBoundary>
 
       {/* Today's drop sits under the listings: the page is for listings,
@@ -49,8 +47,6 @@ export default function Market() {
           <p className="text-xs text-muted-foreground">{tFallback("market.trainerProgramsSub", "Premium regimens from certified creators, launching soon")}</p>
         </div>
       </div>
-
-      <CollectionModal open={indexOpen} onClose={() => setIndexOpen(false)} />
     </div>
   );
 }

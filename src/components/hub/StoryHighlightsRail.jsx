@@ -50,7 +50,7 @@ function NewHighlightModal({ open, onClose, onCreated }) {
           <DialogHeader className="mb-3">
             <DialogTitle>{tFallback('highlight.newTitle', 'New highlight album')}</DialogTitle>
           </DialogHeader>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <label className="kicker block mb-1.5">
             {tFallback('highlight.title', 'Album title')}
           </label>
           <input

@@ -52,7 +52,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               {tFallback("cycleTrackerCard.startDate", "Start date")}
             </label>
             <input
@@ -65,7 +65,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
             />
           </div>
           <div>
-            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="kicker block mb-1">
               Notes (optional)
             </label>
             <input
@@ -254,7 +254,7 @@ export default function CycleTrackerCard({ profile }) {
               type="button"
               onClick={() => { setHistoryOpen(v => !v); setPendingDeleteId(null); }}
               aria-expanded={historyOpen}
-              className="w-full flex items-center justify-between py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+              className="eyebrow w-full flex items-center justify-between py-1 hover:text-foreground active:text-foreground transition-colors"
             >
               <span>Logged periods · {logs.length}</span>
               {historyOpen

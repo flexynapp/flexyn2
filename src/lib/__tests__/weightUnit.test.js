@@ -40,6 +40,24 @@ describe('toLbs — reverse conversion', () => {
 });
 
 describe('formatWeight', () => {
+  it('groups thousands so a volume reads like the XP beside it', () => {
+    expect(formatWeight(18450, 'lbs')).toBe('18,450 lbs');
+  });
+
+  it('groups in the page language', () => {
+    const was = document.documentElement.lang;
+    document.documentElement.lang = 'es';
+    try {
+      expect(formatWeight(18450, 'lbs')).toBe('18.450 lbs');
+    } finally {
+      document.documentElement.lang = was;
+    }
+  });
+
+  it('leaves formatWeightNumber ungrouped, because inputs parse it', () => {
+    expect(formatWeightNumber(18450, 'lbs')).toBe('18450');
+  });
+
   it('returns "—" for null', () => {
     expect(formatWeight(null, 'lbs')).toBe('—');
   });

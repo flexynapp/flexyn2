@@ -165,7 +165,7 @@ export default function StepsLogCard() {
       <Card className="px-4 py-3 h-full flex flex-col justify-center gap-1.5">
         <div className="flex items-center gap-1.5">
           <Footprints className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
-          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
+          <p className="kicker">
             {tFallback('steps.kicker', 'Steps today')}
           </p>
         </div>

@@ -460,7 +460,7 @@ function Section({ title, items, children }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="mb-3">
-      <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
+      <p className="eyebrow px-1 mb-1">
         {title}
       </p>
       <div className="space-y-0.5">{items.map(children)}</div>

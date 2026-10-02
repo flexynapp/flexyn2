@@ -176,7 +176,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
   return (
     <div className="pt-1">
       {/* Type */}
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+      <p className="eyebrow mb-2">
         {tFallback('generator.type', 'Type')}
       </p>
       <div className="flex gap-1.5 mb-4">
@@ -219,7 +219,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
           phase nudge entirely. Shown for everyone, not just cycle trackers. */}
       {!isCardio && (
         <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <p className="eyebrow mb-2">
             {tFallback('generator.feel', 'How do you feel today?')}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -272,7 +272,7 @@ function Pillset({ label, options, value, onChange, keyPrefix }) {
   const { tFallback } = useLanguage();
   return (
     <div className="mb-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>
+      <p className="eyebrow mb-2">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <button

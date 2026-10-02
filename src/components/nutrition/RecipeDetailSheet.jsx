@@ -107,7 +107,7 @@ export default function RecipeDetailSheet({
             </div>
 
             <div className="px-4 pt-6">
-              <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">
+              <p className="eyebrow mb-2">
                 {tFallback("nutrition.perServing", "Per serving")}
               </p>
               <MacroTiles recipe={recipe} />
@@ -115,7 +115,7 @@ export default function RecipeDetailSheet({
 
             {ingredients.length > 0 && (
               <div className="px-4 pt-6">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                <p className="eyebrow mb-1">
                   Ingredients · scaled to 1 serving
                 </p>
                 <ul className="divide-y divide-border/60">
@@ -131,7 +131,7 @@ export default function RecipeDetailSheet({
 
             {recipe.directions && (
               <div className="px-4 pt-6">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                <p className="eyebrow mb-1">
                   {tFallback("nutritionPlansModal.directions", "Directions")}
                 </p>
                 <p className="text-caption text-muted-foreground whitespace-pre-wrap leading-relaxed">
@@ -142,7 +142,7 @@ export default function RecipeDetailSheet({
 
             {chips.length > 0 && (
               <div className="px-4 pt-6">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                <p className="eyebrow mb-2">
                   More nutrients · per serving
                 </p>
                 <div className="flex flex-wrap gap-1.5">

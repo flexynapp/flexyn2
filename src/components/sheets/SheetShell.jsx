@@ -136,7 +136,7 @@ export default function SheetShell({ open, onClose, kicker, children, labelledBy
 
         <div className="px-4 md:px-6 pb-4">
           <div className="flex items-start justify-between gap-3">
-            <p id={labelledBy} className="text-micro font-semibold tracking-[0.04em] text-primary">
+            <p id={labelledBy} className="kicker text-primary">
               {kicker}
             </p>
             <button

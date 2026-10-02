@@ -137,7 +137,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
             <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4 sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">
+                <p className="eyebrow mb-1">
                   {t('nutrition.scannedProduct')}
                 </p>
                 <h2 className="font-heading font-bold text-xl leading-tight line-clamp-2">

@@ -225,7 +225,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary/15 to-primary/15 border-b border-border">
         <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
-        <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+        <p className="kicker text-primary">
           {tFallback("tradeOfferCard.tradeOffer", "Trade Offer")}
         </p>
         <span className="ml-auto text-micro text-muted-foreground">
@@ -241,7 +241,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       <div className="p-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {/* Their side / "you'd give up" */}
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="kicker">
             {isMine
               ? tFallback('tradeOfferCard.youGive', 'You give')
               : tFallback('tradeOfferCard.theyWant', 'They want')}
@@ -249,7 +249,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           <div className="text-3xl">{theirItem?.emoji || '❓'}</div>
           <p className="text-micro font-medium leading-tight">{theirItem?.name || '—'}</p>
           <span
-            className="text-micro font-bold uppercase tracking-wider"
+            className="kicker"
             style={{ color: theirItemRarity.color }}
           >
             {theirItem?.rarity || 'common'}
@@ -266,7 +266,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
 
         {/* Your side / "you'd get" */}
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="kicker">
             {isMine
               ? tFallback('tradeOfferCard.youGet', 'You get')
               : tFallback('tradeOfferCard.youReceive', 'You receive')}
@@ -274,7 +274,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           <div className="text-3xl">{myItem?.emoji || '❓'}</div>
           <p className="text-micro font-medium leading-tight">{myItem?.name || '—'}</p>
           <span
-            className="text-micro font-bold uppercase tracking-wider"
+            className="kicker"
             style={{ color: myItemRarity.color }}
           >
             {myItem?.rarity || 'common'}

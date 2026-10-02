@@ -381,10 +381,21 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
       previewText = '⚔️ Duel challenge';
     }
     const preview = previewText ? previewText.slice(0, 80) : '📎 Image';
-    await conv().update(conversationId, {
-      last_message_at: new Date().toISOString(),
-      last_message_preview: preview,
+    // A direct update passes RLS only for whoever started the thread, so a
+    // reply from the other person used to leave both inboxes stale. The RPC
+    // lets any participant who just sent a message set these two columns.
+    const { error } = await supabase.rpc('bump_my_conversation', {
+      p_conversation_id: conversationId,
+      p_preview: preview,
     });
+    // Until the migration is live the RPC does not exist; keep the old
+    // update so the thread starter's inbox still moves.
+    if (error?.code === 'PGRST202') {
+      await conv().update(conversationId, {
+        last_message_at: new Date().toISOString(),
+        last_message_preview: preview,
+      });
+    }
   } catch { /* non-blocking */ }
   return created;
 };

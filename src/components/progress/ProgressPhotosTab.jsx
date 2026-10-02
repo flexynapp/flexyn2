@@ -346,7 +346,7 @@ export default function ProgressPhotosTab() {
       {/* Month-grouped thumbnail grid */}
       {months.map((month, mi) => (
         <section key={month.key} style={{ marginBottom: 'var(--fluid-section)' }}>
-          <h2 className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <h2 className="eyebrow font-heading mb-2">
             {fmtDate(month.date, { month: 'long', year: 'numeric' })}
           </h2>
           <div className={TILE_ROW}>
