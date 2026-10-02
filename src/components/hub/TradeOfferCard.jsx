@@ -229,7 +229,11 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           {tFallback("tradeOfferCard.tradeOffer", "Trade Offer")}
         </p>
         <span className="ml-auto text-micro text-muted-foreground">
-          {isMine ? 'You sent' : `From ${payload.fromName || 'someone'}`}
+          {isMine
+            ? tFallback('tradeOfferCard.youSent', 'You sent')
+            : tFallback('tradeOfferCard.fromName', 'From {name}', {
+              name: payload.fromName || tFallback('tradeOfferCard.someone', 'someone'),
+            })}
         </span>
       </div>
 
@@ -238,7 +242,9 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
         {/* Their side / "you'd give up" */}
         <div className="flex flex-col items-center gap-1 text-center">
           <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-            {isMine ? 'You give' : 'They want'}
+            {isMine
+              ? tFallback('tradeOfferCard.youGive', 'You give')
+              : tFallback('tradeOfferCard.theyWant', 'They want')}
           </p>
           <div className="text-3xl">{theirItem?.emoji || '❓'}</div>
           <p className="text-micro font-medium leading-tight">{theirItem?.name || '—'}</p>
@@ -261,7 +267,9 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
         {/* Your side / "you'd get" */}
         <div className="flex flex-col items-center gap-1 text-center">
           <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-            {isMine ? 'You get' : 'You receive'}
+            {isMine
+              ? tFallback('tradeOfferCard.youGet', 'You get')
+              : tFallback('tradeOfferCard.youReceive', 'You receive')}
           </p>
           <div className="text-3xl">{myItem?.emoji || '❓'}</div>
           <p className="text-micro font-medium leading-tight">{myItem?.name || '—'}</p>

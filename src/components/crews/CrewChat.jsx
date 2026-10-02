@@ -103,7 +103,7 @@ function RollCallComposer({ onSubmit, onCancel }) {
           className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
           style={{ background: 'hsl(var(--primary))' }}
         >
-          📣 Send Roll Call
+          📣 {tFallback('crewChat.sendRollCall', 'Send Roll Call')}
         </motion.button>
       </div>
     </div>
@@ -136,7 +136,9 @@ function RegimenPicker({ userId, onShare, onAssign, canAssign, onCancel }) {
       <div className="px-4 pt-3 pb-1 flex items-center justify-between sticky top-0 bg-card border-b border-border/50">
         <div className="flex items-center gap-2">
           <p className="text-xs font-bold text-muted-foreground">
-            {tab === 'assign' ? 'Assign to Crew' : 'Share a Regimen'}
+            {tab === 'assign'
+              ? tFallback('crewChat.assignToCrew', 'Assign to Crew')
+              : tFallback('crewChat.shareARegimen', 'Share a Regimen')}
           </p>
           {canAssign && (
             <div className="flex gap-1">
@@ -168,8 +170,12 @@ function RegimenPicker({ userId, onShare, onAssign, canAssign, onCancel }) {
               className="w-full text-start px-3 py-2.5 rounded-xl hover:bg-secondary active:bg-secondary transition-colors"
             >
               <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-              <p className="text-xs text-muted-foreground">{(r.exercises || []).length} exercises
-                {tab === 'assign' && <span className="ms-1 text-primary font-medium">· assign to crew</span>}
+              <p className="text-xs text-muted-foreground">{tFallback(
+                (r.exercises || []).length === 1 ? 'crewChat.exerciseCount.one' : 'crewChat.exerciseCount.other',
+                (r.exercises || []).length === 1 ? '{n} exercise' : '{n} exercises',
+                { n: (r.exercises || []).length },
+              )}
+                {tab === 'assign' && <span className="ms-1 text-primary font-medium">· {tFallback('crewChat.assignToCrewInline', 'assign to crew')}</span>}
               </p>
             </button>
           ))}
@@ -204,8 +210,12 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
       <Dumbbell className="w-4 h-4 shrink-0" style={{ color: 'hsl(var(--primary))' }} />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-muted-foreground">{tFallback("crewChat.crewPlan", "Crew Plan")}</p>
-        <p className="text-sm font-bold text-foreground truncate">{regimen.name || 'Assigned Regimen'}</p>
-        <p className="text-xs text-muted-foreground">{exCount} exercise{exCount !== 1 ? 's' : ''}
+        <p className="text-sm font-bold text-foreground truncate">{regimen.name || tFallback('crewChat.assignedRegimen', 'Assigned Regimen')}</p>
+        <p className="text-xs text-muted-foreground">{tFallback(
+            exCount === 1 ? 'crewChat.exerciseCount.one' : 'crewChat.exerciseCount.other',
+            exCount === 1 ? '{n} exercise' : '{n} exercises',
+            { n: exCount },
+          )}
           {top.note ? ` · ${top.note}` : ''}
         </p>
       </div>
@@ -251,7 +261,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
       <Megaphone className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-0.5">
-          📌 Announcement
+          📌 {tFallback('crewChat.announcement', 'Announcement')}
         </p>
         <p className="text-xs text-foreground leading-relaxed line-clamp-3">
           {message.content}

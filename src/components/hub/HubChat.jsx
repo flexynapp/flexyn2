@@ -1744,7 +1744,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
               >
                 <span className="text-base">📌</span>
-                {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
+                {isPinned(contextMsg)
+                  ? tFallback('hub.chat.unpinMessage', 'Unpin message')
+                  : tFallback('hub.chat.pinMessage', 'Pin message')}
               </button>
 
               {/* Delete — only for the sender's own messages (mig 114) */}

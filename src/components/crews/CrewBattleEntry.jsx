@@ -224,7 +224,9 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
                         : <Trophy className="w-3.5 h-3.5 text-muted-foreground" />
                       }
                       <span className={`text-xs font-bold ${won ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {won ? 'Victory' : 'Defeat'}
+                        {won
+                          ? tFallback('crewBattleEntry.victory', 'Victory')
+                          : tFallback('crewBattleEntry.defeat', 'Defeat')}
                       </span>
                     </div>
                     <span className="text-xs tabular-nums text-muted-foreground">

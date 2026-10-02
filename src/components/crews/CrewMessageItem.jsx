@@ -576,7 +576,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
     <div className="flex justify-center my-3 px-2">
       <div className="rounded-2xl border border-border bg-card px-4 py-3.5 max-w-xs w-full shadow-sm">
         <p className="text-xs font-bold text-muted-foreground mb-1.5 flex items-center gap-1.5">
-          📣 Roll Call
+          📣 {tFallback('crewChat.rollCall', 'Roll Call')}
         </p>
         <p className="text-sm font-semibold text-foreground mb-3 leading-snug">{question}</p>
 
