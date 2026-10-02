@@ -881,7 +881,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
             <button
               type="button"
               onClick={openShop}
-              aria-label={tFallback('userBag.openCoinShop', 'Open Coin Shop')}
+              aria-label={tFallback('userBag.openCoinShop', 'Open the coin shop')}
               className="min-h-11 px-2 inline-flex items-center gap-1.5 text-label font-semibold tabular-nums"
             >
               <FlexCoinIcon size={18} />
