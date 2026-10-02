@@ -29,10 +29,11 @@ import { detectIntent, INTENTS } from './intents';
 import { respond } from './responders';
 import { buildCoachPlan } from './planBuilder';
 import { askCoachLLM } from '@/lib/data/coachChat';
+import { resolveCoachCard } from '@/lib/aiCoach/coachCard';
 
 /**
  * Ask the coach something. Returns:
- *   { reply, intent, source: 'llm' | 'plan' | 'rules', plan?, capped? }
+ *   { reply, intent, source: 'llm' | 'plan' | 'rules', plan?, capped?, card? }
  * When the user asks for a tailored workout/plan, `plan` carries a saveable
  * payload the chat renders as an interactive card.
  *
@@ -97,6 +98,9 @@ export async function askCoach(user, message, ctx = {}) {
         // and analytics key off it) but it no longer decides the answer.
         intent: detectIntent(message),
         source: 'llm',
+        // Visuals are drawn from the digest the model read, here, once, so
+        // the stored message keeps the numbers the answer was written against.
+        card: resolveCoachCard(llm.card, ctx.coachContext),
       };
     }
 

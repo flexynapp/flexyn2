@@ -11,6 +11,7 @@
 import { CAPSULE_ODDS, RARITY, findCatalogItem } from '@/lib/lootCatalog';
 import { SHOP_CATALOG } from '@/lib/data/coinShop';
 import { catalogFor } from '@/lib/collection';
+import { glyphFor } from '@/components/capsules/stickerGlyphs';
 
 export const CAPSULE_TIERS = ['standard', 'premium', 'elite'];
 
@@ -45,6 +46,63 @@ export function defaultTier(shelf) {
     if ((shelf?.[tier]?.length ?? 0) > 0) return tier;
   }
   return 'standard';
+}
+
+/**
+ * Shelf order, left to right, with `tier` in the middle and the other two
+ * either side in catalogue order. Used once, for the first arrangement.
+ */
+export function shelfSlots(tier) {
+  const centre = CAPSULE_TIERS.includes(tier) ? tier : 'standard';
+  const others = CAPSULE_TIERS.filter(t => t !== centre);
+  return [others[0], centre, others[1]];
+}
+
+/**
+ * The shelf after the user picks `tier`: it trades places with whatever is in
+ * the middle and the third canister stays where it stands. A swap, rather than
+ * re-sorting into catalogue order, is what lets the change animate as two
+ * canisters passing each other instead of all three reshuffling.
+ */
+export function swapIntoCentre(slots, tier) {
+  const at = slots.indexOf(tier);
+  if (at < 0 || at === 1) return slots;
+  const next = [...slots];
+  next[at] = slots[1];
+  next[1] = tier;
+  return next;
+}
+
+// Canister heights, mirroring the CSS clamps the shelf drew before it
+// animated: clamp(160px,26vh,226px) for the chosen one, clamp(84px,13vh,111px)
+// for the two beside it. Computed here because the swap animates transforms,
+// and a transform needs numbers.
+const clampPx = (min, v, max) => Math.min(max, Math.max(min, v));
+const CANISTER_RATIO = 120 / 166;
+const SHELF_GAP = 10;
+const LABEL_W = 104;
+const LABEL_GAP = 8;
+
+/**
+ * Geometry for one viewport height. Every canister is drawn at the large size
+ * and the side ones are scaled down from their base, so a swap is pure
+ * transform (x and scale) and never resizes a box.
+ *
+ * @param {number} vh  window.innerHeight in px
+ * @returns {{ big:number, width:number, side:number, offset:number, labelOffset:number }}
+ *   big    the chosen canister's height
+ *   width  its width
+ *   side   scale of a side canister
+ *   offset px from the centre to a side canister's centre
+ *   labelOffset same for the labels under them, never closer than a label's width
+ */
+export function shelfGeometry(vh) {
+  const big = clampPx(160, 0.26 * vh, 226);
+  const small = clampPx(84, 0.13 * vh, 111);
+  const width = big * CANISTER_RATIO;
+  const side = small / big;
+  const offset = width / 2 + SHELF_GAP + (width * side) / 2;
+  return { big, width, side, offset, labelOffset: Math.max(offset, LABEL_W + LABEL_GAP) };
 }
 
 /**
@@ -152,4 +210,50 @@ export function askMultiple(askingPrice, catalog) {
   const m = askingPrice / catalog;
   if (m < 2) return null;
   return m >= 10 ? Math.round(m) : Math.round(m * 10) / 10;
+}
+
+/**
+ * The stickers the set preview fans out: the user's newest owned stickers,
+ * oldest on the left so the newest lands on top, then a few they do not have
+ * yet, rarest first, as a glimpse of what the set still holds.
+ * `inventoryRows` is newest first, as inventory.listItems returns it.
+ * `lead` is a sticker that just dropped: it goes on top even if it is
+ * already in the rows. Returns `{ id, rarity, emoji, owned }` items.
+ */
+export function setFan(inventoryRows, { max = 5, teasers = 2, lead = null } = {}) {
+  const set = stickerSet();
+  const byId = new Map(set.map(s => [s.id, s]));
+  const seen = new Set();
+  const mine = [];
+  for (const row of inventoryRows ?? []) {
+    const id = row?.item_id;
+    if (!byId.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    if (id !== lead) mine.push(byId.get(id));
+  }
+  const room = Math.max(0, max - (lead && byId.has(lead) ? 1 : 0));
+  const out = mine.slice(0, room).reverse().map(s => ({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: true }));
+  if (lead && byId.has(lead)) {
+    const s = byId.get(lead);
+    out.push({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: true });
+    seen.add(lead);
+  }
+  if (teasers > 0) {
+    const missing = [...set].reverse().filter(s => !seen.has(s.id) && glyphFor(s.id));
+    for (const s of missing.slice(0, teasers)) out.push({ id: s.id, rarity: s.rarity, emoji: s.emoji, owned: false });
+  }
+  return out;
+}
+
+/**
+ * The face a rarity wears on the odds ladder: a sticker of that rarity the
+ * user owns, else one from the set they could get. Drawn stickers before
+ * emoji discs. Null when the set has no sticker of that rarity.
+ */
+export function rarityFace(rarity, owned) {
+  const have = owned ?? new Set();
+  const inTier = stickerSet().filter(s => s.rarity === rarity);
+  const rank = (s) => (have.has(s.id) ? 0 : 2) + (glyphFor(s.id) ? 0 : 1);
+  const pick = [...inTier].sort((a, b) => rank(a) - rank(b))[0];
+  return pick ? { id: pick.id, emoji: pick.emoji, owned: have.has(pick.id) } : null;
 }

@@ -112,14 +112,14 @@ function RepostCard({ originalPostId, onAuthorClick }) {
           onAuthorClick?.({ id: original.user_id });
         }
       }}
-      aria-label={`Open ${displayName}'s profile`}
+      aria-label={tFallback('hubPostCard.openProfile', "Open {name}'s profile", { name: displayName })}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
         <Repeat2 className="w-3 h-3 text-primary shrink-0" />
         <span className="text-xs font-semibold text-muted-foreground">{displayName}</span>
       </div>
       <p className="text-sm text-foreground line-clamp-3 leading-relaxed">
-        {body.startsWith('[POLL_V1]') ? '📊 Poll' : body || tFallback('hub.post.noBody', 'Shared a post')}
+        {body.startsWith('[POLL_V1]') ? `📊 ${tFallback('hubPostCard.poll', 'Poll')}` : body || tFallback('hub.post.noBody', 'Shared a post')}
       </p>
     </div>
   );
@@ -210,6 +210,24 @@ function PollCard({ post, userEmail }) {
       });
     return () => { cancelled = true; };
   }, [post.id, optionCount, isValid]);
+
+  // Your own vote lives on the server. poll_votes hides voters' emails, so
+  // the card cannot find its row by reading the table, and localStorage
+  // only knows about votes cast on this device: on a phone after voting on
+  // a laptop the poll offered to vote again and then failed with "already
+  // voted". my_poll_vote returns the caller's own choice.
+  useEffect(() => {
+    if (!isValid || !post.id || myVote !== null) return;
+    let cancelled = false;
+    supabase
+      .rpc('my_poll_vote', { p_post_id: post.id })
+      .then(({ data, error }) => {
+        if (cancelled || error || !Number.isInteger(data)) return;
+        setMyVote(data);
+        try { localStorage.setItem(VOTE_KEY(post.id, userEmail), JSON.stringify(data)); } catch {}
+      });
+    return () => { cancelled = true; };
+  }, [post.id, isValid, myVote, userEmail]);
 
   // Fetch vote timeline when showTimeline is toggled on. Same
   // cancelled-flag pattern as the votes-fetch above.
@@ -307,14 +325,16 @@ function PollCard({ post, userEmail }) {
         </div>
         <div className="flex items-center justify-between mt-2">
           {myVote !== null && (
-            <p className="text-micro text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
+            <p className="text-micro text-muted-foreground">{tFallback(totalVotes === 1 ? 'hubPostCard.voteCount.one' : 'hubPostCard.voteCount.other', totalVotes === 1 ? '{n} vote' : '{n} votes', { n: totalVotes })}</p>
           )}
           {totalVotes > 0 && (
             <button
               onClick={() => setShowTimeline(v => !v)}
               className="text-micro text-primary font-medium hover:underline ml-auto"
             >
-              {showTimeline ? 'Hide timeline' : 'Vote timeline →'}
+              {showTimeline
+                ? tFallback('hubPostCard.hideTimeline', 'Hide timeline')
+                : <>{tFallback('hubPostCard.voteTimeline', 'Vote timeline')} →</>}
             </button>
           )}
         </div>
@@ -369,7 +389,9 @@ function ImagePreview({ src }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(v => !v); }}
-      aria-label={expanded ? 'Collapse image' : 'Expand image'}
+      aria-label={expanded
+        ? tFallback('hubPostCard.collapseImage', 'Collapse image')
+        : tFallback('hubPostCard.expandImage', 'Expand image')}
     >
       {expanded ? (
         <div className="relative">
@@ -1056,7 +1078,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             // stopPropagation on pointerup so a tap to open the profile
             // doesn't also feed the article's double-tap-to-like detector.
             onPointerUp={(e) => e.stopPropagation()}
-            aria-label={`Open ${author.handle}'s profile`}
+            aria-label={tFallback('hubPostCard.openProfile', "Open {name}'s profile", { name: author.handle })}
             className={`absolute inset-0 ${isMine ? 'end-16' : 'end-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
         )}

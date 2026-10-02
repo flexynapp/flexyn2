@@ -446,7 +446,7 @@ function OptionCard({
    primary glyph, because the card behind it is primary. */
 function PickPill({ selected, order = null }) {
   return (
-    <span className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors font-mono text-micro font-bold ${
+    <span className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors text-micro font-bold tabular-nums ${
       selected ? 'bg-primary-ink text-primary' : 'border-[1.5px] border-border'}`}>
       {selected && (order != null
         ? order
@@ -626,7 +626,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                  slack on a 667pt SE — and 22px of real height put it 6px into
                  overflow. Same technique the carousel pips use above.
                  (Onboarding polish #5) */
-              className="relative font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer before:absolute before:content-[''] before:-inset-y-[11px] before:-inset-x-2">
+              className="relative text-micro font-bold text-muted-foreground tracking-wider uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer before:absolute before:content-[''] before:-inset-y-[11px] before:-inset-x-2">
               {tFallback('onboarding.goal.clear', 'Clear')}
             </motion.button>
           </div>
@@ -1499,7 +1499,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
         {/* Username */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           style={{ marginBottom: 'var(--fluid-section)' }}>
-          <label htmlFor="onboarding-username" className="block font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+          <label htmlFor="onboarding-username" className="block text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
           </label>
           <input
@@ -1528,7 +1528,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
             spellCheck={false}
             inputMode="text"
             enterKeyHint="next"
-            className="w-full h-12 rounded-lg border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            className="w-full h-12 rounded-lg border border-border bg-secondary/50 px-4 text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p id="onboarding-username-note" role="alert" className="text-xs text-destructive mt-1">{usernameError}</p>}
           {!usernameError && stripWarning && (
@@ -1541,7 +1541,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
         {/* Age drag section */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="relative">
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2 text-center">
+          <div className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2 text-center">
             {tFallback('onboarding.about.agePrompt', 'How old are you?')}
           </div>
 
@@ -1601,7 +1601,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
                 type="button"
                 onClick={handleAgeTap}
                 aria-label={tFallback('onboarding.about.ageTapAria', 'Tap to type your age')}
-                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
+                className="text-micro font-semibold tracking-wider uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
                 // This LOOKS like a caption but is a real control — tapping it
                 // opens the keypad. It was 28px tall, so the affordance the
                 // copy advertises was the hardest thing on the step to hit.
@@ -1652,7 +1652,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
                     {isMajor && (
                       <span style={{
                         position: 'absolute', left: v * PX, top: '72%', transform: 'translateX(-50%)',
-                        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
+                        fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
                         color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                       }}>{v}</span>
                     )}
@@ -1670,8 +1670,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
                 left is the ruler's actual range, which is information the
                 other line was crowding out.
                 Sizes are text-micro (11px), per the app-wide type floor. */}
-            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MIN}</span>
-            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MAX}</span>
+            <span className="text-micro font-semibold text-muted-foreground tabular-nums">{AGE_MIN}</span>
+            <span className="text-micro font-semibold text-muted-foreground tabular-nums">{AGE_MAX}</span>
           </div>
         </motion.div>
 
@@ -1688,7 +1688,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, u
               data for nothing. "Prefer not to say" replaces "Other", which as
               a sex option told the calculator nothing anyway; both land on the
               same conservative middle value. */}
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+          <div className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             {tFallback('onboarding.about.sexPrompt', 'What sex were you assigned at birth?')}
           </div>
           {/* Four options, because "Other" and "Prefer not to say" are not the
@@ -1946,12 +1946,12 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 </div>
               </button>
             )}
-            <div className="font-mono text-micro font-semibold tracking-widest uppercase text-muted-foreground mt-2">
+            <div className="text-micro font-semibold tracking-wider uppercase text-muted-foreground mt-2">
               {unit === 'cm'
                 ? tFallback('onboarding.height.tapHintMetric', 'CM · TAP TO TYPE')
                 : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
             </div>
-            <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
+            <div className="text-micro text-muted-foreground/70 tabular-nums mt-1">≈ {displaySecondary}</div>
             {heightHint && (
               <p className="text-micro text-primary mt-1 leading-snug">
                 {unit === 'cm'
@@ -1978,7 +1978,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
               const label = unit === 'cm' ? m.cmLabel : m.inLabel;
               return (
                 <div key={label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${panelPct(m.in)}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
-                  <span style={{ position: 'absolute', left: 4, top: -14, fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
+                  <span style={{ position: 'absolute', left: 4, top: -14, fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
                 </div>
               );
             })}
@@ -2017,7 +2017,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   return (
                     <span key={v}>
                       <span style={{ position: 'absolute', top: -v * PX, left: '50%', transform: 'translate(-50%,-50%)', width: isMajor ? 28 : isMid ? 18 : 10, height: 1.5, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.3)', borderRadius: 1 }} />
-                      {isMajor && <span style={{ position: 'absolute', top: -v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
+                      {isMajor && <span style={{ position: 'absolute', top: -v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
                     </span>
                   );
                 })}
@@ -2282,8 +2282,8 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 <NumberReel value={value} />
               </div>
             )}
-            <div className="font-mono text-micro font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? tFallback('onboarding.weight.unitKg', 'KG') : tFallback('onboarding.weight.unitLb', 'LBS')}</div>
-            <div className="font-mono text-micro text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
+            <div className="text-micro font-bold tracking-wider uppercase text-primary mt-1">{unit === 'kg' ? tFallback('onboarding.weight.unitKg', 'KG') : tFallback('onboarding.weight.unitLb', 'LBS')}</div>
+            <div className="text-micro text-muted-foreground tabular-nums mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
           </div>
         </div>
 
@@ -2293,7 +2293,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         {/* Dial hint — the gauge above is the input: drag it up/down to set,
             tap the number to type. Replaces the old horizontal scrubber. */}
         <div className="flex items-center justify-center gap-1.5 mt-3 mb-1" aria-hidden="true">
-          <span className="font-mono text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">
+          <span className="text-micro font-semibold tracking-wider uppercase text-muted-foreground/80">
             {tFallback('onboarding.weight.dialHint', 'Tap to type · drag to set')}
           </span>
         </div>
@@ -2400,7 +2400,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             initial={{ opacity: 1, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mt-1">
+            className="relative text-micro font-bold tracking-wider uppercase text-primary mt-1">
             {intensityLabel}
           </motion.div>
         </motion.div>
@@ -2437,10 +2437,10 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             them to lie. */}
         <div>
           <div className="flex items-baseline justify-between mb-3">
-            <div className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+            <div className="text-micro font-semibold tracking-wider uppercase text-muted-foreground">
               {tFallback('onboarding.schedule.preferredTime', 'Preferred time')}
             </div>
-            <div className="font-mono text-micro font-medium tracking-wider uppercase text-muted-foreground/70">
+            <div className="text-micro font-medium tracking-wider uppercase text-muted-foreground/70">
               {tFallback('onboarding.schedule.pickAll', 'Pick all that apply')}
             </div>
           </div>

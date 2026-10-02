@@ -18,6 +18,9 @@ import {
   staggerItem,
   fadeUp,
   popIn,
+  EASE_IN,
+  TIER,
+  slowMotion,
 } from '@/lib/motion';
 
 describe('motion presets', () => {
@@ -95,5 +98,57 @@ describe('popIn', () => {
     expect(popIn.initial.scale).toBeLessThan(1);
     expect(popIn.animate.scale).toBe(1);
     expect(popIn.transition).toBe(SPRING.pop);
+  });
+});
+
+describe('tiers', () => {
+  it('keeps the names other screens already import', () => {
+    // Several features import these by name. Adding is fine; renaming or
+    // retuning one changes every screen that uses it.
+    expect(SPRING.press).toEqual({ type: 'spring', stiffness: 520, damping: 34, mass: 0.6 });
+    expect(SPRING.pop).toEqual({ type: 'spring', stiffness: 460, damping: 16, mass: 0.7 });
+    expect(EASE_OUT).toEqual([0.22, 1, 0.36, 1]);
+  });
+
+  it('gives each tier a spring from SPRING and a haptic name', () => {
+    expect(TIER.answer.spring).toBe(SPRING.press);
+    expect(TIER.reward.spring).toBe(SPRING.pop);
+    expect(TIER.moment.spring).toBe(SPRING.heavy);
+    expect(TIER.answer.haptic).toBe('subtle');
+    expect(TIER.reward.haptic).toBe('success');
+    expect(TIER.answer.maxDuration).toBeLessThanOrEqual(0.26);
+  });
+
+  it('settle does not overshoot and heavy is the slowest spring', () => {
+    // A ratio of 1 is no overshoot; 0.8 is under 1%, which the eye reads as none.
+    const ratio = ({ stiffness, damping, mass }) => damping / (2 * Math.sqrt(stiffness * mass));
+    expect(ratio(SPRING.settle)).toBeGreaterThanOrEqual(0.8);
+    const omega = ({ stiffness, mass }) => Math.sqrt(stiffness / mass);
+    for (const name of ['press', 'pop', 'settle']) {
+      expect(omega(SPRING.heavy)).toBeLessThan(omega(SPRING[name]));
+    }
+  });
+
+  it('exits accelerate', () => {
+    expect(EASE_IN).toEqual([0.4, 0, 1, 1]);
+  });
+});
+
+describe('slowMotion', () => {
+  it('scales a spring in time without changing its shape', () => {
+    const s = slowMotion(SPRING.pop, 4);
+    expect(s.stiffness).toBeCloseTo(460 / 16, 6);
+    expect(s.damping).toBeCloseTo(16 / 4, 6);
+    expect(s.mass).toBe(0.7);
+    const ratio = ({ stiffness, damping, mass }) => damping / (2 * Math.sqrt(stiffness * mass));
+    expect(ratio(s)).toBeCloseTo(ratio(SPRING.pop), 6);
+    // the original is untouched
+    expect(SPRING.pop.stiffness).toBe(460);
+  });
+
+  it('multiplies durations and delays, and leaves factor 1 alone', () => {
+    expect(slowMotion({ duration: 0.2, delay: 0.1 }, 2)).toEqual({ duration: 0.4, delay: 0.2 });
+    expect(slowMotion(TWEEN, 1)).toBe(TWEEN);
+    expect(slowMotion(TWEEN, 0)).toBe(TWEEN);
   });
 });

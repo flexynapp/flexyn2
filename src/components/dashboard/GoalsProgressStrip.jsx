@@ -116,7 +116,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], cardioLogs =
               <span className="text-sm font-semibold text-foreground truncate">
                 {countLabel}
               </span>
-              <span className="font-mono text-micro font-bold text-primary shrink-0">
+              <span className="text-micro font-bold text-primary tabular-nums shrink-0">
                 {detailLabel}
               </span>
             </div>

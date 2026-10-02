@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import {
   CAPSULE_TIERS, MAX_OPEN_AT_ONCE, tierShopItem, shelfByTier, defaultTier,
   nextOnShelf, oddsSegments, setTiers, stickerSet, setNumber, formatSetNo,
-  copiesOf, catalogValue, askMultiple,
+  copiesOf, catalogValue, askMultiple, shelfSlots, swapIntoCentre, shelfGeometry,
+  setFan, rarityFace,
 } from '@/lib/capsuleShelf';
 import { SELL_PRICE, sellPriceFor } from '@/lib/sellPrice';
 import { RARITY, CAPSULE_ODDS, findCatalogItem } from '@/lib/lootCatalog';
@@ -209,5 +210,81 @@ describe('pityReading', () => {
   it('promises nothing without a server threshold', () => {
     expect(pityReading(null)).toBeNull();
     expect(pityReading({ since_epic: 3 })).toBeNull();
+  });
+});
+
+describe('shelf arrangement', () => {
+  it('puts the first pick in the middle, the rest in catalogue order', () => {
+    expect(shelfSlots('elite')).toEqual(['standard', 'elite', 'premium']);
+    expect(shelfSlots('standard')).toEqual(['premium', 'standard', 'elite']);
+    expect(shelfSlots('nonsense')).toEqual(['premium', 'standard', 'elite']);
+  });
+
+  it('swaps a pick with the middle and leaves the third canister alone', () => {
+    const start = ['standard', 'premium', 'elite'];
+    expect(swapIntoCentre(start, 'elite')).toEqual(['standard', 'elite', 'premium']);
+    expect(swapIntoCentre(start, 'standard')).toEqual(['premium', 'standard', 'elite']);
+    expect(swapIntoCentre(start, 'premium')).toBe(start);
+  });
+
+  it('matches the old CSS clamps and keeps labels from overlapping', () => {
+    for (const vh of [500, 667, 852, 932, 1400]) {
+      const g = shelfGeometry(vh);
+      expect(g.big).toBeGreaterThanOrEqual(160);
+      expect(g.big).toBeLessThanOrEqual(226);
+      const small = g.big * g.side;
+      expect(small).toBeGreaterThanOrEqual(84 - 1e-9);
+      expect(small).toBeLessThanOrEqual(111 + 1e-9);
+      // A side canister clears the middle one by the 10px gap the shelf had.
+      expect(g.offset - g.width / 2 - (g.width * g.side) / 2).toBeCloseTo(10);
+      expect(g.labelOffset).toBeGreaterThanOrEqual(112);
+    }
+  });
+});
+
+describe('setFan', () => {
+  const set = stickerSet();
+  const rows = (...ids) => ids.map(item_id => ({ item_id }));
+
+  it('puts the newest owned sticker on top and teases ones not yet owned', () => {
+    // Inventory comes newest first.
+    const fan = setFan(rows(set[2].id, set[1].id, set[0].id, set[1].id), { teasers: 2 });
+    expect(fan.filter(f => f.owned).map(f => f.id)).toEqual([set[0].id, set[1].id, set[2].id]);
+    const teased = fan.filter(f => !f.owned);
+    expect(teased).toHaveLength(2);
+    expect(teased.every(t => glyphFor(t.id))).toBe(true);
+    expect(teased.some(t => [set[0].id, set[1].id, set[2].id].includes(t.id))).toBe(false);
+  });
+
+  it('caps the owned stickers and ignores anything outside the set', () => {
+    const fan = setFan(rows('not_a_sticker', ...set.slice(0, 9).map(s => s.id)), { max: 5, teasers: 0 });
+    expect(fan).toHaveLength(5);
+    expect(fan.at(-1).id).toBe(set[0].id);
+  });
+
+  it('lands a fresh drop on top, once', () => {
+    const fan = setFan(rows(set[3].id, set[0].id, set[3].id), { teasers: 0, lead: set[3].id });
+    expect(fan.map(f => f.id)).toEqual([set[0].id, set[3].id]);
+  });
+
+  it('shows only teasers to someone with no stickers', () => {
+    const fan = setFan([], { teasers: 3 });
+    expect(fan).toHaveLength(3);
+    expect(fan.every(f => !f.owned)).toBe(true);
+  });
+});
+
+describe('rarityFace', () => {
+  it('prefers a sticker the user owns, else a drawn one they could get', () => {
+    const epics = stickerSet().filter(s => s.rarity === 'epic');
+    const mine = epics.find(s => !glyphFor(s.id)) ?? epics[0];
+    expect(rarityFace('epic', new Set([mine.id]))).toMatchObject({ id: mine.id, owned: true });
+    const face = rarityFace('epic', new Set());
+    expect(face.owned).toBe(false);
+    expect(glyphFor(face.id)).toBeTruthy();
+  });
+
+  it('is null for a rarity the set has no sticker of', () => {
+    expect(rarityFace('nonexistent', new Set())).toBeNull();
   });
 });

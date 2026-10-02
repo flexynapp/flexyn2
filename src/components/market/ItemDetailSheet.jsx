@@ -181,12 +181,12 @@ export default function ItemDetailSheet({
             {isSale ? tFallback('itemDetail.asking', 'Asking') : tFallback('itemDetail.wants', 'Wants in trade')}
           </span>
           {isSale ? (
-            <span className="inline-flex items-center gap-2.5">
-              <FlexCoinIcon size={32} />
-              <span className="font-display text-display tabular-nums">{fmt(price)}</span>
+            <span className="inline-flex items-center gap-2">
+              <FlexCoinIcon size={22} />
+              <span className="font-display text-title tabular-nums">{fmt(price)}</span>
             </span>
           ) : (
-            <span className="font-display text-display">
+            <span className="font-display text-title">
               {listing.trade_for_rarity
                 ? tFallback('itemDetail.rarityOrBetter', '{rarity} or better', { rarity: rarityName(tFallback, listing.trade_for_rarity) })
                 : tFallback('itemDetail.anySticker', 'Any sticker')}

@@ -44,7 +44,8 @@
 
       Critical, below, stays render-blocking because first paint genuinely
       needs it: Sofia Sans is --font-heading and --font-body, Sofia Sans
-      Extra Condensed is --font-display (page titles), and Leckerli One is
+      Extra Condensed is --font-display (the onboarding and sign in hero
+      line, .font-hero, nowhere else), and Leckerli One is
       the "Flexyn" wordmark drawn as live <text> on the splash screen
       (SplashScreen.jsx), deferring that would show the logo in a fallback
       for a beat on every cold start, which is the one place a font swap is

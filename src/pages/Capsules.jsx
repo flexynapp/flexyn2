@@ -1,8 +1,9 @@
 // src/pages/Capsules.jsx
 //
 // Capsules, "what opens next": the shelf of unopened capsules by tier, the
-// published odds for the one selected, where the sticker set stands and the
-// pity counter, with one Open (or Buy) at the bottom. From the round 2 design.
+// published odds for the one selected (with the pity line drawn through
+// them) and a fan of the sticker set, with one Open (or Buy) at the bottom.
+// From the round 2 design.
 //
 // Everything that decides something is a server call this page only fronts:
 // purchase_shop_item buys a capsule, open_capsule_atomic (inside the global
@@ -13,6 +14,7 @@
 // Capsules carry no serial in the database, so there is nothing to print.
 
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,13 +27,16 @@ import * as inventory from '@/lib/data/inventory';
 import { getFlexCoins, purchaseItem } from '@/lib/data/coinShop';
 import { buildCollection, ownershipFrom } from '@/lib/collection';
 import {
-  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, oddsSegments, setTiers, shelfByTier, tierShopItem,
+  CAPSULE_TIERS, MAX_OPEN_AT_ONCE, defaultTier, setFan, setTiers, shelfByTier, shelfGeometry,
+  shelfSlots, swapIntoCentre, tierShopItem,
 } from '@/lib/capsuleShelf';
+import { SPRING, TWEEN } from '@/lib/motion';
+import { haptic } from '@/lib/haptic';
 import { requestOpenCapsules } from '@/lib/inventoryFlow';
 import CapsuleCanister from '@/components/capsules/CapsuleCanister';
-import PityMeter from '@/components/capsules/PityMeter';
-import { OddsBar, SetBar } from '@/components/capsules/parts';
-import { tierName, tierFinish, tierBlurb, rarityName } from '@/components/capsules/words';
+import OddsLadder from '@/components/capsules/OddsLadder';
+import SetFan from '@/components/capsules/SetFan';
+import { tierName, tierFinish, tierBlurb } from '@/components/capsules/words';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
 export default function Capsules() {
@@ -62,18 +67,31 @@ export default function Capsules() {
   });
 
   const shelf = useMemo(() => shelfByTier(rows), [rows]);
-  const [tier, setTier] = useState(null);
+  // The shelf left to right; the middle one is the capsule chosen.
+  const [slots, setSlots] = useState(null);
   // Start on the rarest tier the user can open. Chosen once the shelf has
   // loaded, and never again: a pick the user made stays theirs.
   useEffect(() => {
-    if (tier == null && !isLoading) setTier(defaultTier(shelf));
-  }, [tier, isLoading, shelf]);
-  const current = tier ?? 'standard';
+    if (slots == null && !isLoading) setSlots(shelfSlots(defaultTier(shelf)));
+  }, [slots, isLoading, shelf]);
+  const arranged = slots ?? shelfSlots('standard');
+  const current = arranged[1];
+  const choose = (t) => {
+    if (t === current) return;
+    haptic('subtle');
+    setSlots(swapIntoCentre(arranged, t));
+  };
+  const geo = useShelfGeometry();
 
   const set = useMemo(() => {
     if (!inv) return null;
     const ownership = ownershipFrom(inv);
-    return { ...buildCollection('stickers', ownership), tiers: setTiers(ownership.owned) };
+    return {
+      ...buildCollection('stickers', ownership),
+      tiers: setTiers(ownership.owned),
+      ownedIds: ownership.owned,
+      fan: setFan(inv),
+    };
   }, [inv]);
 
   const onShelf = shelf[current].length;
@@ -114,9 +132,6 @@ export default function Capsules() {
   };
 
   const canAfford = coins == null || price == null || coins >= price;
-  const others = CAPSULE_TIERS.filter(t => t !== current);
-  // Selected in the middle, the other two either side of it.
-  const order = { [others[0]]: 0, [current]: 1, [others[1]]: 2 };
   const fmtPct = (n) => `${fmt(n, { maximumFractionDigits: 1 })}%`;
 
   return (
@@ -136,48 +151,69 @@ export default function Capsules() {
       {/* The shelf band bleeds to the screen edge: it is the one dominant
           element here. */}
       <section className="-mx-4 md:mx-0 md:rounded-2xl border-y md:border bg-card pt-3 pb-3 flex flex-col">
-        <div className="h-[clamp(190px,30vh,252px)] flex items-end justify-center gap-2.5 px-5">
+        {/* Every canister is drawn at the chosen size and the two beside it
+            are scaled down from their base, so a pick is pure transform: the
+            tapped one slides to the middle and grows while the one it replaces
+            slides out to its spot and shrinks. The incoming one rides in front
+            so the two read as passing each other. */}
+        <div className="relative h-[clamp(190px,30vh,252px)]">
           {CAPSULE_TIERS.map((t) => {
-            const on = t === current;
+            const slot = arranged.indexOf(t);
+            const on = slot === 1;
             const owned = shelf[t].length > 0;
             return (
-              <button
+              <motion.button
                 key={t}
                 type="button"
-                onClick={() => setTier(t)}
+                onClick={() => choose(t)}
                 aria-pressed={on}
                 aria-label={tFallback('capsuleOpener.tierCapsule', '{tier} capsule', { tier: tierName(tFallback, t) })}
-                className="flex flex-col items-center justify-end min-w-11"
-                style={{ order: order[t] }}
+                className="absolute bottom-0 left-1/2 block"
+                style={{
+                  width: geo.width,
+                  marginLeft: -geo.width / 2,
+                  transformOrigin: '50% 100%',
+                  zIndex: on ? 2 : 1,
+                }}
+                initial={false}
+                animate={{
+                  x: (slot - 1) * geo.offset,
+                  scale: on ? 1 : geo.side,
+                  opacity: on || owned ? 1 : 0.55,
+                }}
+                transition={{ ...SPRING.press, opacity: TWEEN }}
               >
-                <CapsuleCanister
-                  tier={t}
-                  height={on ? 'clamp(160px,26vh,226px)' : 'clamp(84px,13vh,111px)'}
-                  style={{ opacity: on || owned ? 1 : 0.55 }}
-                />
-              </button>
+                <CapsuleCanister tier={t} height={geo.big} />
+              </motion.button>
             );
           })}
         </div>
         {/* The plank the canisters stand on. */}
         <div className="h-2.5 mx-3.5 bg-border rounded-t-sm border-t border-muted-foreground/25" aria-hidden="true" />
         <div className="h-1 mx-4 bg-background rounded-b-sm" aria-hidden="true" />
-        <div className="flex justify-center gap-2 pt-2.5">
+        {/* The names ride with their canisters. Each sits on the card colour so
+            the one sliding in covers the one sliding out instead of the two
+            words printing over each other. */}
+        <div className="relative h-11 mt-2.5">
           {CAPSULE_TIERS.map((t) => {
-            const on = t === current;
+            const slot = arranged.indexOf(t);
+            const on = slot === 1;
             const n = shelf[t].length;
             const p = tierShopItem(t)?.price;
             return (
-              <button
+              <motion.button
                 key={t}
                 type="button"
-                onClick={() => setTier(t)}
+                onClick={() => choose(t)}
                 tabIndex={-1}
                 aria-hidden="true"
-                className="w-[104px] min-h-11 flex flex-col items-center gap-0.5"
-                style={{ order: order[t] }}
+                className="absolute top-0 left-1/2 -ml-[52px] w-[104px] min-h-11 flex flex-col items-center gap-0.5 bg-card"
+                style={{ zIndex: on ? 2 : 1 }}
+                initial={false}
+                animate={{ x: (slot - 1) * geo.labelOffset }}
+                transition={SPRING.press}
               >
-                <span className={`text-label font-semibold ${on ? 'text-foreground' : 'text-muted-foreground'}`}>
+                <span className={`text-label font-semibold transition-colors ${on ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {tierName(tFallback, t)}
                 </span>
                 <span className="inline-flex items-center gap-1 text-caption text-muted-foreground tabular-nums">
@@ -185,8 +221,8 @@ export default function Capsules() {
                     ? tFallback('capsules.onShelf', '×{n} on shelf', { n })
                     : p != null && <><FlexCoinIcon size={13} />{fmt(p)}</>}
                 </span>
-                <span className={`w-5 h-0.5 rounded-full mt-0.5 ${on ? 'bg-foreground' : 'bg-transparent'}`} />
-              </button>
+                <span className={`w-5 h-0.5 rounded-full mt-0.5 bg-foreground transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
+              </motion.button>
             );
           })}
         </div>
@@ -200,31 +236,19 @@ export default function Capsules() {
         </p>
       </div>
 
-      <div className="pt-5 flex flex-col gap-2">
-        <div className="flex justify-between items-baseline">
-          <span className="text-label font-semibold">{tFallback('capsuleRarityOdds.dropRates', 'Drop rates')}</span>
-          <span className="text-caption text-muted-foreground">{tFallback('capsules.perOpen', 'per open')}</span>
-        </div>
-        <OddsBar segments={oddsSegments(current)} fmtPct={fmtPct} rarityLabel={(r) => rarityName(tFallback, r)} />
+      <div className="pt-5">
+        <OddsLadder tier={current} tiers={set?.tiers ?? null} owned={set?.ownedIds ?? null} fmtPct={fmtPct} />
       </div>
 
-      <div className="mt-4 pt-3 border-t flex flex-col gap-2">
-        {set && (
-          <Link to="/market/set" className="flex flex-col gap-2 min-h-11">
-            <span className="flex justify-between items-baseline text-label">
-              <span className="inline-flex items-center gap-0.5">
-                {tFallback('capsules.set.title', 'The sticker set')}
-                <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
-              </span>
-              <span className="tabular-nums text-muted-foreground">
-                {tFallback('capsules.set.stickersOf', '{owned} of {total} stickers', { owned: set.owned, total: set.total })}
-              </span>
-            </span>
-            <SetBar tiers={set.tiers} />
-          </Link>
-        )}
-        <PityMeter />
-      </div>
+      {set && (
+        <Link to="/market/set" className="mt-1 h-14 border-t flex items-center gap-3 text-label">
+          <SetFan items={set.fan} />
+          <span className="flex-1 min-w-0 tabular-nums text-muted-foreground">
+            {tFallback('capsules.set.inYourSet', '{owned} of {total} in your set', { owned: set.owned, total: set.total })}
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+        </Link>
+      )}
 
       {/* Pinned above the bottom nav. The spacer keeps the last line clear. */}
       <div className="h-6 shrink-0" />
@@ -276,4 +300,20 @@ export default function Capsules() {
       </div>
     </div>
   );
+}
+
+/**
+ * Shelf geometry for the current viewport height, recomputed on resize so the
+ * canisters keep the sizes the old CSS clamps gave them.
+ */
+const readShelfGeometry = () => shelfGeometry(typeof window === 'undefined' ? 800 : window.innerHeight);
+
+function useShelfGeometry() {
+  const [geo, setGeo] = useState(readShelfGeometry);
+  useEffect(() => {
+    const onResize = () => setGeo(readShelfGeometry());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return geo;
 }

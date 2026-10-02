@@ -67,6 +67,27 @@ export const RULES = {
     // wordmark, which is the brand mark rather than type.
     allow: ['src/components/hub/SnakeGameModal.jsx', 'src/components/SplashScreen.jsx'],
   },
+  monoFace: {
+    why: 'Every in-app screen is one face, Sofia Sans. Monospace is for strings read character by character (codes, secrets, barcodes, URLs); a number that should line up takes tabular-nums. Mono labels on a few screens made them read as built from a different kit (Kegan, 2026-10-02).',
+    re: /(?<![-\w])font-mono\b|var\(--font-mono\)/g,
+    // Each of these sets a code, secret, barcode, URL or typed confirmation
+    // in mono so it can be read and copied one character at a time, or is
+    // one of the two arcade games, whose HUD is a game look like Snake's.
+    allow: [
+      'src/components/gyms/GymSignageCard.jsx',
+      'src/components/TwoFactorSection.jsx',
+      'src/components/nutrition/BarcodeNotFoundModal.jsx',
+      'src/components/duels/CreateInviteLinkModal.jsx',
+      'src/components/ProfileMenu.jsx',
+      'src/pages/AdminReports.jsx',
+      'src/pages/AdminGyms.jsx',
+      'src/pages/MyGym.jsx',
+      'src/pages/CorporatePortal.jsx',
+      'src/pages/GymHub.jsx',
+      'src/components/hub/SweatJetpackModal.jsx',
+      'src/components/hub/HeavyBirdModal.jsx',
+    ],
+  },
   hoverMotion: {
     why: 'This app ships to phones. Hover motion does nothing on touch and jitters with a mouse.',
     re: /\bwhileHover\b|\bhover:(?:-?translate-[xy]|scale|rotate)-/g,
