@@ -44,6 +44,7 @@ import { MOOD_LABELS } from '@/lib/data/moodLogs';
 import { logMoodAction } from '@/lib/data/logMoodAction';
 import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
 import { ACTION_BY_LABEL } from '@/components/dashboard/ReadinessCard';
+import { LogStrip } from '@/components/today/TodayTraining';
 
 // A glass is 8 oz, the + sheet's small step and the unit the water rows in
 // nutrition_logs are written in most often.
@@ -121,7 +122,10 @@ function Row({ lead, title, value, children, onOpen, openLabel, trailing, done }
   );
 }
 
-export default function TodayLogCard({ userProfile = {}, readiness, onOpenReadiness }) {
+// `variant="strip"` is Today's row of five rings (option B, Kegan 2026-10-02):
+// the same data and the same loggers, drawn as a ring per signal. Water still
+// adds a glass in place and mood still opens its five choices under the row.
+export default function TodayLogCard({ userProfile = {}, readiness, onOpenReadiness, variant = 'card' }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -211,6 +215,57 @@ export default function TodayLogCard({ userProfile = {}, readiness, onOpenReadin
   }, [allLogged]);
 
   if (!user?.id) return null;
+
+  if (variant === 'strip') {
+    const items = [
+      { id: 'meals', share: calories / Math.max(1, calorieGoal), value: calories > 0 ? fmt(Math.round(countedCalories ?? calories)) : null },
+      { id: 'water', share: shownGlasses / glasses.total, value: `${fmt(shownGlasses)}/${fmt(glasses.total)}` },
+      { id: 'sleep', share: hours != null ? 1 : 0, value: hours != null ? `${fmt(hours)} h` : null },
+      { id: 'mood', share: mood != null ? 1 : 0, value: mood != null ? moodLabel(mood) : null },
+      { id: 'steps', share: (steps || 0) / STEP_REFERENCE, value: steps != null ? fmt(Math.round(countedSteps ?? steps)) : null },
+    ];
+    const onLog = (id) => {
+      if (id === 'meals') { triggerHaptic('primary'); navigate('/nutrition?openLogMeal=1'); }
+      else if (id === 'water') logGlass();
+      else if (id === 'sleep') onOpenReadiness?.(hours != null ? undefined : 'sleep');
+      else if (id === 'steps') onOpenReadiness?.('steps');
+      else if (id === 'mood') {
+        if (mood != null) onOpenReadiness?.('mood');
+        else { triggerHaptic('subtle'); setMoodOpen((o) => !o); }
+      }
+    };
+    return (
+      <div>
+        <LogStrip items={items} onLog={onLog} />
+        <AnimatePresence initial={false}>
+          {moodOpen && mood == null && (
+            <motion.div
+              key="moods"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="flex flex-wrap justify-center gap-1.5 pt-2" role="group"
+                aria-label={tFallback('mood.prompt', 'How are you feeling?')}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => pickMood(n)}
+                    className="rounded-full border border-border px-2.5 py-1 text-xs font-semibold hover:border-muted-foreground/60 active:scale-95 transition-[border-color,transform]"
+                  >
+                    {moodLabel(n)}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   const logLabel = tFallback('today.recovery.log', 'Log');
   const colors = readinessColors(readiness?.label);

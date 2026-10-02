@@ -18,8 +18,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getMyLeague } from '@/lib/data/leagues';
 import { getMyGymRival, getGymRivalWeekState, computeNetRating } from '@/lib/data/gymRival';
-import { getMyCrews } from '@/lib/data/crews';
-import { getActiveWarForCrew } from '@/lib/data/crewWars';
+import { fetchHeroCrewWar } from '@/lib/data/heroCrewWar';
 
 const FIVE_MIN = 5 * 60_000;
 
@@ -93,24 +92,7 @@ export function useHeroContests({ user, isSelf }) {
   // ── Crew war ──────────────────────────────────────────────────────────
   const { data: war } = useQuery({
     queryKey: ['heroCrewWar', user?.id],
-    queryFn: async () => {
-      try {
-        const crews = await getMyCrews(user.id);
-        const crewId = crews?.[0]?.id ?? crews?.[0]?.crew_id ?? null;
-        if (!crewId) return null;
-
-        const active = await getActiveWarForCrew(crewId);
-        if (!active) return null;
-
-        // crew_a_score/crew_b_score are keyed to crew_a_id/crew_b_id, not to the viewer.
-        const isCrewA = active.crew_a_id === crewId;
-        return {
-          crewId,
-          mine:   Number(isCrewA ? active.crew_a_score : active.crew_b_score) || 0,
-          theirs: Number(isCrewA ? active.crew_b_score : active.crew_a_score) || 0,
-        };
-      } catch { return null; }
-    },
+    queryFn: () => fetchHeroCrewWar(user.id),
     enabled,
     staleTime: FIVE_MIN,
   });

@@ -31,8 +31,11 @@ const CAPTION = 'kicker';
  * @param {object} props
  * @param {ReturnType<import('@/lib/focalGoal').weekSummary>} props.week
  * @param {React.ReactNode} [props.aside]  under the sentence (an action or a line)
+ * @param {string} [props.headline]  replaces the week sentence (the ring still says the week)
+ * @param {string} [props.detail]    replaces the line under it
+ * @param {React.ReactNode} [props.visual]  replaces the Monday to Sunday dots
  */
-export default function WeekFocal({ week, aside = null, className = '' }) {
+export default function WeekFocal({ week, aside = null, className = '', headline: headlineOver = null, detail: detailOver = null, visual = null }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const fmtDate = useDateFormatter();
@@ -46,8 +49,8 @@ export default function WeekFocal({ week, aside = null, className = '' }) {
   };
   const dayName = (i) => fmtDate(week.days[i].date, { weekday: 'long' });
 
-  const headline = t(weekHeadline(week));
-  const detail = t(weekDetail(week, (idx) => list(idx.map(dayName))));
+  const headline = headlineOver ?? t(weekHeadline(week));
+  const detail = detailOver ?? t(weekDetail(week, (idx) => list(idx.map(dayName))));
 
   let figure;
   if (!week.everTrained) {
@@ -91,7 +94,7 @@ export default function WeekFocal({ week, aside = null, className = '' }) {
 
   return (
     <FocalHero figure={figure} headline={headline} detail={detail} action={aside} className={className}>
-      <WeekDots days={week.days} />
+      {visual ?? <WeekDots days={week.days} />}
     </FocalHero>
   );
 }

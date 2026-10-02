@@ -41,6 +41,10 @@ const HeroPager = forwardRef(function HeroPager({
   dotsClassName = 'mt-5',
   dotLabel,
   wrap = false,
+  // Today turns this off: its first slide is the page's focal goal, and a
+  // focal point that leaves on a timer is the reason the old Today carousel
+  // was removed (#135). Swipes and dots still page it.
+  autoRotate = true,
 }, ref) {
   const { tFallback } = useLanguage();
   const [idx, setIdx] = useState(0);
@@ -57,14 +61,14 @@ const HeroPager = forwardRef(function HeroPager({
   // TDZ note. Assigned on every render once page() exists.
   const pageRef = useRef(null);
   useEffect(() => {
-    if (paused || slides.length <= 1) return;
+    if (!autoRotate || paused || slides.length <= 1) return;
     // Through page() rather than setIdx so a rotation GLIDES like a swipe.
     // Committing the index alone would cut straight to the next slide, and
     // a carousel that cuts on its own but glides under the thumb reads as
     // two different components sharing one card.
     const t = setTimeout(() => pageRef.current?.(1), rotateMs);
     return () => clearTimeout(t);
-  }, [idx, paused, slides.length, rotateMs]);
+  }, [idx, paused, slides.length, rotateMs, autoRotate]);
 
   // Pause the rotation without moving the slide. Auto-rotate used to be
   // paused only when the user hit a dot or a chevron, so reaching for a

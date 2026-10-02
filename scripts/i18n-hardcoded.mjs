@@ -30,6 +30,8 @@ const SKIP_PATHS = [
   'src/lib/push-sw.js',          // service worker, no UI
   'src/lib/analytics',           // event names
   'src/api/',                    // network layer; errors are mapped in UI
+  'src/pages/TodayHeroPreview.jsx', // test bench, deploy previews only
+  'src/pages/TodayPagePreview.jsx', // test bench, deploy previews only
 ];
 
 // A literal is user-visible chrome only if it reads like prose: starts with a

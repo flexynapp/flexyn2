@@ -89,6 +89,8 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 // bootstrap — lazy-loading them would introduce a visible loading flash).
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const TodayHeroPreview = lazy(() => import('./pages/TodayHeroPreview'));
+const TodayPagePreview = lazy(() => import('./pages/TodayPagePreview'));
 const RankUpPreview = lazy(() => import('./pages/RankUpPreview'));
 const CapsuleOpenPreview = lazy(() => import('./pages/CapsuleOpenPreview'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
@@ -194,6 +196,23 @@ const AuthenticatedApp = () => {
         <Route path="/p/gym/:id" element={<PublicGymLanding />} />
         <Route path="*" element={<PublicGymLanding />} />
       </Routes>
+    );
+  }
+
+  // Today page test bench: deploy previews and localhost only, never
+  // production, and never the native app. Shows the hero carousel and the
+  // whole-page layout options with sample data. See
+  // src/pages/TodayHeroPreview.jsx and src/pages/TodayPagePreview.jsx.
+  if (typeof window !== 'undefined' && !isNative()
+      && (window.location.pathname === '/preview/today-hero' || window.location.pathname === '/preview/today-page')
+      && (window.location.hostname.startsWith('deploy-preview-') || window.location.hostname === 'localhost')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/preview/today-page" element={<TodayPagePreview />} />
+          <Route path="*" element={<TodayHeroPreview />} />
+        </Routes>
+      </Suspense>
     );
   }
 

@@ -6,8 +6,9 @@
 // a war is actually running: no crew, no war, or a failed lookup all look
 // the same, which is no card at all.
 //
-// The query shares its key and shape with the profile hero's crew-war pill
-// (useHeroContests), so the two never disagree and one fetch serves both.
+// The query shares its key and fetcher (heroCrewWar.js) with the profile
+// hero's crew-war pill and Today's hero carousel, so they never disagree
+// and one fetch serves all three.
 // Tapping opens the crew in Social through router state, the hand-off Hub
 // already consumes (location.state.openCrewId).
 
@@ -18,8 +19,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
-import { getMyCrews } from '@/lib/data/crews';
-import { getActiveWarForCrew } from '@/lib/data/crewWars';
+import { fetchHeroCrewWar } from '@/lib/data/heroCrewWar';
 
 export function warLine(war, tFallback, fmt) {
   const vars = { mine: fmt(war.mine), theirs: fmt(war.theirs) };
@@ -36,21 +36,7 @@ export default function CrewWarGlance() {
 
   const { data: war } = useQuery({
     queryKey: ['heroCrewWar', user?.id],
-    queryFn: async () => {
-      try {
-        const crews = await getMyCrews(user.id);
-        const crewId = crews?.[0]?.id ?? crews?.[0]?.crew_id ?? null;
-        if (!crewId) return null;
-        const active = await getActiveWarForCrew(crewId);
-        if (!active) return null;
-        const isCrewA = active.crew_a_id === crewId;
-        return {
-          crewId,
-          mine:   Number(isCrewA ? active.crew_a_score : active.crew_b_score) || 0,
-          theirs: Number(isCrewA ? active.crew_b_score : active.crew_a_score) || 0,
-        };
-      } catch { return null; }
-    },
+    queryFn: () => fetchHeroCrewWar(user.id),
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
