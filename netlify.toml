@@ -1,6 +1,13 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  # Every Netlify build costs money, so skip one when nothing the web bundle
+  # is built from changed: the database and Edge Functions (supabase/, which
+  # deploy through the Supabase integration), docs, audit notes and the
+  # top-level Markdown files. Netlify skips the build when this exits 0;
+  # `git diff --quiet` exits 0 when no file outside these paths changed. On a
+  # first build CACHED_COMMIT_REF is unset, the diff errors, and it builds.
+  ignore = "git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- . ':(exclude)supabase/' ':(exclude)docs/' ':(exclude)audit-findings/' ':(exclude,glob)*.md'"
 
 # Environment variables are set in the Netlify dashboard:
 # Site configuration → Environment variables → Add variables:
