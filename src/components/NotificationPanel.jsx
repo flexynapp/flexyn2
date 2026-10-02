@@ -23,7 +23,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup, useDragControls } from 'framer-motion';
 import {
   X, Bell as BellIcon, MailOpen, Trash2, AlertCircle, RotateCw,
   MoreHorizontal, Settings as SettingsIcon,
@@ -43,7 +43,7 @@ import { formatNotificationTime, groupByDay, BUCKET } from '@/lib/notificationTi
 import { actorKey, actorRefOf, collectActorRefs } from '@/lib/notificationActor';
 import { iconFor, stripLeadingEmoji } from '@/lib/notificationIcon';
 import NotificationNowCard from '@/components/notifications/NotificationNowCard';
-import { DURATION, EASE_IN, TIER } from '@/lib/motion';
+import { DURATION, EASE_IN, EASE_OUT, SPRING, TIER } from '@/lib/motion';
 
 const PAGE_SIZE = 50;
 
@@ -253,6 +253,21 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     });
   }, [open, filter, rows, seenIds]);
 
+  // Opening a tab records its rows as seen in the SAME render as the tab
+  // change. Left to the effect above it costs a second full render of the
+  // list on the tap's first frame, which is the frame that has to be fast.
+  const selectTab = useCallback((id) => {
+    setFilter(id);
+    if (id === 'all') return;
+    setSeenIds(prev => {
+      const fresh = rows.filter(r => !r.is_read && matchesFilter(r.type, id) && !prev.has(r.id));
+      if (fresh.length === 0) return prev;
+      const next = new Set(prev);
+      for (const r of fresh) next.add(r.id);
+      return next;
+    });
+  }, [rows]);
+
   const unreadByFilter = useMemo(() => {
     const unread = rows.filter(r => !r.is_read && !seenIds.has(r.id));
     const out = {};
@@ -295,6 +310,13 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     };
   })();
 
+  // Rows are memoised, so the handlers they receive must keep their
+  // identity across renders. Each reads the latest closure through a ref.
+  const rowClickRef = useRef(null);
+  const rowDeleteRef = useRef(null);
+  const onRowClick = useCallback((n) => rowClickRef.current?.(n), []);
+  const onRowDelete = useCallback((id) => rowDeleteRef.current?.(id), []);
+
   const handleRowClick = (n) => {
     if (!n.is_read) {
       notifications.markRead(n.id)
@@ -313,6 +335,8 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
       navigate(n.link_url);
     }
   };
+
+  rowClickRef.current = handleRowClick;
 
   const handleDelete = async (id) => {
     if (!id || deletingIds.has(id)) return;
@@ -335,6 +359,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
     });
     queryClient.invalidateQueries({ queryKey: ['notificationsUnread', uid] });
   };
+  rowDeleteRef.current = handleDelete;
 
   const handleClearAll = async () => {
     setConfirmClear(false);
@@ -463,44 +488,59 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
 
             {/* ── Filters ── a plain tab strip. The row of filled pills with
                 totals read as clutter and the totals said nothing. */}
-            <div
-              role="group"
-              aria-label={tFallback('notifications.filter', 'Filter notifications')}
-              className="flex gap-6 px-4 overflow-x-auto scrollbar-hide border-b border-border shrink-0"
-            >
-              {FILTERS.map(f => {
-                const on = filter === f.id;
-                const n = unreadByFilter[f.id] ?? 0;
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setFilter(f.id)}
-                    aria-pressed={on}
-                    className={`shrink-0 h-11 inline-flex items-center gap-2 border-b-2 -mb-px text-label font-semibold transition-colors ${
-                      on ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {tFallback(f.labelKey, f.label)}
-                    {/* An answer-tier exit: the count shrinks away under the
-                        tap that cleared it, rather than blinking out. */}
-                    <AnimatePresence initial={false}>
-                      {n > 0 && (
+            {/* Tabs move on the compositor only. The underline is one element
+                that slides between tabs (a transform), a count leaves by
+                scale and opacity while popLayout takes it out of flow at
+                once, and the labels after it slide over by transform too.
+                Nothing here animates width, height or colour per frame. */}
+            <LayoutGroup id="notification-tabs">
+              <div
+                role="group"
+                aria-label={tFallback('notifications.filter', 'Filter notifications')}
+                className="flex gap-6 px-4 overflow-x-auto scrollbar-hide border-b border-border shrink-0"
+              >
+                {FILTERS.map(f => {
+                  const on = filter === f.id;
+                  const n = unreadByFilter[f.id] ?? 0;
+                  return (
+                    <motion.button
+                      layout="position"
+                      transition={SPRING.settle}
+                      key={f.id}
+                      type="button"
+                      onClick={() => selectTab(f.id)}
+                      aria-pressed={on}
+                      className={`relative shrink-0 h-11 inline-flex items-center gap-2 text-label font-semibold transition-colors duration-150 ${
+                        on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {tFallback(f.labelKey, f.label)}
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {n > 0 && (
+                          <motion.span
+                            key="count"
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1, transition: TIER.answer.spring }}
+                            exit={{ scale: 0.6, opacity: 0, transition: { duration: DURATION.fast, ease: EASE_IN } }}
+                            className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold tabular-nums inline-flex items-center justify-center"
+                          >
+                            {n > 9 ? '9+' : n}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                      {on && (
                         <motion.span
-                          key="count"
-                          initial={{ scale: 0.6, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1, transition: TIER.answer.spring }}
-                          exit={{ scale: 0.6, opacity: 0, transition: { duration: DURATION.fast, ease: EASE_IN } }}
-                          className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold tabular-nums inline-flex items-center justify-center"
-                        >
-                          {n > 9 ? '9+' : n}
-                        </motion.span>
+                          layoutId="notification-tab-underline"
+                          transition={SPRING.settle}
+                          aria-hidden="true"
+                          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
+                        />
                       )}
-                    </AnimatePresence>
-                  </button>
-                );
-              })}
-            </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
 
             {/* ── List ── */}
             <div
@@ -545,7 +585,17 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                   }
                 />
               ) : (
-                <>
+                // Keyed by tab, so a switch mounts the new list fresh and it
+                // rises in by opacity and transform. The old list leaves at
+                // once instead of collapsing every row it no longer shows
+                // (each row animates height on exit, which is layout work on
+                // every frame, a dozen rows at a time).
+                <motion.div
+                  key={filter}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: DURATION.base, ease: EASE_OUT }}
+                >
                   {groups.map(g => (
                     <section key={g.bucket} aria-label={tFallback(...BUCKET_LABEL[g.bucket])}>
                       <h3 className="eyebrow flex items-center px-4 h-7">
@@ -560,8 +610,8 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                               actor={actors[actorKey(actorRefOf(n))]}
                               rtl={rtl}
                               language={language}
-                              onClick={() => handleRowClick(n)}
-                              onDelete={() => handleDelete(n.id)}
+                              onClick={onRowClick}
+                              onDelete={onRowDelete}
                               deleting={deletingIds.has(n.id)}
                               deleteLabel={tFallback('notifications.delete', 'Delete')}
                             />
@@ -581,7 +631,7 @@ export default function NotificationPanel({ open, onClose, unreadAtOpen = 0 }) {
                       </button>
                     </div>
                   )}
-                </>
+                </motion.div>
               )}
             </div>
 
@@ -759,7 +809,7 @@ function EmptyBlock({ Icon, title, desc, action, tone }) {
 //
 // The row's own delete button is gone. It was a 26px target pinned
 // bottom-end, inside the region a thumb uses to tap the row itself.
-function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting, deleteLabel }) {
+const NotificationRow = React.memo(function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting, deleteLabel }) {
   const { tFallback } = useLanguage();
   // Rebuilt from `type` + `metadata` in the READER's language where we can,
   // falling back to the stored text otherwise. See src/lib/notificationText.js
@@ -801,7 +851,7 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
         dragElastic={0.15}
         onDragEnd={(_, info) => {
           const travelled = rtl ? info.offset.x : -info.offset.x;
-          if (travelled > threshold) onDelete();
+          if (travelled > threshold) onDelete(n.id);
         }}
         whileDrag={{ cursor: 'grabbing' }}
         className="group relative bg-card"
@@ -809,8 +859,8 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
         <div
           role="button"
           tabIndex={0}
-          onClick={onClick}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+          onClick={() => onClick(n)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(n); } }}
           className={`relative flex items-start gap-2 px-4 py-4 text-start transition-colors hover:bg-secondary/40 active:bg-secondary/40 cursor-pointer ${
             deleting ? 'opacity-50 pointer-events-none' : ''
           }`}
@@ -846,7 +896,7 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
             when it is there, against the 26px one it replaces. */}
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={(e) => { e.stopPropagation(); onDelete(n.id); }}
           aria-label={deleteLabel}
           disabled={deleting}
           className="absolute top-1/2 -translate-y-1/2 end-1 h-11 w-11 inline-flex items-center justify-center rounded-lg bg-card text-muted-foreground opacity-0 pointer-events-none transition-opacity [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:text-destructive active:text-destructive"
@@ -857,7 +907,7 @@ function NotificationRow({ n, actor, rtl, language, onClick, onDelete, deleting,
       <div className="h-px bg-border/60 ms-[68px]" />
     </motion.li>
   );
-}
+});
 
 // The row's leading tile. When another person is behind the row it is them:
 // their picture, or their initial when they have none, with the type's icon

@@ -43,11 +43,12 @@ const navigate = vi.fn();
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
+  LayoutGroup: ({ children }) => children,
   useDragControls: () => ({ start: vi.fn() }),
   motion: new Proxy({}, {
     get: (_t, tag) => ({ children, ...p }) => {
       const {
-        initial, animate, exit, transition, layout, drag, dragControls, dragConstraints,
+        initial, animate, exit, transition, layout, layoutId, drag, dragControls, dragConstraints,
         dragElastic, dragListener, dragDirectionLock, onDragEnd, whileDrag, whileTap, ...rest
       } = p;
       return React.createElement(String(tag), rest, children);
