@@ -131,7 +131,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                       <button
                         type="button"
                         onClick={handleDismiss}
-                        className="text-micro font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1"
+                        className="kicker hover:text-foreground active:text-foreground px-2 py-1"
                       >
                         {tFallback('workout.tutorial.skip', 'Skip')}
                       </button>

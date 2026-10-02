@@ -121,7 +121,10 @@ describe('display type', () => {
       for (const m of read(f).matchAll(/(["'`])((?:(?!\1)[^\n])*?\buppercase\b(?:(?!\1)[^\n])*?)\1/g)) {
         const toks = m[2].replace(/\$\{[^}]*\}/g, ' ').split(/\s+/);
         const small = toks.some((t) => /^text-(?:micro|caption|xs|label|\[\d+px\])$/.test(t));
-        const chip = toks.some((t) => /^(?:bg-|border|rounded|px-|py-|p-\d)/.test(t));
+        // A chip is a SHAPE: a fill, an outline or a rounded edge. Padding
+        // alone is not one, which is how the Settings group headings
+        // (px-1, nothing else) passed as chips while reading as labels.
+        const chip = toks.some((t) => /^(?:bg-|rounded|border(?:$|-(?![bltrsexy]-|[bltrsexy]$)))/.test(t));
         if (small && !chip) offenders.push(`${f}: ${m[2].slice(0, 80)}`);
       }
     }

@@ -155,7 +155,7 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
 
       {grouped.map(([type, items]) => (
         <div key={type}>
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
+          <p className="eyebrow px-1 mb-1.5">
             {implementTypeLabel(type, tFallback)}
           </p>
           <div className="space-y-1.5">

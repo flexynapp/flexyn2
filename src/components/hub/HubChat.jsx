@@ -1991,7 +1991,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             <div className="flex items-center justify-end gap-2 mt-2">
               <button
                 onClick={() => { setScheduleOpen(false); setScheduleAt(''); }}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                className="kicker px-3 py-1.5"
               >
                 {tFallback("coach.plan.cancel", "Cancel")}
               </button>

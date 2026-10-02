@@ -374,9 +374,9 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <button
               type="button"
               onClick={() => setShowMicros(s => !s)}
-              className="w-full flex items-center justify-between px-1 py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+              className="eyebrow w-full flex items-center justify-between px-1 py-1 hover:text-foreground active:text-foreground transition-colors"
             >
-              {tFallback("nutrition.vitaminsAndMinerals", "Vitamins & Minerals")}
+              {tFallback("nutrition.vitaminsAndMinerals", "Vitamins & minerals")}
               <ChevronDown className={`w-4 h-4 transition-transform ${showMicros ? 'rotate-180' : ''}`} />
             </button>
             {showMicros && (

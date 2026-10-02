@@ -146,7 +146,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
       )}
 
       {/* Split column headers */}
-      <div className="flex items-center gap-2 text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
+      <div className="kicker flex items-center gap-2 px-1 mb-1">
         {segments.length > 1 && <span className="w-6 text-center">#</span>}
         <span className="flex-1 text-center">Duration (min)</span>
         <span className="flex-1 text-center">Distance ({distanceUnit})</span>

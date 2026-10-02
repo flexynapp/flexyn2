@@ -1538,7 +1538,7 @@ export default function HubComposer({ onClose }) {
         <button
           type="button"
           onClick={() => setCwPickerOpen(o => !o)}
-          className={`text-micro font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
+          className={`kicker flex items-center gap-1.5 py-1 transition-colors ${
             cwType ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
@@ -1750,7 +1750,7 @@ function Section({ title, count, defaultOpen = false, alwaysOpen = false, childr
   if (alwaysOpen) {
     return (
       <div>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-4 mb-2 px-2">
+        <h3 className="eyebrow mt-4 mb-2 px-2">
           {title}
         </h3>
         <div className="space-y-1.5">{children}</div>
