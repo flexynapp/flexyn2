@@ -2473,6 +2473,8 @@
   "gymHub.leaveFailed": "No se pudo salir. Inténtalo de nuevo.",
   "gymHub.left": "Has salido del gimnasio.",
   "gymHub.locationNotePlaceholder": "Nota de ubicación (p. ej. Rack de sentadillas 3)",
+  "gymHub.memberWord.one": "miembro",
+  "gymHub.memberWord.other": "miembros",
   "gymHub.needTitleAndStart": "Añade un título y una hora de inicio antes de crear el evento.",
   "gymHub.newEvent": "Nuevo evento",
   "gymHub.noEventsScheduled": "No hay eventos programados",

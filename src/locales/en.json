@@ -2476,6 +2476,8 @@
   "gymHub.leaveFailed": "Could not leave. Try again.",
   "gymHub.left": "Left gym.",
   "gymHub.locationNotePlaceholder": "Location note (e.g. Squat rack 3)",
+  "gymHub.memberWord.one": "member",
+  "gymHub.memberWord.other": "members",
   "gymHub.needTitleAndStart": "Add a title and start time before creating the event.",
   "gymHub.newEvent": "New event",
   "gymHub.noEventsScheduled": "No events scheduled",
