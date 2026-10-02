@@ -23,15 +23,9 @@ import { translateExerciseName } from '@/lib/exerciseTranslations';
 import { MIN_SPAN_DAYS } from '@/lib/heroTrends';
 import FocalHero from '@/components/glance/FocalHero';
 import TrendGraph, { HEIGHT as GRAPH_HEIGHT } from '@/components/glance/TrendGraph';
+import { IconRing } from '@/components/glance/GlanceFocals';
+import { TrendingUp, Scale } from 'lucide-react';
 
-const NUMERAL = 'font-display tabular-nums text-foreground leading-none';
-const NUMERAL_SIZE = { fontSize: 'clamp(2.25rem, 11vw, 2.75rem)' };
-// Sentence case, no tracking: the label rule (Kegan, 2-Oct). Becomes .kicker
-// once that class lands with the font rule.
-const CAPTION = 'text-label font-medium text-muted-foreground';
-// Same column as FocalRing's default size, so the sentence starts at the
-// same x on every slide and does not jump as the pages turn.
-const FIGURE_W = 132;
 
 const isToday = (t) => new Date(t).toDateString() === new Date().toDateString();
 
@@ -60,15 +54,8 @@ export default function TrendFocal({ trend, active }) {
 
   if (!trend.ready) {
     const enoughPoints = trend.have >= trend.need;
-    const figure = (
-      <div className="shrink-0 flex flex-col items-start" style={{ width: FIGURE_W }}>
-        <span className={NUMERAL} style={NUMERAL_SIZE}>
-          {fmt(Math.min(trend.have, trend.need))}
-          <span className="text-muted-foreground" style={{ fontSize: '0.6em' }}>/{fmt(trend.need)}</span>
-        </span>
-        <span className={`${CAPTION} mt-2`}>{tFallback('dashboard.trend.caption.sessions', 'Sessions')}</span>
-      </div>
-    );
+    // The arc fills a third per session logged, as the slots under it do.
+    const figure = <IconRing icon={TrendingUp} share={trend.have / trend.need} label={tFallback('dashboard.trend.empty.ringAria', '{have} of {need} sessions', { have: fmt(Math.min(trend.have, trend.need)), need: fmt(trend.need) })} />;
     const headline = enoughPoints
       ? tFallback('dashboard.trend.empty.spanHeadline', 'Your strength line needs a bit more time.')
       : tFallback('dashboard.trend.empty.headline', 'Your strength line starts after 3 sessions.');
@@ -106,22 +93,19 @@ export default function TrendFocal({ trend, active }) {
   }
   headline = tidy(headline);
 
+  // The figure used to be today's value; with the icon there, it leads the
+  // quieter line instead.
+  const now = tFallback('dashboard.trend.now', 'Now {value}.', { value: current });
   const detail = trend.projection
-    ? tidy(tFallback('dashboard.trend.onPace', 'On pace for {value} by {date}.', {
+    ? tidy(`${now} ${tFallback('dashboard.trend.onPace', 'On pace for {value} by {date}.', {
       value: withUnit(trend.projection.v),
       date: shortDate(trend.projection.t),
-    }))
-    : null;
+    })}`)
+    : now;
 
-  const figure = (
-    <div className="shrink-0 flex flex-col items-start" style={{ width: FIGURE_W }}>
-      <span className={`${NUMERAL} whitespace-nowrap`} style={NUMERAL_SIZE}>
-        {num(trend.last.v)}
-        <span className="text-muted-foreground" style={{ fontSize: '0.45em' }}> {weightUnit}</span>
-      </span>
-      <span className={`${CAPTION} mt-2`}>{caption}</span>
-    </div>
-  );
+  // Strength opens Progress and weight is the Log weight row, so each
+  // takes that menu's icon. A trend has no target, so the ring is track only.
+  const figure = <IconRing icon={trend.kind === 'weight' ? Scale : TrendingUp} label={`${caption}: ${current}`} />;
 
   return (
     <FocalHero figure={figure} headline={headline} detail={detail}>

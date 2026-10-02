@@ -18,7 +18,7 @@
 
 import React, { useContext, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, Target, Swords, Apple, ListChecks, Flag, CalendarDays } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter, useDateFormatter, formatDuration } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -26,31 +26,34 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { goalTitle, goalTargetLabel } from '@/lib/goalProgress';
 import FocalHero from '@/components/glance/FocalHero';
+import FocalRing from '@/components/glance/FocalRing';
 import {
   HEIGHT as VISUAL_H, DRAW_S, SETTLE_WAIT_S, DRAW_EASE, TrendTimeScale,
 } from '@/components/glance/TrendGraph';
 
-const NUMERAL = 'font-display tabular-nums text-foreground leading-none whitespace-nowrap';
-const NUMERAL_SIZE = { fontSize: 'clamp(2.25rem, 11vw, 2.75rem)' };
-// Sentence case, no tracking: the label rule (Kegan, 2-Oct). Becomes .kicker
-// once that class lands with the font rule.
-const CAPTION = 'text-label font-medium text-muted-foreground';
-const FIGURE_W = 132;
 const ROW_LABEL = 'text-micro text-muted-foreground truncate';
 const ROW_VALUE = 'text-micro font-semibold text-foreground tabular-nums whitespace-nowrap';
 
-/** The big number and its caption, in the same column on every slide. */
-export function Figure({ value, unit, caption }) {
+/**
+ * The figure on every slide past the week: the menu icon of the screen the
+ * slide stands for (Kegan, 2-Oct), in the ring the week slide uses, so the
+ * left column reads the same on every page. The arc fills to the slide's
+ * own share (eaten of target, quests done, your side of a contest) the
+ * first time the slide is on screen; a slide with no share shows the track.
+ * Duels, Crew Wars and Nutrition use their menu icons. Quests, goals and
+ * the weekly pattern have no menu row of their own, so they take the icon
+ * nearest their meaning that no menu row already claims.
+ */
+export function IconRing({ icon: Icon, share = null, played = true, label }) {
+  const s = typeof share === 'number' && Number.isFinite(share) ? Math.max(0, Math.min(1, share)) : null;
   return (
-    <div className="shrink-0 flex flex-col items-start" style={{ width: FIGURE_W }}>
-      <span className={NUMERAL} style={NUMERAL_SIZE}>
-        {value}
-        {unit && <span className="text-muted-foreground" style={{ fontSize: '0.45em' }}> {unit}</span>}
-      </span>
-      <span className={`${CAPTION} mt-2`}>{caption}</span>
-    </div>
+    <FocalRing share={s == null ? null : (played ? s : 0)} label={label}>
+      <Icon className="w-12 h-12 text-primary" strokeWidth={1.75} aria-hidden="true" />
+    </FocalRing>
   );
 }
+
+const shareOf = (a, b) => (a + b > 0 ? a / (a + b) : null);
 
 // Plays once: the first time the slide is on screen. Paging back to it
 // shows the finished bars, as the trend line does.
@@ -103,8 +106,9 @@ export function FuelFocal({ fuel, active }) {
     : over
       ? tFallback('dashboard.glance.fuel.over', '{n} kcal over your target.', { n: fmt(-fuel.left) })
       : tFallback('dashboard.glance.fuel.eaten', '{eaten} of {goal} kcal eaten.', { eaten: fmt(fuel.calories), goal: fmt(fuel.goal) });
-  // No detail line: the macro rows under the bar already say it.
-  const detail = null;
+  // What is left is the one number the macro rows do not already say.
+  const detail = fuel.calories === 0 ? null : over ? null
+    : tFallback('dashboard.glance.fuel.left', '{n} kcal left.', { n: fmt(fuel.left) });
 
   const macros = [
     { key: 'protein', label: tFallback('dashboard.glance.fuel.proteinLabel', 'Protein'), color: 'bg-chart-1', ...fuel.protein },
@@ -114,21 +118,15 @@ export function FuelFocal({ fuel, active }) {
 
   return (
     <FocalHero
-      figure={<Figure
-        value={fmt(Math.abs(fuel.left))}
-        caption={over
-          ? tFallback('dashboard.glance.fuel.captionOver', 'kcal over')
-          : tFallback('dashboard.glance.fuel.captionLeft', 'kcal left')}
-      />}
+      figure={<IconRing icon={Apple} share={fuel.calories / Math.max(1, fuel.goal)} played={played} label={headline} />}
       headline={headline}
       detail={detail}
     >
       <Visual label={[headline, detail].filter(Boolean).join(' ')}>
-        <Bar pct={(fuel.calories / Math.max(1, fuel.goal)) * 100} played={played} thick color="bg-primary" />
         {macros.map((m, i) => (
           <div key={m.key} className="grid items-center gap-2" style={{ gridTemplateColumns: '5.5rem 1fr auto' }}>
             <span className={ROW_LABEL}>{m.label}</span>
-            <Bar pct={(m.have / Math.max(1, m.target)) * 100} played={played} color={m.color} order={i + 1} />
+            <Bar pct={(m.have / Math.max(1, m.target)) * 100} played={played} color={m.color} order={i} />
             <span className={ROW_VALUE}>{fmt(m.have)}<span className="text-muted-foreground font-normal">/{fmt(m.target)} g</span></span>
           </div>
         ))}
@@ -139,19 +137,16 @@ export function FuelFocal({ fuel, active }) {
 
 // ── Contests: a duel and the crew war share one shape ────────────────────
 
-function ContestFocal({ caption, mine, theirs, myLabel, theirLabel, headline, detail, active, formatValue }) {
-  const fmt = useNumberFormatter();
+function ContestFocal({ icon, mine, theirs, myLabel, theirLabel, headline, detail, active, formatValue }) {
   const played = usePlayed(active);
   const top = Math.max(mine, theirs, 1);
-  const margin = mine - theirs;
-  const sign = margin > 0 ? '+' : margin < 0 ? '−' : '';
   const rows = [
     { key: 'me', label: myLabel, value: mine, color: 'bg-primary' },
     { key: 'them', label: theirLabel, value: theirs, color: 'bg-muted-foreground/50' },
   ];
   return (
     <FocalHero
-      figure={<Figure value={`${sign}${fmt(Math.abs(margin))}`} caption={caption} />}
+      figure={<IconRing icon={icon} share={shareOf(mine, theirs)} played={played} label={headline} />}
       headline={headline}
       detail={detail}
     >
@@ -187,7 +182,7 @@ export function DuelFocal({ duel, active }) {
   if (duel.pending) {
     return (
       <ContestFocal
-        caption={tFallback('dashboard.glance.duel.caption', 'Duel')}
+        icon={Target}
         mine={0} theirs={0}
         myLabel={tFallback('dashboard.glance.you', 'You')} theirLabel={Name}
         headline={tFallback('dashboard.glance.duel.pending', '{name} challenged you to a duel.', { name: Name })}
@@ -207,7 +202,7 @@ export function DuelFocal({ duel, active }) {
       : tFallback('dashboard.glance.duel.tied', 'Level with {name}.', { name });
   return (
     <ContestFocal
-      caption={tFallback('dashboard.glance.duel.caption', 'Duel')}
+      icon={Target}
       mine={toUnit(duel.mine)} theirs={toUnit(duel.theirs)}
       myLabel={tFallback('dashboard.glance.you', 'You')} theirLabel={Name}
       headline={headline}
@@ -234,7 +229,7 @@ export function WarFocal({ war, active }) {
     : null;
   return (
     <ContestFocal
-      caption={tFallback('dashboard.glance.war.caption', 'Crew war')}
+      icon={Swords}
       mine={war.mine} theirs={war.theirs}
       myLabel={crew} theirLabel={tFallback('dashboard.glance.war.rivalCrew', 'Rival crew')}
       headline={headline}
@@ -277,10 +272,7 @@ export function QuestsFocal({ quests, active }) {
 
   return (
     <FocalHero
-      figure={<Figure
-        value={<>{fmt(quests.done)}<span className="text-muted-foreground" style={{ fontSize: '0.6em' }}>/{fmt(quests.total)}</span></>}
-        caption={tFallback('dashboard.glance.quests.caption', 'Quests')}
-      />}
+      figure={<IconRing icon={ListChecks} share={quests.done / Math.max(1, quests.total)} played={played} label={`${headline} ${fmt(quests.done)}/${fmt(quests.total)}`} />}
       headline={headline}
       detail={detail}
     >
@@ -320,15 +312,12 @@ export function GoalFocal({ goal, active }) {
 
   const headline = title;
   const detail = goal.activeCount > 1
-    ? tFallback('dashboard.glance.goal.closest', 'Your closest of {n} goals.', { n: fmt(goal.activeCount) })
-    : null;
+    ? tFallback('dashboard.glance.goal.pctOfMany', '{pct}% there, your closest of {n} goals.', { pct: fmt(pct), n: fmt(goal.activeCount) })
+    : tFallback('dashboard.glance.goal.pct', '{pct}% there.', { pct: fmt(pct) });
 
   return (
     <FocalHero
-      figure={<Figure
-        value={<>{fmt(pct)}<span className="text-muted-foreground" style={{ fontSize: '0.6em' }}>%</span></>}
-        caption={tFallback('dashboard.glance.goal.caption', 'Goal')}
-      />}
+      figure={<IconRing icon={Flag} share={goal.progress / 100} played={played} label={`${headline} ${pct}%`} />}
       headline={headline}
       detail={detail}
     >
@@ -354,7 +343,6 @@ export function PatternFocal({ pattern, active }) {
   const reduce = useReducedMotion();
   const k = useContext(TrendTimeScale) || 1;
   const longDay = (i) => fmtDate(weekdayDate(i), { weekday: 'long' });
-  const shortDay = (i) => fmtDate(weekdayDate(i), { weekday: 'short' }).replace(/\.$/, '');
   const narrowDay = (i) => fmtDate(weekdayDate(i), { weekday: 'narrow' });
   const max = Math.max(...pattern.counts, 1);
   const top = pattern.topDays;
@@ -378,12 +366,7 @@ export function PatternFocal({ pattern, active }) {
 
   return (
     <FocalHero
-      figure={<Figure
-        value={top.length ? capital(shortDay(top[0])) : fmt(pattern.perWeek)}
-        caption={top.length
-          ? tFallback('dashboard.glance.pattern.caption', 'Top day')
-          : tFallback('dashboard.glance.pattern.captionPerWeek', 'A week')}
-      />}
+      figure={<IconRing icon={CalendarDays} label={capital(headline)} />}
       headline={capital(headline)}
       detail={detail}
     >

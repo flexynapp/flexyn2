@@ -241,10 +241,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'onboarding.weight.unitKg',
   ]),
   fr: new Set([
-    // Today hero: "pts" is the French points abbreviation too, and "Duel"
-    // is the French word (duels.title already reads Duels).
+    // Today hero: "pts" is the French points abbreviation too.
     'dashboard.glance.war.points',
-    'dashboard.glance.duel.caption',
     // "Spam" and "story" are the words French uses (the app's own fr copy
     // already says "une story").
     'reportPlayer.reason.spam',
