@@ -278,7 +278,12 @@ BEGIN
     PERFORM public.claim_capsule_loot(cap);
     v_refused := FALSE;
     BEGIN
-      UPDATE public.user_capsules SET rolled_rarity = 'legendary' WHERE id = cap;
+      -- Always a different value: the roll above is random, and forging the
+      -- rarity it already landed on changes nothing, so the guard would
+      -- rightly stay quiet and this probe would fail now and then.
+      UPDATE public.user_capsules
+         SET rolled_rarity = CASE WHEN rolled_rarity = 'legendary' THEN 'common' ELSE 'legendary' END
+       WHERE id = cap;
     EXCEPTION WHEN insufficient_privilege THEN v_refused := TRUE;
     END;
     IF NOT v_refused THEN RAISE EXCEPTION 'probe: client could rewrite rolled_rarity'; END IF;
